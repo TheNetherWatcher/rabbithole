@@ -7,7 +7,7 @@ description: Deep, web-researched dive into ONE random non-trivial CS topic (ML/
 
 One CS topic. All the way down. Researched from the web, explained in chat, saved to the repo.
 
-Repo root: `/Users/bharatkaurav/Documents/random` (GitHub: `TheNetherWatcher/rabbithole`, private).
+All files live in the current working directory (the repo root): `history.md` is here, dives go in `dives/`, blog posts in `blog/`. Never read or write history anywhere else.
 
 ## Invocation
 
