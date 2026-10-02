@@ -13,8 +13,8 @@ All files live in the current working directory (the repo root): `history.md` is
 
 | Command | What happens |
 |---|---|
-| `/rabbithole` | Random topic, **hard** depth (mechanism + math + design + failure modes + recent work) |
-| `/rabbithole research` | Random topic, **research** depth: frontier-focused, papers from the last ~18 months, open problems, what's contested |
+| `/rabbithole` | Random topic, **hard** depth: full mechanism + math + design + failure modes, PLUS a frontier section (≥3–5 recent papers) and an open-problems section |
+| `/rabbithole research` | Random topic, **research** depth: everything in hard, but frontier-heavy — topic must have active recent research, 2–3 key recent papers dissected in depth, extra open-debates research |
 | `/rabbithole <topic>` | User-chosen topic, hard depth (add `research` anywhere for research depth) |
 | `/rabbithole blog [slug]` | Turn a saved dive (default: latest) into a blog post in `blog/` |
 | `/rabbithole history` | Show past dives grouped by domain |
@@ -26,7 +26,7 @@ All files live in the current working directory (the repo root): `history.md` is
 3. Choose at the **mechanism level**, never the category level.
    - Bad: "neural networks", "blockchain", "encryption", "Kubernetes".
    - Good: "classifier-free guidance and why it trades diversity for fidelity", "Raft split votes and randomized timeouts", "Spectre v1 via branch predictor training", "JIT deoptimization in V8", "LSM-tree compaction: leveled vs tiered", "PagedAttention and KV-cache fragmentation", "TLS 1.3 0-RTT replay", "EVM gas metering and storage refunds", "io_uring submission/completion rings", "flow matching vs diffusion".
-4. Prefer topics where something non-obvious happens inside, and where there is real recent work to report.
+4. Prefer topics where something non-obvious happens inside, and where there is real recent work to report. In research mode this is a hard requirement: the topic must have meaningful papers/advancements from the last ~2 years.
 5. Actually be random: mentally enumerate ~10 candidates across different domains, then pick one — don't default to the most famous.
 
 ## Step 2 — Web research (mandatory, before writing)
@@ -37,8 +37,9 @@ Do not explain from memory alone. Research first, thoroughly.
   1. **Foundations** — original paper(s), canonical explanation, the actual algorithm/spec/math.
   2. **Implementation reality** — how real systems do it (source code, engineering blogs, docs, RFCs, kernel/compiler source), and where they deviate from the paper.
   3. **Frontier** — new papers (arXiv, conference proceedings: NeurIPS/ICML/ICLR/USENIX Security/CCS/S&P/OSDI/SOSP/SIGMOD/VLDB/PLDI etc.), recent advancements, benchmarks, what changed in the last 1–2 years. Use WebSearch `extended` mode here.
-  4. **Breakage** — known attacks, CVEs, failure modes, critiques, misconceptions, replication failures.
-- In research mode, weight angle 3 heaviest and add a 5th agent for "open problems & active debates".
+  4. **Breakage + open problems** — known attacks, CVEs, failure modes, critiques, misconceptions, replication failures, and what remains unsolved.
+- Frontier agent (angle 3) runs in BOTH modes and must return ≥3–5 recent papers/advancements (last ~2 years) with links, or explicitly report that the topic is settled and where active work moved to.
+- In research mode, weight angle 3 heaviest and add a 5th agent for "open problems & active debates" (position papers, workshop discussions, conflicting results).
 - Fetch primary sources (arXiv abs/pdf, RFCs, specs, source code) over secondary summaries whenever possible.
 - Cross-check any number, date, or paper claim against ≥2 sources or a primary source. If unverified, say so.
 - Never cite a paper, benchmark, or API you didn't see in research results.
@@ -81,7 +82,12 @@ Failure modes, edge cases, attacks, scaling limits. Misconceptions practitioners
 Specific systems / libraries / products using it and how they deviate from the textbook version.
 
 ### 11. Frontier (what's new)
-Recent papers and advancements with year, venue, one-line contribution, and link. What's contested or open. In research mode this section is the largest and goes deep on 2–3 key recent papers (what they changed, how, results, limitations).
+Mandatory in both modes. At least 3–5 recent papers / advancements (last ~2 years), each with year, venue, one-line contribution, and link. If the topic is genuinely settled, say so plainly and instead point to where the active work moved (adjacent problem, successor technique) with papers for that — never pad.
+
+In research mode this section is the largest: dissect 2–3 key recent papers in depth (what problem they attacked, the mechanism of their method, results, limitations, follow-ups).
+
+### 11b. Open problems
+Mandatory in both modes. What's unsolved, contested, or has conflicting results — and why it's hard (what makes the obvious approach fail). Cite who's working on it where known. Research mode: go deeper, include competing positions.
 
 ### 12. Lineage
 What it evolved from → what it is → what came after. Key papers with year.
