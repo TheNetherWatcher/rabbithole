@@ -1,0 +1,903 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HFT C++ Hot Path</title><style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5c5c66;--card:#fff;--bd:#e3e0d8;--ac:#b4442b;--ac2:#1f6f78;--code:#f3f1ea;--warm:#fff4e2;--warmbd:#f1cf9a;--vic:#b4442b;--agg:#1f6f78}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e9e9ee;--mut:#9a9aa6;--card:#1a1b20;--bd:#2b2d35;--ac:#ff8a6b;--ac2:#6fd0d9;--code:#202229;--warm:#2a2318;--warmbd:#5c4a28;--vic:#ff8a6b;--agg:#6fd0d9}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--bd);font-size:13.5px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(70ch + 56px)}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.5rem;margin:1.6em 0 .5em;scroll-margin-top:12px}h3{margin-top:1.4em}
+.card-line{font:600 12px/1 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.tldr{font-size:1.05rem}.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b{display:block;font-size:1.25rem;color:var(--ac)}.nums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}
+.plain h2{margin-top:.8em}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:6px;cursor:pointer}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);color:var(--mut);border-radius:0 8px 8px 0}
+a{color:var(--ac2)}details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 10px;color:var(--mut)}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px}button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}.gc{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.gc b{display:block}.gc span{font-size:13.5px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.twocol>div{border-radius:10px;padding:4px 16px 10px;border:1px solid var(--bd)}.use{background:rgba(31,111,120,.08)}.skip{background:rgba(180,68,43,.08)}.twocol h4{margin:.8em 0 .2em}
+.widget{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:18px 0}.widget label{display:block;margin:6px 0}.widget input[type=range]{width:min(320px,100%);vertical-align:middle}
+.ctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.note{font-size:13.5px;color:var(--mut)}
+.eq{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;margin:10px 0;font-family:ui-monospace,monospace;font-size:14px;overflow:auto}
+.plainterms{color:var(--ac2);font-size:14px;margin:4px 0 14px}
+.mis{background:rgba(180,68,43,.08);border:1px solid var(--warmbd);border-radius:10px;padding:4px 16px;margin:12px 0}
+.step{display:flex;gap:4px;align-items:stretch;margin:4px 0}.step i{font-style:normal;color:var(--mut);width:70px;font-size:12px;font-family:ui-monospace,monospace}
+.key{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:6px 0}.key span{display:inline-flex;gap:6px;align-items:center}.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border:0;border-bottom:1px solid var(--bd);display:flex;overflow:auto;white-space:nowrap;gap:2px;padding:10px 16px}nav a{border:0}main{padding:16px}.twocol{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+.sub{color:var(--mut);margin:.2em 0 1em}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.m{font-family:Cambria,'Times New Roman',serif;font-style:italic;white-space:nowrap}
+.eq{font-family:Cambria,'Times New Roman',serif;font-size:17px;text-align:center}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .2em}.frac span:first-child{border-bottom:1px solid currentColor;padding:0 .3em}
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px;margin:10px 0}
+.node{border:1px solid var(--bd);border-radius:8px;padding:8px 4px;text-align:center;font-size:12.5px;line-height:1.3;background:var(--code);color:var(--mut);transition:background .2s,color .2s,transform .2s}
+.node.on{background:var(--ac);color:#fff;border-color:var(--ac);transform:translateY(-2px)}.node.done{color:var(--fg);border-color:var(--ac2)}
+.steptext{min-height:96px;margin-top:10px;padding:10px 12px;border-left:3px solid var(--ac);background:var(--code);border-radius:0 8px 8px 0}
+.book{display:grid;gap:6px;margin-top:10px;font-size:13px}.book code{display:block;white-space:normal}.book mark{background:var(--warm);color:var(--ac);padding:0 3px;border-radius:3px}
+.out{margin-top:8px;padding:8px 10px;background:var(--code);border-radius:8px;font-size:13.5px;white-space:pre-wrap}
+.bar{height:10px;background:var(--code);border-radius:6px;margin-top:8px;overflow:hidden}#tbar{height:100%;background:var(--ac);width:0;transition:width .2s}
+.out .bad{color:var(--ac);font-weight:600}.out .good{color:var(--ac2);font-weight:600}
+main section{overflow-wrap:anywhere}
+@media(max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}main{max-width:100vw}}
+</style></head><body>
+<div class="layout"><nav aria-label="Table of contents"><a href='#plain'>0b. Plain English</a><a href='#ctx'>1. Context</a><a href='#rw'>1b. Real-world</a><a href='#one'>2. One-liner</a><a href='#prob'>3. The problem</a><a href='#model'>4. Mental model</a><a href='#mech'>5. Mechanism</a><a href='#math'>6. The math</a><a href='#why'>7. Why it works</a><a href='#knobs'>8. Knobs</a><a href='#breaks'>9. Where it breaks</a><a href='#wild'>10. In the wild</a><a href='#front'>11. Frontier</a><a href='#open'>11b. Open problems</a><a href='#lin'>12. Lineage</a><a href='#hands'>13. Hands-on</a><a href='#qs'>14. Questions</a><a href='#next'>15. Go deeper</a><a href='#src'>Sources</a></nav>
+<main><header class="hero"><div class="card-line">Hardware/architecture × compilers · hard · 2026-10-03</div>
+<h1>The tick-to-trade hot path</h1><p class="sub">How HFT firms engineer C++ for nanoseconds: kernel bypass, cache warming, branch- and allocation-free code, tail-latency measurement.</p>
+<p class="tldr"><b>TL;DR</b>: On a modern CPU, latency is dominated by <i>events</i> (cache/TLB misses, mispredicts, syscalls, interrupts, page faults, C-state exits), not instructions. HFT C++ removes events from the hot path and pre-pays the rest off it, including running the whole path on fake data so it is never cold. <b>Why it matters:</b> latency-arbitrage races are won by a modal margin of 5–10 µs; tails lose races, and falling behind in a burst drops packets.</p>
+<div class="nums"><div><b>5–10 µs</b><span>modal race margin (LSE, QJE 2022)</span></div><div><b>≈2.5 µs</b><span>very good software wire-to-wire (Cook 2017)</span></div><div><b>13.9 ns</b><span>STAC-T0 FPGA record (2024)</span></div><div><b>+3.9 µs</b><span>kernel TCP vs raw ef_vi</span></div><div><b>≈900 ns</b><span>PCIe share of ~1 µs NIC RTT</span></div><div><b>23×</b><span>false sharing slowdown (our lab)</span></div><div><b>6.5×</b><span>cold vs warm p50 (our lab)</span></div></div></header>
+<section id="plain" class="plain"><h2>0b. Plain English first</h2><h4>Explain it simply</h4>
+<p>Picture a tiny auction house. Hundreds of times a second, someone near the door shouts a new price ("apples, 100 dollars 25!"). Several professional bidders are in the room. When a price looks like a bargain, the first bidder to raise a paddle gets the deal. Second place gets nothing. It doesn't matter if they're a millionth of a second late.</p>
+<p>A high-frequency trading (HFT) firm is one of those bidders. Its "paddle" is a computer program. The race is decided in microseconds (millionths of a second), sometimes nanoseconds (billionths). So the people who write these programs care less about a program being fast on average. They care that it is fast <strong>every single time</strong>, including the rare moment that matters, when it has been sitting idle for a while. Most of the craft is about not letting the computer do anything surprising: no pausing to tidy memory, no asking the operating system for permission, no "forgetting" the routine because it hasn't run for a while.</p>
+<h4>Everyday example</h4>
+<p>The bidder (call them Ana) sits by the door. Each time a price is shouted, Ana:</p>
+<ol>
+<li>hears it (the network card receives a message),</li>
+<li>writes it on a whiteboard of current best prices (the "order book"),</li>
+<li>checks a cheat sheet: "if apples drop below 100.30, buy" (the strategy),</li>
+<li>checks the rules: "never buy more than 1,000 apples" (the risk check),</li>
+<li>raises the paddle (sends an order).</li>
+</ol>
+<p>Ana has learned some tricks:</p>
+<ul>
+<li>She keeps the cheat sheet in her hand, not in a drawer (data kept in the CPU cache, not in slow memory).</li>
+<li>She never leaves to fetch a new pen mid-auction; pens are laid out beforehand (no memory allocation).</li>
+<li>She doesn't go through the front office to get messages; she stands right at the door (kernel bypass).</li>
+<li>If no good price comes along for a long time, her arm gets stiff. So every few seconds she practises: runs through all five steps and lifts the paddle a centimetre without actually bidding (cache warming with dummy orders).</li>
+</ul>
+<p>One day the shout is "apples, 100.25, 500 available!", below her 100.30 trigger. Ana updates the whiteboard, sees the trigger hit, checks 500 ≤ 1,000, and raises the paddle. She wins by a hair, because a rival had to walk back from the coffee machine.</p>
+<p><strong>Now the same thing, technically.</strong></p></section>
+<section id="ctx"><h2>1. Bare-minimum context</h2><ul>
+<li><strong>Limit order book.</strong> The exchange's list of resting buy (bid) and sell (ask) orders at each price. Feeds send Add/Modify/Delete messages. <a href="https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf" target="_blank" rel="noopener">Gross 2024 slides</a></li>
+<li><strong>Market data over UDP multicast.</strong> Exchanges broadcast binary messages (e.g. Nasdaq ITCH, CME MDP3, which is SBE-encoded). Orders go back over TCP (OUCH, FIX, iLink).</li>
+<li><strong>CPU memory hierarchy.</strong> L1 ≈ 4 cycles, L2 ≈ 12, L3 ≈ 40–50, DRAM ≈ 60–100 ns. Data moves in 64-byte cache lines. <a href="https://www.7-cpu.com/cpu/Skylake.html" target="_blank" rel="noopener">7-cpu Skylake</a>, <a href="https://www.akkadia.org/drepper/cpumemory.pdf" target="_blank" rel="noopener">Drepper</a></li>
+<li><strong>Branch prediction.</strong> The CPU guesses which way an <code>if</code> goes and runs ahead. A wrong guess costs ≈16–20 cycles on Skylake. <a href="https://www.7-cpu.com/cpu/Skylake.html" target="_blank" rel="noopener">7-cpu</a></li>
+<li><strong>Kernel vs user space.</strong> A normal socket <code>recv()</code> crosses into the kernel. Kernel-bypass NICs let user code read the NIC's receive ring directly. <a href="https://www.kernel.org/doc/html/latest/networking/timestamping.html" target="_blank" rel="noopener">Kernel timestamping doc</a></li>
+<li><strong>Percentiles.</strong> p99 = the latency that 99% of events beat. HFT cares about p99.9 and max during bursts, not the mean. <a href="https://qconsf.com/sf2012/dl/qcon-sanfran-2012/slides/GilTene_HowNotToMeasureLatency.pdf" target="_blank" rel="noopener">Gil Tene</a></li>
+</ul></section>
+<section id="rw"><h2>1b. Real-world context</h2><h4>What it is, in one paragraph</h4>
+<p>"Low-latency C++" in HFT is a body of practice for building the <strong>tick-to-trade</strong> path. That path is the code that runs from the moment the last bit of a market-data packet arrives on the wire to the moment the first bit of the resulting order leaves. The goal is to make it short (single-digit microseconds in software, tens of nanoseconds in FPGAs) and, above all, <strong>predictable</strong>. The practice spans hardware (NIC choice, BIOS settings), the OS (core isolation, no interrupts), the C++ itself (no allocation, no virtual calls or branches on the hot path, cache-friendly data), and measurement (hardware timestamps at the wire, tail percentiles).</p>
+<h4>Why it exists</h4>
+<ul>
+<li><strong>The race is tiny and winner-take-all.</strong> On the London Stock Exchange, latency-arbitrage "races" happen about once a minute per FTSE-100 symbol. The <strong>modal winning margin is 5–10 µs</strong>. Races cover ≈20% of volume, and the top 6 firms take &gt;80% of race wins and losses. About $5B a year is at stake in global equities. <a href="https://www.nber.org/papers/w29011" target="_blank" rel="noopener">Aquilina, Budish, O'Neill, QJE 2022</a>; <a href="https://www.fca.org.uk/publications/occasional-papers/occasional-paper-no-50-quantifying-high-frequency-trading-arms-race-new-methodology" target="_blank" rel="noopener">FCA OP50</a></li>
+<li><strong>General-purpose stacks are tuned for throughput and fairness, not latency.</strong> Carl Cook (Optiver): "Jitter is unacceptable – it means bad trades". The hot path runs only ≈0.01% of the time, so by default it is always cold. <a href="https://github.com/CppCon/CppCon2017/blob/master/Presentations/When%20a%20Microsecond%20Is%20an%20Eternity/When%20a%20Microsecond%20Is%20an%20Eternity%20-%20Carl%20Cook%20-%20CppCon%202017.pdf" target="_blank" rel="noopener">Cook 2017 slides</a></li>
+<li><strong>Falling behind can also drop data.</strong> Feeds burst to hundreds of thousands of updates a second. If you read too slowly, the NIC runs out of buffers and drops packets, which is an outage. <a href="https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf" target="_blank" rel="noopener">Gross 2024</a></li>
+<li><strong>Before:</strong> 2000s-era systems used kernel sockets, std containers and logging inline. A kernel TCP path adds ≈3.9 µs over raw ef_vi per Solarflare's own (vendor, non-STAC) slide. <a href="https://docs.stacresearch.com/system/files/resource/files/STAC-Summit-5-Jun-2017-Solarflare.pdf" target="_blank" rel="noopener">STAC Summit 2017</a></li>
+</ul>
+<h4>Where it's used</h4>
+<div class="grid"><div class="gc"><b>Optiver</b><span>Public C++ talks (Cook 2017, Gross 2022/24): templates over virtuals, reverse-vector books, FastQueue.</span></div><div class="gc"><b>IMC</b><span>C++ “directly in the latency-critical loop… integrate FPGA-based systems”: hybrid CPU+FPGA.</span></div><div class="gc"><b>Hudson River Trading</b><span>C++ at the center of live trading; HRTbeat posts on huge pages and devirtualisation.</span></div><div class="gc"><b>AMD Solarflare NICs</b><span>Onload / TCPDirect / ef_vi: the de facto kernel-bypass stack in colocation.</span></div><div class="gc"><b>Cisco Nexus SmartNIC (ExaNIC)</b><span>Raw-frame API, 780 ns median app→net→app, 6.2 ns HW timestamps.</span></div><div class="gc"><b>Real Logic SBE / Aeron</b><span>Zero-allocation flyweight codecs (CME MDP3 is SBE) and reliable UDP/IPC.</span></div><div class="gc"><b>Quill / fmtlog / NanoLog</b><span>Hot-path logging at ≈6–20 ns: encode args binary, format on another core.</span></div><div class="gc"><b>Counter-examples</b><span>Jane Street: OCaml + Hardcaml FPGAs. LMAX / Chronicle: garbage-free Java.</span></div></div>
+<h4>How it's used (what a practitioner touches)</h4>
+<pre><code class="language-bash"># Boot: isolate cores 2-7 from the scheduler, timer tick and RCU callbacks
+GRUB_CMDLINE_LINUX=&quot;isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7 nosmt transparent_hugepage=never intel_idle.max_cstate=0 processor.max_cstate=1&quot;
+pgrep -P 2 | xargs -i taskset -p -c 0 {}      # kernel threads to core 0 (Rigtorp guide)
+tuned-adm profile network-latency
+
+# Zero-code-change bypass first: LD_PRELOAD Onload with busy-polling
+onload --profile=latency taskset -c 3 ./algo_trader
+</code></pre>
+<pre><code class="language-cpp">// Hot thread skeleton: pinned, busy-polling, nothing allocates, one branch for &quot;send or not&quot;.
+template &lt;class Strategy, class Sender&gt;              // config picked once at startup → no virtuals inside
+struct Engine {
+    Strategy strat; Sender tx; Book book; Risk risk;
+    void run() {
+        pin_this_thread(3);
+        mlockall(MCL_CURRENT | MCL_FUTURE);
+        for (;;) {                                    // never sleeps, never yields
+            if (auto* pkt = rx.poll()) [[likely]] on_packet(pkt);
+            else if (warm_timer.due()) on_packet(&amp;synthetic_tick, /*dry_run=*/true);   // keep caches hot
+        }
+    }
+    void on_packet(const Packet* p, bool dry_run = false) {
+        auto&amp; m = *std::start_lifetime_as&lt;AddOrder&gt;(p-&gt;payload);   // C++23, no UB type-punning
+        book.apply(m);
+        Order o = strat.decide(book);                 // writes into a preallocated Order
+        uint64_t err = risk.check(o);                 // all checks OR'ed into one flag word
+        if (!err &amp;&amp; !dry_run) [[likely]] tx.send(o);
+        else if (err) [[unlikely]] [&amp;]() __attribute__((noinline, cold)) { handle(err); }();
+    }
+};
+</code></pre>
+<p>Typical values:</p>
+<ul>
+<li>1 hot thread per isolated physical core.</li>
+<li><code>EF_POLL_USEC=100000</code> in the Onload latency profile.</li>
+<li>Warm-up dummy path every few µs to ms. Firms don't publish the interval.</li>
+<li>Integer prices in ticks.</li>
+<li>Preallocated pools sized for the worst day.</li>
+</ul>
+<h4>When to use it / when NOT to</h4><div class="twocol"><div class="use"><h4>Use it when</h4><ul><li>you're colocated and races are decided in µs</li><li>one pinned hot thread per core is affordable</li><li>you can measure at the wire (HW timestamps)</li></ul></div>
+<div class="skip"><h4>Skip it when</h4><ul><li>cloud VM / shared host (noisy neighbours dominate)</li><li>budget ≥ 50 µs: kernel + busy_poll is fine</li><li>logic is simple enough for an FPGA (14 ns beats you)</li><li>developer velocity matters more (Java, OCaml)</li></ul></div></div><p><strong>Sign you picked wrong:</strong> your p50 dropped but your <em>race win rate</em> didn't move. Your tail or your wire latency is elsewhere.</p>
+<h4>Who should care</h4>
+<ul>
+<li>Trading-infra and C++ engineers at market makers and prop shops.</li>
+<li>Exchange and matching-engine developers.</li>
+<li>Anyone building µs-SLA systems: ad bidding, telecom user plane, game servers, robotics control loops.</li>
+<li>Performance engineers who need the measurement discipline (coordinated omission, layout noise) even with no trading.</li>
+</ul></section>
+<div class="divider">Technical deep dive</div>
+<section id="one"><h2>2. The one-liner, and what it hides</h2><blockquote>
+<p>"HFT C++ is about avoiding allocations and virtual functions and using kernel bypass."</p>
+</blockquote>
+<p>What that hides:</p>
+<ol>
+<li><strong>The real enemy is coldness, not slowness.</strong> The hot path runs ≈0.01% of the time, so caches, TLB and branch predictors have forgotten it by the time it fires. Firms <em>run it constantly on fake data</em> to keep it warm.</li>
+<li><strong>Tails, not means.</strong> A 629× gap in mean latency (Disruptor vs ArrayBlockingQueue) hides a p99.99 gap of 8 µs vs 4.2 ms. Races are lost in the tail.</li>
+<li><strong>Simple beats asymptotic.</strong> Linear search beats binary search, and a vector beats <code>std::map</code>. That holds because the data is skewed toward the top of the book and memory access dominates.</li>
+<li><strong>The machine is part of the program.</strong> Same binary and same hardware give visibly different speed depending on BIOS/OS tuning (Cook slide 11). SMIs, C-state exits (≈90–170 µs) and other processes evicting your L3 are invisible to the C++.</li>
+<li><strong>Software is no longer the fastest path.</strong> FPGAs hit 13.9 ns on STAC-T0. Modern C++ sits in the 1–10 µs strategy layer and <em>parameterises</em> hardware that fires.</li>
+</ol></section>
+<section id="prob"><h2>3. The problem</h2><p>Concrete constraints a designer faces:</p>
+<ul>
+<li><strong>Physics floor.</strong> Chicago (CME, Aurora) to New Jersey (Carteret/Secaucus): 1139.5 km geodesic, so the speed-of-light round trip is 7.6 ms.<ul>
+<li>Microwave networks measure 7.7 ms RTT, within 1.5% of c.</li>
+<li>Market data shows CME→NJ reactions at ≈4.2 ms one-way, versus ≈6.65 ms for the best fiber.</li>
+<li><a href="https://courses.cs.duke.edu/fall21/compsci514/internal/readings/BhattacherjeeAABSTACGLMS22.pdf" target="_blank" rel="noopener">cISP paper (Bhattacherjee et al.)</a>, <a href="https://www.theregister.com/2013/02/27/microwave_versus_fibre/" target="_blank" rel="noopener">The Register 2013</a></li>
+<li>Once everyone is on the same microwave path and in the same colo, what remains is <strong>inside the box</strong>.</li>
+</ul>
+</li>
+<li><strong>The box budget.</strong> "A very good minimum time (wire to wire) for a software-based trading system is around 2.5 µs" (Cook 2017). Gross 2024: strategy layer 1–10 µs, ultra-low-latency execution &lt; 1 µs.</li>
+<li><strong>What eats the budget</strong> if you do nothing:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Cost</th>
+<th>Typical</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kernel TCP path vs raw ef_vi</td>
+<td>+3.9 µs</td>
+<td><a href="https://docs.stacresearch.com/system/files/resource/files/STAC-Summit-5-Jun-2017-Solarflare.pdf" target="_blank" rel="noopener">Solarflare slide</a></td>
+</tr>
+<tr>
+<td>PCIe NIC round trip, 128 B packet</td>
+<td>≈1000 ns, of which ≈900 ns is PCIe</td>
+<td><a href="https://www.cl.cam.ac.uk/teaching/1011/R02/papers/p327-neugebauer.pdf" target="_blank" rel="noopener">Neugebauer SIGCOMM'18</a></td>
+</tr>
+<tr>
+<td>Context switch (unpinned)</td>
+<td>3–4.5 µs, plus cache-pollution aftermath</td>
+<td><a href="https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html" target="_blank" rel="noopener">Tsuna</a></td>
+</tr>
+<tr>
+<td>Core C6 exit</td>
+<td>≈90 µs measured, 133–170 µs per the driver table</td>
+<td><a href="https://docs.kernel.org/6.19/admin-guide/pm/intel_idle.html" target="_blank" rel="noopener">intel_idle</a>, <a href="https://www.phoronix.com/news/Intel-C6-Ice-Lake-Xeon-Idle" target="_blank" rel="noopener">Phoronix</a></td>
+</tr>
+<tr>
+<td>4-level page walk on TLB miss</td>
+<td>≈3 dependent loads ≈ 210 ns at 70 ns DRAM</td>
+<td><a href="https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/" target="_blank" rel="noopener">HRT</a></td>
+</tr>
+<tr>
+<td>DRAM miss</td>
+<td>60–100 ns</td>
+<td>7-cpu, Drepper</td>
+</tr>
+<tr>
+<td>Branch mispredict</td>
+<td>16–20 cycles ≈ 5 ns</td>
+<td>7-cpu</td>
+</tr>
+<tr>
+<td>Exception thrown for control flow</td>
+<td>≥ 1.5 µs</td>
+<td>Cook slide 22</td>
+</tr>
+<tr>
+<td><code>std::pow</code> slow path (glibc 2.17)</td>
+<td>478 µs (!) vs 53 ns</td>
+<td>Cook slide 47</td>
+</tr>
+</tbody>
+</table>
+<p>So one page fault, one C-state exit or one thrown exception costs more than the whole budget. The design problem is <strong>removing variance</strong>, not shaving averages.</p></section>
+<section id="model"><h2>4. Mental model</h2><p><strong>A Formula 1 pit stop.</strong> Every tool is laid out in advance, each crew member does one job and never moves, and the car spends its whole race lapping, so tyres and brakes stay at temperature. A stop takes ≈2 s because nobody fetches anything, nobody waits for permission, and nobody has to remember how.</p>
+<p>Mapping:</p>
+<ul>
+<li><strong>Tools laid out</strong> → preallocated pools, no <code>malloc</code>.</li>
+<li><strong>One crew member per job</strong> → one pinned thread per isolated core.</li>
+<li><strong>Car lapping</strong> → the dummy warm-up path.</li>
+<li><strong>No radio to race control mid-stop</strong> → no syscalls (kernel bypass).</li>
+</ul>
+<p><strong>Where the analogy breaks:</strong></p>
+<ol>
+<li>A pit crew practises the <em>same</em> motion. A warm-up path must exercise the <em>same code and data</em> as the real decision, but must <strong>not</strong> send. That one difference is a branch that has to be predicted correctly at the real moment.</li>
+<li>Pit stops are serial and independent. CPU caches are shared: your neighbour's process can evict your L3 lines mid-race (Gross's "you're not alone").</li>
+<li>In F1 a faster stop always helps. In HFT, shaving 100 ns of software is worthless if the race is decided by an FPGA 2 µs earlier.</li>
+</ol></section>
+<section id="mech"><h2>5. The mechanism, traced</h2><div class="widget" id="stepper"><h4 style="margin-top:0">Step through one packet</h4>
+<div class="pipe" aria-hidden="true"><div class="node" data-k="pre">Warm-up<br>prefault</div><div class="node" data-k="nic">NIC RX<br>DMA</div><div class="node" data-k="poll">Busy<br>poll</div><div class="node" data-k="parse">Parse</div><div class="node" data-k="book">Book</div><div class="node" data-k="strat">Strategy</div><div class="node" data-k="risk">Risk<br>1 branch</div><div class="node" data-k="tx">NIC TX</div><div class="node" data-k="tap">Wire tap</div></div>
+<div class="ctl"><button id="sb" aria-label="Previous step">← Back</button><span id="sc" class="mono">STEP 1 / 9</span><button id="sn" aria-label="Next step">Next →</button></div>
+<div id="st" aria-live="polite" class="steptext"></div>
+<div class="book"><div><b>Asks before</b><code>100.31×900 · 100.29×200 · <mark>100.27×400</mark> ← best</code></div><div><b>Asks after</b><code>100.31×900 · 100.29×200 · 100.27×400 · <mark>100.25×500</mark> ← best</code></div></div>
+<script>const STEPS=[["Before the packet", "pre", "mlockall + prefault pools; hot arenas on 2 MiB huge pages; thread pinned to isolated core 3 (nohz_full stops the tick). A synthetic tick runs the full path with dry_run=true every few \u00b5s\u2013ms \u2192 book, params, risk limits, order template stay in L1/L2, predictor trained."], ["NIC receive", "nic", "Frame: Eth + IP + UDP + MoldUDP64 + ITCH Add Order {type 'A', ref, side 'S', shares 500, stock \"ABCD\", price 1002500}. NIC DMAs into a pre-posted RX buffer (huge page) and writes an event. No interrupt. HW RX timestamp taken. \u2248 hundreds of ns incl. PCIe."], ["Notice", "poll", "Busy loop calls ef_eventq_poll(), sees EF_EVENT_TYPE_RX, gets buffer id + length. No syscall, no wake-up, no context switch. \u2248 tens of ns."], ["Parse in place", "parse", "View payload as struct via std::start_lifetime_as<AddOrder> (C++23) or memcpy/bit_cast \u2192 plain loads. bswap big-endian fields. Price stays integer 1002500. \u2248 few ns."], ["Book update", "book", "Order-ref \u2192 level in a preallocated open-addressing map. Asks stored descending, best at back(). 100.25 beats 100.27 \u2192 linear scan from back stops at 0 steps, insert at end shifts 0 elements. \u2248 10 ns (our lab)."], ["Strategy", "strat", "Strategy<Side::Buy>::decide: template specialisation, no side branch, no virtual. best ask 1002500 \u2264 trigger 1003000 \u2192 fill preallocated Order{BUY, ABCD, 500, 1002500, IOC}. \u2248 tens of ns."], ["Risk check", "risk", "max qty, notional, price band, position, kill switch \u2192 each sets one bit in uint64_t err. One branch: if(!err) send(); handler is noinline+cold. This is the SEC 15c3-5 control. \u2248 few ns."], ["Send", "tx", "Patch price/qty/token into a pre-built OUCH-like template, push TX descriptor (or PIO small frame), ring doorbell. HW TX timestamp. On warm-up passes only the doorbell is skipped. \u2248 hundreds of ns."], ["Measure", "tap", "Layer-1 switch/tap (e.g. Arista 7130 MetaWatch, sub-ns) stamps inbound and outbound frames; capture server matches them \u2192 wire-to-wire latency for every packet into a histogram. No sampling, no in-process observer."]];</script></div><p>One packet, end to end: Ana's story with real data. A Nasdaq-ITCH-like <strong>Add Order: SELL 500 @ 100.25</strong> arrives. Our strategy buys whenever the best ask is ≤ 100.30, so this new offer crosses our trigger.</p>
+<pre><code> wire ──► NIC ──DMA──► RX ring (hugepage) ──► [hot core 3: busy-poll]
+                                                  │ parse (in place)
+                                                  │ book.apply
+                                                  │ strategy.decide
+                                                  │ risk.check (1 branch)
+                                                  ▼
+ wire ◄── NIC ◄──doorbell/PIO── TX descriptor ◄── build order (prealloc)
+          ▲                                                     │
+   switch/tap timestamps both directions  ◄─── capture server ──┘ (offline)
+</code></pre>
+<p><strong>Step 0, before the packet (t = −∞).</strong></p>
+<ul>
+<li>The process started, <code>mlockall</code>'d, and touched every page of its pools and book. There are no first-touch page faults later.</li>
+<li>Hot arenas are on 2 MiB huge pages. ≈2000 TLB entries × 2 MiB ≈ 4 GiB reach, against 8 MiB with 4 KiB pages (<a href="https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/" target="_blank" rel="noopener">HRT</a>).</li>
+<li>Thread pinned to isolated core 3; no other runnable task, so <code>nohz_full</code> stops the tick (<a href="https://docs.kernel.org/timers/no_hz.html" target="_blank" rel="noopener">kernel no_hz</a>).</li>
+<li>Every few µs–ms a <strong>synthetic tick</strong> runs the full path with <code>dry_run=true</code> (Cook slides 37–38). The book, strategy params, risk limits and order template stay in L1/L2, and the branch predictor stays trained.</li>
+</ul>
+<p><strong>Step 1, NIC receive (≈ hundreds of ns, hardware).</strong></p>
+<ul>
+<li>The frame arrives: Ethernet + IP + UDP + MoldUDP64 header + ITCH message. The ITCH Add Order is a fixed-layout big-endian record with type <code>'A'</code>, stock locate, tracking, timestamp(6B), order ref(8B), side <code>'S'</code>, shares 500, stock "ABCD    ", price 1002500 (4 implied decimals).</li>
+<li>The NIC DMAs it into a pre-posted buffer in the RX ring and writes an event into the event queue. With ef_vi there is no interrupt and no kernel involvement.</li>
+<li>The NIC hardware-timestamps the frame (<code>SOF_TIMESTAMPING_RX_HARDWARE</code>).</li>
+</ul>
+<p><strong>Step 2, notice (≈ tens of ns).</strong> The hot loop spins on <code>ef_eventq_poll(&amp;vi, evs, BATCH)</code>. It sees <code>EF_EVENT_TYPE_RX</code> and gets the buffer id and length. No syscall, no wake-up, no context switch.</p>
+<pre><code class="language-c">for(;;){ int n = ef_eventq_poll(&amp;vi, evs, BATCH);   /* verbatim pattern from onload efsink.c */
+  for(i=0;i&lt;n;++i) if(EF_EVENT_TYPE(evs[i])==EF_EVENT_TYPE_RX) handle(EF_EVENT_RX_RQ_ID(evs[i])); }
+</code></pre>
+<p><strong>Step 3, parse in place (≈ few ns).</strong></p>
+<ul>
+<li>No copy into a "message object". The payload is viewed as a struct.</li>
+<li>The <em>legal</em> way is <code>std::start_lifetime_as&lt;AddOrder&gt;(buf)</code> (C++23, P2590) or <code>memcpy</code>/<code>std::bit_cast</code>, which compile to plain loads.</li>
+<li><code>reinterpret_cast&lt;AddOrder*&gt;(buf)</code> is what most codebases actually do, and it is formally UB (§9).</li>
+<li>Endianness is swapped with <code>bswap</code>. Price stays an <strong>integer</strong> (1002500), with no floating point.</li>
+</ul>
+<p><strong>Step 4, book update (≈ 10 ns in our lab).</strong></p>
+<ul>
+<li>Look up the order ref in an open-addressing hash map (order-ref → level/qty), preallocated.</li>
+<li>Then update the ask side: a <code>std::vector&lt;pair&lt;Price,Qty&gt;&gt;</code> stored <strong>in reverse</strong> (asks descending), so the best ask is at <code>back()</code>.</li>
+<li>The new 100.25 beats the old best ask of 100.27. A linear scan from the back finds the slot in <strong>zero steps</strong>, and <code>insert</code> at the end shifts nothing. This is Gross's version 3.</li>
+</ul>
+<pre><code>before asks (desc): ... 100.31x900  100.29x200  100.27x400   ← back() = best
+after:              ... 100.31x900  100.29x200  100.27x400  100.25x500  ← push near end, 0 shifts
+</code></pre>
+<p><strong>Step 5, strategy (≈ tens of ns).</strong></p>
+<ul>
+<li><code>Strategy&lt;Side::Buy&gt;::decide</code> is a template specialization. There is no <code>side == Buy ? … : …</code> branch and no virtual call.</li>
+<li>Read best ask 1002500 ≤ trigger 1003000 → fill the preallocated <code>Order{BUY, ABCD, 500, 1002500, IOC}</code>.</li>
+</ul>
+<p><strong>Step 6, risk check (≈ few ns, one branch).</strong></p>
+<ul>
+<li>Each check (max qty, max notional, price band versus reference, position limit, kill switch) sets a bit in <code>uint64_t err</code>.</li>
+<li><strong>Single branch</strong>: <code>if (!err) send(); else handle(err);</code>, and the handler is <code>noinline, cold</code> (Cook slide 16).</li>
+<li>This is the SEC Rule 15c3-5 pre-trade control, and it lives on the hot path, unlike in the Knight Capital story (§9).</li>
+</ul>
+<p><strong>Step 7, send (≈ hundreds of ns, hardware).</strong></p>
+<ul>
+<li>The order bytes (OUCH-like, mostly a pre-built template; only the price, qty and token fields are patched) go into a TX buffer.</li>
+<li>ef_vi/TCPDirect pushes the descriptor (or PIO-writes small frames) and rings the doorbell.</li>
+<li>The NIC timestamps TX.</li>
+<li>On a warm-up pass (<code>dry_run</code>), everything up to here ran, and only the doorbell is skipped.</li>
+</ul>
+<p><strong>Step 8, measure (offline).</strong></p>
+<ul>
+<li>A switch or Layer-1 tap (e.g. Arista 7130/MetaWatch, sub-ns timestamps) stamps the inbound market-data frame and the outbound order frame.</li>
+<li>A capture server matches them and records <strong>wire-to-wire</strong> latency for <em>every</em> packet into a histogram (Cook slides 50–52). There is no sampling and no in-process observer effect.</li>
+</ul>
+<p>Illustrative budget (orders of magnitude only; firms don't publish exact splits):</p>
+<ul>
+<li>NIC + PCIe in ≈ 300–500 ns,</li>
+<li>software ≈ 100–300 ns,</li>
+<li>NIC + PCIe out ≈ 300–500 ns,</li>
+<li>total ≈ 1–2.5 µs.</li>
+</ul>
+<p>The point: <strong>PCIe and the NIC dominate</strong>, which is why the next step is FPGA (§8).</p></section>
+<section id="math"><h2>6. The math</h2><h3>6.1 The wire floor</h3>
+<p>Let d be path length, c = 299,792 km/s, and n the refractive index (fiber ≈ 1.47, air ≈ 1.0003).</p>
+<div class="eq">t<sub>one-way</sub> = <span class="frac"><span>n · d</span><span>c</span></span></div>
+
+<ul>
+<li>Fiber: 4.9 µs/km.</li>
+<li>Air: 3.34 µs/km.</li>
+<li>Chicago–NJ geodesic at 1139.5 km: 3.80 ms in air. Fiber runs ≈ 6.65 ms because of n <em>and</em> a longer right-of-way.</li>
+</ul>
+<p class="plainterms">→ <b>In plain terms:</b> every kilometre of glass costs 1.5 µs more than air. That is why firms bought microwave towers. After that, everyone is equal, and **in-box µs decide**.</p>
+
+<h3>6.2 Average memory access time: why a cold hot path is slow</h3>
+<p>A path touches M cache lines. Each hits in level i with probability <span class="m">h<sub>i</sub></span> at latency <span class="m">L<sub>i</sub></span>:</p>
+<div class="eq">T<sub>mem</sub> ≈ M · ( L<sub>1</sub> + m<sub>1</sub>L<sub>2</sub> + m<sub>1</sub>m<sub>2</sub>L<sub>3</sub> + m<sub>1</sub>m<sub>2</sub>m<sub>3</sub>L<sub>DRAM</sub> )</div>
+
+<p>Here <span class="m">m<sub>i</sub> = 1-h<sub>i</sub></span> is the miss rate at level i. Warm: <span class="m">m<sub>1</sub> ≈ 0</span>, so <span class="m">T ≈ M · 1 ns</span>. Cold, after another workload trashed the caches: <span class="m">m<sub>1</sub> = m<sub>2</sub> = m<sub>3</sub> ≈ 1</span>, so <span class="m">T ≈ M · 80 ns</span>.</p>
+<p>For M = 512 lines (our lab's 32 KiB working set), that is ≈0.5 µs warm and up to ≈40 µs cold. The hardware prefetcher and memory-level parallelism hide most of the sequential case: our lab measured <strong>p50 84 ns warm vs 542 ns cold</strong>, 6.5×.</p>
+<p class="plainterms">→ <b>In plain terms:</b> latency is multiplied by the miss rate, and an idle path's miss rate tends to 1. Warming forces <span class="m">m<sub>1</sub> → 0</span> right before the moment that counts.</p>
+
+<p>Why this form and not "bytes / bandwidth"? Because the hot path is <strong>latency-bound</strong>: dependent pointer loads (hash bucket → node → level) can't overlap. Bandwidth only matters for streaming. That is also why node containers (<code>std::map</code>: log N dependent misses) lose to contiguous arrays.</p>
+<h3>6.3 Tails compound across stages</h3>
+<p>A tick traverses N stages (NIC, parse, book, strategy, risk, send, …), each independently "slow" with probability p:</p>
+<div class="eq">P(tick hits ≥ 1 slow stage) = 1 − (1 − p)<sup>N</sup></div>
+
+<p>With p = 1% and N = 6, that is 5.9%. With N = 100 (fan-out services), 63%. <a href="https://blog.acolyer.org/2015/01/15/the-tail-at-scale/" target="_blank" rel="noopener">Dean &amp; Barroso, The Tail at Scale</a></p>
+<p class="plainterms">→ <b>In plain terms:</b> a path is only as predictable as the product of its stages' predictability, so every stage's p99 matters, not just the slowest stage's p50.</p>
+
+<h3>6.4 Bursts, Little's law, and dropped packets</h3>
+<ul>
+<li>Little's law: <span class="m">L = λ W</span> (mean items in system = arrival rate × mean time in system), valid for any stable system.</li>
+<li>During a burst, the arrival rate λ exceeds the service rate μ = 1/s, where s = per-message service time.</li>
+<li>The backlog then grows at λ − μ. A NIC ring of R slots overflows after</li>
+</ul>
+<div class="eq">T<sub>drop</sub> = <span class="frac"><span>R</span><span>λ − μ</span></span></div>
+
+<p>Example (made-up but realistic): λ = 5 M msg/s in a burst, s = 300 ns → μ = 3.33 M/s → backlog grows 1.67 M/s → a 4096-slot ring overflows in <strong>2.5 ms</strong>. Halve s to 150 ns (μ = 6.67 M/s &gt; λ) and the ring never fills.</p>
+<p>The queueing delay seen by the k-th message of the burst is <span class="m">≈ k(s - 1/λ)</span>. So <strong>the most important packets, right after news, wait longest.</strong></p>
+<p class="plainterms">→ <b>In plain terms:</b> a small per-message cost difference flips you from "keeps up" to "falls behind and loses data". It is a cliff, not a slope. That is why Gross treats order-book update time as an availability issue.</p>
+
+<h3>6.5 Coordinated omission</h3>
+<ul>
+<li>A load tester sends every interval Δ but waits for each reply.</li>
+<li>When one stall of length S occurs, it skips ≈ S/Δ − 1 samples that <em>should</em> have seen latencies S − Δ, S − 2Δ, …</li>
+<li>Recorded data: 1 slow sample. Truth: S/Δ slow samples.</li>
+<li>Tene's example: Δ = 1 ms, 10 stalls of ≈536 ms → ≈5,350 omitted samples; true p99.99 ≈ 582 ms vs a reported figure ≈35,000× smaller. <a href="https://groups.google.com/g/mechanical-sympathy/c/icNZJejUHfE/m/BfDekfBEs_sJ" target="_blank" rel="noopener">Tene</a></li>
+</ul>
+<p class="plainterms">→ <b>In plain terms:</b> if your measurement waits for the system, it stops measuring exactly when the system is worst. Wire taps don't wait, so they don't lie this way.</p><div class="widget" id="w-wire"><h4 style="margin-top:0">Wire floor calculator</h4>
+<label>Distance <input type="range" id="wd" min="10" max="2000" value="1140"> <span id="wdv" class="mono"></span> km</label>
+<div id="wout" class="mono out"></div></div>
+<div class="widget" id="w-burst"><h4 style="margin-top:0">Burst vs NIC ring: when do you drop?</h4>
+<label>Burst arrival λ <input type="range" id="bl" min="0.5" max="10" step="0.1" value="5"> <span id="blv" class="mono"></span> M msg/s</label>
+<label>Service time s <input type="range" id="bs" min="50" max="1000" step="10" value="300"> <span id="bsv" class="mono"></span> ns/msg</label>
+<label>Ring size R <input type="range" id="br" min="256" max="65536" step="256" value="4096"> <span id="brv" class="mono"></span> slots</label>
+<div id="bout" class="mono out"></div></div>
+<div class="widget" id="w-tail"><h4 style="margin-top:0">Tails compound</h4>
+<label>Per-stage slow probability p <input type="range" id="tp" min="0.1" max="10" step="0.1" value="1"> <span id="tpv" class="mono"></span> %</label>
+<label>Stages N <input type="range" id="tn" min="1" max="100" value="6"> <span id="tnv" class="mono"></span></label>
+<div id="tout" class="mono out"></div><div class="bar"><div id="tbar"></div></div></div></section>
+<section id="why"><h2>7. Why it works</h2><p><strong>The core insight:</strong> latency on a modern CPU is dominated by <em>events</em>, not <em>instructions</em>: cache misses, TLB misses, mispredicts, syscalls, interrupts, page faults, frequency transitions. A few hundred well-predicted, cache-resident instructions cost tens of ns. One event costs 100 ns–100 µs. So the craft is <strong>eliminating events on the hot path, and pre-paying the unavoidable ones off the hot path</strong>.</p>
+<p>Ablation, removing each piece:</p>
+<table>
+<thead>
+<tr>
+<th>Remove…</th>
+<th>What breaks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kernel bypass</td>
+<td>+≈4 µs per packet in the kernel TCP path, plus syscall jitter and interrupt coalescing.</td>
+</tr>
+<tr>
+<td>Busy-poll / pinned core</td>
+<td>The thread sleeps → C-state exit (≈90+ µs) or a context switch (µs) on wake.</td>
+</tr>
+<tr>
+<td><code>isolcpus</code>/<code>nohz_full</code></td>
+<td>Timer ticks, RCU callbacks and kworkers land on your core; Rigtorp still saw 18 µs max jitter on a poorly isolated core.</td>
+</tr>
+<tr>
+<td>Cache warming</td>
+<td>First real packet after idle pays the cold miss chain: our lab shows 6.5× p50, ≈7× p99.</td>
+</tr>
+<tr>
+<td>Preallocation + <code>mlockall</code> + prefault</td>
+<td><code>malloc</code> bookkeeping ("400 lines" in glibc <code>free</code>), page faults, THP compaction stalls.</td>
+</tr>
+<tr>
+<td>Templates instead of virtuals</td>
+<td>Indirect branch mispredicts at polymorphic sites, plus <strong>lost inlining</strong>, which is the bigger cost.</td>
+</tr>
+<tr>
+<td>Single-branch risk check</td>
+<td>N unpredictable branches; error code inlined into the hot path, polluting the i-cache.</td>
+</tr>
+<tr>
+<td>Contiguous reverse-vector book</td>
+<td><code>std::map</code>: node allocation per level and log N dependent misses. Gross: "Most of the time, you don't want node containers."</td>
+</tr>
+<tr>
+<td>Padding / single writer</td>
+<td>False sharing: our lab went <strong>1908 ms vs 82 ms (23×)</strong> for two counters on one line vs separate lines.</td>
+</tr>
+<tr>
+<td>Wire-level measurement</td>
+<td>You optimise the wrong thing. Sampling profilers "miss the key events" (Cook).</td>
+</tr>
+</tbody>
+</table></section>
+<section id="knobs"><h2>8. Design knobs &amp; alternatives</h2><p><strong>Network path.</strong> Pick the cheapest layer that meets your budget:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Extra over raw ef_vi (vendor slide, 2017)</th>
+<th>Code change</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kernel + <code>busy_poll</code></td>
+<td>+3.9 µs (TCP)</td>
+<td>none</td>
+<td>≥ 10 µs budgets</td>
+</tr>
+<tr>
+<td>Onload / XLIO (LD_PRELOAD)</td>
+<td>+300 ns UDP, +460 ns TCP</td>
+<td>none</td>
+<td>first step; socket code</td>
+</tr>
+<tr>
+<td>TCPDirect</td>
+<td>+15 ns UDP, +22 ns TCP</td>
+<td>sockets-like API</td>
+<td>order entry</td>
+</tr>
+<tr>
+<td>ef_vi / libexanic raw frames</td>
+<td>0</td>
+<td>you write the protocol</td>
+<td>hot feed handler</td>
+</tr>
+<tr>
+<td>AF_XDP (upstream Linux)</td>
+<td>best ≈ 6.5 µs RTT when tuned</td>
+<td>moderate</td>
+<td>portability, not tick-to-trade (<a href="https://arxiv.org/abs/2402.10513" target="_blank" rel="noopener">arXiv 2402.10513</a>)</td>
+</tr>
+<tr>
+<td>FPGA (STAC-T0 13.9 ns)</td>
+<td>n/a</td>
+<td>HDL/HLS</td>
+<td>simple, parameterisable triggers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CPU.</strong></p>
+<ul>
+<li>SMT off: the sibling shares L1/L2, ports and the predictor.</li>
+<li>Turbo: higher peak but frequency transitions, a tradeoff.</li>
+<li>C-states locked shallow.</li>
+<li>One socket for trading, noisy work on the other.</li>
+<li>Some disable all but one core per L3 or partition the LLC with Intel CAT (Cook slide 40, Rigtorp).</li>
+</ul>
+<p><strong>Threading model.</strong></p>
+<ul>
+<li>Single-threaded hot path (Cook) vs pipeline over SPSC queues.</li>
+<li>If queues are used:<ul>
+<li>single writer;</li>
+<li>head/tail on separate lines;</li>
+<li><strong>cached opposite index</strong>: the reader re-reads the writer's index only when it thinks the queue is empty. Rigtorp saw 5.5 M → 112 M ops/s and ≈3 → 0.15 cache misses per op (<a href="https://rigtorp.se/ringbuffer/" target="_blank" rel="noopener">rigtorp ringbuffer</a>).</li>
+</ul>
+</li>
+<li>For one-to-many, Gross's FastQueue: seqlock-style write counter / read counter, readers detect overrun and never slow the writer.</li>
+</ul>
+<p><strong>Process model.</strong></p>
+<ul>
+<li>Multiple processes over shared memory (<code>shm_open</code> + <code>mmap</code>) reduce operational risk; one crash doesn't take down the feed (Gross).</li>
+<li>Versioned headers with reserved bytes.</li>
+</ul>
+<p><strong>Data layout.</strong></p>
+<ul>
+<li>Denormalise: copy the multiplier into the instrument struct so it sits on the same line (Cook).</li>
+<li>Integer ticks.</li>
+<li>Hash maps with contiguous hash+pointer arrays that can be prefetched: 14–24 ns → 7–9 ns versus <code>std::unordered_map</code> (Cook slides 29–35).</li>
+</ul>
+<p><strong>Compiler.</strong></p>
+<ul>
+<li><code>-O3 -march=native</code>, PGO, LTO, then BOLT layout (LBR samples).</li>
+<li><code>[[likely]]</code>/<code>[[unlikely]]</code>, <code>__attribute__((cold,noinline))</code> immediately-invoked lambdas for error paths.</li>
+<li><code>always_inline</code> where measured. The <code>inline</code> keyword is about ODR, not inlining (Cook slide 36).</li>
+</ul>
+<p><strong>Alternatives and why C++ (mostly) won the software layer:</strong></p>
+<ul>
+<li><strong>Java</strong> (LMAX, Chronicle): garbage-free code. Disruptor mean 52 ns / p99.99 8 µs. Good, but you fight the GC and JIT warm-up.</li>
+<li><strong>OCaml</strong> (Jane Street): correctness first.</li>
+<li><strong>Rust</strong>: promising, but anecdotally "a nightmare" on the hot path because of unsafe and aliasing gymnastics (<a href="https://www.efinancialcareers.com/news/C-vs-Rust-High-Frequency-Trading-Hell" target="_blank" rel="noopener">eFinancialCareers</a>, anecdotal).</li>
+<li><strong>FPGA</strong> won the <em>fastest</em> path. C++ moved up a layer to strategy, parameters and risk.</li>
+</ul></section>
+<section id="breaks"><h2>9. Where it breaks</h2><p><strong>Operational: Knight Capital, 1 Aug 2012</strong> (<a href="https://www.sec.gov/litigation/admin/2013/34-70694.pdf" target="_blank" rel="noopener">SEC 34-70694</a>).</p>
+<ul>
+<li>New code went to 7 of 8 servers. A <strong>reused flag</strong> woke dead "Power Peg" code on server 8.</li>
+<li>Its fill-tracking had been broken by a 2005 refactor that nobody retested.</li>
+<li>45 minutes: 4M executions, 397M shares, ≈$3.5B long / $3.15B short, <strong>&gt;$460M loss</strong>. (The common "$440M" was Knight's early estimate.)</li>
+<li>97 warning emails went unread.</li>
+<li>The rollback made it worse: removing the new code from the 7 correct servers made them run Power Peg too.</li>
+<li>Pre-trade controls "were not capable of preventing the entry of orders".</li>
+<li>Lesson: speed engineering is worthless without automated, blocking risk gates, version-consistency checks, and no dead code behind flags.</li>
+</ul>
+<p><strong>Microarchitecture traps:</strong></p>
+<ul>
+<li><strong>False sharing.</strong> Padding to 64 B isn't enough on Intel parts whose spatial prefetcher pulls line <em>pairs</em>, so many pad to 128 B. <code>std::hardware_destructive_interference_size</code> is a compile-time guess; GCC warns about ABI hazards. Apple M-series reports 128 B lines (<code>sysctl hw.cachelinesize</code> on our test machine).</li>
+<li><strong>Denormals.</strong> Up to ≈100× slower via microcode assist. A decaying EMA drifting toward 0 is the classic trigger. Fix: FTZ/DAZ. <a href="https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-windows/2025-1/operating-on-denormals.html" target="_blank" rel="noopener">Intel</a></li>
+<li><strong>AVX-512 frequency licences.</strong> On Skylake-SP, one AVX-512 burst downclocks the core and slows the scalar code after it. Mostly gone on Ice Lake+ (≤100 MHz), but voltage transitions remain. <a href="https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html" target="_blank" rel="noopener">Travis Downs</a></li>
+<li><strong>SMIs.</strong> Firmware interrupts invisible to the OS, sometimes ms long. Only detectable via <code>hwlatdetect</code>. An <strong>irreducible floor</strong>. <a href="https://www.kernel.org/doc/Documentation/trace/hwlat_detector.rst" target="_blank" rel="noopener">kernel hwlat</a></li>
+<li><strong>THP.</strong> khugepaged and direct compaction stall at random. Use explicit hugetlbfs.</li>
+<li><strong>TLB shootdowns.</strong> Any <code>munmap</code>/<code>mprotect</code>/<code>MADV_FREE</code> by any thread IPIs every core running the process (Rigtorp).</li>
+<li><strong>Spectre mitigations.</strong> KPTI made <code>getppid</code> 0.079 → 0.202 µs (+150%) (<a href="https://brendangregg.com/blog/2018-02-09/kpti-kaiser-meltdown-performance.html" target="_blank" rel="noopener">Gregg</a>). Rigtorp lists <code>mitigations=off</code>. I found <strong>no primary source</strong> that firms do this routinely. It is only defensible on single-tenant, locked-down boxes.</li>
+</ul>
+<p><strong>C++ traps:</strong></p>
+<ul>
+<li><strong>Type-punning packet buffers.</strong> <code>reinterpret_cast&lt;Hdr*&gt;(buf)-&gt;field</code> is UB (strict aliasing / object lifetime). It works until an optimiser proves otherwise. Use <code>memcpy</code>/<code>bit_cast</code> or C++23 <code>std::start_lifetime_as</code> (<a href="https://open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2590r2.pdf" target="_blank" rel="noopener">P2590R2</a>); library support landed late.</li>
+<li><strong>Memory ordering.</strong> x86 TSO hides <code>relaxed</code>-ordering bugs that break on ARM (<a href="https://learn.arm.com/learning-paths/servers-and-cloud-computing/arm-cpp-memory-model/3/" target="_blank" rel="noopener">Arm learning path</a>). Even on x86, the compiler can reorder relaxed ops, and TSO still reorders store→load. <code>volatile</code> gives neither.</li>
+<li><strong>Seqlock readers.</strong> Gross notes FastQueue's reader <code>memcpy</code> is formally a data race, pending P1478 (byte-wise atomic memcpy).</li>
+<li><strong>Exceptions.</strong> Zero-cost until thrown; then ≥1.5 µs (Cook), and the unwinder takes a global lock that scales badly across threads (<a href="https://open-std.org/JTC1/SC22/WG21/docs/papers/2022/p2544r0.html" target="_blank" rel="noopener">P2544</a>).</li>
+<li><strong>Hidden allocations.</strong> <code>std::function</code> may allocate (use <code>inplace_function</code>). Thread-safe function-local statics cost 5–10%. Before gcc 7.1, placement new did a null check (Cook war stories).</li>
+</ul>
+<div class="mis"><p><strong>Measurement misconceptions:</strong></p>
+<ul>
+<li>Microbenchmarks run warm; production fires cold (Gross's "you're not alone": other processes evict you). <code>DoNotOptimize</code> doesn't stop the compiler computing the expression at compile time.</li>
+<li><code>rdtsc</code> needs <code>lfence</code>/<code>rdtscp</code> fencing and an invariant TSC, and may be unsynchronised across sockets (<a href="https://cis.temple.edu/~qzeng/cis3207-spring18/files/ia-32-ia-64-benchmark-code-execution-paper.pdf" target="_blank" rel="noopener">Paoloni</a>).</li>
+<li><strong>Layout noise.</strong> Changing environment size or link order flipped whether -O3 beats -O2 (Mytkowicz, ASPLOS'09). With layout randomised (Stabilizer, ASPLOS'13), -O3 vs -O2 was indistinguishable from noise on SPEC2006. So a "3% win" from an unrelated commit may be alignment. <a href="https://people.cs.umass.edu/~emery/pubs/stabilizer-asplos13.pdf" target="_blank" rel="noopener">Stabilizer</a></li>
+</ul></div>
+<div class="mis"><p><strong>Misconceptions:</strong></p>
+<ul>
+<li>"Virtual calls are slow because of the vtable load." No: the cost is the indirect mispredict and the lost inlining.</li>
+<li>"Lock-free means no locks." Cook: it "may still require locks at the hardware level" (cache-line ownership).</li>
+<li>"Faster average = more wins." Race wins come from the tail at the moment of news.</li>
+</ul></div></section>
+<section id="wild"><h2>10. In the wild</h2><ul>
+<li><strong>Optiver (Cook 2017).</strong><ul>
+<li>Single-threaded hot path.</li>
+<li>Template config so there is "one virtual call at the top, none inside".</li>
+<li>Custom <code>array_map</code> hash.</li>
+<li>Dummy-path warming.</li>
+<li>Switch-timestamp replay rig for measurement.</li>
+<li>Deviation from textbook: <em>prefer approximations; do expensive work only when there's spare time.</em></li>
+</ul>
+</li>
+<li><strong>Optiver (Gross 2024).</strong><ul>
+<li>Reverse-vector book with linear search. He showed the branchless binary search <code>first += comp(first[half], value) * (length - half);</code> (the <code>*</code> is "needed for GCC to generate CMOV") and then showed that linear search wins anyway.</li>
+<li>Kernel-bypass fan-out to processes on the same box.</li>
+<li>FastQueue over shared memory, benchmarked against Aeron's BroadcastTransmitter and the LMAX Disruptor on an EPYC 9474F.</li>
+<li><code>ScopedTrace</code> with <code>__rdtsc()</code> pushed to a queue; Clang XRay for runtime patching.</li>
+<li>Top-down <code>perf stat -M Frontend_Bound,Backend_Bound,Bad_Speculation,Retiring</code>.</li>
+</ul>
+</li>
+<li><strong>HRT.</strong> Explicit huge pages: 4.5× faster random access over a 32 GB dataset on Alder Lake. Devirtualisation posts.</li>
+<li><strong>Logging (Quill, fmtlog).</strong><ul>
+<li>Per-thread SPSC queues carry a format-string ID plus binary args, ≈6 ns p50.</li>
+<li>A backend thread on a housekeeping core formats.</li>
+<li>spdlog formatting inline is ≈271 ns p50 in Quill's benchmark.</li>
+</ul>
+</li>
+<li><strong>Hybrid CPU+FPGA.</strong> AMD's X3522 markets "offload business logic to NIC". Solarflare/LDA put the TCP fast path in the FPGA with control in Onload. Software precomputes "if price X arrives, fire order Y" and the FPGA fires.</li>
+<li><strong>Exchanges moving into the cloud.</strong> CME announced (26 Jun 2024) Globex moving to a private Google Cloud region in Aurora with colocation (<a href="https://www.cmegroup.com/media-room/press-releases/2024/6/26/cme_group_and_googlecloudannouncenewchicagoareaprivatecloudregio.html" target="_blank" rel="noopener">CME</a>). Cut-over date unverified. Cloud-style NICs are why userspace stacks like Machnet matter.</li>
+</ul></section>
+<section id="front"><h2>11. Frontier (what&#x27;s new)</h2><table>
+<thead>
+<tr>
+<th>Year · venue</th>
+<th>Work</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024 · STAC report AMD240422</td>
+<td><a href="https://docs.stacresearch.com/news/AMD240422" target="_blank" rel="noopener">AMD Alveo UL3524 + Exegy nxFramework</a></td>
+<td>STAC-T0 record <strong>13.9 ns</strong> min tick-to-trade (507 B frames); prior record 24.2 ns; jitter ≈200 ps (Exegy claim). In-FPGA path only, not a full strategy. UL3524 transceivers &lt; 3 ns (<a href="https://www.xilinx.com/content/dam/xilinx/publications/product-briefs/2233051_Product_Brief_UL3524_Alveo_Accelerator_Card.pdf" target="_blank" rel="noopener">product brief</a>).</td>
+</tr>
+<tr>
+<td>2024 · CppCon keynote</td>
+<td><a href="https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf" target="_blank" rel="noopener">Gross, "When Nanoseconds Matter"</a></td>
+<td>Most detailed public account: reverse-vector books, linear vs branchless search, FastQueue seqlock broadcast, top-down profiling, XRay.</td>
+</tr>
+<tr>
+<td>2023 · HPCA</td>
+<td><a href="https://rebellions.ai/wp-content/uploads/2023/11/RebellionsIONHPCA23_LightTrader.pdf" target="_blank" rel="noopener">LightTrader</a> (KAIST/Rebellions, DOI 10.1109/HPCA56546.2023.10070930)</td>
+<td>FPGA networking + 7 nm CGRA DNN accelerator in the tick path. Burst-aware scheduler with DVFS; reported 6× faster DNN and 30–50× fewer missed queries. Numbers are from the summary; full paper not read.</td>
+</tr>
+<tr>
+<td>2024 · IEEE ICC</td>
+<td><a href="https://arxiv.org/abs/2402.10513" target="_blank" rel="noopener">Understanding Delays in AF_XDP</a></td>
+<td>Best AF_XDP RTT ≈6.5 µs, and only with careful busy-poll, need_wakeup and zero-copy tuning. Upstream Linux is still a µs-class path.</td>
+</tr>
+<tr>
+<td>2025 · Linux 6.15</td>
+<td><a href="https://www.phoronix.com/news/Linux-6.15-IO_uring" target="_blank" rel="noopener">io_uring zero-copy receive</a></td>
+<td>NIC page pool DMAs straight to user memory; 188 Gbit/s on one core. A throughput result: no published latency comparison vs ef_vi.</td>
+</tr>
+<tr>
+<td>2023 · MICRO</td>
+<td><a href="https://arxiv.org/abs/2303.15375" target="_blank" rel="noopener">Demystifying CXL Memory</a></td>
+<td>Placing pages in CXL raises tail latency of µs-scale apps by 10–82% vs local DDR. Keep hot state out of CXL tiers.</td>
+</tr>
+<tr>
+<td>2026 · ISO C++26 (finalised Mar 2026)</td>
+<td><a href="https://en.wikipedia.org/wiki/C%2B%2B26" target="_blank" rel="noopener">C++26</a></td>
+<td>Static reflection (zero-overhead codec generation), <code>std::inplace_vector</code> (no heap), <code>&lt;hazard_pointer&gt;</code>, <code>&lt;rcu&gt;</code>, <code>std::execution</code>, contracts. Trivial relocatability deferred. <code>start_lifetime_as</code> came in C++23.</td>
+</tr>
+<tr>
+<td>2026 · arXiv 2608.02424 (preprint)</td>
+<td><a href="https://arxiv.org/abs/2608.02424" target="_blank" rel="noopener">LOBIN</a> (Oxford)</td>
+<td>Builds order books and runs ML inference <strong>inside programmable switches</strong>; ≈45% of traffic handled entirely in-switch.</td>
+</tr>
+<tr>
+<td>2026 · arXiv 2608.00909, COLM 2026</td>
+<td><a href="https://arxiv.org/abs/2608.00909" target="_blank" rel="noopener">FinHardBench</a></td>
+<td>Can LLMs write latency-aware RTL/HLS for 33 tick-to-trade tasks? 19–61% functionally correct, timing regressions up to 13.7×.</td>
+</tr>
+<tr>
+<td>2023 · arXiv 2309.04259</td>
+<td><a href="https://arxiv.org/abs/2309.04259" target="_blank" rel="noopener">Bilokon &amp; Gunduz, C++ Design Patterns for Low-latency Apps incl. HFT</a></td>
+<td>Academic microbenchmarks: cache warming and constexpr gave the biggest wins.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Where the action moved:</strong> the fastest decisions migrated to FPGAs/ASICs and now switches. The C++ frontier is (a) making the 1–10 µs strategy layer predictable while it runs heavier models (LightTrader-style ML), (b) language features that remove UB from zero-copy parsing and add reflection-generated codecs, and (c) surviving exchange moves to cloud-like infrastructure.</p></section>
+<section id="open"><h2>11b. Open problems</h2><ol>
+<li><strong>Deterministic latency on general-purpose CPUs.</strong><ul>
+<li>SMIs, microcode assists, uncore and memory-controller power management, and voltage transitions can't be turned off from software.</li>
+<li>Even with <code>isolcpus</code> + <code>nohz_full</code>, residual timer interrupts appear (≈1 Hz tick by design, and Red Hat KB reports more).</li>
+<li>Why hard: the CPU vendor, not the OS, owns these.</li>
+<li>Who: Linux RT and nohz maintainers (Frederic Weisbecker et al.), hardware vendors.</li>
+</ul>
+</li>
+<li><strong>Verifying lock-free code at system scale.</strong><ul>
+<li>GenMC (MPI-SWS, PLDI'19) model-checks RC11/IMM programs, but small client programs only: state explosion, bounded loops.</li>
+<li>Production seqlocks are formally racy in C++ today (P1478 pending).</li>
+</ul>
+</li>
+<li><strong>Performance measurement that isn't layout noise.</strong><ul>
+<li>Stabilizer showed layout effects swamp many "optimisations".</li>
+<li>Firms want ±1% decisions on code where alignment alone moves ±several %.</li>
+<li>Pinning alignment (<code>-falign-functions</code>, BOLT) helps but doesn't prove causality.</li>
+</ul>
+</li>
+<li><strong>One source of truth across CPU and FPGA.</strong><ul>
+<li>Strategy and risk checks get re-implemented in HDL/HLS.</li>
+<li>No programming model guarantees the FPGA's "fire" logic and the C++ risk gate agree.</li>
+<li>FinHardBench shows LLM-generated RTL isn't there yet.</li>
+</ul>
+</li>
+<li><strong>Is it socially worth it?</strong><ul>
+<li>Budish/Cramton/Shim (QJE 2015) and Aquilina et al. (QJE 2022) argue races are an artifact of continuous limit-order books. Frequent batch auctions would cut liquidity cost ≈17%.</li>
+<li>Speed-bump evidence is mixed: it helps the adopting venue, but market-wide effects are inconclusive (<a href="https://static1.squarespace.com/static/6310c0b9bb63a25599f4418c/t/65d4835e10387e459f6266a2/1708426079078/SpeedBumpFinal20240212.pdf" target="_blank" rel="noopener">Aramian &amp; Comerton-Forde</a>).</li>
+<li>If market design changed, much of this engineering would be obsolete.</li>
+</ul>
+</li>
+<li><strong>Gaps in this dive.</strong> Exact ns numbers in Gross's charts weren't extractable (images). No 2023–25 head-to-head paper compares Onload/ef_vi vs AF_XDP vs DPDK latency. Firm-internal splits of the tick-to-trade budget aren't public.</li>
+</ol></section>
+<section id="lin"><h2>12. Lineage</h2><ul>
+<li><strong>2000s.</strong> Kernel sockets, interrupt-driven NICs, std containers.</li>
+<li><strong>2007.</strong> Drepper, <em>What Every Programmer Should Know About Memory</em>.</li>
+<li><strong>2008–2011.</strong> Solarflare OpenOnload (user-space TCP/IP, LD_PRELOAD).</li>
+<li><strong>2010.</strong> SEC Rule 15c3-5 mandates pre-trade controls.</li>
+<li><strong>2010–2011.</strong> LMAX Disruptor and "mechanical sympathy" (Thompson): single writer, padding, ring buffers.</li>
+<li><strong>2010–2013.</strong> Chicago–NJ microwave race (Spread Networks fiber 13 ms RTT → McKay microwave 8.2 ms).</li>
+<li><strong>2012.</strong> Gil Tene, "How NOT to Measure Latency"; HdrHistogram.</li>
+<li><strong>2012.</strong> Knight Capital.</li>
+<li><strong>2015.</strong> Budish/Cramton/Shim, the HFT arms race paper.</li>
+<li><strong>2016–2017.</strong> P0154 <code>hardware_destructive_interference_size</code> (C++17).</li>
+<li><strong>2017.</strong> Cook, "When a Microsecond Is an Eternity".</li>
+<li><strong>2018.</strong> NanoLog (ATC'18); Neugebauer PCIe characterisation (SIGCOMM'18).</li>
+<li><strong>2020.</strong> Cisco buys Exablaze.</li>
+<li><strong>2022.</strong> C++23 <code>start_lifetime_as</code>.</li>
+<li><strong>2022.</strong> Aquilina/Budish/O'Neill quantify races (5–10 µs).</li>
+<li><strong>2022.</strong> HRT huge pages.</li>
+<li><strong>2022.</strong> Gross, "Trading at light speed".</li>
+<li><strong>2023.</strong> AMD UL3524.</li>
+<li><strong>2023.</strong> LightTrader (HPCA).</li>
+<li><strong>2024.</strong> STAC-T0 13.9 ns.</li>
+<li><strong>2024.</strong> Gross, "When Nanoseconds Matter".</li>
+<li><strong>2024.</strong> CME → private Google Cloud announced.</li>
+<li><strong>2025.</strong> io_uring zcrx.</li>
+<li><strong>2026.</strong> C++26: reflection, <code>inplace_vector</code>, hazard pointers/RCU.</li>
+<li><strong>2026.</strong> In-switch order books (LOBIN).</li>
+</ul></section>
+<section id="hands"><h2>13. Hands-on (≤ 30 min)</h2><p><a href="hotpath_lab.cpp"><code>hotpath_lab.cpp</code></a> runs three experiments behind the folklore:</p>
+<pre><code class="language-bash">c++ -O2 -std=c++20 -pthread hotpath_lab.cpp -o lab &amp;&amp; ./lab
+</code></pre>
+<p>Results on an Apple M-series laptop, macOS, clang 21 (your numbers will differ; compare ratios):</p>
+<pre><code>1) false sharing — 2 threads x 50M relaxed fetch_add
+  same line : 1908 ms
+  padded    : 82 ms                              → 23x
+2) cold vs warm hot path (2000 samples each)
+  cold (after cache trash)     p50= 542 ns  p99=1666 ns  p99.9=1875 ns
+  warm (after warm-up call)    p50=  84 ns  p99= 208 ns  p99.9= 250 ns   → 6.5x p50, 8x p99
+3) order book update, 1M ops, 90% within 5 ticks of best
+  std::map&lt;greater&gt;            16.9 ns/update
+  reversed vector + linear     10.9 ns/update    → 1.55x
+</code></pre>
+<p>Things to try:</p>
+<ul>
+<li>Change <code>kLine</code> from 128 to 8 in <code>Padded</code> and watch the 23× return.</li>
+<li>In experiment 3, make updates uniform over all 200 levels (<code>near</code> always false). The vector's linear scan and <code>insert</code> shifts grow, and <code>std::map</code> catches up. Data skew is the reason the vector wins.</li>
+<li>Shrink <code>g_junk</code> to 1 MiB. "Cold" stops being cold once the trash fits in L2.</li>
+<li>Remove the warm-up call <code>on_tick(i + 1)</code> and see "warm" degrade.</li>
+<li>On Linux x86, run under <code>perf stat -e cache-misses,branch-misses</code> and with <code>taskset -c</code> on an isolated core.</li>
+</ul></section>
+<section id="qs"><h2>14. Question ladder</h2><p><button id="revealall">Reveal all answers</button></p>
+<h3>Mechanism</h3>
+<details class="q"><summary>1. What exactly happens, cycle-wise, between the NIC DMA completing and your code seeing the packet with ef_vi vs a kernel socket?</summary><div class="ans"><p><strong>ef_vi:</strong> the NIC DMAs into a user-registered buffer and writes an event into a user-mapped event queue. The spinning thread's next <code>ef_eventq_poll</code> load sees it, ideally from cache if DDIO placed it in LLC. No interrupt, no mode switch, no copy.</p>
+<p><strong>Kernel:</strong> the NIC raises an interrupt (or NAPI polls), the driver builds an skb, the IP/UDP stack processes it, and it is queued on the socket. The thread blocked in <code>recv</code> gets woken through the scheduler, does a syscall return, and the data is copied to the user buffer. Each step adds cache misses and possible context switches. Solarflare measured ≈+3.9 µs for TCP.</p></div></details>
+<details class="q"><summary>2. Why does Gross store bids ascending and asks descending, and what's at <code>back()</code>?</summary><div class="ans"><p>The best price (highest bid, lowest ask) sits at the <strong>end</strong> of the vector. Most adds, modifies and deletes happen near the top of the book. <code>vector::insert</code>/<code>erase</code> cost is proportional to elements <em>after</em> the position, so operations near the end shift almost nothing. At the front they would shift the whole book.</p></div></details>
+<details class="q"><summary>3. How does Rigtorp's SPSC queue's cached index reduce cache-coherence traffic?</summary><div class="ans"><p>Normally the consumer reads <code>writeIdx</code> on every pop. That pulls the producer's cache line into shared state, and the producer's next write must invalidate it, so the line ping-pongs. With a cached copy, the consumer only re-reads <code>writeIdx</code> when its cached value says the queue is empty, and the producer does the same for <code>readIdx</code>. Cross-core transfers drop from ≈per-op to ≈per-batch: Rigtorp saw ≈3 → 0.15 misses/op and 20× throughput.</p></div></details>
+<details class="q"><summary>4. In FastQueue, why does the reader check the write counter both before and after copying?</summary><div class="ans"><p>The writer never waits for readers, so it can lap a slow reader and overwrite data mid-copy. Reading the write counter before and after copying (seqlock-style) tells the reader whether the region could have been overwritten during the <code>memcpy</code>. If so, it discards the copy and reports overrun. The copy itself is formally a data race in C++, hence P1478.</p></div></details>
+<h3>Why</h3>
+<details class="q"><summary>5. Why does linear search beat binary search on the order book even though it's O(N)?</summary><div class="ans"><p>Updates are heavily skewed toward the top few levels, so a scan from the best price terminates in 0–3 steps. Each step is a sequential, prefetchable, well-predicted access. Binary search over ≈1000 levels does ≈10 dependent, unpredictable probes across different cache lines, which means mispredicts or data-dependent loads. Expected cost, not worst-case complexity, matters for skewed data. Our lab: vector 10.9 vs map 16.9 ns/update.</p></div></details>
+<details class="q"><summary>6. Why fold all risk checks into one <code>uint64_t</code> instead of early-returning on each?</summary><div class="ans"><p>Each early-return branch must be predicted, and their outcome pattern is data-dependent. OR-ing branchless comparisons into a bit mask leaves <strong>one</strong> branch that is almost always "no error" and therefore perfectly predicted. The error handler is out-of-line and cold, so its instructions don't pollute the hot i-cache. You pay a few extra ALU ops to avoid potential 15–20-cycle mispredicts.</p></div></details>
+<details class="q"><summary>7. Why do firms prefer a busy-spinning <code>SCHED_OTHER</code> thread over <code>SCHED_FIFO</code>?</summary><div class="ans"><p>On an isolated core with one runnable task, there's nothing to preempt you anyway. SCHED_FIFO adds RT throttling: by default RT tasks are limited to 95% CPU (<code>sched_rt_runtime_us</code>), so a spinning FIFO thread gets forcibly descheduled. It also risks starving per-CPU kernel threads that need to run. Rigtorp recommends a busy-waiting SCHED_OTHER thread.</p></div></details>
+<details class="q"><summary>8. Why explicit hugetlbfs instead of transparent huge pages?</summary><div class="ans"><p>THP is opportunistic: khugepaged collapses pages in the background and the kernel may do direct compaction on fault. Both cause unpredictable stalls (<code>compact_stall</code>). Explicit hugetlbfs pages are reserved at boot, mapped with <code>MAP_HUGETLB</code>, and prefaulted at startup, so you get the TLB-reach win (≈4 GiB vs 8 MiB) with no runtime surprises.</p></div></details>
+<h3>Counterfactual</h3>
+<details class="q"><summary>9. If you removed cache warming but kept everything else, which percentile moves most, and why?</summary><div class="ans"><p>The <strong>first real event after idle</strong>, which is the one that matters, gets slow. The tail percentiles and specifically "latency after quiet period" move most. The median might barely change during busy periods, because back-to-back packets keep things warm naturally. In our lab, cold vs warm is 6.5× at p50 and 8× at p99.</p></div></details>
+<details class="q"><summary>10. If the market became a frequent batch auction every 100 ms, which of these techniques would still matter?</summary><div class="ans"><p>Sub-ms speed would stop deciding who wins: orders arriving anywhere within the 100 ms window are treated equally. What survives:</p>
+<ul>
+<li><strong>throughput</strong> (process the whole batch's data),</li>
+<li><strong>correctness</strong> and risk,</li>
+<li><strong>avoiding drops</strong>,</li>
+<li>maybe compute-heavy pricing before the auction deadline.</li>
+</ul>
+<p>Kernel bypass and the ns-level micro-optimisations would matter far less. That is the point of Budish et al.</p></div></details>
+<details class="q"><summary>11. What if you used <code>std::map</code> but with a pool allocator? What's fixed, and what isn't?</summary><div class="ans"><p>The pool fixes allocation cost and fragmentation, and improves locality somewhat if nodes come from one arena. It doesn't fix:</p>
+<ul>
+<li>the <strong>log N dependent pointer chases</strong> with unpredictable branches,</li>
+<li>the larger node footprint (3 pointers + colour per entry), so fewer levels per cache line,</li>
+<li>the lack of sequential prefetchability.</li>
+</ul></div></details>
+<h3>Adversarial</h3>
+<details class="q"><summary>12. How could a dummy warm-up order end up sent to the exchange, and how do you make that impossible?</summary><div class="ans"><p>How it could happen: the "don't send" decision is one runtime flag. A bug, a reused flag (Knight!), or a refactor that moves the check can turn warm-up into real orders.</p>
+<p>Defences:</p>
+<ul>
+<li>make the dry-run send target a <strong>different sink</strong> (a null TX object chosen by template/type, or a TX ring the NIC never transmits);</li>
+<li>give warm-up orders an exchange-invalid or self-rejecting field;</li>
+<li>add independent risk checks, including on the FPGA/NIC or a gateway;</li>
+<li>add a wire-level monitor that kills the session on unexpected orders.</li>
+</ul></div></details>
+<details class="q"><summary>13. You see a 3% p50 improvement after an unrelated commit. How do you decide if it's real?</summary><div class="ans"><p>Treat it as layout noise until proven otherwise (Mytkowicz ASPLOS'09; Stabilizer ASPLOS'13).</p>
+<ul>
+<li>Rerun with different link orders and alignments, or with randomisation.</li>
+<li>Use many runs and look at distributions and confidence intervals, not single numbers.</li>
+<li>Check top-down counters for a plausible mechanism (fewer misses or mispredicts).</li>
+<li>Confirm at the wire with hardware timestamps under replayed production data, not a microbenchmark.</li>
+</ul></div></details>
+<details class="q"><summary>14. Which jitter source would you blame for a 2 ms spike that hits all isolated cores at once, and how do you confirm it?</summary><div class="ans"><p>Prime suspect: an <strong>SMI</strong>. It stalls all cores invisibly to the OS and can last ms. Other candidates: a TLB-shootdown storm, or the memory/uncore power state.</p>
+<p>To confirm: run <code>hwlatdetect</code> / the hwlat tracer on the box (it spins with IRQs off and looks for TSC gaps), and correlate with BIOS settings (disable features like memory patrol scrub if allowed). Check <code>/proc/interrupts</code> deltas to rule out OS-visible interrupts.</p></div></details>
+<details class="q"><summary>15. Where is the UB in <code>auto* m = reinterpret_cast&lt;const AddOrder*&gt;(buf); return m-&gt;price;</code>, and why might it "work" for years?</summary><div class="ans"><p>No <code>AddOrder</code> object exists at <code>buf</code>; there is only a char/byte array. Accessing it through <code>const AddOrder*</code> violates object-lifetime and strict-aliasing rules. Misalignment can be UB too if the struct needs alignment the buffer doesn't provide.</p>
+<p>It "works" because compilers usually emit plain loads and nothing in the TU lets them exploit the UB. Inlining, LTO, or a new optimisation can reorder or eliminate loads based on aliasing assumptions.</p>
+<p>Fixes: <code>memcpy</code>/<code>std::bit_cast</code> (optimised to loads) or C++23 <code>std::start_lifetime_as&lt;AddOrder&gt;(buf)</code>.</p></div></details>
+<h3>Connection</h3>
+<details class="q"><summary>16. How is cache warming related to JIT warm-up in the JVM?</summary><div class="ans"><p>Both pre-pay one-time or decaying costs before the critical moment: the JIT compiles hot methods and builds profiles; cache warming loads lines and trains predictors. The difference: JIT warm-up is mostly one-time (compiled code stays), while cache/predictor state <strong>decays</strong> whenever other code runs, so HFT warming must be <strong>continuous</strong>. JVM trading shops (LMAX, Chronicle) need both.</p></div></details>
+<details class="q"><summary>17. How does the Little's-law burst analysis relate to io_uring's CQ overflow or a Kafka consumer lag?</summary><div class="ans"><p>Same math: when arrival rate &gt; service rate, backlog grows at λ−μ until a bounded buffer overflows. That buffer could be the NIC ring here, an io_uring CQ (overflow → <code>-EBUSY</code>/dropped completions handled via the overflow list), or a Kafka consumer (lag grows until retention deletes unconsumed data). The cliff is the same; only the buffer differs.</p></div></details>
+<details class="q"><summary>18. How does the Knight Capital failure map onto feature-flag practice in ordinary web services?</summary><div class="ans"><p>Lessons for any service:</p>
+<ul>
+<li>Dead code behind a flag is live.</li>
+<li>Reusing a flag's meaning across versions is dangerous during <strong>partial rollouts</strong>: old binaries interpret the bit the old way.</li>
+<li>Verify version consistency across the fleet before enabling.</li>
+<li>Rollback is a deployment too, so reason about the state you're rolling back to.</li>
+<li>Alerts must be designed as alerts (97 unread emails).</li>
+</ul></div></details>
+<h3>Open</h3>
+<details class="q"><summary>19. Can a general-purpose CPU ever offer a hard upper bound on tick-to-trade latency?</summary><div class="ans"><p>Not today. SMIs, microcode assists, DRAM refresh and power-management transitions are outside OS control, and caches/coherence add data-dependent timing. You can make violations rare and characterise them statistically, not bound them. Hard real-time systems use simpler cores, locked caches/scratchpads, or FPGAs, which is partly why the hardest deadlines moved to FPGAs.</p></div></details>
+<details class="q"><summary>20. Will C++26 reflection make hand-written codecs and SBE-style generators obsolete in HFT?</summary><div class="ans"><p>Plausibly it replaces external generators for <em>simple</em> schemas: reflection can generate field-by-field encode/decode at compile time from a struct with zero runtime cost.</p>
+<p>But exchange schemas (SBE XML, ITCH specs) originate <em>outside</em> C++. Generators also handle versioning, multiple languages, and documentation. Open question: adoption depends on compiler maturity and on whether teams trust compile-time-generated hot code.</p></div></details>
+<details class="q"><summary>21. If FPGAs and switches take every simple decision, what's left for C++, and does "nanosecond C++" still matter?</summary><div class="ans"><p>Open. One view: C++ becomes the "control plane": strategy, risk, parameter computation, model inference at 1–10 µs, while FPGAs fire. Predictability still matters there (falling behind on parameters = stale triggers). Another view: as exchange architecture (cloud regions, speed bumps, batch auctions) changes, the payoff for the last ns shrinks. Expect the skill set to shift toward co-design and measurement rather than micro-tricks.</p></div></details>
+</section>
+<section id="next"><h2>15. Go deeper next</h2><ol>
+<li><strong>Seqlocks and the C++ memory model.</strong> Why byte-wise atomic memcpy (P1478) is needed, and how Boehm's "Can seqlocks get along with programming language memory models?" frames it.</li>
+<li><strong>FPGA tick-to-trade pipelines.</strong> How a 14 ns STAC-T0 path parses, decides and transmits without leaving the transceiver/MAC.</li>
+<li><strong>Top-down microarchitecture analysis (TMA).</strong> How <code>Frontend_Bound / Bad_Speculation / Backend_Bound / Retiring</code> is derived from pipeline slots, and how to act on each.</li>
+</ol></section>
+<section id="src"><h2>Sources</h2><h3>Papers</h3>
+<ul>
+<li>Aquilina, Budish, O'Neill, <em>Quantifying the High-Frequency Trading "Arms Race"</em>, QJE 2022: https://www.nber.org/papers/w29011 · FCA OP50: https://www.fca.org.uk/publications/occasional-papers/occasional-paper-no-50-quantifying-high-frequency-trading-arms-race-new-methodology · BIS WP 955: https://www.bis.org/publ/work955.pdf</li>
+<li>Budish, Cramton, Shim, <em>The HFT Arms Race</em>, QJE 2015: https://ideas.repec.org/a/oup/qjecon/v130y2015i4p1547-1621.html</li>
+<li>Neugebauer et al., <em>Understanding PCIe performance for end host networking</em>, SIGCOMM 2018: https://www.cl.cam.ac.uk/teaching/1011/R02/papers/p327-neugebauer.pdf</li>
+<li>Bhattacherjee et al., cISP: https://courses.cs.duke.edu/fall21/compsci514/internal/readings/BhattacherjeeAABSTACGLMS22.pdf</li>
+<li>Castillon du Perron et al., <em>Understanding Delays in AF_XDP-based Applications</em>, ICC 2024: https://arxiv.org/abs/2402.10513</li>
+<li>Sun et al., <em>Demystifying CXL Memory</em>, MICRO 2023: https://arxiv.org/abs/2303.15375</li>
+<li>LightTrader, HPCA 2023: https://rebellions.ai/wp-content/uploads/2023/11/RebellionsIONHPCA23_LightTrader.pdf</li>
+<li>LOBIN, arXiv 2608.02424: https://arxiv.org/abs/2608.02424</li>
+<li>FinHardBench, arXiv 2608.00909: https://arxiv.org/abs/2608.00909</li>
+<li>Bilokon &amp; Gunduz, arXiv 2309.04259: https://arxiv.org/abs/2309.04259</li>
+<li>Yang et al., NanoLog, USENIX ATC 2018: https://www.usenix.org/conference/atc18/presentation/yang-stephen</li>
+<li>Curtsinger &amp; Berger, Stabilizer, ASPLOS 2013: https://people.cs.umass.edu/~emery/pubs/stabilizer-asplos13.pdf</li>
+<li>Mytkowicz et al., <em>Producing Wrong Data…</em>, ASPLOS 2009: https://evaluate.inf.usi.ch/biblio/keyword/7</li>
+<li>GenMC, PLDI 2019: https://www.mpi-sws.org/~michalis/papers/pldi2019-genmc.pdf</li>
+<li>Drepper, <em>What Every Programmer Should Know About Memory</em>: https://www.akkadia.org/drepper/cpumemory.pdf</li>
+<li>LMAX Disruptor paper: https://lmax-exchange.github.io/disruptor/disruptor.html</li>
+<li>Paoloni, <em>How to Benchmark Code Execution Times on Intel</em>: https://cis.temple.edu/~qzeng/cis3207-spring18/files/ia-32-ia-64-benchmark-code-execution-paper.pdf</li>
+<li>Aramian &amp; Comerton-Forde, <em>Are Speed Bumps Beneficial?</em>: https://static1.squarespace.com/static/6310c0b9bb63a25599f4418c/t/65d4835e10387e459f6266a2/1708426079078/SpeedBumpFinal20240212.pdf</li>
+</ul>
+<h3>Talks &amp; standards</h3>
+<ul>
+<li>Cook, CppCon 2017 slides: https://github.com/CppCon/CppCon2017/blob/master/Presentations/When%20a%20Microsecond%20Is%20an%20Eternity/When%20a%20Microsecond%20Is%20an%20Eternity%20-%20Carl%20Cook%20-%20CppCon%202017.pdf</li>
+<li>Gross, CppCon 2024 slides: https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf · https://cppcon.org/2024-keynote-david-gross/</li>
+<li>Gross, Meeting C++ 2022: https://meetingcpp.com/2022/Talks/items/Trading_at_light_speed__designing_low_latency_systems_in_Cpp.html</li>
+<li>Tene, <em>How NOT to Measure Latency</em>: https://qconsf.com/sf2012/dl/qcon-sanfran-2012/slides/GilTene_HowNotToMeasureLatency.pdf · https://groups.google.com/g/mechanical-sympathy/c/icNZJejUHfE/m/BfDekfBEs_sJ</li>
+<li>P2590R2 <code>start_lifetime_as</code>: https://open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2590r2.pdf</li>
+<li>P0154 interference size: https://open-std.org/Jtc1/sc22/wg21/docs/papers/2016/p0154r1.html</li>
+<li>P2544 exceptions: https://open-std.org/JTC1/SC22/WG21/docs/papers/2022/p2544r0.html</li>
+<li>C++26: https://en.wikipedia.org/wiki/C%2B%2B26</li>
+<li>STAC Summit 2017 Solarflare: https://docs.stacresearch.com/system/files/resource/files/STAC-Summit-5-Jun-2017-Solarflare.pdf</li>
+<li>STAC AMD240422: https://docs.stacresearch.com/news/AMD240422 · Exegy: https://www.exegy.com/exegy-amd-new-record/</li>
+<li>SEC Knight Capital order 34-70694: https://www.sec.gov/litigation/admin/2013/34-70694.pdf</li>
+</ul>
+<h3>Code &amp; docs</h3>
+<ul>
+<li>Onload / ef_vi: https://github.com/Xilinx-CNS/onload · efsink.c: https://raw.githubusercontent.com/Xilinx-CNS/onload/master/src/tests/ef_vi/efsink.c</li>
+<li>ExaNIC: https://github.com/cisco/exanic-software</li>
+<li>Rigtorp low-latency guide: https://rigtorp.se/low-latency-guide/ · ring buffer: https://rigtorp.se/ringbuffer/ · SPSCQueue: https://github.com/rigtorp/SPSCQueue</li>
+<li>SBE: https://github.com/real-logic/simple-binary-encoding · Aeron: https://github.com/real-logic/aeron</li>
+<li>Quill: https://github.com/odygrd/quill · fmtlog: https://github.com/MengRao/fmtlog</li>
+<li>HdrHistogram: https://github.com/HdrHistogram/HdrHistogram</li>
+<li>BOLT: https://github.com/llvm/llvm-project/tree/main/bolt</li>
+<li>papipp: https://github.com/david-grs/papipp</li>
+<li>Linux timestamping: https://www.kernel.org/doc/html/latest/networking/timestamping.html · no_hz: https://docs.kernel.org/timers/no_hz.html · intel_idle: https://docs.kernel.org/6.19/admin-guide/pm/intel_idle.html · hwlat: https://www.kernel.org/doc/Documentation/trace/hwlat_detector.rst</li>
+<li>7-cpu Skylake: https://www.7-cpu.com/cpu/Skylake.html</li>
+<li>Intel denormals: https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-windows/2025-1/operating-on-denormals.html</li>
+<li>Arm C++ memory model: https://learn.arm.com/learning-paths/servers-and-cloud-computing/arm-cpp-memory-model/3/</li>
+</ul>
+<h3>Articles</h3>
+<ul>
+<li>HRT huge pages: https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/</li>
+<li>Jane Street performance engineering: https://www.janestreet.com/performance-engineering/</li>
+<li>IMC job page: https://www.imc.com/us/careers/jobs/4634204101</li>
+<li>Brendan Gregg KPTI: https://brendangregg.com/blog/2018-02-09/kpti-kaiser-meltdown-performance.html</li>
+<li>Travis Downs AVX-512: https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html</li>
+<li>Tsuna context switches: https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html</li>
+<li>The Register microwave vs fibre: https://www.theregister.com/2013/02/27/microwave_versus_fibre/</li>
+<li>Tail at Scale summary: https://blog.acolyer.org/2015/01/15/the-tail-at-scale/</li>
+<li>Phoronix io_uring zcrx: https://www.phoronix.com/news/Linux-6.15-IO_uring · C6: https://www.phoronix.com/news/Intel-C6-Ice-Lake-Xeon-Idle</li>
+<li>CME / Google Cloud: https://www.cmegroup.com/media-room/press-releases/2024/6/26/cme_group_and_googlecloudannouncenewchicagoareaprivatecloudregio.html</li>
+<li>eFinancialCareers Rust anecdote: https://www.efinancialcareers.com/news/C-vs-Rust-High-Frequency-Trading-Hell</li>
+</ul></section></main></div><script>
+// scroll-spy
+const links=[...document.querySelectorAll('nav a')];const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id));}})},{rootMargin:'-10% 0px -80% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+// copy buttons
+document.querySelectorAll('pre').forEach(p=>{const b=document.createElement('button');b.className='copy';b.textContent='Copy';b.type='button';
+b.onclick=()=>{try{navigator.clipboard.writeText(p.querySelector('code')?.innerText||p.innerText);b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)}catch(e){}};p.appendChild(b)});
+// stepper
+let si=0;const st=document.getElementById('st'),sc=document.getElementById('sc'),nodes=[...document.querySelectorAll('.node')];
+function rs(){const [t,k,txt]=STEPS[si];sc.textContent=`STEP ${si+1} / ${STEPS.length}`;st.innerHTML='<b>'+t+'</b><br>'+txt.replace(/</g,'&lt;');
+const idx=nodes.findIndex(n=>n.dataset.k===k);nodes.forEach((n,i)=>{n.classList.toggle('on',i===idx);n.classList.toggle('done',i<idx)});
+document.getElementById('sb').disabled=si===0;document.getElementById('sn').disabled=si===STEPS.length-1;}
+document.getElementById('sb').onclick=()=>{if(si>0){si--;rs()}};document.getElementById('sn').onclick=()=>{if(si<STEPS.length-1){si++;rs()}};
+document.getElementById('stepper').addEventListener('keydown',e=>{if(e.key==='ArrowRight'&&si<STEPS.length-1){si++;rs()}if(e.key==='ArrowLeft'&&si>0){si--;rs()}});rs();
+// wire floor
+const $=id=>document.getElementById(id);
+function wire(){const d=+$('wd').value;$('wdv').textContent=d;const air=d*1.0003/299792.458*1e3, fib=d*1.47/299792.458*1e3;
+$('wout').innerHTML=`air / microwave one-way: ${air.toFixed(3)} ms   (RTT ${(2*air).toFixed(2)} ms)\nfiber (n=1.47) one-way:  ${fib.toFixed(3)} ms   (+${((fib-air)*1000).toFixed(0)} µs vs air)\n→ every km of glass costs ≈ ${(((1.47-1.0003)/299792.458)*1e6).toFixed(2)} µs extra (straight-line; real fiber routes are longer)`}
+['wd'].forEach(i=>$(i).oninput=wire);wire();
+// burst
+function burst(){const l=+$('bl').value*1e6,s=+$('bs').value*1e-9,R=+$('br').value;$('blv').textContent=(+$('bl').value).toFixed(1);$('bsv').textContent=$('bs').value;$('brv').textContent=R;
+const mu=1/s;let t=`service rate μ = ${(mu/1e6).toFixed(2)} M msg/s, utilisation ρ = λ/μ = ${(l/mu).toFixed(2)}\n`;
+if(l<=mu){t+=`<span class="good">keeps up</span>: backlog never grows; ring of ${R} never fills (in this fluid model).`}
+else{const g=l-mu,T=R/g;t+=`backlog grows ${(g/1e6).toFixed(2)} M msg/s → <span class="bad">ring overflows after ${T<1e-3?(T*1e6).toFixed(0)+' µs':(T*1e3).toFixed(2)+' ms'}</span> of burst\nmessage #1000 of the burst waits ≈ ${(1000*(s-1/l)*1e6).toFixed(1)} µs in queue`}
+$('bout').innerHTML=t}
+['bl','bs','br'].forEach(i=>$(i).oninput=burst);burst();
+// tail
+function tail(){const p=+$('tp').value/100,N=+$('tn').value;$('tpv').textContent=(p*100).toFixed(1);$('tnv').textContent=N;const P=1-Math.pow(1-p,N);
+$('tout').textContent=`P(at least one slow stage) = 1 − (1 − ${p.toFixed(3)})^${N} = ${(P*100).toFixed(1)} %`;$('tbar').style.width=(P*100)+'%'}
+['tp','tn'].forEach(i=>$(i).oninput=tail);tail();
+// reveal all
+const ra=$('revealall');ra.onclick=()=>{const qs=[...document.querySelectorAll('details.q')];const open=!qs.every(d=>d.open);qs.forEach(d=>d.open=open);ra.textContent=open?'Hide all answers':'Reveal all answers'};
+</script></body></html>
