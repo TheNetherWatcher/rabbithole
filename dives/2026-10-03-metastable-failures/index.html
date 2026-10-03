@@ -1,0 +1,796 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metastable failures dive</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5c5c66;--card:#fff;--bd:#e3e0d8;--ac:#b4442b;--ac2:#1f6f78;--code:#f3f1ea;--warm:#fff4e2;--warmbd:#f1cf9a;--ok:#2f7d3a;--bad:#b4442b;--band:rgba(31,111,120,.10)}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e9e9ee;--mut:#9a9aa6;--card:#1a1b20;--bd:#2b2d35;--ac:#ff8a6b;--ac2:#6fd0d9;--code:#202229;--warm:#2a2318;--warmbd:#5c4a28;--ok:#6fd38a;--bad:#ff8a6b;--band:rgba(111,208,217,.12)}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--bd);font-size:13.5px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(72ch + 56px);min-width:0}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.5rem;margin:1.6em 0 .5em;scroll-margin-top:12px}h3{margin-top:1.4em}
+section{scroll-margin-top:12px}
+.card-line{font:600 12px/1.4 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.tldr{font-size:1.05rem}.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b{display:block;font-size:1.25rem;color:var(--ac)}.nums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}
+.plain h2{margin-top:.8em}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);border-radius:0 8px 8px 0}
+blockquote.callout{border-left-color:var(--ac);background:var(--warm)}blockquote.callout p:first-child strong{color:var(--ac)}
+a{color:var(--ac2);overflow-wrap:anywhere}
+details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 10px;color:var(--fg)}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac2);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}.gc{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.gc b{display:block;color:var(--ac2)}.gc span{font-size:13.5px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.twocol>div{border-radius:10px;padding:4px 16px 10px;border:1px solid var(--bd)}.use{background:rgba(47,125,58,.08)}.skip{background:rgba(180,68,43,.08)}
+.widget{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:18px 0}.widget label{display:block;margin:6px 0}.widget input[type=range]{width:min(320px,100%);vertical-align:middle;accent-color:var(--ac2)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.stc{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:var(--ac2)}
+.note{font-size:13.5px;color:var(--mut)}
+.verdict{margin-top:10px;padding:10px 12px;border-radius:8px;font-weight:600;background:var(--code)}.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+.svg{width:100%;height:auto;display:block;margin:8px 0}
+.fig{margin:18px 0}.fig figcaption{font-size:13.5px;color:var(--mut)}
+.svg .lbl{font:12px system-ui,sans-serif;fill:var(--mut)}.svg .mono{font-family:ui-monospace,monospace;fill:var(--fg)}
+.svg .ax{stroke:var(--bd)}.svg .band{fill:var(--band)}.svg .acc2{fill:var(--ac2);font-weight:600}
+.svg .cap{stroke:var(--mut);stroke-dasharray:4 4}.svg .ok{stroke:var(--ok);stroke-width:3}.svg .bad{stroke:var(--bad);stroke-width:3}.svg .dash{stroke-dasharray:6 6;opacity:.45}
+.svg .ok-t{fill:var(--ok)}.svg .bad-t{fill:var(--bad)}.svg .ok-dot{fill:var(--ok)}.svg .bad-dot{fill:var(--bad)}.svg .tick{stroke:var(--mut);stroke-dasharray:2 3}
+.svg .land{fill:none;stroke:var(--fg);stroke-width:2.5}.svg .kick{fill:none;stroke:var(--ac);stroke-width:2;stroke-dasharray:5 4}.svg .ahead{fill:var(--ac)}
+.svg .node{fill:var(--code);stroke:var(--bd);stroke-width:1.5;transition:stroke .3s}.svg .node.hot{stroke:var(--ac);stroke-width:2.5}
+.svg .qbox{fill:none;stroke:var(--bd);stroke-width:1.5}.svg .qfill{fill:var(--ac);opacity:.6;transition:width .5s}
+.svg .flow{stroke:var(--mut);stroke-width:2}.svg .flow.on{stroke:var(--ac);stroke-width:3;stroke-dasharray:6 4;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-20}}
+.sttext{min-height:4.5em}
+.math{overflow-x:auto;overflow-y:hidden;margin:.6em 0}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mut);flex-wrap:wrap}.lg::before{content:"";display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle}
+.lg.ok::before{background:var(--ok)}.lg.bad::before{background:var(--bad)}.lg.tr::before{background:var(--band);height:10px}
+.svg .gl{stroke:var(--bd);stroke-width:1}.svg .trig{fill:var(--band)}.svg .pl{fill:none;stroke-width:2}.svg .pl.ok{stroke:var(--ok)}.svg .pl.bad{stroke:var(--bad)}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav{position:sticky;top:0;z-index:5;background:var(--bg);height:auto;border:0;border-bottom:1px solid var(--bd);display:flex;overflow-x:auto;white-space:nowrap;gap:2px;padding:8px 12px}nav a{border-left:0;border-bottom:2px solid transparent;border-radius:6px}nav a.on{border-bottom-color:var(--ac)}main{padding:16px 16px 60px}.twocol,.cols{grid-template-columns:1fr}h1{font-size:1.6rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+</style></head><body>
+<div class="layout"><nav aria-label="Table of contents"><a href="#0b-plain-english-first">0b. Plain English first</a><a href="#1-bare-minimum-context">1. Bare-minimum context</a><a href="#1b-real-world-context">1b. Real-world context</a><a href="#2-the-one-liner-and-what-it-hides">2. The one-liner, and what it hides</a><a href="#3-the-problem">3. The problem</a><a href="#4-mental-model">4. Mental model</a><a href="#5-the-mechanism-traced">5. The mechanism, traced</a><a href="#6-the-math">6. The math</a><a href="#7-why-it-works-why-the-trap-holds-and-why-the-cures-cure">7. Why it works (why the trap holds, and why the cures cure)</a><a href="#8-design-knobs-and-alternatives">8. Design knobs and alternatives</a><a href="#9-where-it-breaks">9. Where it breaks</a><a href="#10-in-the-wild-how-real-systems-deviate-from-the-textbook">10. In the wild (how real systems deviate from the textbook)</a><a href="#11-frontier-whats-new-20242026">11. Frontier (what&#x27;s new, 2024–2026)</a><a href="#11b-open-problems">11b. Open problems</a><a href="#12-lineage">12. Lineage</a><a href="#13-hands-on-30-min">13. Hands-on (≤ 30 min)</a><a href="#14-question-ladder">14. Question ladder</a><a href="#15-go-deeper-next">15. Go deeper next</a><a href="#sources">Sources</a></nav>
+<main>
+<div class="hero">
+ <div class="card-line">Distributed systems / system design &middot; Metastable failures &middot; depth: hard &middot; 2026-10-03</div>
+ <h1>Metastable failures: why a system stays down after the trigger is gone</h1>
+ <p class="tldr"><b>TL;DR.</b> A short blip, like a 10-second outage or a cold cache, can push a healthy service into a bad state that a <em>feedback loop</em> keeps going after the blip ends. Usually that loop is retries. The server stays 100% busy serving requests whose clients already gave up, so throughput is perfect and goodput is zero. The system has two stable states for the same load, and only history decides which one you are in.</p>
+ <p class="why"><b>Why it matters.</b> These are the multi-hour outages: AWS us-east-1 2021 and 2025, Kinesis 2020, Slack 2021/2022. The trigger gets blamed, but the root cause is a loop built from features you added for reliability.</p>
+ <div class="nums">
+  <div><b>22</b><span>incidents from 11 orgs studied (OSDI'22)</span></div>
+  <div><b>&gt;50%</b><span>of them sustained by retry policy</span></div>
+  <div><b>1.5&ndash;73.5 h</b><span>outage duration range; 4&ndash;10 h most common</span></div>
+  <div><b>78% vs 80%</b><span>CPU loss for 10 s: recovers vs stuck (MongoDB repro)</span></div>
+  <div><b>64&times; / 243&times;</b><span>layered retry amplification (Google SRE 4&sup3; / AWS 3&#8309;)</span></div>
+  <div><b>C<sub>norm</sub>/w*</b><span>real safe capacity = advertised / worst amplification</span></div>
+ </div>
+</div>
+<p class="note">You asked for &ldquo;system design&rdquo;. That is a category, so this dive narrows to one mechanism that every large system eventually meets.</p>
+<div class="plain"><section id="0b-plain-english-first"><h2>0b. Plain English first</h2><h3>Explain it simply</h3>
+<p>Picture a popular sandwich shop with one cook who can make 100 sandwiches an hour. On a normal lunch rush about 70 people an hour come in, so the cook keeps up and nobody waits long. Customers have a rule: if no sandwich arrives within ten minutes, they assume the order got lost and <strong>order again</strong>, without cancelling the first one. On a normal day nobody waits ten minutes, so the rule never fires.</p>
+<p>Now the stove goes out for fifteen minutes. Orders pile up. When the stove comes back, every waiting customer has already hit the ten-minute mark and re-ordered, so the cook faces two or three tickets for each hungry person. The cook works flat out, but by the time any sandwich is ready its customer has given up and placed another order. The kitchen is 100% busy and <strong>nobody eats</strong>. The stove is fine; it's the re-ordering rule that keeps the kitchen drowning. That is a metastable failure: a short trigger (stove out) pushes the system into a bad state that a <strong>feedback loop</strong> (re-ordering) keeps going after the trigger is gone. The only way out is to do something drastic: turn customers away for a while, throw out stale tickets, or stop accepting duplicate orders.</p>
+<h3>Everyday example</h3>
+<p>The shop normally takes 70 orders an hour and can cook 100. At 12:20 the stove dies for 10 minutes; about 12 orders pile up. At 12:30 the stove is back. The oldest tickets are now 10 minutes old, so those customers re-order, adding 12 more tickets on top of the 12 pending, while new customers keep arriving. The cook starts on the oldest ticket. By the time it's done its customer has left (and re-ordered), so the sandwich goes in the bin. Every ticket the cook picks up is already "dead", because the line is longer than ten minutes. The shop now gets roughly 210 tickets an hour (70 people × up to 3 tries) against capacity for 100. The line never gets shorter. At 13:30, an hour after the stove was fixed, the cook is still busy and still nobody is eating. The manager finally announces "we're discarding every ticket older than ten minutes": the cook skips the dead tickets in seconds, the line clears, and the shop is back to normal within a minute.</p>
+<p><strong>Now the same thing, technically.</strong></p></section></div>
+<section id="1-bare-minimum-context"><h2>1. Bare-minimum context</h2><ul>
+<li><strong>Offered load λ vs capacity μ</strong>: requests/s arriving vs requests/s the server can finish. Utilisation ρ = λ/μ. (<a href="https://brooker.co.za/blog/2021/08/05/utilization.html" target="_blank" rel="noopener">Brooker, "Latency sneaks up on you"</a>)</li>
+<li><strong>Queueing delay explodes near ρ → 1</strong>: for M/M/1, mean number in system = ρ/(1−ρ): 1 at ρ=0.5, 99 at ρ=0.99.</li>
+<li><strong>Little's law</strong>: N = λW. Concurrency equals arrival rate times time in system, so latency up means more in flight.</li>
+<li><strong>Goodput ≠ throughput</strong>: goodput counts only work that finished in time for someone to use it. (<a href="https://builder.aws.com/content/3Eun1EEyX6p2e3VYNyRLSJzLuMV/using-load-shedding-to-avoid-overload" target="_blank" rel="noopener">Amazon Builders' Library, load shedding</a>)</li>
+<li><strong>Open vs closed system</strong>: in an open system, new requests keep arriving regardless of how slow you are (internet traffic). In a closed system, a fixed set of clients waits for each reply before sending the next (most benchmarks). (<a href="https://www.usenix.org/conference/nsdi-06/open-versus-closed-cautionary-tale" target="_blank" rel="noopener">Schroeder et al., NSDI'06</a>)</li>
+<li><strong>Timeout + retry</strong>: the client gives up after T and sends another attempt. The server usually never finds out about the first one.</li>
+</ul></section>
+<section id="1b-real-world-context"><h2>1b. Real-world context</h2><h3>What it is, in one paragraph</h3>
+<p>A metastable failure, in the words of the paper that named it, occurs "in open systems with an uncontrolled source of load where a trigger causes the system to enter a bad state that persists even when the trigger is removed. In this state the goodput … is unusably low, and there is a <strong>sustaining effect</strong>, often involving work amplification or decreased overall efficiency, that prevents the system from leaving the bad state" (<a href="https://sigops.org/s/conferences/hotos/2021/papers/hotos21-s11-bronson.pdf" target="_blank" rel="noopener">Bronson et al., HotOS'21</a>). The name comes from physics: a ball sitting in a shallow dip is stable until a push sends it over the lip, after which it settles somewhere worse and won't come back by itself.</p>
+<h3>Why it matters</h3>
+<ul>
+<li>Metastable failures are the long outages. In the OSDI'22 study of 22 incidents, outages lasted <strong>1.5 to 73.53 hours</strong>, and 4–10 hours was the most common range. The study also found that <strong>at least 4 of 15 major AWS outages</strong> in the previous decade were metastable (<a href="https://www.usenix.org/system/files/osdi22-huang-lexiang.pdf" target="_blank" rel="noopener">Huang et al., OSDI'22</a>).</li>
+<li>The root cause gets misdiagnosed. "It is common for an outage that involves a metastable failure to be initially blamed on the trigger, but the true root cause is the sustaining effect" (Bronson). Teams fix the bad deploy, the outage repeats with a different trigger, and the loop was never touched.</li>
+<li>The loops are built from features that help on a normal day: retries, caches, failover, aggressive timeouts, connection reuse. You add them for reliability and efficiency, and they make up the trap.</li>
+<li>Before the name existed the pattern was already known as <strong>congestion collapse</strong>. Nagle, RFC 896 (1984): "This condition is stable. Once the saturation point has been reached … the network will continue to operate in a degraded condition." Jacobson's 1988 TCP fixes (exponential retransmit backoff, slow start, AIMD) were the networking cure. Distributed services rebuilt the same disease one layer up.</li>
+</ul>
+<h3>Where it shows up (real incidents)</h3>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Trigger</th>
+<th>Sustaining loop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AWS us-east-1, Oct 19–20 2025</strong></td>
+<td>DynamoDB DNS race left an empty record</td>
+<td>EC2's DropletWorkflow Manager "entered a state of congestive collapse": re-establishing leases took longer than the lease timeout, so work was re-queued forever. Fixed by throttling incoming work and restarting hosts selectively (<a href="https://aws.amazon.com/message/101925/" target="_blank" rel="noopener">AWS</a>)</td>
+</tr>
+<tr>
+<td><strong>AWS us-east-1, Dec 7 2021</strong></td>
+<td>Automated scaling on the internal network</td>
+<td>"a large surge of connection activity"; a latent bug "prevented these clients from adequately backing off" (<a href="https://aws.amazon.com/message/12721/" target="_blank" rel="noopener">AWS</a>)</td>
+</tr>
+<tr>
+<td><strong>AWS Kinesis, Nov 25 2020</strong></td>
+<td>Capacity add pushed servers past OS thread limit</td>
+<td>Shard-map caches had to rebuild while serving traffic; servers came back "at the rate of a few hundred per hour", about 17 h total (<a href="https://aws.amazon.com/message/11201/" target="_blank" rel="noopener">AWS</a>)</td>
+</tr>
+<tr>
+<td><strong>Slack, Jan 4 2021</strong></td>
+<td>Post-holiday reconnect surge hit an AWS Transit Gateway</td>
+<td>Threads waiting on the network looked like idle CPU, so autoscaling scaled <em>down</em>; the later 1,200-server scale-up broke provisioning (<a href="https://slack.engineering/slacks-outage-on-january-4th-2021/" target="_blank" rel="noopener">Slack</a>)</td>
+</tr>
+<tr>
+<td><strong>Slack, Feb 22 2022</strong></td>
+<td>Consul agent rollout restarted memcached nodes</td>
+<td>Cold cache led to scatter queries across every Vitess shard. Clients already had backoff with jitter, yet "automated retries still contributed to the load" (<a href="https://slack.engineering/slacks-incident-on-2-22-22/" target="_blank" rel="noopener">Slack</a>)</td>
+</tr>
+<tr>
+<td><strong>Google Cloud, Jun 12 2025</strong></td>
+<td>Bad Service Control push, then restart</td>
+<td>Restarting tasks "created a herd effect" on a Spanner table because there was no randomized backoff (<a href="https://status.cloud.google.com/incidents/ow5i3PPK96RduMcb1SsW" target="_blank" rel="noopener">GCP</a>)</td>
+</tr>
+<tr>
+<td><strong>Facebook link imbalance (2014)</strong></td>
+<td>A burst of cache misses</td>
+<td>The MRU connection pool kept picking the most congested link. It "defied explanation for more than two years"; the fix was one line of pool policy (<a href="https://engineering.fb.com/2014/11/14/production-engineering/solving-the-mystery-of-link-imbalance-a-metastable-failure-state-at-scale/" target="_blank" rel="noopener">FB eng</a>)</td>
+</tr>
+<tr>
+<td><strong>Twitter GC (OSDI'22 §4)</strong></td>
+<td>Load test peak</td>
+<td>Queue grows → GC pressure → slower jobs → queue grows. Stayed below SLO with load 20% <em>lower</em> than before, "until the service is restarted"</td>
+</tr>
+</tbody>
+</table>
+<h3>How people defend against it (what you actually configure)</h3>
+<pre><button class="copy" type="button">copy</button><code class="language-json">// gRPC service config: retries + retry throttling (gRPC proposal A6)
+{&quot;methodConfig&quot;:[{&quot;name&quot;:[{&quot;service&quot;:&quot;pkg.Svc&quot;}],
+  &quot;retryPolicy&quot;:{&quot;maxAttempts&quot;:4,&quot;initialBackoff&quot;:&quot;0.1s&quot;,&quot;maxBackoff&quot;:&quot;1s&quot;,
+                 &quot;backoffMultiplier&quot;:2,&quot;retryableStatusCodes&quot;:[&quot;UNAVAILABLE&quot;]}}],
+ &quot;retryThrottling&quot;:{&quot;maxTokens&quot;:10,&quot;tokenRatio&quot;:0.1}}
+</code></pre>
+<p>Each server name has a token count starting at <code>maxTokens</code>. A failure takes away 1, a success adds <code>tokenRatio</code>, and retries stop while the count is ≤ <code>maxTokens/2</code>. Typical defaults elsewhere:</p>
+<ul>
+<li><strong>Envoy</strong> <code>retry_budget</code>: <code>budget_percent</code> 20%, <code>min_retry_concurrency</code> 3. Envoy recommends budgets over the static <code>max_retries</code> (default 3) (<a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto" target="_blank" rel="noopener">Envoy docs</a>).</li>
+<li><strong>Finagle <code>RetryBudget</code></strong>: <code>percentCanRetry</code> 0.2, <code>minRetriesPerSec</code> 10, <code>ttl</code> 10 s (<a href="https://github.com/twitter/finagle/blob/develop/finagle-core/src/main/scala/com/twitter/finagle/service/RetryBudget.scala" target="_blank" rel="noopener">source</a>).</li>
+<li><strong>AWS SDKs</strong> (standard mode): 3 attempts and a 500-token retry quota. botocore/Go v2 charge 5 tokens per retry and 10 per timeout retry. An opt-in 2026 update (<code>AWS_NEW_RETRIES_2026=true</code>) charges 14 per transient retry so the quota engages sooner (<a href="https://aws.amazon.com/blogs/developer/announcing-updated-retry-behavior-for-aws-sdks-and-tools/" target="_blank" rel="noopener">AWS blog</a>, <a href="https://github.com/boto/botocore/blob/develop/botocore/retries/standard.py" target="_blank" rel="noopener">botocore</a>).</li>
+<li><strong>Google SRE</strong>: at most 3 attempts per request, per-client retries below 10% of requests, retry only at the layer directly above the failure, and return "overloaded; don't retry" upward (<a href="https://sre.google/sre-book/handling-overload/" target="_blank" rel="noopener">SRE book</a>).</li>
+<li><strong>Backoff</strong>: full jitter, <code>sleep = random(0, min(cap, base·2^attempt))</code> (<a href="https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/" target="_blank" rel="noopener">AWS Architecture blog, 2015</a>).</li>
+</ul>
+
+<h3>Defenses at a glance (system &rarr; what it does)</h3>
+<div class="grid">
+ <div class="gc"><b>gRPC retryThrottling</b><span>token bucket per server; retries and hedges stop at &le; maxTokens/2</span></div>
+ <div class="gc"><b>Envoy retry_budget</b><span>retries &le; 20% of active+pending; min concurrency 3</span></div>
+ <div class="gc"><b>Finagle RetryBudget</b><span>20% + 10 retries/s floor, 10 s TTL</span></div>
+ <div class="gc"><b>AWS SDK retry quota</b><span>500 tokens; 5/retry, 10/timeout (14 per transient in the 2026 opt-in)</span></div>
+ <div class="gc"><b>Google client throttling</b><span>reject locally w.p. max(0,(req&minus;2&middot;acc)/(req+1))</span></div>
+ <div class="gc"><b>Facebook adaptive LIFO + CoDel</b><span>LIFO when a queue forms; short queue timeout under standing queue</span></div>
+ <div class="gc"><b>Memcache leases</b><span>one fill token per key per 10 s: peak DB 17K/s &rarr; 1.3K/s</span></div>
+ <div class="gc"><b>Uber Cinnamon / Netflix limits</b><span>adaptive concurrency (Vegas/Gradient, PID shed ratio)</span></div>
+</div>
+<div class="twocol">
+ <div class="use"><h4>Use it</h4><ul>
+  <li><b>Ratio retry budget</b> on every RPC client</li>
+  <li><b>Deadline propagation + drop expired at dequeue</b></li>
+  <li><b>Adaptive LIFO/CoDel</b> on queue-heavy servers</li>
+  <li><b>Singleflight / leases</b> on hot-key miss paths</li>
+  <li><b>Headroom below C<sub>stable</sub></b> for critical control planes</li></ul></div>
+ <div class="skip"><h4>Beware / skip</h4><ul>
+  <li><b>Fixed max_retries per layer</b>: multiplies across the stack</li>
+  <li><b>Backoff alone</b>: defers load but doesn't reduce it</li>
+  <li><b>Circuit breakers on sharded backends</b>: partial &rarr; total failure</li>
+  <li><b>Deep health checks</b>: remove capacity under load</li>
+  <li><b>Autoscaling as the cure</b>: too slow, wrong signal</li></ul></div>
+</div>
+<h3>When to reach for which defense</h3>
+<table>
+<thead>
+<tr>
+<th>Use it</th>
+<th>Skip it / beware</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Retry budget (ratio)</strong> on every RPC client: cheap, bounds amplification to about 1.1–1.2×</td>
+<td>A fixed <code>max_retries</code> count multiplies across layers</td>
+</tr>
+<tr>
+<td><strong>Deadline propagation + drop expired work at dequeue</strong>: cheapest way to stop burning capacity on dead requests</td>
+<td>Only works if the protocol carries the deadline</td>
+</tr>
+<tr>
+<td><strong>Adaptive LIFO + CoDel</strong> on queue-heavy servers</td>
+<td>Starves old requests; unfair under sustained overload</td>
+</tr>
+<tr>
+<td><strong>Adaptive concurrency limits</strong> (Netflix, Envoy, Uber Cinnamon) on large fleets</td>
+<td>Can oscillate; minRTT probing causes periodic 503 spikes</td>
+</tr>
+<tr>
+<td><strong>Circuit breaker</strong>: zero added load at 100% failure</td>
+<td>Turns partial failure into total failure in sharded systems (Brooker)</td>
+</tr>
+<tr>
+<td><strong>Autoscaling</strong> to keep headroom (stay out of the vulnerable band)</td>
+<td>Too slow for minute-scale loops; can scale on the wrong signal (Slack 2021)</td>
+</tr>
+</tbody>
+</table>
+<h3>Who should care</h3>
+<p>Backend engineers who write retry and timeout code. SRE/infra owners of load balancers, meshes and autoscalers. Database and cache owners, since a cold cache is the classic sustaining effect. Platform and control-plane teams: the AWS 2025 outage was a control-plane recovery path collapsing. Anyone serving LLMs, where KV-cache preemption plus client retries looks like the same loop (still a research gap, see §11b).</p></section>
+<div class="divider" role="separator">Technical deep dive</div>
+<section id="2-the-one-liner-and-what-it-hides"><h2>2. The one-liner, and what it hides</h2><p><strong>"Retry storms take systems down."</strong></p>
+<p>That sentence hides:</p>
+<ol>
+<li><strong>Why the system stays down after the trigger is gone.</strong> Ordinary overload ends when the load ends. This one has two equilibria (§6).</li>
+<li><strong>That the server is 100% busy while goodput is zero.</strong> The work is real. It's just useless, because it's served after the client has given up (§5).</li>
+<li><strong>That vulnerability is invisible in normal metrics.</strong> At 70% CPU the system looks healthy and is one 1.2-second hiccup from collapse. "Hidden capacity" can be 10× below advertised capacity (§6).</li>
+<li><strong>That retries are only one of several loops.</strong> Cold caches, GC, slow error paths, MRU connection pools and health checks that remove capacity all work the same way (§9).</li>
+<li><strong>That the fix has to break the loop, not the trigger</strong>, and naive fixes can create the next loop (AWS SimpleDB → DynamoDB, Spotify logging; §9).</li>
+</ol></section>
+<section id="3-the-problem"><h2>3. The problem</h2><p>Production systems run in what Bronson calls the <strong>vulnerable state</strong>, deliberately: "many production systems choose to run in the vulnerable state all the time because it has much higher efficiency than the stable state." HotOS'21's worked example:</p>
+<ul>
+<li>A database answers in under 100 ms below 300 QPS. Above that, latency is "an order of magnitude worse".</li>
+<li>The app sends a query plus 1 retry after a 1 s timeout, and normally runs at <strong>280 QPS</strong> (93% of capacity, looks healthy).</li>
+<li>A 10 s network blip. Afterwards, clients send <strong>560 QPS</strong> (every query plus its retry) and every query times out: zero goodput.</li>
+<li>Recovery requires load <strong>under 150 QPS</strong> (= 300/2), or retries capped under 20 QPS (280+20 = 300).</li>
+</ul>
+<p>So the system was stable only below 150 QPS, half of what it could serve, and nobody knew, because the 150–300 band behaves perfectly until something bumps it.</p>
+<p>The look-aside cache version is worse. With a 90% hit rate the app serves 3,000 QPS against a DB that handles 300. Lose the cache and the DB gets 10× its capacity. The app times out before misses can refill the cache, so the cache never warms. <strong>Advertised capacity 3,000, hidden capacity 300.</strong></p></section>
+<section id="4-mental-model"><h2>4. Mental model</h2>
+<figure class="fig">
+<svg viewBox="0 0 640 200" role="img" aria-labelledby="lsT" class="svg"><title id="lsT">Ball in two valleys: shallow healthy valley, deep collapsed valley, trigger kicks ball over the wall</title>
+<path d="M20 60 C 90 60, 110 130, 170 130 S 250 70, 300 70 S 380 185, 470 185 S 590 60, 620 50" class="land"/>
+<circle cx="170" cy="118" r="11" class="ok-dot"/>
+<text x="170" y="155" text-anchor="middle" class="lbl ok-t">healthy (stable)</text>
+<text x="470" y="175" text-anchor="middle" class="lbl bad-t">metastable (collapsed)</text>
+<circle cx="470" cy="173" r="11" class="bad-dot" opacity=".35"/>
+<path d="M185 108 Q 250 20 300 58" class="kick" marker-end="url(#ah)"/>
+<text x="250" y="30" text-anchor="middle" class="lbl">trigger</text>
+<text x="300" y="98" text-anchor="middle" class="lbl">wall height &prop; headroom</text>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="ahead"/></marker></defs>
+</svg>
+<figcaption>Load tilts the landscape: the more load, the lower the wall and the smaller the kick needed. Removing the kick doesn't lift the ball back out.</figcaption>
+</figure>
+<p><strong>A ball on a landscape with two valleys.</strong> The healthy valley is shallow and sits higher; the collapsed valley is deep. Load tilts the landscape: at low load the bad valley doesn't exist, and as load rises it appears and the wall between the valleys gets lower (the vulnerable band). A trigger is a kick. A small kick at low tilt rolls back; the same kick at high tilt goes over the wall. Once the ball is in the deep valley, removing the kick does nothing. You have to change the landscape (cut load, cap retries) or carry the ball out (restart, flush queues).</p>
+<p><strong>Where the analogy breaks:</strong></p>
+<ul>
+<li>The landscape isn't fixed. The bad valley is <em>created</em> by the system's own policies (retry count, timeout, cache), so you can engineer it away. A physical potential doesn't care about your config.</li>
+<li>Real systems are stochastic and multi-dimensional. Isaacs et al. model the state as (queue length, number of requests waiting to retry), and noise alone can tip the system across the boundary without any discrete trigger.</li>
+<li>Some metastable faults aren't "stuck low" at all. Farahbakhsh et al. (2026) show oscillating metastable states, such as cluster membership flapping, which have no single bad valley.</li>
+</ul></section>
+<section id="5-the-mechanism-traced"><h2>5. The mechanism, traced</h2>
+<div class="widget stepper" id="stepper">
+ <div class="ctl"><button id="stPrev" aria-label="Previous step">&larr; Back</button><span class="stc" id="stCount" aria-live="polite">STEP 1 / 7</span><button id="stNext" aria-label="Next step">Next &rarr;</button></div>
+ <svg viewBox="0 0 640 170" class="svg" role="img" aria-label="Clients, queue and server state for the current step">
+  <rect x="10" y="50" width="90" height="70" rx="10" class="node" id="stCli"/><text x="55" y="80" text-anchor="middle" class="lbl">clients</text><text x="55" y="100" text-anchor="middle" class="lbl mono" id="stAtt">72/s</text>
+  <rect x="140" y="65" width="340" height="40" rx="6" class="qbox"/>
+  <rect x="140" y="65" width="4" height="40" rx="6" class="qfill" id="stQ"/>
+  <text x="310" y="58" text-anchor="middle" class="lbl">FIFO queue</text><text x="310" y="125" text-anchor="middle" class="lbl mono" id="stQn">~2</text>
+  <rect x="520" y="50" width="110" height="70" rx="10" class="node" id="stSrv"/><text x="575" y="80" text-anchor="middle" class="lbl">server &mu;=100</text><text x="575" y="100" text-anchor="middle" class="lbl mono" id="stSrvT">72/s</text>
+  <line x1="100" y1="85" x2="138" y2="85" class="flow" id="stE1"/><line x1="480" y1="85" x2="518" y2="85" class="flow" id="stE2"/>
+  <text x="575" y="148" text-anchor="middle" class="lbl" id="stGood">goodput 72/s</text>
+  <text x="55" y="148" text-anchor="middle" class="lbl mono" id="stT">t = 0&ndash;20 s</text>
+ </svg>
+ <p id="stText" class="sttext"></p>
+</div>
+<p>Replaying the sandwich shop with <code>metastable_sim.py</code> (in this folder). One server, μ = 100 req/s, FIFO queue, Poisson arrivals λ = 70/s, client timeout T = 1 s, up to 2 retries (3 attempts). The server doesn't know when a client has given up.</p>
+<pre><button class="copy" type="button">copy</button><code>t (s)   event                                queue    attempts/s  served/s  goodput/s
+------  -----------------------------------  -------  ----------  --------  ---------
+0-20    steady state, ρ = 0.70               ~1-3     ~72         ~72       ~72
+20-30   TRIGGER: server capacity -&gt; 0         +72/s   rises        0          0
+          queue wait passes T after ~1.4 s;
+          timed-out requests get re-enqueued
+          as attempt 2, the old copy stays queued
+30      trigger removed, μ back to 100       ~1,870   ~210         100         0
+30-120  every dequeued attempt is &gt;1 s old:   +110/s   ~210         100         0
+          server works on dead requests,
+          clients time out, retry, enqueue more
+120     still stuck. queue ≈ 11,800          11,826   210.1        100.0       0.0
+</code></pre>
+<p><strong>One request, end to end, at t = 40 s (10 s after the trigger is gone):</strong></p>
+<pre><button class="copy" type="button">copy</button><code> client C                          server queue (FIFO, ~3,000 deep)              server
+ ───────                           ───────────────────────────────              ──────
+ 40.00 send req#3000 attempt 1 ──► [ ...~3,000 older attempts... | #3000a1 ]
+ 41.00 timeout, send attempt 2 ──► [ ...                    | #3000a1 ... #3000a2 ]
+ 42.00 timeout, send attempt 3 ──► [ ...                    | #3000a2 ... #3000a3 ]
+ 43.00 timeout, GIVE UP (no attempts left)
+ ~70                                                       dequeue #3000a1 ─► serve (10 ms CPU)
+                                                           client gone → WASTED
+ ~71                                                       #3000a2 → WASTED
+ ~72                                                       #3000a3 → WASTED
+</code></pre>
+<p>Queue depth from the sim: 1,871 at t=30, 2,971 at t=40, 5,191 at t=60, so a fresh attempt waits ~30 s for a 1 s timeout. Each user request costs the server 3 units of work and produces 0 goodput. Attempts arrive at 3 × 70 = 210/s against service at 100/s, so the queue grows by ~110/s, and the trigger is no longer needed to keep it that way.</p>
+
+<div class="widget" id="sim">
+ <h3 style="margin-top:.2em">Try it: live metastability simulator</h3>
+ <p class="note">Port of <code>metastable_sim.py</code>: &mu; = 100 req/s, Poisson arrivals, outage starts at t = 20 s. Same seed every run, so results are deterministic.</p>
+ <div class="cols">
+  <div>
+   <label>user load &lambda; <output id="oLam">70</output> req/s<br><input type="range" id="iLam" min="10" max="95" step="1" value="70"></label>
+   <label>trigger (outage) <output id="oOut">10</output> s<br><input type="range" id="iOut" min="0" max="20" step="0.1" value="10"></label>
+   <label>retries r <output id="oR">2</output><br><input type="range" id="iR" min="0" max="5" step="1" value="2"></label>
+   <label>client timeout T <output id="oT">1</output> s<br><input type="range" id="iT" min="0.5" max="3" step="0.1" value="1"></label>
+  </div>
+  <div>
+   <label><input type="checkbox" id="iB"> retry budget 10%</label>
+   <label><input type="checkbox" id="iD"> server drops expired (deadline-aware)</label>
+   <label><input type="checkbox" id="iL"> LIFO queue</label>
+   <div class="verdict" id="vOut" aria-live="polite"></div>
+   <div class="note" id="vBand"></div>
+  </div>
+ </div>
+ <svg viewBox="0 0 640 220" class="svg" id="simSvg" role="img" aria-label="Goodput and attempts per second over 120 seconds"></svg>
+ <div class="legend"><span class="lg ok">goodput/s</span><span class="lg bad">attempts/s</span><span class="lg tr">trigger</span></div>
+</div>
+<p><strong>What breaks the loop</strong> (same trigger, one change each; real output of <code>python3 metastable_sim.py</code>):</p>
+<pre><button class="copy" type="button">copy</button><code>scenario                         goodput last 20 s   healthy again at   verdict
+baseline (λ=70, 2 retries, FIFO)       0.0/s             never          STUCK
+lower load λ=25 (&lt; μ/3 = 33)          24.4/s             t=56 s         recovered
+edge of band λ=30                     16.6/s             t=111 s        recovered, slowly
+trigger only 0.5 s                    69.8/s             t=21 s         recovered
+no retries                            69.8/s             t=51 s         recovered
+retry budget 10%                      69.8/s             t=64 s         recovered
+deadline-aware dequeue (drop expired) 69.8/s             t=30 s         recovered at once
+LIFO queue                            69.8/s             t=30 s         recovered at once
+</code></pre>
+<p>Read the rows as the theory in §6:</p>
+<ul>
+<li><strong>No retries</strong> recovers, but takes 21 s. The 700-request backlog drains at μ − λ = 30/s ≈ 23 s, all of it wasted work.</li>
+<li><strong>Deadline-aware dequeue</strong> recovers almost immediately because skipping dead requests costs nothing. LIFO does the same thing differently: the freshest request, whose client is still waiting, gets served first.</li>
+<li><strong>λ = 30 is just under μ/3</strong> and escapes only after ~80 s, because the drain rate μ − 3λ is only 10/s.</li>
+<li><strong>Minimum trigger that sticks</strong> (scan in the sim): 1.5 s outage at λ=50, 1.2 s at λ=70, 1.1 s at λ=90. Higher load means a smaller kick is enough.</li>
+</ul></section>
+<section id="6-the-math"><h2>6. The math</h2><h3>6.1 Amplification from retries</h3>
+<p>Let each attempt fail (time out) independently with probability <em>p</em>, and let the client make up to <em>r</em> retries. Expected attempts per user request:</p>
+<div class="math">\[E[A] = \sum_{i=0}^{r} p^{i} = \frac{1-p^{r+1}}{1-p}\]</div>
+<p>→ <strong>in plain terms:</strong> while things are healthy (p ≈ 0) each request costs ~1 attempt. As failure approaches certainty (p → 1) each request costs r+1 attempts.</p>
+<p>Offered load at the server:</p>
+<div class="math">\[\lambda_{\text{eff}}(p) = \lambda \cdot \frac{1-p^{r+1}}{1-p}, \qquad \lambda_{\text{eff}}(0)=\lambda,\quad \lambda_{\text{eff}}(1)=(r+1)\lambda\]</div>
+<p>With <em>d</em> layers each retrying independently, the factors multiply: (r+1)^d. Google's SRE book: 3 layers × 4 attempts = 4³ = <strong>64×</strong> on the database. AWS's Builders' Library cites <strong>243×</strong> for a five-deep stack, which is 3⁵ (three attempts per layer). Some summaries describe that as "three retries per layer", but 3 <em>retries</em> would give 4⁵ = 1,024. (<a href="https://sre.google/sre-book/addressing-cascading-failures/" target="_blank" rel="noopener">SRE</a>)</p>
+<h3>6.2 Two fixed points (bistability)</h3>
+<p>The failure probability is itself a function of load. With FIFO and timeout T, an attempt fails if its queueing delay exceeds T. When λ_eff &gt; μ the queue grows without bound, so delay → ∞ and p → 1. When λ_eff &lt; μ the queue is short, so delay ≪ T and p ≈ 0. Look for self-consistent states p<em> = f(λ_eff(p</em>)):</p>
+<ul>
+<li><strong>Healthy:</strong> p ≈ 0 ⇒ λ_eff ≈ λ. Self-consistent iff <strong>λ &lt; μ</strong>.</li>
+<li><strong>Collapsed:</strong> p ≈ 1 ⇒ λ_eff ≈ (r+1)λ. Self-consistent iff <strong>(r+1)λ &gt; μ</strong>.</li>
+</ul>
+<p>Both hold when</p>
+<div class="math">\[\frac{\mu}{r+1} \;&lt;\; \lambda \;&lt;\; \mu\]</div>
+<p>→ <strong>in plain terms:</strong> in this band the system has two stable states, and nothing in the current load tells you which one you're in. Only history (whether something kicked you) decides. Below μ/(r+1) the collapsed state can't sustain itself. With μ=100 and r=2 the band is 33–100 req/s, exactly where the sim flips. (This fixed-point framing is my synthesis. HotOS'21's Fig. 2 shows the same band, and Brooker called it "bistability" in 2019.)</p>
+<p><strong>Why this form and not a simpler one:</strong> a single-equilibrium model ("load &gt; capacity ⇒ slow") can't explain why cutting load from 70 back to 70 doesn't fix anything. You need a <em>load-dependent</em> amplification (p depends on load, and load depends on p). That loop is the sustaining effect in algebra.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 640 300" role="img" aria-labelledby="bsT bsD" class="svg">
+<title id="bsT">Two equilibria</title><desc id="bsD">Offered load at the server versus user load. Healthy branch equals lambda up to mu; collapsed branch equals (r+1) lambda above mu over r+1. Both coexist between mu/(r+1) and mu.</desc>
+<rect x="60" y="20" width="560" height="240" fill="none" class="ax"/>
+<rect x="246.7" y="20" width="373.3" height="240" class="band"/>
+<text x="610" y="250" text-anchor="end" class="lbl acc2">vulnerable band: both states possible</text>
+<line x1="60" y1="140" x2="620" y2="140" class="cap"/>
+<text x="66" y="134" class="lbl">capacity &mu; = 100</text>
+<!-- healthy branch: lam_eff = lam, lam in [0,100] -> x 60..620, y: 260 - lam*1.2 -->
+<line x1="60" y1="260" x2="620" y2="140" class="ok"/>
+<text x="330" y="222" class="lbl ok-t">healthy: &lambda;<tspan baseline-shift="sub" font-size="9">eff</tspan> = &lambda; &lt; &mu;</text>
+<!-- collapsed branch r=2: lam_eff=3 lam ; from lam=33.3 (x=246.7,y=140) to lam=100 (x=620, y=-100) clip -->
+<line x1="246.7" y1="140" x2="340" y2="20" class="bad"/>
+<line x1="60" y1="260" x2="246.7" y2="140" class="bad dash"/>
+<text x="345" y="40" class="lbl bad-t">collapsed: &lambda;<tspan baseline-shift="sub" font-size="9">eff</tspan> = (r+1)&lambda; &gt; &mu;</text>
+<line x1="246.7" y1="20" x2="246.7" y2="260" class="tick"/><text x="246.7" y="278" text-anchor="middle" class="lbl">&mu;/(r+1) = 33</text>
+<line x1="620" y1="260" x2="620" y2="266" class="tick"/><text x="610" y="278" text-anchor="end" class="lbl">&mu; = 100</text>
+<circle cx="452" cy="176" r="6" class="ok-dot"/><text x="444" y="162" text-anchor="end" class="lbl">sim: &lambda;=70</text>
+<text x="340" y="296" text-anchor="middle" class="lbl">user load &lambda; (req/s), r = 2 retries</text>
+<text x="18" y="140" class="lbl" transform="rotate(-90 18 140)" text-anchor="middle">load at server</text>
+</svg>
+<figcaption>Below 33 req/s the collapsed branch can't sustain itself. Between 33 and 100 both branches are self-consistent. Which one you're on depends on history (was there a trigger?), not on the current load.</figcaption>
+</figure>
+<h3>6.3 OSDI'22's general version</h3>
+<p>Huang et al. measure load L and capacity C in abstract resource units (RU/s). "Organic" quantities (L_org, C_org) include the trigger but not the amplification; "system" quantities (L_sys, C_sys) include both. They define two amplification factors:</p>
+<div class="math">\[\alpha_L(t) = \frac{L_{\text{sys}}(t)}{L_{\text{org}}(t)} \le w_L^{*}, \qquad \alpha_C(t) = \frac{C_{\text{sys}}(t)}{C_{\text{org}}(t)} \ge \frac{1}{w_C^{*}}\]</div>
+<ul>
+<li>w*_L is the worst-case workload amplification: retries, or more expensive requests such as error logging.</li>
+<li>w*_C is the worst-case capacity degradation: GC, or a cache whose loss pushes the hit traffic onto the DB.</li>
+</ul>
+<p><strong>Theorem 2 (stable region):</strong></p>
+<div class="math">\[C_{\text{stable}} = \frac{C_{\text{norm}}}{w_L^{*}\cdot w_C^{*}}\]</div>
+<p>If normal load L_norm &lt; C_stable, no trigger can cause a metastable failure.</p>
+<p>→ <strong>in plain terms:</strong> your real safe capacity is your advertised capacity divided by the worst amplification your own policies can produce. Check it against the examples: 1 retry → w<em>_L=2 → 300/2 = </em><em>150 QPS</em><em> (HotOS DB example). Cache with 90% hit rate → w</em>_C = 10 → 3000/10 = <strong>300 QPS</strong> hidden capacity. "A policy with at most two retries will not amplify the work more than three times, while the policy with no cap effectively leaves the system with no stable region" (OSDI'22).</p>
+<p><strong>Theorem 1 (necessary trigger):</strong> a trigger can only matter if m_trigL + m_trigC ≥ C_norm − L_norm, i.e. the load spike plus the capacity drop must eat the whole headroom.</p>
+<p><strong>Theorem 3 (degrees of vulnerability):</strong> if w_L(Δt)·w_C(Δt) &lt; C_norm/L_norm, a trigger lasting Δt can't tip the system. The amplification functions grow with trigger duration (retries only start after the timeout), so vulnerability is a <em>region</em> in (load × trigger size × trigger duration), not a yes/no.</p>
+<p>→ <strong>in plain terms:</strong> this is why 78% CPU loss for 10 s recovered and 80% for 10 s didn't in their MongoDB reproduction, and why 80% for 9 s also recovered: "a 2%-decrease in available CPU or a 1-second increase in duration separated successful recovery from a metastable failure."</p>
+<h3>6.4 How long recovery takes</h3>
+<p>Once the loop is broken, a backlog B drains at the spare rate:</p>
+<div class="math">\[t_{\text{drain}} = \frac{B}{\mu - \lambda_{\text{eff}}}\]</div>
+<p>→ <strong>in plain terms:</strong> near the edge of the band the denominator goes to zero and recovery time blows up. That is the sim's λ=30 run (μ − 3λ = 10/s, ~80 s). Amazon's "insurmountable backlog" article gives the operational version: a one-hour outage needs double capacity for another hour to drain. Dropping expired work changes the numerator from "all queued work" to "only live work", which is why deadline-aware dequeue recovers in ~0 s.</p>
+<h3>6.5 The 2025 formalisation: metastability as a CTMC property</h3>
+<p>Isaacs, Alvaro, Majumdar et al. (HotOS'25; arXiv 2510.03551) model a server as a continuous-time Markov chain over state (q, o) = (queue length, "orbit" = requests waiting to retry). Their definition: a CTMC is metastable if it has ≥ 2 disjoint sets of states such that the expected time to move <em>between</em> sets is much larger than the time to mix <em>within</em> a set. Spectrally, the generator matrix has a large gap after its first few eigenvalues, so the slow modes are the "valleys". In their toy model (1 thread at 10 RPS, queue bound 150, 5 RPS offered, 5 s timeout, 5 retries) the vector field shows a tipping region around <strong>q ≈ 40 with ≥ 30 in orbit</strong>.</p></section>
+<section id="7-why-it-works-why-the-trap-holds-and-why-the-cures-cure"><h2>7. Why it works (why the trap holds, and why the cures cure)</h2><p><strong>The core insight:</strong> the sustaining effect makes the cost of serving a request grow with how badly the system is doing. Healthy systems have per-request cost about constant. Metastable ones have cost(state) increasing in "badness" (more attempts per request, lower cache hit rate, more GC per job, more expensive error paths). Once badness pushes cost × load above capacity, badness grows on its own.</p>
+<p><strong>Ablation: remove each piece of the trap:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Remove</th>
+<th>Result</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retries (r=0)</td>
+<td>Recovers (sim t=51 s)</td>
+<td>w*_L=1 ⇒ C_stable = C_norm; the band disappears</td>
+</tr>
+<tr>
+<td>Timeouts on the <em>server</em> side (serve dead work)</td>
+<td>Recovers instantly if the server drops expired attempts</td>
+<td>Effective cost of a dead request → 0, so the loop can't burn capacity</td>
+</tr>
+<tr>
+<td>FIFO (use LIFO)</td>
+<td>Recovers instantly</td>
+<td>Newest request has a live client, so p drops at once and the fixed point moves</td>
+</tr>
+<tr>
+<td>Open-loop arrivals (closed system)</td>
+<td>Self-limits</td>
+<td>Clients wait for replies, so load falls as latency rises; this is why closed benchmarks such as YCSB and TPC-C can't show the failure (Brooker, ICPE'25)</td>
+</tr>
+<tr>
+<td>The trigger</td>
+<td><strong>Nothing changes</strong></td>
+<td>That's the definition</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Which cures work and why:</strong></p>
+<ul>
+<li><strong>Retry budgets</strong> cap w*_L near 1.1–1.2 regardless of p, so the band shrinks to (μ/1.1, μ).</li>
+<li><strong>Client-side adaptive throttling</strong> (Google): reject locally with probability max(0, (requests − K·accepts)/(requests+1)), with K=2. "Backends end up rejecting one request for each request they actually process": it bounds wasted backend work at 1:1.</li>
+<li><strong>CoDel-style queues</strong>: when the queue hasn't been empty in N ms, cut the queue timeout from N to M ms (Facebook "Fail at Scale"). Requests that will miss their deadline get dropped before burning CPU.</li>
+<li><strong>Constant work</strong> (AWS Route 53 health checks, Hyperplane): every cycle pushes the full configuration, whether or not anything changed, so there's no mode where work grows with how bad things are.</li>
+</ul></section>
+<section id="8-design-knobs-and-alternatives"><h2>8. Design knobs and alternatives</h2><table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Lower</th>
+<th>Higher</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Max attempts r+1</td>
+<td>Less amplification, more user-visible errors on transient blips</td>
+<td>Band widens: lower bound μ/(r+1) falls</td>
+<td>Google: ≤3 attempts; gRPC caps at 5</td>
+</tr>
+<tr>
+<td>Retry budget ratio</td>
+<td>Safer under overload</td>
+<td>Better transient masking</td>
+<td>Finagle/Envoy 20%, Google 10%</td>
+</tr>
+<tr>
+<td>Client timeout T</td>
+<td>Faster failover in healthy state; more false timeouts, so earlier collapse</td>
+<td>Fewer false timeouts; slower detection</td>
+<td>Brooker: pick T at the p99.9 of downstream latency. OSDI'22 cache test: 2 s less vulnerable than 1 s</td>
+</tr>
+<tr>
+<td>Queue bound / queue timeout</td>
+<td>Sheds early, low wasted work</td>
+<td>Absorbs bursts</td>
+<td>SRE: queue ≤ 50% of thread pool</td>
+</tr>
+<tr>
+<td>Cache hit rate</td>
+<td></td>
+<td>Higher hit rate makes each RPS less vulnerable <em>but</em> lets you run at higher RPS, where vulnerability is larger</td>
+<td>OSDI'22 Fig. 6c, the efficiency trap</td>
+</tr>
+<tr>
+<td>Backoff</td>
+<td></td>
+<td>Helps only if it reduces <em>total</em> work</td>
+<td>"In open systems, deferring load does not work" (Brooker 2022)</td>
+</tr>
+<tr>
+<td>Headroom (L_norm/C_norm)</td>
+<td>Efficient, vulnerable</td>
+<td>Robust, expensive</td>
+<td>The core tradeoff; organisations optimise toward vulnerability</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Competing approaches:</strong></p>
+<ul>
+<li><strong>Circuit breaker vs token-bucket retry budget.</strong> Brooker's simulation favours the bucket: it "behaves like N retries when failure rates are low, and 'some percent retries' when the failure rate is higher", with no mode switching. Breakers add zero load at 100% failure but "are designed to turn partial failures into complete failures", which is bad for sharded backends.</li>
+<li><strong>Static limits vs adaptive concurrency</strong> (Netflix Vegas/Gradient2, Envoy gradient controller, Uber Cinnamon with PID on shed ratio + modified-Vegas auto-tuner). Adaptive wins on fleets of thousands of services where hand tuning doesn't scale. Uber reports Cinnamon kept p99 ≈ 500 ms near capacity where its CoDel-based predecessor's goodput fell to 40%.</li>
+<li><strong>Server-side shedding vs end-to-end shedding.</strong> Shedding at a deep service still wastes the upstream work. TopFull (SIGCOMM'24) and Rajomon (NSDI'25) push admission control to the graph entry, or price it through the graph.</li>
+</ul></section>
+<section id="9-where-it-breaks"><h2>9. Where it breaks</h2><p><strong>Other sustaining loops besides retries:</strong></p>
+<ul>
+<li><strong>Look-aside cache:</strong> cold cache → DB overload → app timeouts → fills never land → cache stays cold. Kinesis 2020 and Slack 2022 both had this cache rebuild competing with serving.</li>
+<li><strong>GC death spiral:</strong> queue → heap → GC → slower jobs → longer queue (Twitter, OSDI'22). Brooker (2024): the loop needs unbounded concurrency, so a concurrency limit kills it.</li>
+<li><strong>Slow error paths:</strong> stack traces, reverse DNS of the client, synchronous logging. Error handling consumes the same resource whose shortage caused the errors.</li>
+<li><strong>Health checks that remove capacity:</strong> overloaded hosts fail checks and get pulled, so the rest get more load. AWS Oct 2025 NLB health-check flapping until automatic failover was disabled. SRE book: "health-checking itself makes the service unhealthy".</li>
+<li><strong>Autoscaling on the wrong signal:</strong> network-blocked threads look idle (Slack 2021). A mass scale-up then overloads the provisioning control plane.</li>
+<li><strong>Connection/TLS storms on reconnect</strong> (AWS Dec 2021).</li>
+<li><strong>MRU connection pools:</strong> latency-sorted reuse concentrates traffic on the slowest link (FB 2014).</li>
+</ul>
+<p><strong>Misconceptions:</strong></p>
+<blockquote class="callout">
+<p><strong>"Remove the trigger and it'll recover."</strong> The definition says otherwise. OSDI'22 reports a Cassandra cluster at only 10–30% load that still didn't recover after the trigger was removed. AWS 2025: EC2 took hours after the DNS fix.</p>
+<p><strong>"Backoff with jitter fixes retry storms."</strong> Backoff spreads load in time; it doesn't remove it. Slack 2022 had exponential backoff <em>with</em> jitter and retries "still contributed to the load". Only budgets and caps reduce total work.</p>
+<p><strong>"Load testing at peak will find it."</strong> Peak load in the healthy valley looks great. You have to test with a trigger <em>and</em> at production scale: Bronson notes loop strength "is affected by constant factors that vary with scale, so small scale tests don't provide much confidence." Most benchmarks are also closed-loop, which hides the failure entirely.</p>
+<p><strong>"Our fix will prevent recurrence."</strong> "Fix to break" (OSDI'22 §6.3): after the AWS SimpleDB incident, servers were made to retry the lock service <em>indefinitely</em>, and a similar DynamoDB metastable failure followed. Spotify added error-path logging after SPF1, which made every retry in SPF2 more expensive.</p>
+</blockquote>
+<p><strong>Scaling limits of the defenses:</strong></p>
+<ul>
+<li>Retry budgets are per client. With 10,000 clients each allowed 10 retries/s minimum, the floor alone is 100k retries/s.</li>
+<li>Adaptive limiters estimate minRTT by periodically pinning concurrency low, which produces synchronised 503 spikes unless jittered (Envoy adds jitter for this).</li>
+<li>Load shedding is used in more than 50% of incidents, but "it is hard to know just how much the load needs to be reduced" (OSDI'22), so operators fall back to reboots.</li>
+</ul></section>
+<section id="10-in-the-wild-how-real-systems-deviate-from-the-textbook"><h2>10. In the wild (how real systems deviate from the textbook)</h2><ul>
+<li><strong>AWS SDKs:</strong> a token-bucket retry quota rather than a pure ratio. Timeouts cost double (10 vs 5) because a timeout already burned server work. The 2026 opt-in update raises the transient-retry cost to 14 so the quota drains at ~22% sustained failure instead of later. Adaptive mode adds a <em>client-side</em> rate limiter that can delay first attempts, which AWS does not recommend as a default.</li>
+<li><strong>gRPC:</strong> hedging and retries share one throttle. Servers can push back with <code>grpc-retry-pushback-ms</code>, and a negative value means "don't retry".</li>
+<li><strong>Facebook:</strong> adaptive LIFO (FIFO normally, LIFO when a queue forms) plus CoDel timeouts. Memcache <strong>leases</strong> hand out one fill token per key every 10 s, cutting peak DB rate from 17K/s to 1.3K/s in their measurement. A <strong>gutter pool</strong> of ~1% of servers absorbs load from failed servers. Open-source descendant: HBase <code>AdaptiveLifoCoDelCallQueue</code>.</li>
+<li><strong>Google:</strong> criticality classes (CRITICAL_PLUS … SHEDDABLE), deadline propagation, and the client-side throttle with K=2.</li>
+<li><strong>AWS architecture:</strong> cells and shuffle sharding (Route 53: 2,048 virtual name servers, 4 per domain, ~730 billion combinations) limit the blast radius. <strong>Constant work</strong> removes modes entirely. <strong>Static stability</strong> pre-provisions so a recovery path never has to scale up under stress.</li>
+<li><strong>AWS post-2025:</strong> throttling "based on the size of the waiting queue" for EC2 workflows, velocity control on NLB health-check failover, and a dedicated recovery-path scale test. The lesson: recovery paths need their own load testing.</li>
+</ul></section>
+<section id="11-frontier-whats-new-20242026"><h2>11. Frontier (what&#x27;s new, 2024–2026)</h2><ol>
+<li><strong>Analyzing Metastable Failures</strong>: Isaacs, Alvaro, Majumdar, Muniswamy-Reddy, Salamati, Soudjani (AWS / UCSC / MPI-SWS). <em>HotOS 2025.</em> A Python DSL (servers, queues, thread pools, timeouts, retry policies) feeds a ladder of tools: CTMC (ms–s), discrete-event simulation (minutes), emulator on the production RPC stack (hours), stress test. The abstract tools say where to look and the concrete ones confirm. Being applied to AWS control planes to find tipping points. <a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-106.pdf" target="_blank" rel="noopener">PDF</a> · <a href="https://github.com/mpi-sws-rse/metafor" target="_blank" rel="noopener">code: metafor</a></li>
+<li><strong>Formal Analysis of Metastable Failures in Software Systems</strong>: same group. <em>arXiv 2510.03551, Oct 2025</em> (no peer-reviewed venue found). Defines metastability through escape probabilities and the generator's eigenstructure, and gives algorithms to predict recovery time. <a href="https://arxiv.org/abs/2510.03551" target="_blank" rel="noopener">arXiv</a></li>
+<li><strong>Learning Metastable Dynamics</strong>: Majumdar, Salamati, Singh, Soudjani. <em>arXiv 2609.14712, Sep 2026</em> (HSCC'26 per arXiv metadata). Learns a Koopman embedding (a latent space where the dynamics are linear) from observed trajectories and reads metastability off the dominant eigenvalues. Flags it after ~10% of the simulated run. Evaluated on simulations only. <a href="https://arxiv.org/abs/2609.14712" target="_blank" rel="noopener">arXiv</a></li>
+<li><strong>Characterizing Metastable Faults and Failures</strong>: Farahbakhsh, Lu, Alvisi, Haeberlen, van Renesse (Cornell/Penn). <em>arXiv 2606.00942, May 2026</em> (under submission). Recasts metastability as "sins of composition": a cycle of components, each of whose locally stabilising action destabilises the next. Covers oscillating failures (cluster membership flapping at a large gaming platform) that the trigger/loop taxonomy misses. <a href="https://arxiv.org/abs/2606.00942" target="_blank" rel="noopener">arXiv</a></li>
+<li><strong>CSnake</strong>: Qian, Tan, Zhang. <em>EuroSys 2026.</em> Finds self-sustaining cascading failures before deployment by stitching single-fault injections from different tests into causal chains and searching for cycles. 15 bugs in 5 widely deployed systems, 5 confirmed. <a href="https://arxiv.org/abs/2509.26529" target="_blank" rel="noopener">arXiv</a></li>
+<li><strong>Wasabi</strong> ("If At First You Don't Succeed, Try, Try, Again…?"): Stoica, Sethi, Su, Zhou, Lu, Mace, Musuvathi, Nath. <em>SOSP 2024.</em> Fault injection at retry sites plus CodeQL + GPT-4 static checks. More than 100 new retry bugs (IF/WHEN/HOW to retry) in 8 Java applications. <a href="https://bastoica.github.io/files/papers/2024_sosp_wasabi.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li><strong>Atropos</strong>: Hu et al. <em>SOSP 2025.</em> Overload often comes from <em>one</em> culprit task hogging a lock or buffer pool, not from total demand. Atropos tracks per-task resource usage and cancels the highest-gain task through the application's own cancellation hooks. Integrated with MySQL, PostgreSQL, Elasticsearch and etcd; keeps 96% throughput with p99 within 1.16× of normal and drops &lt; 0.01% of requests. <a href="https://orderlab.io/paper/atropos-sosp25.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li><strong>Rajomon</strong>: Xing et al. <em>NSDI 2025.</em> Market-based overload control for microservices: tokens on requests, per-API prices piggybacked through the call graph. 78% lower tail latency and 45% higher goodput than prior work. <a href="https://www.usenix.org/conference/nsdi25/presentation/xing" target="_blank" rel="noopener">USENIX</a></li>
+</ol>
+<p>Also: <strong>HoliPaxos</strong> (PVLDB 2025, Charapko et al.) folds failure and slowdown detection into MultiPaxos itself to avoid bolt-on metastability. <strong>MSF-Model</strong> (SRDS 2024, UCI/Roblox) is a queueing model for replicated storage. <strong>RetryGuard</strong> (arXiv 2511.23278) does graph-wide retry-policy control and reports 98% smaller storms than AWS default policies.</p></section>
+<section id="11b-open-problems"><h2>11b. Open problems</h2><ul>
+<li><strong>Predicting the vulnerable region before you're in it.</strong> Bronson: hidden capacity "is determined by the behavior … of the system when it is in a failure state, so it is difficult to measure during normal operation." Isaacs et al.: "gains in recognition and reproduction have not yet transferred to analysis and prediction." Why it's hard: the CTMC state space blows up with the number of queues, exponential service-time assumptions "deviate considerably" as amplification grows, and learning models from telemetry is unsolved (the Koopman work only runs on simulations).</li>
+<li><strong>Loops that cross component boundaries.</strong> Murat Demirbas's critique of HotOS'25: real feedback loops "cross the component boundaries", and the toy model shows no path to Kafka- or Spanner-scale systems. Farahbakhsh et al. take this compositional view but have no production tool yet.</li>
+<li><strong>Safe testing.</strong> You can't safely push production into a state that by definition doesn't exit on its own. Facebook-style traffic shifting (Kraken) needs a guaranteed drain. Small-scale tests miss scale-dependent loop gains. Closed-loop benchmarks hide the failure.</li>
+<li><strong>Online detection.</strong> Bronson's "characteristic metrics" (queueing delay, timeout rate, hit rate) return to normal only after recovery, but which metric matters differs per loop. Telling persistent overload from a spike is a "fundamental challenge"; the min-queue-delay-over-window (CoDel) trick is a partial answer.</li>
+<li><strong>Coordination across clients and teams.</strong> Each client decides its own retries. Spreading health information to them "can be a new way in which a failure can have a sustaining effect" (Bronson). Organisational incentives reward optimisations that shrink hidden capacity.</li>
+<li><strong>Contested positions:</strong></li>
+<li><strong>Retry vs don't retry:</strong> clients can't tell transient faults from overload.</li>
+<li><strong>Breaker vs bucket:</strong> modal behaviour vs bounded load at 100% failure.</li>
+<li><strong>LIFO vs FIFO:</strong> fresh-first recovery vs starvation and unfairness. No primary source argues against LIFO outright, but the fairness cost is real.</li>
+<li><strong>Client-side vs server-side throttling:</strong> client-side saves work; Brooker shows breakers can widen outages in sharded systems.</li>
+<li><strong>LLM serving.</strong> KV-cache preemption → recompute → longer queues, plus client retries on timeout, looks like a sustaining loop. Current work (JITServe, SCORPIO) does SLO-aware dropping, but no peer-reviewed paper frames it as metastability yet.</li>
+</ul></section>
+<section id="12-lineage"><h2>12. Lineage</h2><pre><button class="copy" type="button">copy</button><code>1979  lock convoys (single-machine sustaining effect)
+1984  Nagle, RFC 896: &quot;congestion collapse ... This condition is stable&quot;
+1988  Jacobson &amp; Karels: exponential backoff, slow start, AIMD; LBL→UCB fell 32 kbps → 40 bps (Oct '86)
+1996  Mogul &amp; Ramakrishnan: receive livelock (goodput collapse, but NOT metastable: exits when load drops)
+2006  Schroeder et al.: open vs closed systems
+2012  Nichols &amp; Jacobson: CoDel
+2013  Dean &amp; Barroso, &quot;The Tail at Scale&quot;: hedging = deliberate amplification, cap it
+2013  Facebook memcache leases (NSDI); 2014 FB link-imbalance post
+2015  Brooker: exponential backoff &amp; jitter; Maurer: &quot;Fail at Scale&quot; (adaptive LIFO + CoDel)
+2016  Google SRE book: client-side adaptive throttling, retry budgets
+2019  Brooker: &quot;bistability&quot; (HPTS'19)
+2021  Bronson, Aghayev, Charapko, Zhu: &quot;Metastable Failures in Distributed Systems&quot; (HotOS): the name
+2022  Huang et al.: &quot;Metastable Failures in the Wild&quot; (OSDI): 22 incidents, theorems, reproductions
+2024  Wasabi (SOSP): retry-bug finding · MSF-Model (SRDS) · TopFull (SIGCOMM)
+2025  Isaacs et al. (HotOS): CTMC + DSL toolchain · Atropos (SOSP) · Rajomon (NSDI) · AWS Oct-2025 collapse
+2026  Characterizing Metastable Faults (Cornell/Penn) · CSnake (EuroSys) · Koopman learning
+</code></pre></section>
+<section id="13-hands-on-30-min"><h2>13. Hands-on (≤ 30 min)</h2><p><code>metastable_sim.py</code> in this folder: no dependencies, runs in &lt; 1 s.</p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash">python3 metastable_sim.py                                  # all scenarios
+python3 metastable_sim.py --lam 70 --outage 10             # stuck
+python3 metastable_sim.py --lam 70 --outage 1.0            # survives
+python3 metastable_sim.py --lam 70 --outage 1.3            # stuck: 0.3 s more trigger
+python3 metastable_sim.py --lam 30 --outage 10             # escapes, but slowly
+python3 metastable_sim.py --lam 70 --outage 10 --budget 0.1
+python3 metastable_sim.py --lam 70 --outage 10 --drop-expired
+python3 metastable_sim.py --lam 70 --outage 10 --policy lifo
+</code></pre>
+<p>Things to try:</p>
+<ol>
+<li>Find the band edge. Hold <code>--outage 10</code> and sweep <code>--lam</code> from 25 to 40. The theory says the edge is μ/(r+1) = 33. Where does recovery time go to infinity?</li>
+<li>Set <code>--retries 5</code>. The band's lower edge should move to 100/6 ≈ 17.</li>
+<li>Find the minimum trigger that sticks at λ = 50, 70 and 90. Compare against T·μ/λ: the outage after which the queue wait exceeds the timeout.</li>
+<li>Explain why "no retries" still takes ~21 s to recover while <code>--drop-expired</code> takes ~0 s, using t_drain = B/(μ−λ).</li>
+</ol></section>
+<section id="14-question-ladder"><h2>14. Question ladder</h2><p><button id="revealAll" aria-pressed="false">Reveal all answers</button></p>
+<h3>Mechanism</h3>
+<details class="q"><summary><b>1.</b> In the sim's stuck state the server is 100% busy. Exactly what is it working on, and why does none of it count?</summary><div class="ans"><p>Attempts whose clients timed out long ago. With FIFO and a backlog longer than T·μ, every dequeued attempt waited more than T, so its client has already given up (and retried). The server burns full CPU producing responses nobody reads. Throughput = μ, goodput = 0, or in Brooker's words "Up, but down. Working, but broken."</p></div></details>
+<details class="q"><summary><b>2.</b> Why does the queue keep <em>growing</em> after the outage ends, instead of just staying long?</summary><div class="ans"><p>Each user request now generates r+1 attempts (every attempt times out, since the queue wait &gt; T). Arrival rate of attempts = (r+1)λ = 210/s &gt; μ = 100/s, so the queue grows by ~110/s. The trigger isn't needed any more: the amplified load alone exceeds capacity.</p></div></details>
+<details class="q"><summary><b>3.</b> How does a look-aside cache create a sustaining effect without any retries?</summary><div class="ans"><p>The cache is filled by the application after a DB read. With the cache cold, most requests go to the DB, which is overloaded, so the app times out <em>before</em> writing the result to the cache. The cache never warms, so DB load stays high. The sustaining effect is capacity degradation (w*_C = 1/(1−hit rate) = 10 at 90%), not workload amplification. Bronson's fix: a permissive DB timeout, or a read-through cache that fills even after the client leaves.</p></div></details>
+<details class="q"><summary><b>4.</b> Walk through Facebook's link-imbalance loop: why does an MRU pool concentrate load on the slowest link?</summary><div class="ans"><p>After a burst of misses, connections on the most congested link (highest latency) are the last to return to the pool. An MRU pool hands out the most recently returned connection first, so it picks exactly those slow connections, putting more traffic on the congested link and keeping it congested. One line changing pool policy fixed it.</p></div></details>
+<h3>Why</h3>
+<details class="q"><summary><b>5.</b> Why is the stable region's lower edge μ/(r+1) and not μ?</summary><div class="ans"><p>The collapsed state sustains itself only if its amplified load exceeds capacity: (r+1)λ &gt; μ. Below λ = μ/(r+1), even the worst-case amplification fits within capacity, so the backlog drains and p falls back to 0. Above μ the healthy state isn't self-consistent either. In between, both are.</p></div></details>
+<details class="q"><summary><b>6.</b> Why do companies deliberately run in the vulnerable state?</summary><div class="ans"><p>Efficiency. Staying below C_stable = C_norm/(w<em>_L·w</em>_C) means running at e.g. 50% (1 retry) or 10% (90% cache hit rate) of advertised capacity. That's very expensive, and the vulnerable band behaves perfectly on normal days. Bronson notes common-case optimisations push systems to "a larger multiple of the threshold".</p></div></details>
+<details class="q"><summary><b>7.</b> Why does LIFO recover immediately when FIFO doesn't, even though both serve at the same rate?</summary><div class="ans"><p>Under LIFO the next request served is the newest one, whose client is still waiting, so it succeeds. Its success means no retry, p drops and λ_eff falls toward λ &lt; μ, which moves the system to the healthy fixed point. The stale backlog sits at the bottom of the stack and can be dropped. FIFO always serves the oldest (dead) request first.</p></div></details>
+<details class="q"><summary><b>8.</b> Why do AWS SDKs charge more retry tokens for a timeout than for an error response?</summary><div class="ans"><p>A timeout usually means the server <em>did or is doing</em> the work and the client didn't wait. A fast error (e.g. throttling) cost the server little. Retrying after a timeout therefore adds more wasted server work, so it should drain the quota faster.</p></div></details>
+<h3>Counterfactual</h3>
+<details class="q"><summary><b>9.</b> With r = ∞ (unbounded retries), what is C_stable?</summary><div class="ans"><p>w*_L → ∞, so C_stable → 0: no stable region. Any load can be tipped over by a long enough trigger. OSDI'22 says this explicitly.</p></div></details>
+<details class="q"><summary><b>10.</b> If every client had a perfectly synchronised backoff (no jitter), what would the load look like after an outage?</summary><div class="ans"><p>All clients that failed together retry together, giving periodic spikes with quiet gaps. Each spike can re-trigger overload, so the system stays bimodal. Jitter spreads the retries out; full jitter does the least total work (Brooker 2015). Jitter still doesn't reduce total load in an open system.</p></div></details>
+<details class="q"><summary><b>11.</b> Remove server-side deadline checks but keep a 10% retry budget. Does the system recover, and what sets how long it takes?</summary><div class="ans"><p>In the sim, yes: it recovers at t≈64 s versus 51 s with no retries. The budget caps amplification near 1.1×, so λ_eff ≈ 77 &lt; 100 and the backlog drains at μ − λ_eff. Recovery time is B/(μ − λ_eff), all of it spent serving dead work. Deadline checks would shrink B to only the live requests.</p></div></details>
+<details class="q"><summary><b>12.</b> If the same service ran as a closed system (fixed clients waiting on replies), could it go metastable from retries?</summary><div class="ans"><p>Not from load amplification in the usual sense: a fixed population of N clients each waiting on one outstanding request caps in-flight work at N, and latency rises instead of load. That's why closed benchmarks miss metastability. Capacity-degradation loops (GC thrash at fixed concurrency) could still persist in principle.</p></div></details>
+<h3>Adversarial</h3>
+<details class="q"><summary><b>13.</b> You're an attacker who can cause brief stalls but not sustained DDoS. How would you use metastability?</summary><div class="ans"><p>Cause a short stall (e.g. 1–2 s of resource exhaustion, or a burst of expensive requests) while the target sits in its vulnerable band. The target's own retries do the rest, so a cheap kick yields a long outage that continues after the attack stops. RetryGuard (2025) treats this as a DDoS amplifier and a "Denial-of-Wallet" against autoscaling.</p></div></details>
+<details class="q"><summary><b>14.</b> How can a health check turn a 10% overload into a 100% outage?</summary><div class="ans"><p>Overloaded hosts respond slowly and fail health checks, and the load balancer removes them. The remaining hosts get their share and also fail, so capacity collapses. Mitigations: fail open when most targets are unhealthy (NLB does), limit removal velocity (AWS post-2025), and use shallow checks that don't depend on shared dependencies.</p></div></details>
+<details class="q"><summary><b>15.</b> Give a fix that looks reasonable but makes the next incident worse.</summary><div class="ans"><p>Making servers retry a dependency indefinitely (AWS SimpleDB → DynamoDB), or adding detailed error logging (Spotify). Both increase w*_L, which shrinks C_stable and enlarges the vulnerable band.</p></div></details>
+<h3>Connection</h3>
+<details class="q"><summary><b>16.</b> How is TCP congestion collapse (1986) the same failure, and which TCP mechanisms map to retry budgets, backoff and admission control?</summary><div class="ans"><p>In 1986 retransmissions filled links with duplicate copies, so goodput collapsed and stayed collapsed (Nagle: "This condition is stable"). TCP's exponential RTO backoff ↔ retry backoff; the congestion window and AIMD ↔ adaptive concurrency limits; "conservation of packets" ↔ retry budgets / closed-loop admission; RED/CoDel ↔ queue-delay-based shedding.</p></div></details>
+<details class="q"><summary><b>17.</b> Receive livelock causes zero goodput under overload. Why is it <em>not</em> metastable?</summary><div class="ans"><p>Receive livelock wastes all capacity on interrupts under overload, but "when the input load drops sufficiently, the system leaves this state". There's no sustaining effect after the trigger load is gone. HotOS'21 excludes it explicitly.</p></div></details>
+<details class="q"><summary><b>18.</b> How do hedged requests from "The Tail at Scale" relate to retry storms?</summary><div class="ans"><p>Hedging sends a duplicate before the first attempt fails, which is intentional work amplification. At 10 ms hedging cut BigTable p99.9 from 1,800 ms to 74 ms for 2% more requests. Under overload, uncapped hedges behave exactly like retries; that's why gRPC throttles retries and hedges with the same token bucket.</p></div></details>
+<h3>Open</h3>
+<details class="q"><summary><b>19.</b> Can you detect that a production system is in the vulnerable band without kicking it?</summary><div class="ans"><p>Open. Approaches: model-based (estimate w<em> from policies, compare L_norm to C_norm/w</em>), CTMC/simulation sweeps (Isaacs), learned spectral indicators (Koopman, simulation-only so far). The difficulty is that hidden capacity depends on behaviour in the failure state, which you don't observe while healthy.</p></div></details>
+<details class="q"><summary><b>20.</b> How should retry policy be composed across a 20-service call graph owned by 10 teams?</summary><div class="ans"><p>Current best practice: retry only at the layer directly above the failure, propagate a retry counter and deadline in metadata, and return "overloaded; don't retry" upward (Google SRE). Research directions: entry-point admission (TopFull), price propagation (Rajomon), graph-wide policy control (RetryGuard). None is a settled standard.</p></div></details>
+<details class="q"><summary><b>21.</b> Are LLM-serving systems (KV-cache preemption + client retries) metastable, and what would the sustaining effect be?</summary><div class="ans"><p>Plausible loop: memory pressure → KV-cache preemption → recompute (more GPU work per request) → longer queues → client timeouts and retries → more memory pressure. That is capacity degradation plus workload amplification. JITServe and SCORPIO do SLO-aware dropping. No peer-reviewed metastability analysis exists yet (as of research for this dive).</p></div></details></section>
+<section id="15-go-deeper-next"><h2>15. Go deeper next</h2><ol>
+<li><strong>CoDel and adaptive LIFO internals</strong>: the control law behind "minimum queue delay over an interval", and why it separates good queues from bad ones.</li>
+<li><strong>Adaptive concurrency limits (TCP Vegas → Netflix Gradient2 → Envoy)</strong>: congestion control turned inward onto RPC servers.</li>
+<li><strong>Shuffle sharding and cell-based architecture</strong>: the combinatorics of blast-radius isolation and how Route 53 gets ~730 billion shards out of 2,048 nodes.</li>
+</ol></section>
+<section id="sources"><h2>Sources</h2><p><strong>Papers</strong></p>
+<ul>
+<li>Bronson, Aghayev, Charapko, Zhu. Metastable Failures in Distributed Systems. HotOS'21. https://sigops.org/s/conferences/hotos/2021/papers/hotos21-s11-bronson.pdf</li>
+<li>Huang et al. Metastable Failures in the Wild. OSDI'22. https://www.usenix.org/conference/osdi22/presentation/huang-lexiang · code https://github.com/lexiangh/Metastability</li>
+<li>Isaacs et al. Analyzing Metastable Failures. HotOS'25. https://sigops.org/s/conferences/hotos/2025/papers/hotos25-106.pdf · https://github.com/mpi-sws-rse/metafor</li>
+<li>Alvaro et al. Formal Analysis of Metastable Failures in Software Systems. arXiv 2510.03551. https://arxiv.org/abs/2510.03551</li>
+<li>Majumdar et al. Learning Metastable Dynamics. arXiv 2609.14712. https://arxiv.org/abs/2609.14712</li>
+<li>Farahbakhsh et al. Characterizing Metastable Faults and Failures. arXiv 2606.00942. https://arxiv.org/abs/2606.00942</li>
+<li>Qian, Tan, Zhang. CSnake. EuroSys'26. https://arxiv.org/abs/2509.26529</li>
+<li>Stoica et al. Wasabi. SOSP'24. https://bastoica.github.io/files/papers/2024_sosp_wasabi.pdf</li>
+<li>Hu et al. Atropos. SOSP'25. https://orderlab.io/paper/atropos-sosp25.pdf</li>
+<li>Xing et al. Rajomon. NSDI'25. https://www.usenix.org/conference/nsdi25/presentation/xing</li>
+<li>Park et al. TopFull. SIGCOMM'24. https://dl.acm.org/doi/10.1145/3651890.3672253</li>
+<li>Cho et al. Protego. NSDI'23. https://www.usenix.org/conference/nsdi23/presentation/cho-inho</li>
+<li>Liang et al. HoliPaxos. PVLDB 18(8), 2025. https://www.vldb.org/pvldb/vol18/p2505-charapko.pdf</li>
+<li>Habibi et al. MSF-Model. SRDS'24. https://arxiv.org/abs/2309.16181</li>
+<li>Tavori et al. RetryGuard. arXiv 2511.23278. https://arxiv.org/abs/2511.23278</li>
+<li>Nagle. RFC 896. https://www.rfc-editor.org/rfc/rfc896.txt</li>
+<li>Jacobson &amp; Karels. Congestion Avoidance and Control. https://ee.lbl.gov/papers/congavoid.pdf</li>
+<li>Mogul &amp; Ramakrishnan. Eliminating Receive Livelock. USENIX'96. https://www.usenix.org/conference/usenix-1996-annual-technical-conference/eliminating-receive-livelock-interrupt-driven</li>
+<li>Dean &amp; Barroso. The Tail at Scale. CACM 2013. https://cacm.acm.org/research/the-tail-at-scale/</li>
+<li>Nishtala et al. Scaling Memcache at Facebook. NSDI'13. https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf</li>
+<li>Schroeder et al. Open Versus Closed: A Cautionary Tale. NSDI'06. https://www.usenix.org/conference/nsdi-06/open-versus-closed-cautionary-tale</li>
+</ul>
+<p><strong>Code / docs</strong></p>
+<ul>
+<li>gRPC retry proposal A6. https://github.com/grpc/proposal/blob/master/A6-client-retries.md</li>
+<li>Envoy circuit breaker / retry budget. https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto</li>
+<li>Envoy adaptive concurrency. https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/adaptive_concurrency_filter</li>
+<li>Finagle RetryBudget. https://github.com/twitter/finagle/blob/develop/finagle-core/src/main/scala/com/twitter/finagle/service/RetryBudget.scala</li>
+<li>botocore retries. https://github.com/boto/botocore/blob/develop/botocore/retries/standard.py</li>
+<li>aws-sdk-go-v2 retry. https://github.com/aws/aws-sdk-go-v2/blob/main/aws/retry/standard.go</li>
+<li>AWS SDK retry behaviour. https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html</li>
+<li>Netflix concurrency-limits. https://github.com/Netflix/concurrency-limits</li>
+<li>HBase AdaptiveLifoCoDelCallQueue. https://hbase.apache.org/2.5/devapidocs/src-html/org/apache/hadoop/hbase/ipc/AdaptiveLifoCoDelCallQueue.html</li>
+<li>Go singleflight. https://pkg.go.dev/golang.org/x/sync/singleflight</li>
+</ul>
+<p><strong>Articles / postmortems</strong></p>
+<ul>
+<li>Google SRE: Handling Overload. https://sre.google/sre-book/handling-overload/</li>
+<li>Google SRE: Addressing Cascading Failures. https://sre.google/sre-book/addressing-cascading-failures/</li>
+<li>AWS Builders' Library: Timeouts, retries and backoff with jitter. https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/</li>
+<li>AWS Builders' Library: Using load shedding to avoid overload. https://builder.aws.com/content/3Eun1EEyX6p2e3VYNyRLSJzLuMV/using-load-shedding-to-avoid-overload</li>
+<li>AWS Builders' Library: Avoiding insurmountable queue backlogs. https://builder.aws.com/content/3EuRcgkTP1MI0c7zM8W6HL3WIqA/avoiding-insurmountable-queue-backlogs</li>
+<li>AWS Builders' Library: Shuffle sharding. https://aws.amazon.com/builders-library/workload-isolation-using-shuffle-sharding/</li>
+<li>AWS Builders' Library: Static stability. https://aws.amazon.com/builders-library/static-stability-using-availability-zones/</li>
+<li>AWS cell-based architecture. https://docs.aws.amazon.com/wellarchitected/latest/reducing-scope-of-impact-with-cell-based-architecture/what-is-a-cell-based-architecture.html</li>
+<li>Constant work (summary). https://www.allthingsdistributed.com/2023/11/standing-on-the-shoulders-of-giants-colm-on-constant-work.html</li>
+<li>AWS 2026 retry update. https://aws.amazon.com/blogs/developer/announcing-updated-retry-behavior-for-aws-sdks-and-tools/</li>
+<li>Exponential Backoff and Jitter. https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/</li>
+<li>Brooker: Metastability and distributed systems. https://brooker.co.za/blog/2021/05/24/metastable.html</li>
+<li>Brooker: Caches, modes, and unstable systems. https://brooker.co.za/blog/2021/08/27/caches.html</li>
+<li>Brooker: Fixing retries with token buckets and circuit breakers. https://brooker.co.za/blog/2022/02/28/retries.html</li>
+<li>Brooker: Will circuit breakers solve my problems? https://www.brooker.co.za/blog/2022/02/16/circuit-breakers.html</li>
+<li>Brooker: What is backoff for? https://brooker.co.za/blog/2022/08/11/backoff.html</li>
+<li>Brooker: Garbage collection and metastability. https://brooker.co.za/blog/2024/08/14/gc-metastable.html</li>
+<li>Brooker: Good performance for bad days. https://brooker.co.za/blog/2025/05/20/icpe.html</li>
+<li>Demirbas on HotOS'25. https://muratbuffalo.blogspot.com/2025/06/analyzing-metastable-failures-in.html</li>
+<li>Fail at Scale (summary). https://blog.acolyer.org/2015/11/19/fail-at-scale-controlling-queue-delay/</li>
+<li>Uber Cinnamon. https://www.uber.com/blog/cinnamon-using-century-old-tech-to-build-a-mean-load-shedder/</li>
+<li>FB link imbalance. https://engineering.fb.com/2014/11/14/production-engineering/solving-the-mystery-of-link-imbalance-a-metastable-failure-state-at-scale/</li>
+<li>AWS Oct 2025. https://aws.amazon.com/message/101925/ · Dec 2021 https://aws.amazon.com/message/12721/ · Kinesis 2020 https://aws.amazon.com/message/11201/</li>
+<li>Slack Jan 2021. https://slack.engineering/slacks-outage-on-january-4th-2021/ · Feb 2022 https://slack.engineering/slacks-incident-on-2-22-22/</li>
+<li>Google Cloud Jun 2025. https://status.cloud.google.com/incidents/ow5i3PPK96RduMcb1SsW</li>
+<li>Roblox Oct 2021. https://about.roblox.com/newsroom/2022/01/roblox-return-to-service-10-28-10-31-2021</li>
+</ul>
+<p><em>Unverified / flagged:</em> verbatim phrasing of the AWS 243× sentence (page is JS-rendered; arithmetic implies 3 attempts/layer); Fail at Scale's exact M/N values (ACM page blocked); 2026 arXiv items are preprints except where a venue is named.</p></section></main></div>
+<script>(function(){
+// ---- scroll-spy ----
+var links=[].slice.call(document.querySelectorAll('nav a'));
+var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));});
+function spy(){var y=window.scrollY+80,cur=0;secs.forEach(function(s,i){if(s&&s.getBoundingClientRect().top+window.scrollY<=y)cur=i;});
+ links.forEach(function(a,i){a.classList.toggle('on',i===cur);});}
+window.addEventListener('scroll',spy,{passive:true});spy();
+
+// ---- copy buttons ----
+document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){
+ var t=b.parentNode.querySelector('code').innerText;
+ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='copied';},function(){b.textContent='select+copy';});
+ setTimeout(function(){b.textContent='copy';},1500);});});
+
+// ---- reveal all ----
+var ra=document.getElementById('revealAll');
+if(ra)ra.addEventListener('click',function(){var open=ra.getAttribute('aria-pressed')!=='true';
+ document.querySelectorAll('details.q').forEach(function(d){d.open=open;});
+ ra.setAttribute('aria-pressed',open);ra.textContent=open?'Hide all answers':'Reveal all answers';});
+
+// ---- KaTeX ----
+window.addEventListener('load',function(){if(window.renderMathInElement)renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true}],throwOnError:false});});
+
+// ---- step-through ----
+var steps=[
+ {t:'t = 0–20 s',att:'72/s',q:2,qn:'~2',srv:'72/s',good:'goodput 72/s',e1:0,e2:0,hot:'',txt:'<b>Steady state.</b> λ = 70 req/s against μ = 100 (ρ = 0.7). The queue is near empty, every attempt finishes in ~10 ms, and no timeouts fire. The system looks healthy, but it is inside the vulnerable band (33–100).'},
+ {t:'t = 20 s',att:'72/s',q:40,qn:'+72/s',srv:'0/s (down)',good:'goodput 0',e1:1,e2:0,hot:'srv',txt:'<b>Trigger.</b> Server capacity drops to 0 for 10 s. New requests pile up in the queue at ~72/s.'},
+ {t:'t ≈ 21.4 s',att:'↑ retries',q:90,qn:'>100 = wait > T',srv:'0/s',good:'goodput 0',e1:1,e2:0,hot:'cli',txt:'<b>Timeouts begin.</b> Once ~100 requests are queued, the queue wait exceeds the 1 s timeout. Clients re-send. The server never hears about the first copy, so the queue now holds duplicates.'},
+ {t:'t = 30 s',att:'~210/s',q:150,qn:'1,871',srv:'100/s',good:'goodput 0',e1:1,e2:1,hot:'srv',txt:'<b>Trigger removed.</b> The server is back at full speed (100/s), but every dequeued attempt is >1 s old and its client has already given up. 100% busy, 0% useful.'},
+ {t:'t = 40 s',att:'~210/s',q:220,qn:'2,971',srv:'100/s wasted',good:'goodput 0',e1:1,e2:1,hot:'cli',txt:'<b>One request.</b> req#3000 is sent at 40.0, times out at 41.0 (attempt 2) and 42.0 (attempt 3), and gives up at 43.0. All three copies get served around t ≈ 70–72 s, about 30 s too late. 3 units of work, 0 goodput.'},
+ {t:'t = 120 s',att:'210/s',q:336,qn:'11,826',srv:'100/s wasted',good:'goodput 0',e1:1,e2:1,hot:'srv',txt:'<b>Still stuck, 90 s after the trigger.</b> Attempts (3 × 70 = 210/s) exceed capacity (100/s), so the queue grows ~110/s. The loop no longer needs the trigger.'},
+ {t:'fix',att:'70/s',q:2,qn:'dead work skipped',srv:'70/s',good:'goodput 70/s',e1:1,e2:1,hot:'',txt:'<b>Break the loop.</b> Same trigger, but the server drops expired attempts at dequeue (or serves LIFO). The backlog vanishes at zero cost, fresh requests succeed, p → 0, and λ_eff → λ < μ. Healthy at t = 30 s. Retry budget 10%: healthy at 64 s. No retries: 51 s.'}
+];
+var si=0,$=function(id){return document.getElementById(id);};
+function renderStep(){var s=steps[si];$('stCount').textContent='STEP '+(si+1)+' / '+steps.length;
+ $('stT').textContent=s.t;$('stAtt').textContent=s.att;$('stQ').setAttribute('width',Math.max(4,s.q));$('stQn').textContent=s.qn;
+ $('stSrvT').textContent=s.srv;$('stGood').textContent=s.good;$('stText').innerHTML=s.txt;
+ $('stE1').classList.toggle('on',!!s.e1);$('stE2').classList.toggle('on',!!s.e2);
+ $('stCli').classList.toggle('hot',s.hot==='cli');$('stSrv').classList.toggle('hot',s.hot==='srv');
+ $('stPrev').disabled=si===0;$('stNext').disabled=si===steps.length-1;}
+if($('stepper')){$('stPrev').onclick=function(){if(si>0){si--;renderStep();}};$('stNext').onclick=function(){if(si<steps.length-1){si++;renderStep();}};renderStep();}
+
+// ---- simulator (port of metastable_sim.py; seeded PRNG) ----
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function simulate(o){
+ var TICK=0.01,rng=mulberry(7),mu=100,dur=120,os=20;
+ var q=[],head=0,pending=new Map(),id=0,credit=0,tokens=10,good=new Array(dur).fill(0),sent=new Array(dur).fill(0);
+ var steps=Math.round(dur/TICK),t=0;
+ for(var k=0;k<steps;k++){var sec=Math.floor(t);
+  var lamT=o.lam*TICK,n=0;for(var kk=lamT;kk>0;kk-=1){if(rng()<Math.min(kk,1))n++;}
+  for(var i=0;i<n;i++){pending.set(id,[0,t+o.T]);q.push([t,id]);sent[sec]++;if(o.budget)tokens=Math.min(tokens+0.1,10+0.1*o.lam*10);id++;}
+  var exp=[];pending.forEach(function(v,key){if(v[1]<=t)exp.push(key);});
+  for(var j=0;j<exp.length;j++){var rid=exp[j],a=pending.get(rid)[0];pending.delete(rid);
+   if(a<o.r&&(!o.budget||tokens>=1)){if(o.budget)tokens-=1;pending.set(rid,[a+1,t+o.T]);q.push([t,rid]);sent[sec]++;}}
+  if(!(t>=os&&t<os+o.out))credit+=mu*TICK;
+  while(credit>=1&&q.length>head){var it=o.lifo?q.pop():q[head++];
+   var waiting=pending.has(it[1])&&t-it[0]<o.T;
+   if(o.drop&&!waiting)continue;credit-=1;if(waiting){pending.delete(it[1]);good[sec]++;}}
+  if(head>4096){q=q.slice(head);head=0;}
+  if(q.length<=head)credit=Math.min(credit,1);
+  t+=TICK;}
+ return {good:good,sent:sent,qlen:q.length-head};
+}
+var svgNS='http://www.w3.org/2000/svg';
+function el(n,a){var e=document.createElementNS(svgNS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function draw(){
+ var o={lam:+$('iLam').value,out:+$('iOut').value,r:+$('iR').value,T:+$('iT').value,budget:$('iB').checked,drop:$('iD').checked,lifo:$('iL').checked};
+ $('oLam').textContent=o.lam;$('oOut').textContent=o.out;$('oR').textContent=o.r;$('oT').textContent=o.T;
+ var res=simulate(o),svg=$('simSvg');while(svg.firstChild)svg.removeChild(svg.firstChild);
+ var W=640,H=220,L=40,R=10,Tp=10,B=30,ymax=Math.max(120,Math.max.apply(null,res.sent)*1.05);
+ var X=function(s){return L+(W-L-R)*s/120;},Y=function(v){return Tp+(H-Tp-B)*(1-v/ymax);};
+ svg.appendChild(el('rect',{x:X(20),y:Tp,width:X(20+o.out)-X(20),height:H-Tp-B,class:'trig'}));
+ [0,50,100,150,200,250,300].forEach(function(v){if(v>ymax)return;svg.appendChild(el('line',{x1:L,x2:W-R,y1:Y(v),y2:Y(v),class:'gl'}));var tx=el('text',{x:L-6,y:Y(v)+4,'text-anchor':'end',class:'lbl'});tx.textContent=v;svg.appendChild(tx);});
+ [0,20,40,60,80,100,120].forEach(function(s){var tx=el('text',{x:X(s),y:H-10,'text-anchor':'middle',class:'lbl'});tx.textContent=s+'s';svg.appendChild(tx);});
+ var cap=el('line',{x1:L,x2:W-R,y1:Y(100),y2:Y(100),class:'cap'});svg.appendChild(cap);
+ function poly(arr,cls){var p=arr.map(function(v,i){return X(i+0.5).toFixed(1)+','+Y(v).toFixed(1);}).join(' ');svg.appendChild(el('polyline',{points:p,class:'pl '+cls}));}
+ poly(res.sent,'bad');poly(res.good,'ok');
+ var avg=function(a,s,e){var x=0;for(var i=s;i<e;i++)x+=a[i];return x/(e-s);};
+ var before=avg(res.good,10,20),back=null;
+ for(var s=21;s<120;s++){if(res.good[s]>=0.8*before){var okk=true;for(var u=s;u<Math.min(120,s+5);u++)if(res.good[u]<0.5*before)okk=false;if(okk){back=s;break;}}}
+ var v=$('vOut');
+ if(back!==null){v.className='verdict ok';v.textContent='Recovered: goodput back to normal at t = '+back+' s (trigger ended at t = '+(20+o.out).toFixed(1)+' s).';}
+ else{v.className='verdict bad';v.textContent='STUCK (metastable): goodput '+avg(res.good,100,120).toFixed(1)+'/s in the last 20 s, server busy, queue = '+res.qlen.toLocaleString()+'.';}
+ var amp=o.budget?'≈1.1':(o.r+1),edge=o.budget?'—':(100/(o.r+1)).toFixed(1);
+ $('vBand').innerHTML='Theory: worst-case amplification w* = '+amp+'; collapsed state sustainable when λ &gt; μ/w* = '+edge+' req/s'+(o.drop||o.lifo?' (but dead work is free to skip / fresh work served first, so the loop can\'t hold)':'')+'.';
+}
+if($('sim')){['iLam','iOut','iR','iT','iB','iD','iL'].forEach(function(k){$(k).addEventListener('input',draw);});draw();}
+})();
+</script></body></html>
