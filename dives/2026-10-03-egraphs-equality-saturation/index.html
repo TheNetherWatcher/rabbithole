@@ -1,0 +1,551 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>E-graphs and equality saturation</title>
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css'>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5c5c66;--card:#fff;--bd:#e3e0d8;--ac:#6a3fb5;--ac2:#1d6b52;--code:#f3f1ea;--warm:#fff4e2;--warmbd:#f1cf9a}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e9e9ee;--mut:#9a9aa6;--card:#1a1b20;--bd:#2b2d35;--ac:#b79bff;--ac2:#6fd6a8;--code:#202229;--warm:#2a2318;--warmbd:#5c4a28}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--bd);font-size:13.5px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(70ch + 56px)}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.5rem;margin:1.6em 0 .5em;scroll-margin-top:12px}h3{margin-top:1.4em}
+.card-line{font:600 12px/1 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.tldr{font-size:1.05rem}.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b{display:block;font-size:1.25rem;color:var(--ac)}.nums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}
+.plain h2{margin-top:.8em}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:6px;cursor:pointer}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);color:var(--mut);border-radius:0 8px 8px 0}
+a{color:var(--ac2)}details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 10px;color:var(--mut)}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px}button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}.gc{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.gc b{display:block}.gc span{font-size:13.5px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.twocol>div{border-radius:10px;padding:4px 16px 10px;border:1px solid var(--bd)}.use{background:rgba(31,111,120,.08)}.skip{background:rgba(180,68,43,.08)}.twocol h4{margin:.8em 0 .2em}
+.widget{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:18px 0}.widget label{display:block;margin:6px 0}.widget input[type=range]{width:min(320px,100%);vertical-align:middle}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}.lv{min-height:120px;font:13px ui-monospace,monospace}.lvl{display:flex;gap:4px;align-items:center;margin:4px 0;flex-wrap:wrap}.lvl i{font-style:normal;color:var(--mut);width:28px}.run{background:var(--ac2);color:#fff;border-radius:4px;padding:1px 7px;min-width:22px;text-align:center}.run.hot{background:var(--ac)}
+.ctl{display:flex;gap:12px;align-items:center}.note{font-size:13.5px;color:var(--mut)}
+@media(max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}nav{position:static;height:auto;border:0;border-bottom:1px solid var(--bd);display:flex;overflow:auto;white-space:nowrap;gap:2px;padding:10px 16px}nav a{border:0}main{padding:16px}.twocol,.cols{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+main a,main p,main li{overflow-wrap:anywhere}
+.math{overflow-x:auto;overflow-y:hidden;margin:12px 0;padding:6px 0}
+.mono{font:600 13px ui-monospace,monospace;color:var(--mut)}
+.stepnote{min-height:3.2em;font-size:14.5px}
+#eg{width:100%;height:auto;display:block;background:var(--bg);border:1px solid var(--bd);border-radius:10px}
+#eg .cls{fill:none;stroke:var(--mut);stroke-dasharray:5 4;stroke-width:1.3}
+#eg .cls.root{stroke:var(--ac);stroke-width:2}
+#eg .pill{fill:var(--code);stroke:var(--bd)}
+#eg .pill.new{fill:var(--warm);stroke:var(--ac)}
+#eg .pill.pick{fill:var(--ac2);stroke:var(--ac2)}
+#eg text{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--fg)}
+#eg text.pk{fill:#fff;font-weight:700}
+#eg text.cl{fill:var(--mut);font-size:11.5px}
+#eg text.cl.root{fill:var(--ac);font-weight:700}
+#eg .edge{stroke:var(--mut);stroke-width:1.2;fill:none;opacity:.75}
+#eg .edge.new{stroke:var(--ac);opacity:1;stroke-width:1.8}
+.bar{height:14px;background:var(--code);border-radius:7px;overflow:hidden;position:relative;margin:8px 0}
+.bar div{height:100%;background:var(--ac);transition:width .2s}
+.bar::after{content:'';position:absolute;top:0;bottom:0;left:var(--lim,40%);border-left:2px dashed var(--fg)}
+.nums.small b{font-size:1.05rem}
+.callout{background:var(--warm);border:1px solid var(--warmbd);border-radius:12px;padding:4px 16px 8px;margin:14px 0}
+</style></head><body>
+<a href='#main' class='skip-link' style='position:absolute;left:-999px'>Skip to content</a>
+<div class='layout'><nav aria-label='Table of contents'><a href='#0b-plain-english-first'>0b. Plain English first</a><a href='#1-bare-minimum-context'>1. Bare-minimum context</a><a href='#1b-real-world-context'>1b. Real-world context</a><a href='#2-the-one-liner-and-what-it-hides'>2. The one-liner and what it hides</a><a href='#3-the-problem'>3. The problem</a><a href='#4-mental-model'>4. Mental model</a><a href='#5-the-mechanism-traced'>5. The mechanism, traced</a><a href='#6-the-math'>6. The math</a><a href='#7-why-it-works'>7. Why it works</a><a href='#8-design-knobs-and-alternatives'>8. Design knobs and alternatives</a><a href='#9-where-it-breaks'>9. Where it breaks</a><a href='#10-in-the-wild'>10. In the wild</a><a href='#11-frontier-whats-new'>11. Frontier (what&#x27;s new)</a><a href='#11b-open-problems'>11b. Open problems</a><a href='#12-lineage'>12. Lineage</a><a href='#13-hands-on-30-min'>13. Hands-on (≤30 min)</a><a href='#14-question-ladder'>14. Question ladder</a><a href='#15-go-deeper-next'>15. Go deeper next</a><a href='#sources'>Sources</a></nav>
+<main id='main'>
+
+<div class='hero'>
+ <div class='card-line'>Compilers/PL &middot; e-graphs &amp; equality saturation &middot; depth: hard &middot; 2026-10-03</div>
+ <h1>E-graphs and equality saturation: union-find, rebuilding, extraction, and why Cranelift won&#x27;t saturate</h1>
+ <p class='tldr'><b>TL;DR.</b> An e-graph stores many equivalent programs at once by grouping nodes into classes whose children are <em>classes</em>. Equality saturation applies every rewrite without deleting anything, repairs congruence in batches (egg's &ldquo;rebuild&rdquo;), then extracts the cheapest program. It fixes phase ordering on paper. In practice saturation often never ends, extraction is NP-hard, and the only production compiler using it (Cranelift) chose to stay eager, acyclic and capped at 5.</p>
+ <p class='why'><b>Why it matters.</b> It's the engine behind Herbie, Tensat, Luminal, ROVER and Cranelift's mid-end. It's also a live argument about whether "keep every version" pays for itself.</p>
+ <div class='nums'>
+  <div><b>88&times; / 21&times;</b><span>egg: deferred vs immediate rebuild (congruence / whole eqsat)</span></div>
+  <div><b>&gt;3000&times;</b><span>egg vs Herbie's original simplifier</span></div>
+  <div><b>3<sup>n</sup>&minus;2<sup>n+1</sup>+n+1</b><span>e-nodes after AC-saturating a sum of n leaves</span></div>
+  <div><b>30 / 10k / 5 s</b><span>egg Runner default iteration / node / time limits</span></div>
+  <div><b>5 / 5 / 5</b><span>Cranelift MATCHES, ECLASS_ENODE, REWRITE limits</span></div>
+  <div><b>1.13</b><span>average nodes per e-class in Cranelift (Fallin 2026)</span></div>
+ </div>
+</div>
+<div class='note'><p><b>Verification note:</b> research was done 2026-10-03 by four parallel research passes (foundations, implementation, frontier, breakage) that read primary PDFs, arXiv abstracts, docs.rs, and source on GitHub <code>main</code>. Tags: <em>(secondary)</em> = seen only in a search summary or secondary listing; <em>(unverified)</em> = could not be confirmed. Every number from <code>mini_egraph.py</code> was produced by running it in this folder. The AC blowup formula was derived here and cross-checked against Rosin/Ullrich/Hack (EGRAPHS 2026) and the demo's output for n = 2..6.</p></div>
+
+<div class='plain'><section id='0b-plain-english-first'><h2>0b. Plain English first</h2><p><strong>Explain it simply.</strong> Picture a librarian who keeps a "same-meaning" binder. Every time someone proves two phrases mean the same thing ("twice a, then halved" = "a"; "a times two" = "a shifted left by one"), the librarian doesn't erase the old phrase. They staple the new phrase to the same page. Pages can point at other pages ("the thing on page 7, halved"), so one stapled fact can make many other pages equal too, and they have to go round and staple those as well.</p>
+<p>A normal optimizing compiler is a cook who follows a recipe of tweaks in a fixed order, throwing away the old version each time. If it does step 3 before step 5 it may miss a shortcut that only appears the other way round. The binder approach avoids that: apply every known tweak, keep every version, and only at the end flip through the binder and pick the cheapest phrase on the page you care about. That's an <strong>e-graph</strong> (the binder), <strong>equality saturation</strong> (keep stapling until nothing new turns up), and <strong>extraction</strong> (pick the cheapest phrase).</p>
+<p><strong>Everyday example.</strong> A calculator program sees "take <em>a</em>, multiply by 2, divide by 2". The binder starts with four pages: <em>a</em>, 2, "<em>a</em>×2", and "(<em>a</em>×2)÷2". Round 1: one rule says "×2 is the same as shift-left-by-1", so "<em>a</em> shifted by 1" is stapled onto the "<em>a</em>×2" page. Another rule says "(x×y)÷z = x×(y÷z)", so "<em>a</em>×(2÷2)" is stapled onto the last page. Round 2: "anything divided by itself is 1", so "2÷2" joins the page for "1". Round 3: "x×1 = x" puts "<em>a</em>×(2÷2)" (now known to be "<em>a</em>×1") on the same page as "<em>a</em>". The last page and page <em>a</em> become one page. Round 4 finds nothing new. Flip to that page, take the shortest phrase: just <em>a</em>. The compiler deletes both the multiply and the divide.</p>
+<p><strong>Bridge:</strong> now the same thing, technically.</p></section></div>
+<section id='1-bare-minimum-context'><h2>1. Bare-minimum context</h2><ul>
+<li><strong>Term / AST</strong>: a tree like <code>(/ (* a 2) 2)</code>. Rewrites turn one term into an equal one. (<a href="https://docs.rs/egg/latest/egg/tutorials/_01_background/index.html">egg tutorial</a>)</li>
+<li><strong>Union-find</strong>: a forest that answers "are x and y in the same set?" in near-constant amortized time; <code>find</code> returns the set's canonical representative, <code>union</code> links two roots. (<a href="https://en.wikipedia.org/wiki/Disjoint-set_data_structure">Wikipedia</a>)</li>
+<li><strong>Hash-consing</strong>: never build the same node twice; a hash map from node → id gives structural sharing (a DAG instead of a tree).</li>
+<li><strong>Congruence</strong>: if a ≡ b then f(a) ≡ f(b). The "closure" is everything you can derive this way. (<a href="https://web.eecs.umich.edu/~weimerw/2011-6610/reading/nelson-oppen-congruence.pdf">Nelson &amp; Oppen 1980</a>)</li>
+<li><strong>Phase ordering</strong>: an optimizer's passes destroy information, so the order you run them in changes the output. That's the problem e-graphs attack.</li>
+<li><strong>Datalog / conjunctive query</strong>: rules over relations joined on shared variables; relevant because modern e-matching is a database join. (<a href="https://arxiv.org/abs/2108.02290">relational e-matching</a>)</li>
+</ul></section>
+<section id='1b-real-world-context'><h2>1b. Real-world context</h2>
+<div class='grid'>
+ <div class='gc'><b>Cranelift / Wasmtime</b><span>Production aegraph mid-end since Jan 2023: GVN, LICM, const-fold, algebra in one pass</span></div>
+ <div class='gc'><b>Herbie</b><span>Floating-point accuracy rewriting; Racket core + Rust egg via FFI</span></div>
+ <div class='gc'><b>Tensat</b><span>Tensor-graph superoptimization, ILP extraction</span></div>
+ <div class='gc'><b>Luminal</b><span>ML inference compiler on an egglog fork; picks kernels by measured GPU time</span></div>
+ <div class='gc'><b>ROVER / SEER</b><span>RTL datapath (up to 63% less area) and HLS via MLIR</span></div>
+ <div class='gc'><b>Ruler / Enumo</b><span>Synthesize the rewrite rules themselves</span></div>
+ <div class='gc'><b>lean-egg</b><span>Lean 4 equational proof search (POPL 2026)</span></div>
+ <div class='gc'><b>RisingLight, wasm-mutate</b><span>SQL optimizer on egg; semantics-preserving fuzz mutants</span></div>
+</div>
+<div class='twocol'>
+ <div class='use'><h4>Use full eqsat when</h4><ul><li>Result quality &gt;&gt; search time (hardware, tensor graphs, numerics)</li><li>Rules interact in ways you can't order by hand</li><li>You need proofs or rule synthesis</li><li>Superoptimization offline</li></ul></div>
+ <div class='skip'><h4>Skip it / go eager when</h4><ul><li>JIT or fast AOT hot path (egg round-trip alone: 23% vs ~10% budget)</li><li>Rules are directional, cost-decreasing</li><li>Signs: NodeLimit every run, output changes when an unrelated rule is added</li><li>Cost model can't be made accurate</li></ul></div>
+</div>
+<p><strong>What it is.</strong> An <em>e-graph</em> is a data structure that stores a large (even infinite) set of equivalent programs compactly, by grouping nodes into <em>e-classes</em> (sets of nodes known to be equal) whose children point to e-classes, not to individual nodes. <em>Equality saturation</em> (eqsat) is the algorithm that repeatedly applies rewrite rules <em>without deleting anything</em>, adding each rewritten form to the matching e-class, until no rule adds anything new ("saturation") or a limit hits. Then an <em>extractor</em> picks the cheapest representative under a cost model.</p>
+<p><strong>Why it exists.</strong> Destructive rewriting forces you to choose a rule order, and a greedy choice can block a better one later (phase ordering). Tate, Stepp, Tatlock and Lerner (POPL 2009) proposed keeping all choices and deciding at the end. The idea sat in research for a decade because the data structure was slow: in Herbie (a floating-point accuracy tool) the old Racket e-graph simplifier took <strong>98.1% of Herbie's runtime</strong>. egg (POPL 2021) made it fast, and the egg backend is "over <strong>3000×</strong> faster than Herbie's initial simplifier" (<a href="https://arxiv.org/pdf/2004.03082">egg §6.1</a>). Before e-graphs, people hand-ordered pass pipelines (LLVM's ~100-pass <code>-O2</code>) and hand-wrote peepholes (InstCombine), where Alive found 8 bugs in 334 hand-coded transforms (<a href="https://github.com/bytecodealliance/rfcs/blob/main/accepted/cranelift-egraph.md">cited in Cranelift RFC</a>).</p>
+<p><strong>Where it's used</strong> (checked against source/primary pages unless tagged):</p>
+<ul>
+<li><strong>Cranelift / Wasmtime</strong>: production mid-end since Jan 2023 (<a href="https://github.com/bytecodealliance/wasmtime/pull/5587">#5587</a>), as an <em>acyclic</em> e-graph ("aegraph") with ISLE rewrite rules in <code>cranelift/codegen/src/opts/*.isle</code>; does GVN, LICM, constant folding, algebraic simplification in one pass.</li>
+<li><strong>Herbie</strong>: floating-point accuracy rewriting; Racket core calls Rust egg via FFI (<code>egg-herbie</code>), plus an egglog backend (<a href="https://github.com/herbie-fp/herbie">repo</a>).</li>
+<li><strong>Tensat</strong> (MLSys 2021): tensor-graph superoptimization with ILP extraction; "up to 16% speedup … 48× less time optimizing" vs TASO (<a href="https://arxiv.org/abs/2101.01332">arXiv</a>).</li>
+<li><strong>Luminal</strong> (Rust ML inference compiler): lowers its graph to (a fork of) egglog and searches kernel variants by measured GPU time (<a href="https://github.com/luminal-ai/luminal">repo</a>).</li>
+<li><strong>ROVER</strong> (Imperial + Intel authors): RTL datapath rewriting, "up to a 63% reduction in circuit area" (<a href="https://arxiv.org/abs/2406.12421">arXiv</a>). SEER does HLS via MLIR + e-graphs (ASPLOS 2024, <em>secondary</em>).</li>
+<li><strong>Ruler / Enumo</strong>: <em>synthesize</em> rewrite rules with eqsat; Ruler's rule sets are 5.8× smaller and found 25× faster than a CVC4-based tool (<a href="https://arxiv.org/abs/2108.10436">arXiv</a>).</li>
+<li><strong>lean-egg</strong>: Lean 4 tactic that turns theorems into rewrite rules, searches with egg, and rebuilds a Lean proof (POPL 2026, <a href="https://thok.eu/publications/2026/popl-theorem.pdf">PDF</a>).</li>
+<li><strong>RisingLight</strong> (educational OLAP DB): SQL optimizer built on egg 0.9.5 (<a href="https://github.com/risinglightdb/risinglight">repo</a>); <strong>wasm-mutate</strong> uses egg to generate semantically equal fuzz mutants (<a href="https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasm-mutate/Cargo.toml">Cargo.toml</a>).</li>
+</ul>
+<p>Not found: no upstream LLVM or GCC e-graph pass; claims about Certora, DataFusion, Mojo using egg could not be confirmed <em>(unverified, don't repeat them)</em>.</p>
+<p><strong>How it's used.</strong> Library route (egg 0.11, verbatim from <code>tests/simple.rs</code>):</p>
+<pre><code class="language-rust">use egg::*;
+define_language! { enum SimpleLanguage {
+    Num(i32), &quot;+&quot; = Add([Id; 2]), &quot;*&quot; = Mul([Id; 2]), Symbol(Symbol), } }
+
+let rules: Vec&lt;Rewrite&lt;SimpleLanguage, ()&gt;&gt; = vec![
+    rewrite!(&quot;commute-add&quot;; &quot;(+ ?a ?b)&quot; =&gt; &quot;(+ ?b ?a)&quot;),
+    rewrite!(&quot;add-0&quot;; &quot;(+ ?a 0)&quot; =&gt; &quot;?a&quot;),
+    rewrite!(&quot;mul-1&quot;; &quot;(* ?a 1)&quot; =&gt; &quot;?a&quot;),
+];
+let expr: RecExpr&lt;SimpleLanguage&gt; = &quot;(+ 0 (* 1 foo))&quot;.parse().unwrap();
+let runner = Runner::default().with_expr(&amp;expr).run(&amp;rules);
+let (cost, best) = Extractor::new(&amp;runner.egraph, AstSize).find_best(runner.roots[0]);
+// best = foo
+</code></pre>
+<p>Typical knobs: <code>Runner</code> defaults are <code>iter_limit 30</code>, <code>node_limit 10_000</code>, <code>time_limit 5 s</code>; default scheduler <code>BackoffScheduler</code> with match limit 1,000 and ban length 5 iterations, both doubling each time a rule gets banned (<a href="https://github.com/egraphs-good/egg/blob/main/src/run.rs">run.rs</a>, <a href="https://docs.rs/egg/latest/egg/struct.BackoffScheduler.html">docs</a>). Language route: <strong>egglog</strong> (<code>(datatype …)</code>, <code>(rewrite …)</code>, <code>(run 10)</code>, <code>(extract …)</code>), or <code>pip install egglog</code> for the Python bindings. Compiler route: Cranelift ISLE rules such as</p>
+<pre><code>(rule iadd_x_plus_zero (simplify (iadd ty x (all_zero ty))) (subsume x))
+</code></pre>
+<p><strong>When to use / when not.</strong> Use full eqsat when result quality matters far more than search time and the rule set interacts in ways you can't order by hand: hardware datapaths, tensor graphs, numerical accuracy, rule synthesis, theorem proving, superoptimization. Don't use it in a JIT or fast AOT compiler's hot path. Cranelift tried egg and measured <strong>23% overhead just to round-trip through the e-graph with zero rewrites</strong>, against an optimizer budget of ~10% of compile time (<a href="https://cfallin.org/blog/2026/04/09/aegraph/">Fallin 2026</a>). Signs you picked wrong: you're hitting <code>NodeLimit</code> on every run, outputs change when you add an unrelated rule, or extraction quality is dominated by a cost model you can't make accurate.</p>
+<p><strong>Who should care.</strong> Compiler engineers (mid-end design, phase ordering), ML-compiler people (graph rewriting, kernel fusion), hardware/EDA (datapath and logic optimization), verification people (proof search, translation validation), DB query-optimizer authors (Cascades is a cousin).</p></section>
+<div class='divider'>Technical deep dive</div>
+<section id='2-the-one-liner-and-what-it-hides'><h2>2. The one-liner and what it hides</h2><p><em>"Apply all rewrites at once, keep every version, pick the best at the end, so no phase ordering."</em></p>
+<p>It hides:</p>
+<ol>
+<li><strong>Congruence maintenance is the hard, slow part</strong>, not rewriting. Merging two classes can make parents equal, which can make <em>their</em> parents equal. egg's main trick (deferred <em>rebuilding</em>) is about <em>when</em> to do that work.</li>
+<li><strong>Saturation usually never comes.</strong> Termination is undecidable in general; real systems stop on node/time limits, and then the result depends on rule order and schedule again, so phase ordering comes back through the limits.</li>
+<li><strong>"Pick the best" is NP-hard</strong> when shared subexpressions count once, and the answer is only as good as the cost model.</li>
+<li><strong>One unsound rule poisons everything</strong>, because merges are global and congruence spreads them.</li>
+<li><strong>E-graphs are pure-dataflow structures.</strong> Loops, side effects, and variable binding need extra machinery (PEG θ-nodes, Cranelift's side-effect skeleton, slotted e-graphs).</li>
+</ol></section>
+<section id='3-the-problem'><h2>3. The problem</h2><p>Destructive rewriting commits. Take <code>(a*2)/2</code> and two rules: strength-reduce <code>x*2 → x&lt;&lt;1</code>, and the algebraic <code>(x*y)/z → x*(y/z)</code>. Run strength reduction first and the term becomes <code>(a&lt;&lt;1)/2</code>; the algebraic rule no longer matches, and you've lost <code>a</code>. Zucker shows exactly this failure for <em>eager</em> e-graph rewriting (<a href="https://philipzucker.com/smart_constructor_aegraph/">smart-constructor aegraph</a>). Production compilers paper over it by running passes many times in hand-tuned orders.</p>
+<p>The obvious fix (search all orders) is exponential: k rules applicable in n places gives a branching tree of terms, most of which share almost all of their structure. The constraint that forced the e-graph design is <strong>sharing</strong>: represent all those terms in space roughly proportional to the <em>distinct</em> subterms plus the equalities among them. The second constraint is <strong>speed</strong>: before egg, the e-graph upkeep dominated runtime (98.1% of Herbie), so the idea was a research curiosity.</p></section>
+<section id='4-mental-model'><h2>4. Mental model</h2><p><strong>Analogy:</strong> a spreadsheet where each cell (e-class) holds a <em>set</em> of formulas that all evaluate to the same value, and formulas refer to other cells, not to other formulas. Proving a new equality = moving a formula into a cell, or merging two cells. Picking the output = for each cell, choosing which of its formulas to display.</p>
+<p><strong>Where it breaks:</strong> (1) merging two cells can make two <em>other</em> cells hold identical formulas (<code>f(A)</code> and <code>f(B)</code> once A and B merge), and those must merge too; spreadsheets never do that. (2) A cell may contain a formula that refers to itself (<code>a = a*1</code>), so a cell can stand for infinitely many expressions. (3) Choosing per cell independently is optimal only if every use pays for its own copy; once shared cells count once, the choices interact globally.</p></section>
+<section id='5-the-mechanism-traced'><h2>5. The mechanism, traced</h2>
+<div class='widget' id='stepper'>
+ <h4>Step-through: <code>(/ (* a 2) 2)</code> saturating to <code>a</code></h4>
+ <p class='note'>Dashed boxes are e-classes; pills inside are e-nodes; arrows go from an e-node to the <em>class</em> of each child. New items are highlighted. Data is the real output of <code>mini_egraph.py</code>.</p>
+ <svg id='eg' viewBox='0 0 660 300' role='img' aria-label='E-graph state diagram'></svg>
+ <p id='egNote' class='stepnote' aria-live='polite'></p>
+ <div class='ctl'><button type='button' id='egPrev'>&larr; Back</button><span id='egStep' class='mono'></span><button type='button' id='egNext'>Next &rarr;</button></div>
+</div>
+<p>Real output of <code>mini_egraph.py</code> on <code>(/ (* a 2) 2)</code> with the four egg-paper rules: <code>mul-two (* ?a 2)→(&lt;&lt; ?a 1)</code>, <code>div-assoc (/ (* ?a ?b) ?c)→(* ?a (/ ?b ?c))</code>, <code>div-same (/ ?a ?a)→1</code>, <code>mul-one (* ?a 1)→?a</code>.</p>
+<p><strong>The structure</strong> (egg's definitions, <a href="https://arxiv.org/pdf/2004.03082">§2.1</a>):</p>
+<pre><code>E-graph = (U, M, H)
+  U  union-find over e-class ids          find(e3) -&gt; e0 after merges
+  M  e-class id -&gt; set of e-nodes          e0 -&gt; {a, (* e0 e6), (/ e2 e1)}
+  H  hashcons: canonical e-node -&gt; id      ('*', 0, 1) -&gt; e2
+  e-node = (op, child e-class ids...)      children are CLASSES, not nodes
+  parents[c] = e-nodes that use class c    needed to repair congruence
+</code></pre>
+<p><strong>Step 0 — add the term.</strong> Each subterm is hash-consed bottom-up:</p>
+<pre><code>e0: {a}   e1: {2}   e2: {(* e0 e1)}   e3: {(/ e2 e1)}     root = e3
+</code></pre>
+<p>Note <code>2</code> appears twice in the term but once in the graph: sharing.</p>
+<p><strong>Iteration 0 — read phase</strong> (search every rule against every class; invariants intact):</p>
+<pre><code>mul-two    @ e2  {?a=e0}
+div-assoc  @ e3  {?a=e0, ?b=e1, ?c=e1}
+</code></pre>
+<p><strong>Write phase</strong> (instantiate RHS, <code>union(class, new)</code>; invariants now broken, merged ids go on a worklist):</p>
+<pre><code>mul-two:   add 1 -&gt; e4, add (&lt;&lt; e0 e4) -&gt; e5, union(e2,e5)
+div-assoc: add (/ e1 e1) -&gt; e6, add (* e0 e6) -&gt; e7, union(e3,e7)
+worklist = [e2, e3]
+</code></pre>
+<p><strong>Rebuild</strong> (dedup worklist, re-canonicalize parents, merge newly congruent parents):</p>
+<pre><code>e0:{a}  e1:{2}  e2:{(* e0 e1),(&lt;&lt; e0 e4)}  e3:{(* e0 e6),(/ e2 e1)}  e4:{1}  e6:{(/ e1 e1)}
+</code></pre>
+<p><strong>Iteration 1.</strong> <code>div-same</code> now matches <code>e6 = (/ e1 e1)</code> → <code>union(e6, e4)</code>. Rebuild visits e6's parents, finds <code>(&lt;&lt; e0 e4)</code> whose child id is no longer canonical, and rewrites its hashcons key to <code>(&lt;&lt; e0 e6)</code>. This re-canonicalization is the whole job of rebuilding.</p>
+<pre><code>e2:{(* e0 e1),(&lt;&lt; e0 e6)}   e3:{(* e0 e6),(/ e2 e1)}   e6:{(/ e1 e1), 1}
+</code></pre>
+<p><strong>Iteration 2.</strong> <code>e6</code> now contains <code>1</code>, so <code>mul-one</code> matches <code>(* e0 e6)</code> inside e3 with <code>?a = e0</code> → <code>union(e3, e0)</code>. <strong>The root class and <code>a</code> are now the same class.</strong></p>
+<pre><code>e0:{a, (* e0 e6), (/ e2 e1)}   e1:{2}   e2:{(* e0 e1),(&lt;&lt; e0 e6)}   e6:{(/ e1 e1), 1}
+</code></pre>
+<p>e0 now contains <code>(* e0 e6)</code>, a node whose child is its own class: a <strong>cycle</strong>. e0 represents <code>a</code>, <code>a*1</code>, <code>a*1*1</code>, … (infinitely many terms) in 3 nodes.</p>
+<p><strong>Iteration 3.</strong> Four matches, every union is a no-op → <strong>saturated</strong>. Final: 4 e-classes, 8 e-nodes.</p>
+<p><strong>Extraction</strong> (greedy bottom-up, <code>AstSize</code>: cost(node) = 1 + Σ cost(best child)):</p>
+<pre><code>e1: 2 -&gt; cost 1      e6: 1 -&gt; cost 1      e0: a -&gt; cost 1   (beats (/ e2 e1) at 1+3+1=5)
+e2: (* a 2) -&gt; 3     root find(e3)=e0 -&gt; &quot;a&quot;
+</code></pre>
+<pre><code>            iteration 0                iteration 1             iteration 2
+ e3:[ / e2 e1 ]       e3:[ / e2 e1 | * e0 e6 ]   ...     e0:[ a | * e0 e6 | / e2 e1 ]
+      |   \                    |        \                         ^    |
+ e2:[ * e0 e1 ]       e2:[ * e0 e1 | &lt;&lt; e0 e4 ]           e6:[ / e1 e1 | 1 ]
+                      e6:[ / e1 e1 ]   e4:[1]              (e0 points to itself: cycle)
+</code></pre>
+<p><strong>One added rule breaks termination.</strong> Add <code>mul-comm (* ?a ?b)→(* ?b ?a)</code> and the same term never saturates: <code>(* 2 a)</code> plus <code>div-assoc</code> gives <code>(* 2 (/ a 2))</code>, then <code>a/4</code>, <code>a/8</code>, …. The demo prints e-nodes 9 → 12 → 13 → 20 → 28 → 39 → 52 → 67 → 84 → 103 and stops on the iteration limit (extraction still returns <code>a</code>, because it was found early).</p>
+<p><strong>The loop itself</strong> (egg Fig. 5b; the read/write split makes results independent of rule-list order within an iteration):</p>
+<pre><code class="language-python">while not saturated and under_limits:
+    matches = [(rw, subst, c) for rw in rules for (subst, c) in ematch(rw.lhs)]  # read
+    for rw, subst, c in matches:
+        union(c, add(instantiate(rw.rhs, subst)))                              # write
+    rebuild()                                                                   # once
+</code></pre></section>
+<section id='6-the-math'><h2>6. The math</h2><h3>6.1 The invariants</h3>
+<p>Let <code>≡_id</code> be the union-find relation and <code>≡_node</code> the relation "two e-nodes are in the same class". The <strong>congruence invariant</strong> (egg Def 2.6) says <code>≡_node</code> equals its own congruence closure:</p>
+<div class="math">$$ f(a_1,\dots,a_k)\equiv_{node} f(b_1,\dots,b_k) \;\Leftarrow\; \forall i.\ \mathrm{find}(a_i)=\mathrm{find}(b_i) $$</div>
+<p>→ in plain terms: two nodes with the same operator and the same <em>canonical</em> children must be in the same class.</p>
+<p>The <strong>hashcons invariant</strong> (Def 2.7): $n \in M[a] \iff H[\mathrm{canon}(n)] = \mathrm{find}(a)$, where $\mathrm{canon}(f(a_1..a_k)) = f(\mathrm{find}(a_1)..\mathrm{find}(a_k))$.</p>
+<p>→ in plain terms: the lookup table is keyed by nodes whose children are representatives, so "have I seen this node?" is one hash probe.</p>
+<p>Why this form and not "keep a tree per term": the right-hand side quantifies over <em>classes</em>, so one equality <code>a ≡ b</code> instantly covers every term containing <code>a</code>. That's what makes the representation exponentially compact, and it's also why one merge can cascade.</p>
+<h3>6.2 Why deferring rebuild wins</h3>
+<p>Take n terms <code>f1(x), …, fn(x)</code> plus leaves <code>y1..yn</code>, then merge <code>x</code> with each <code>yi</code> (egg §3.2.1). Immediate maintenance repairs x's parent list after every merge: n merges × n parents = <strong>O(n²)</strong> hashcons updates. Deferred: all n merges go on the worklist, deduplicate to one canonical class, and its n parents are repaired once: <strong>O(n)</strong>. For w chains of depth d whose leaves get merged, immediate costs O(wd) repairs, deferred O(d), because the w upward paths coalesce after dedup.</p>
+<p>→ in plain terms: rebuilding pays once per <em>distinct</em> dirty class per iteration, not once per merge.</p>
+<p>Measured on egg's 32-test suite: <strong>88× geometric-mean speedup on congruence closure, 21× on whole eqsat</strong>, deferred vs immediate rebuilding <em>inside egg</em> (not vs Herbie; that's a common misquote). egg proves rebuilding terminates (Thm 3.1) via a lexicographically decreasing (|incongruent pairs|, |worklist|) but gives no online complexity bound ("likely highly workload dependent").</p>
+<h3>6.3 AC blowup, derived</h3>
+<p>Saturate <code>x1 + … + xn</code> (distinct leaves) under commutativity and associativity. Any regrouping and reordering is reachable, so every non-empty subset S of the leaves is the sum of <em>some</em> subterm: <strong>2ⁿ − 1 e-classes</strong>. A class for a subset of size k ≥ 2 contains one <code>+</code> node per <em>ordered</em> split of S into two non-empty parts: $2^k - 2$ of them. Summing,</p>
+<div class="math">$$ \#(+\text{-nodes}) = \sum_{k=2}^{n}\binom{n}{k}(2^k-2) = \sum_{k=0}^{n}\binom{n}{k}2^k - 2\sum_{k=0}^{n}\binom{n}{k} + 1 = 3^n - 2^{n+1} + 1 $$</div>
+<p>(the k=0 and k=1 terms of the two sums cancel to −1, hence +1). Add the n leaf nodes: $3^n - 2^{n+1} + n + 1$ e-nodes, matching Rosin/Ullrich/Hack's EGRAPHS 2026 paper.</p>
+<p>→ in plain terms: 10 summed variables → 1,023 classes and 57,010 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the <em>pair</em> with associativity is what explodes.</p>
+<p>Demo output (exact match for n = 2..6): classes 3, 7, 15, 31, 63; e-nodes 4, 15, 54, 185, 608.</p>
+
+<div class='widget'>
+ <h4>AC blowup calculator</h4>
+ <label>Leaves summed, n = <b id='acn'>6</b> <input type='range' id='acr' min='2' max='24' value='6' aria-label='number of leaves'></label>
+ <div class='nums small'>
+  <div><b id='acc'></b><span>e-classes (2<sup>n</sup>&minus;1)</span></div>
+  <div><b id='acnodes'></b><span>e-nodes (3<sup>n</sup>&minus;2<sup>n+1</sup>+n+1)</span></div>
+  <div><b id='acmem'></b><span>rough memory at ~40 B/e-node</span></div>
+ </div>
+ <div class='bar'><div id='acbar'></div></div>
+ <p class='note'>Bar is log-scale against egg's default node limit (10,000) at the marker. n = 2&ndash;6 match the demo exactly; 40 B/node is an illustrative guess, not a measured figure.</p>
+</div>
+<h3>6.4 E-matching as a join</h3>
+<p>Relational e-matching (Zhang et al., POPL 2022) stores each e-node <code>f(j1..jk)</code> in class i as a tuple <code>R_f(i, j1, …, jk)</code>. Pattern <code>f(α, g(α))</code> becomes the conjunctive query</p>
+<div class="math">$$ Q(root,\alpha) \leftarrow R_f(root,\alpha,x),\ R_g(x,\alpha) $$</div>
+<p>Backtracking checks the repeated α last: O(N²) for N matches. A join checks it during the join: O(N). Using <strong>Generic Join</strong> (worst-case optimal), the time is bounded by the AGM bound; Thm 10 gives $O(\sqrt{|Q(I)|\cdot\prod_i|R_i|})$. Reported: "over 6 orders of magnitude faster" on deep patterns with repeated variables.</p>
+<p>→ in plain terms: e-matching is NP-hard in <em>pattern</em> size, but patterns are tiny; in <em>e-graph</em> size, it's polynomial and a database planner does it well.</p>
+<h3>6.5 Extraction</h3>
+<p>With a monotone local cost (cost(f(c1..ck)) &gt; every child cost), greedy bottom-up fixpoint is optimal for <strong>tree cost</strong> (each use counted separately). Under <strong>DAG cost</strong> (shared class counted once) it's NP-hard (Stepp 2011 thesis) and inapproximable to any constant factor (Goharshady et al. OOPSLA 2024). The standard exact method is ILP (Tensat):</p>
+<div class="math">$$ \min \sum_i c_i x_i \quad\text{s.t.}\quad \sum_{i\in root} x_i = 1,\quad x_i \le \sum_{j\in m} x_j\ \ \forall i,\ \forall m\in\mathrm{children}(i) $$</div>
+<p>plus acyclicity via order variables $t_m$: $t_{g(i)} - t_m - \epsilon + A(1-x_i) \ge 0$.</p>
+<p>→ in plain terms: pick exactly one node at the root; picking a node forces you to pick some node in each child class; and the picks must not form a loop. The cycle constraint is what makes the ILP slow; Tensat filters cycles during exploration and drops it.</p></section>
+<section id='7-why-it-works'><h2>7. Why it works</h2><p><strong>Core insight:</strong> equality is a <em>global</em> fact about classes, and congruence makes it propagate structurally, so you can apply a rewrite once to a class and every term that contains it benefits. Combined with hash-consing, a set of terms that grows exponentially in the number of rewrites applied often stays polynomial in the e-graph (that's Tensat's and the Showdown paper's argument for matrix chains: the exponential space of parenthesizations sits in O(n³) nodes).</p>
+<p><strong>Ablations:</strong></p>
+<ul>
+<li><strong>Remove the union-find</strong> → you can't tell that <code>e3</code> and <code>e0</code> are the same class; every merge would rewrite all pointers eagerly (expensive) or leave duplicate classes (wrong answers). Cranelift did remove it in 2025 (<a href="https://github.com/bytecodealliance/wasmtime/pull/10471">#10471</a>), but only because its rules are directional and it never repairs congruence anyway.</li>
+<li><strong>Remove the hashcons</strong> → <code>(/ e1 e1)</code> can be added twice into different classes; congruent nodes stay apart; the graph is no longer a DAG with sharing; matching cost multiplies.</li>
+<li><strong>Remove rebuild</strong> (union without repairing parents) → after <code>union(e6, e4)</code>, <code>(&lt;&lt; e0 e4)</code> keeps a stale key; a future <code>add((&lt;&lt; e0 e6))</code> makes a duplicate class; some equalities are never discovered. This is what aegraphs accept on purpose (Fallin counts 2 misses in ~4M value nodes).</li>
+<li><strong>Remove the read/write split</strong> → applying matches while searching makes results depend on rule-list order and can invalidate iterators mid-search.</li>
+<li><strong>Remove limits</strong> → nontermination on ordinary rule sets (the <code>mul-comm</code> demo).</li>
+<li><strong>Remove e-class analyses</strong> → no constant folding, no <code>x/x → 1 if x ≠ 0</code>; you're stuck with purely syntactic rules, and Herbie had to use unsound ones.</li>
+</ul></section>
+<section id='8-design-knobs-and-alternatives'><h2>8. Design knobs and alternatives</h2><table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Effect</th>
+<th>Typical value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iteration / node / time limits</td>
+<td>Bound blowup; also make the output depend on schedule</td>
+<td>egg: 30 / 10,000 / 5 s</td>
+</tr>
+<tr>
+<td>Rule scheduler</td>
+<td>Which rules fire each round</td>
+<td>egg BackoffScheduler: ban a rule after 1,000 matches for 5 iterations, doubling both</td>
+</tr>
+<tr>
+<td>Rule set shape</td>
+<td>Bidirectional (AC, distributivity) explodes; directional "toward cheaper" stays small</td>
+<td>Cranelift: directional only, no general AC</td>
+</tr>
+<tr>
+<td>Rebuild frequency</td>
+<td>Per merge (simple, slow) vs per iteration (egg) vs never (aegraph)</td>
+<td>per iteration</td>
+</tr>
+<tr>
+<td>E-matching</td>
+<td>Backtracking (de Moura &amp; Bjørner code trees) vs relational/Generic Join</td>
+<td>egglog: relational, semi-naive</td>
+</tr>
+<tr>
+<td>Extraction</td>
+<td>Greedy tree cost (fast) vs ILP / treewidth DP / SmoothE / e-boost (sharing-aware)</td>
+<td>greedy unless sharing matters</td>
+</tr>
+<tr>
+<td>Analyses</td>
+<td>Semilattice data per class (constants, intervals, types)</td>
+<td>constant folding at minimum</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Competing approaches:</strong></p>
+<ul>
+<li><strong>Hand-ordered pass pipelines + peepholes</strong> (LLVM InstCombine, MLIR greedy canonicalizer): fast, predictable, phase-order-sensitive, bug-prone at scale. Wins for fast compilers.</li>
+<li><strong>Cascades / Volcano query optimizers</strong> (Graefe 1995): memo of equivalent plan groups, top-down with branch-and-bound. A close cousin of e-graphs; Cranelift's RFC cites it for its eager rule application.</li>
+<li><strong>Stochastic superoptimization</strong> (STOKE, MCMC): the EGRAPHS 2026 "Rewrite System Showdown" finds neither dominates; MCMC was always within 0.3% of optimal on matrix chains, eqsat within 1% up to ~800 matrices and up to 65% off on some larger ones.</li>
+<li><strong>SMT synthesis</strong> (Souper): discovers peepholes offline; same role Ruler plays for e-graph rule sets.</li>
+<li><strong>Aegraphs</strong> (Cranelift): e-graph-flavoured sea-of-nodes, eager, one pass, limits of 5. Won for a JIT-speed compiler; full eqsat won where compile time is cheap.</li>
+</ul></section>
+<section id='9-where-it-breaks'><h2>9. Where it breaks</h2><ul>
+<li><strong>Blowup.</strong> AC: 3ⁿ nodes (§6.3). Unguided eqsat on matrix-multiply optimizations found only 2 of 7 known optimizations after an hour and 60 GB; with ≤3 human "sketches" all 7 appear in seconds under 1 GB (<a href="https://arxiv.org/pdf/2111.13040">sketch-guided eqsat</a>). Tensat reports multi-pattern rules causing "double exponential growth" and caps them separately.</li>
+<li><strong>Limits make results unpredictable.</strong> Flatt (UW PLSE, 2025): limits make runtime predictable but results not; "adding new program optimizations results in the resource limits being triggered earlier, preventing optimizations that were previously applied" (<a href="https://uwplse.org/2025/06/16/egraph-complexity.html">post</a>).</li>
+<li><strong>Unsound rule → collapse.</strong> <code>x/x → 1</code> puts <code>0/0</code> in the class of <code>1</code>; any rule deriving <code>0/0 = 0</code> then merges 0 and 1, and congruence spreads it to every class built on them. Herbie relied on such rules and "must validate the results … and discard them if unsoundness was detected"; removing them made Herbie "useless on a large portion of its benchmark suite" (egglog paper). Herbie's FAQ still has an "Unsound rule application detected" warning.</li>
+<li><strong>Production blowup even with directional rules.</strong> Cranelift <a href="https://github.com/bytecodealliance/wasmtime/issues/13068">#13068</a>/<a href="https://github.com/bytecodealliance/wasmtime/issues/13204">#13204</a> (2026): adding rules like <code>(x−z)−(y−z) → x−y</code> moved one fuzz case from 0.08 s to ~10 s, one rule firing ~3,000,000 times; fixed by subsuming <code>x−x → 0</code> for vectors. Also <a href="https://github.com/bytecodealliance/wasmtime/issues/13476">#13476</a> (stack overflow in <code>constructor_simplify</code>).</li>
+<li><strong>Extraction ignores sharing.</strong> Cranelift deliberately counts each use anew; <a href="https://github.com/bytecodealliance/wasmtime/issues/12156">#12156</a> shows costs saturating to infinity because of that.</li>
+<li><strong>Binders.</strong> With names or de Bruijn indices, α-equivalent subterms don't share; de Bruijn needs shift rewrites that themselves blow up (§11).</li>
+<li><strong>Control flow and effects.</strong> Loops make cyclic terms that greedy extraction can't extract; PEGs used θ-nodes plus a pseudo-Boolean solver; Cranelift keeps side-effecting instructions in a fixed CFG "skeleton" and only floats pure ops.</li>
+</ul>
+<div class='callout'><p><strong>Misconceptions</strong></p><ul>
+<li><em>"Eqsat eliminates phase ordering."</em> Only at saturation. Under limits, order returns through scheduling; eager aegraphs reintroduce it outright (Zucker's <code>(a*2)/2</code>).</li>
+<li><em>"E-graphs give optimal output."</em> Only w.r.t. explored space × cost model × exact extractor (NP-hard, inapproximable).</li>
+<li><em>"It's rewriting with backtracking."</em> Nothing is undone; space only grows; choice is deferred to extraction.</li>
+<li><em>"egg is 88× faster than Herbie's old e-graph."</em> No: 88× is deferred vs immediate rebuild inside egg; vs Herbie's original simplifier it's &gt;3000×.</li>
+<li><em>"The aegraph caused Wasmtime CVEs."</em> The wasmtime GHSA list shows the miscompile CVEs (e.g. CVE-2023-26489, CVE-2026-34971) are in backend ISLE <em>lowering</em>, not the egraph mid-end.</li>
+</ul></div></section>
+<section id='10-in-the-wild'><h2>10. In the wild</h2><ul>
+<li><strong>Cranelift aegraph</strong> deviates on every axis. Rules are applied <em>eagerly when a node is created</em>, in one RPO pass; no rebuild; union-find removed in 2025 (#10471); <code>MATCHES_LIMIT = 5</code> rewrites per ISLE call, <code>ECLASS_ENODE_LIMIT = 5</code>, <code>REWRITE_LIMIT = 5</code> recursion depth, <code>EXTRACTOR_FUEL = 500</code> (<a href="https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/codegen/src/egraph/mod.rs">egraph/mod.rs</a>); <code>subsume</code> drops alternatives outright. Pure ops float free and are placed back by <strong>scoped elaboration</strong> over the dominator tree, which yields GVN, LICM and rematerialization. Fallin's own 2026 evaluation: ~2% runtime win over a classical pipeline using the same rules, for ~7–8% more compile time; keeping multiple forms per value is worth ~0.1% ("in the noise"); average e-class has <strong>1.13 nodes</strong>. His conclusion: "the sea-of-nodes-with-CFG aspect of this mid-end works great, but the aegraph itself … may not (yet?) be pulling its weight."</li>
+<li><strong>egg</strong> is textbook-plus: deferred rebuild, e-class analyses, backtracking pattern compilation (no inverted path index), backoff scheduling, explanations (FMCAD 2022: proofs 72.8% the size of Z3's on average).</li>
+<li><strong>egglog</strong> replaces the single-language/single-analysis model with Datalog: functions with <code>:merge</code> expressions, semi-naive incremental matching; 3.34× faster than egg building the identical e-graph, 9.27× with semi-naive (<a href="https://arxiv.org/abs/2304.04332">PLDI 2023</a>). Now supports <code>-j</code> parallel execution.</li>
+<li><strong>Herbie</strong> uses egg with unsound rules plus post-validation; the egglog rewrite is sound via interval/non-zero analyses.</li>
+<li><strong>Tensat</strong> caps multi-pattern rules with a separate iteration limit and pre-filters cycles so ILP extraction stays tractable.</li>
+<li><strong>Luminal</strong> extracts by <em>measured GPU runtime</em> of candidates, sidestepping the cost-model problem at the price of benchmarking.</li>
+</ul></section>
+<section id='11-frontier-whats-new'><h2>11. Frontier (what&#x27;s new)</h2><p>Primary-checked unless tagged.</p>
+<ol>
+<li><strong>Slotted E-Graphs</strong> — Schneider, Rossel, Shaikhha, Goens, Kœhler, Steuwer. PLDI 2025. E-classes are parameterized by <em>slots</em> (free variables); e-nodes point to classes through a renaming; congruence holds modulo renaming; each class stores a permutation group of its symmetries (Schreier–Sims). On a function-fission benchmark egg+de Bruijn exceeded 4 GB at 4 parameters (1,827k nodes, 52 s); slotted needed ≤214 nodes, 6 MB, 0.22 s. On Mathlib's <code>not_supIrred</code>, egg grew to 2.6M nodes and crashed at 40 GB; slotted finished under 1 s. Cost: 2.7× memory, 7.8× slower on a plain de Bruijn workload (prototype lacks egg's engineering). <a href="https://steuwer.info/files/publications/2025/PLDI-Slotted-E-Graphs.pdf">PDF</a></li>
+<li><strong>SmoothE: Differentiable E-Graph Extraction</strong> — Cai, Yang, Deng, Yu, Zhang. ASPLOS 2025 Best Paper. Each class gets a probability distribution over its nodes; minimize expected cost by gradient descent on GPU; acyclicity via a NOTEARS-style trace-of-matrix-exponential penalty per SCC. Comparable or better than 10-hour CPLEX on 4 of 5 datasets with 8–37× speedup; supports nonlinear costs. <a href="https://www.csl.cornell.edu/~zhiruz/pdfs/smoothe-asplos2025.pdf">PDF</a></li>
+<li><strong>Fast and Optimal Extraction for Sparse Equality Graphs</strong> — Goharshady, Lam, Parreaux. OOPSLA 2024 Distinguished Paper. Exact extraction linear-time for bounded treewidth (fine up to ~10 on Cranelift e-graphs); also shows extraction is inapproximable. <em>(secondary for venue page)</em> <a href="https://2024.splashcon.org/details/splash-2024-oopsla/144/Fast-and-Optimal-Extraction-for-Sparse-Equality-Graphs">page</a></li>
+<li><strong>Semantic Foundations of Equality Saturation</strong> — Suciu, Wang, Zhang. ICDT 2025. E-graphs as tree automata; eqsat = least fixpoint = universal model; two-way reductions to the database <em>chase</em>. Termination on one input is R.E.-complete; on all terms, <strong>Π₂-complete</strong>; on all e-graphs, undecidable. Gives "weak term acyclicity" as a syntactic sufficient condition. <a href="https://arxiv.org/abs/2501.02413">arXiv</a></li>
+<li><strong>Optimism in Equality Saturation</strong> — Arbore, Cheung, Willsey. PLDI 2026. E-class analyses are pessimistic and lose precision on cyclic SSA; naive optimism is unsound in e-graphs; they give an abstract-interpretation algorithm that analyzes optimistically during saturation, more precise than clang/gcc on examples. <a href="https://arxiv.org/abs/2511.20782">arXiv</a></li>
+<li><strong>eqsat MLIR dialect</strong> — Merckx, Lopoukhine, Coward, Cheng, De Sutter, Grosser. EGRAPHS 2025. E-graphs as native MLIR IR so matching/extraction reuse MLIR passes; follow-up Tamagoyaki (2026) reports 1.18× average speedup. <strong>DialEgg</strong> (Zayed, Dubach, CGO 2025) instead round-trips MLIR ↔ egglog. <a href="https://arxiv.org/abs/2505.09363">arXiv</a></li>
+<li><strong>Rewrite System Showdown: Stochastic Search vs. EqSat</strong> — Hong, Soi, Zhang, Aiken. EGRAPHS 2026. First head-to-head with identical rule sets on 5 benchmarks; neither Pareto-dominates; on Caviar/Halide inequalities 40% solved by both, 6% only eqsat, 3% only MCMC, ~50% by neither. <a href="https://arxiv.org/abs/2605.19005">arXiv</a></li>
+<li><strong>Scaling via scheduling</strong>: CERES (EGRAPHS 2026, <em>secondary</em>) matches Herbie expression quality with 8–12× less memory; EggMind (arXiv 2604.17364, Apr 2026, no venue) has an LLM synthesize saturation strategies, −45.1% cost, −69.1% peak RAM; parallel eqsat engine (CC 2026, <em>secondary</em>).</li>
+<li><strong>New domains</strong>: Quasar quantum-circuit eqsat (PLDI 2026, <em>secondary</em>: −33.5% total gates geomean); EqiForge tensor superoptimization deriving FlashAttention-style kernels (arXiv 2609.12330, Sept 2026, no venue: up to 2.74×); e-boost extraction for logic synthesis (ICCAD 2025, <em>secondary</em>: 558× faster than ILP).</li>
+<li><strong>Equational proofs in Lean</strong> — Rossel, Schneider, Kœhler, Steuwer, Goens. POPL 2026. Conditional rewrites, type classes, proof reconstruction from egg explanations. <a href="https://thok.eu/publications/2026/popl-theorem.pdf">PDF</a></li>
+</ol>
+<p><strong>Dissection 1 — slotted e-graphs.</strong> <em>Problem:</em> <code>λx. x+1</code> and <code>λy. y+1</code> never share; under de Bruijn, moving a subterm under a binder needs explicit shift rewrites, shifted copies of the same class aren't equal, and the graph explodes (81% of one 4,657-step egg explanation was shifts). <em>Mechanism:</em> a class <code>c(s1,s2)</code> is a function of its slots; an e-node <code>+(c1[s1↦x], c2[…])</code> carries a renaming per child; the hashcons key is the node's <em>shape</em> (renamings normalized), so α-variants hash together; symmetries like <code>x+y = y+x</code> live in the class's permutation group instead of as extra nodes. <em>Limits:</em> constant-factor overhead; matching must infer renamings; case studies, no broad suite. <em>Follow-up:</em> Zucker's "Lifting E-Graphs" (EGRAPHS 2026) uses thinning bitvectors on ids instead.</p>
+<p><strong>Dissection 2 — the extraction line.</strong> Greedy is sharing-blind; ILP is exact but slow mainly because of the acyclicity constraint. The treewidth DP exploits that real e-graphs are sparse. SmoothE relaxes to continuous probabilities, making extraction a GPU optimization problem and admitting nonlinear costs, with no optimality guarantee. e-boost combines parallel heuristics, pruning, and a warm-started ILP; it reports beating SmoothE by 19%, but it shares authors with SmoothE, so it's not an independent comparison. ASP (Yang &amp; Sergey, EGRAPHS 2026) shows a naive answer-set encoding about matches tuned ILP.</p>
+<p><strong>Dissection 3 — theory meets reality.</strong> Suciu/Wang/Zhang make "will it terminate?" formally hopeless in general (Π₂-complete over all terms), so limits and schedulers are <em>necessary</em>, not just engineering. The Showdown then asks whether the e-graph's sharing is worth its cost against plain randomized search: mostly a tie, with the e-graph winning where an exponential space compresses well (matrix chains) and MCMC winning where rules are one-way or unsound. Cranelift's 1.13 nodes/class is the production version of the same message: when rules are directional, the "multiple versions" part barely matters.</p></section>
+<section id='11b-open-problems'><h2>11b. Open problems</h2><ul>
+<li><strong>Predictable scaling.</strong> Limits trade unpredictable runtime for unpredictable results. Flatt's parameterized-complexity work on "linear-matching" rules (UW) and schedulers like CERES attack it; nobody has a general guarantee. Hard because termination itself is undecidable (ICDT 2025).</li>
+<li><strong>Rule scheduling / guidance.</strong> Backoff is a heuristic; sketches need a human; MCTS, RL and LLM strategies (EggMind) report wins on their own benchmarks without a shared suite. The obvious approach (learn which rule helps) fails because a rule's value shows up only many iterations later, after interacting with others.</li>
+<li><strong>Sharing-aware, cost-accurate extraction.</strong> NP-hard and inapproximable; Cranelift's cost model can't see register pressure or instruction selection ("in a 'conventional compiler', cost func + extraction is everything", Fallin's Dagstuhl 2026 slides). Multi-root extraction changes the problem again.</li>
+<li><strong>Control flow and effects.</strong> PEGs, RVSDG (eggcc, Jamey Sharp's optir), Cranelift's skeleton, E-Path (2026, unchecked) all disagree on representation. Fallin lists rewriting control flow in the skeleton as open (#5623, #6109).</li>
+<li><strong>Context-dependent equality</strong> (<code>x ≠ 0</code> only inside a branch). Colored e-graphs copy per assumption and are "notably resource-intensive"; predicate e-graphs and relational contextual eqsat (2025–26) are early.</li>
+<li><strong>Binders.</strong> Slotted vs lifting vs categorical approaches; overhead vs expressiveness not settled.</li>
+<li><strong>AC and theories natively.</strong> Generic AC is 3ⁿ; bespoke multiset/polynomial handling (Zucker's "Omelets Need Onions", AC-canonizing e-graphs at EGRAPHS 2026) is an active direction.</li>
+<li><strong>Is the e-graph worth it at all in fast compilers?</strong> Fallin's 2026 data says the multi-version part is "within the noise" for Cranelift; the counter-position (UW PLSE's eggcc) is that you only see the benefit with richer, non-directional rule sets, which then need full eqsat. Unresolved, and the two positions are measuring different rule sets.</li>
+</ul></section>
+<section id='12-lineage'><h2>12. Lineage</h2><ul>
+<li><strong>1977</strong> Kozen, finitely presented algebras (congruence closure origin; e-matching NP-completeness).</li>
+<li><strong>1980</strong> Nelson &amp; Oppen, congruence closure decision procedure (O(m²)); Downey–Sethi–Tarjan, O(m log m) with hashing; Nelson's thesis: the e-graph.</li>
+<li><strong>2002</strong> Denali superoptimizer: e-graphs for codegen, saturate then SAT.</li>
+<li><strong>2005</strong> Simplify prover (Detlefs, Nelson, Saxe): e-graph + backtracking e-matching.</li>
+<li><strong>2007</strong> de Moura &amp; Bjørner, efficient e-matching (code trees, inverted path index) in Z3.</li>
+<li><strong>2009</strong> Tate, Stepp, Tatlock, Lerner, <em>Equality Saturation</em> (POPL): PEGs, Peggy for Java bytecode.</li>
+<li><strong>2011</strong> Stepp thesis (extraction NP-hard); eqsat translation validation for LLVM (CAV).</li>
+<li><strong>1995 (side branch)</strong> Graefe's Cascades memo for query optimization.</li>
+<li><strong>2021</strong> egg (POPL, Distinguished Paper): rebuilding + e-class analyses; Ruler, Tensat, Diospyros.</li>
+<li><strong>2022</strong> relational e-matching (POPL); small proofs (FMCAD); Cranelift RFC.</li>
+<li><strong>2023</strong> egglog (PLDI); Cranelift aegraph on by default; EGRAPHS workshop series.</li>
+<li><strong>2024–26</strong> guided eqsat, treewidth &amp; differentiable extraction, slotted e-graphs, semantic foundations, MLIR dialects, Lean tactic, Fallin's "is the aegraph pulling its weight?" evaluation.</li>
+</ul></section>
+<section id='13-hands-on-30-min'><h2>13. Hands-on (≤30 min)</h2><p><code>mini_egraph.py</code> in this folder (~170 lines, stdlib only): union-find, hashcons, deferred rebuild, backtracking e-matching, saturation loop, greedy extraction.</p>
+<pre><code class="language-bash">python3 mini_egraph.py
+</code></pre>
+<p>Expected (abridged):</p>
+<pre><code>--- (a*2)/2 with the egg-paper rules (no commutativity) ---
+iter 0:    2 matches -&gt; e-classes, e-nodes = (6, 8)
+iter 1:    3 matches -&gt; e-classes, e-nodes = (5, 8)
+iter 2:    4 matches -&gt; e-classes, e-nodes = (4, 8)
+iter 3:    4 matches -&gt; e-classes, e-nodes = (4, 8)
+saturated: no rule adds new information
+best   : a cost 1
+--- same term, same rules + mul-comm: never saturates ---
+iter 9:  134 matches -&gt; e-classes, e-nodes = (19, 103)
+iter limit hit
+--- blowup: associativity + commutativity on a sum of n leaves ---
+n=6: e-classes=  63 (2^n-1=  63)  e-nodes=  608
+</code></pre>
+<p>Experiments:</p>
+<ol>
+<li>Comment out <code>eg.rebuild()</code> in <code>saturate</code>. Does <code>(a*2)/2</code> still reach <code>a</code>? Count duplicate classes (hint: stale keys like <code>(&lt;&lt; e0 e4)</code>).</li>
+<li>Add <code>("zero-div", "(/ 0 ?a)", "0")</code> and a term containing <code>(/ 0 0)</code>. Watch <code>div-same</code> and <code>zero-div</code> merge <code>0</code> and <code>1</code>, then extract something absurd: e-graph collapse.</li>
+<li>Swap the order of rules and change <code>iters=3</code>. With the read/write split, does the final e-graph change? Now apply matches <em>during</em> search instead and compare.</li>
+<li>Change <code>extract</code>'s cost to count each class once (DAG cost) on <code>(+ (* x y) (* x y))</code> after adding <code>(* ?a ?b)</code> alternatives; see where greedy is wrong.</li>
+</ol></section>
+<section id='14-question-ladder'><h2>14. Question ladder</h2><p><button type='button' id='revealAll'>Reveal all answers</button></p>
+<h3>Mechanism</h3>
+<details class='q'><summary><b>1.</b> What exactly happens to the hashcons when <code>union(e6, e4)</code> runs, and when?</summary><div class='ans'><p>Nothing at union time: union only links e4 under e6 in the union-find, merges node sets, and pushes e6 on the worklist. At rebuild, <code>repair(e6)</code> walks e6's (now combined) parent list, removes each parent's stale key such as <code>(&lt;&lt; e0 e4)</code>, re-canonicalizes it to <code>(&lt;&lt; e0 e6)</code>, and reinserts it pointing at the parent's canonical class. If two re-canonicalized parents collide, their classes are unioned and pushed on the worklist.</p></div></details>
+<details class='q'><summary><b>2.</b> Why does e-class e0 end up containing a node whose child is e0, and what set of terms does it represent?</summary><div class='ans'><p><code>mul-one</code> matched <code>(* e0 e6)</code> where e6 contains <code>1</code>, and unioned that node's class (e3) with e0. So e0 holds <code>(* e0 e6)</code>. The class represents <code>a</code>, <code>a*1</code>, <code>a*(2/2)</code>, <code>(a*1)*1</code>, … — every finite unrolling of the cycle, an infinite set, in 3 nodes.</p></div></details>
+<details class='q'><summary><b>3.</b> In egg's loop, why are all matches collected before any are applied?</summary><div class='ans'><p>Searching while the e-graph is mutating would see half-updated, non-canonical state and invalidate iterators; and applying rule A's results before searching rule B makes the outcome depend on the order rules are listed. Collecting first means each iteration is a function of the e-graph at its start, and invariants hold during search, so rebuilding can be deferred to once per iteration.</p></div></details>
+<details class='q'><summary><b>4.</b> What does <code>subsume</code> do in a Cranelift ISLE rule, and why must rules that drop uses use it?</summary><div class='ans'><p>It marks the rewritten value as strictly better, so the e-class keeps only that value and drops the alternatives. It's required for correctness when the RHS uses fewer values than the LHS: elaboration might otherwise pick the old form, whose operands may not be available (dominance) at the placement point. It also keeps classes small.</p></div></details>
+<h3>Why</h3>
+<details class='q'><summary><b>5.</b> Why do e-nodes point to e-classes rather than to e-nodes?</summary><div class='ans'><p>That's what makes one equality cover every term containing the subterm: a parent automatically "contains" every alternative of its child, so the number of represented terms is the product of class sizes while storage is their sum. Pointing at nodes would require copying parents for each alternative child.</p></div></details>
+<details class='q'><summary><b>6.</b> Why does deferring rebuilding turn O(n²) work into O(n)?</summary><div class='ans'><p>Merges with overlapping upward paths dirty the same classes. Deduplicating the worklist to canonical ids means each dirty class is repaired once per rebuild, not once per merge. For n merges into one class with n parents, immediate repair touches n×n parent entries; deferred touches n.</p></div></details>
+<details class='q'><summary><b>7.</b> Why is greedy extraction optimal for tree cost but not DAG cost?</summary><div class='ans'><p>With tree cost, a class's best cost is independent of who uses it, so choosing each class's minimum bottom-up is optimal (dynamic programming over a monotone cost). With DAG cost, a shared class is paid once; choosing a slightly costlier node that reuses an already-paid class can beat the locally cheapest one, so choices are coupled across the whole graph, giving set-cover-like hardness.</p></div></details>
+<details class='q'><summary><b>8.</b> Why did Cranelift choose eager, directional rewriting instead of saturation?</summary><div class='ans'><p>Compile-time budget: egg round-tripping cost 23% with no rewrites vs ~10% for the whole optimizer. Directional rules (RHS no worse than LHS) mean the first good rewrite is almost always the final answer (2 misses in ~4M nodes), so saturation and rebuild buy little. Avoiding AC rules prevents blowup; limits of 5 bound worst cases.</p></div></details>
+<h3>Counterfactual</h3>
+<details class='q'><summary><b>9.</b> What breaks if you keep the union-find but drop parent lists?</summary><div class='ans'><p>After a union you couldn't find the e-nodes whose children changed without scanning the whole hashcons. Congruence repair becomes O(graph) per rebuild, or stale keys remain and congruent nodes stay in separate classes, missing equalities.</p></div></details>
+<details class='q'><summary><b>10.</b> If every rule were directional and cost-decreasing, what would full eqsat buy over a single eager pass?</summary><div class='ans'><p>Little: if every rule moves strictly downhill in a single cost, the greedy eager result is usually already a local optimum. Eqsat still helps when two downhill paths diverge and only one leads to a deeper minimum, or when an uphill-then-downhill sequence is needed — which directional rule sets forbid by construction. That's Fallin's 1.13 nodes/class result.</p></div></details>
+<details class='q'><summary><b>11.</b> What happens to the <code>(a*2)/2</code> result if <code>mul-two</code> is applied destructively before <code>div-assoc</code>?</summary><div class='ans'><p>The term becomes <code>(a&lt;&lt;1)/2</code>. <code>div-assoc</code> needs a <code>*</code> under the <code>/</code>, which is gone, so <code>a</code> is unreachable. That's phase ordering, and it's exactly Zucker's example of eager aegraph rewriting missing an optimization.</p></div></details>
+<h3>Adversarial</h3>
+<details class='q'><summary><b>12.</b> Construct a rule set and input that collapse the e-graph to one class.</summary><div class='ans'><p>Rules <code>x/x → 1</code> and <code>0/x → 0</code> with input containing <code>0/0</code>: <code>0/0</code> joins both 1's class and 0's class, so <code>0 ≡ 1</code>. Congruence then merges <code>x+0</code> with <code>x+1</code>, <code>x*0</code> with <code>x*1</code>, and so on; with <code>x*0 → 0</code> and <code>x*1 → x</code>, every x merges with 0. Everything ends in one class.</p></div></details>
+<details class='q'><summary><b>13.</b> How would you make egg's BackoffScheduler miss the optimal result on a term where it saturates without limits?</summary><div class='ans'><p>Make the needed rule match explosively (e.g. a commutativity-style rule matching everywhere) so it exceeds its 1,000-match limit and is banned for 5 iterations right when its one useful application is needed; meanwhile a node limit fires. The result depends on the ban schedule, not on reachability.</p></div></details>
+<details class='q'><summary><b>14.</b> Given Cranelift's limits of 5, design a rule set that silently loses an optimization.</summary><div class='ans'><p>Write more than 5 rules whose LHS matches the same node, with the useful one produced last by ISLE's ordering: MATCHES_LIMIT truncates the rest. Or require a 6-deep rewrite chain to reach the good form: REWRITE_LIMIT stops at depth 5. Or one rule with cost(g) &gt; cost(f) whose eager choice blocks a later win.</p></div></details>
+<h3>Connection</h3>
+<details class='q'><summary><b>15.</b> How is relational e-matching related to worst-case optimal joins in databases?</summary><div class='ans'><p>Each operator is a relation (class id, child ids…); a pattern is a conjunctive query; repeated pattern variables are join keys. Generic Join is worst-case optimal (runs within the AGM bound), so e-matching inherits its output-size optimality — cyclic patterns behave like the triangle query.</p></div></details>
+<details class='q'><summary><b>16.</b> How does an e-graph differ from a Cascades memo?</summary><div class='ans'><p>Both group equivalent expressions whose children are groups. Cascades explores top-down, goal-directed, with physical properties and branch-and-bound pruning, and usually doesn't maintain congruence closure across merges; e-graphs explore bottom-up via saturation, maintain congruence, and extract afterwards.</p></div></details>
+<details class='q'><summary><b>17.</b> How does egglog's <code>:merge</code> generalize egg's e-class analysis join?</summary><div class='ans'><p>egg has one analysis per e-graph, joined with a semilattice join on class merge. egglog lets any function have a <code>:merge</code> expression resolving conflicting outputs for the same inputs (min, max, set union, or any expression), and congruence itself is the merge rule for constructor functions (union the ids). So analyses become ordinary Datalog functions, many per program.</p></div></details>
+<details class='q'><summary><b>18.</b> How does eqsat relate to the database <em>chase</em>?</summary><div class='ans'><p>Suciu, Wang and Zhang give two-way reductions: eqsat terminates iff some chase sequence terminates iff all "EGD-fair" ones do. Rewrite rules behave like tuple-generating plus equality-generating dependencies; e-graph merges are the EGD steps. This imports chase termination results, e.g. weak acyclicity → weak term acyclicity.</p></div></details>
+<h3>Open</h3>
+<details class='q'><summary><b>19.</b> Can you predict, before running, whether a rule set will saturate on your inputs?</summary><div class='ans'><p>Not in general: all-terms termination is Π₂-complete. Sufficient syntactic tests exist (weak term acyclicity), and rule sets that are directional w.r.t. a well-founded order terminate. Practical prediction for real rule sets is open.</p></div></details>
+<details class='q'><summary><b>20.</b> Is there a cost model for extraction that captures register pressure without making extraction intractable?</summary><div class='ans'><p>Open. Register pressure depends on the schedule and live ranges, i.e. on the global choice; it's non-local and nonlinear. Options being explored: nonlinear costs (SmoothE), extraction with measured cost (Luminal), or folding lowering into extraction (Cranelift #8529). None is both accurate and tractable yet.</p></div></details>
+<details class='q'><summary><b>21.</b> Do slotted e-graphs' constant-factor costs disappear with egg-level engineering?</summary><div class='ans'><p>Unknown. The paper attributes part of the 2.7× memory / 7.8× time overhead to missing engineering (deferred rebuilding, compiled e-matching) and part to slots themselves (renamings per edge, permutation groups). No optimized implementation has been benchmarked yet.</p></div></details></section>
+<section id='15-go-deeper-next'><h2>15. Go deeper next</h2><ol>
+<li><strong>Relational e-matching and worst-case optimal joins</strong>: Generic Join, the AGM bound, and why egglog is a Datalog engine.</li>
+<li><strong>RVSDG and sea-of-nodes IRs</strong>: how Cranelift's skeleton, Graal and V8 TurboFan represent control and effects, and why that decides what an e-graph can rewrite.</li>
+<li><strong>E-graph extraction as optimization</strong>: ILP formulation, treewidth DP, SmoothE's NOTEARS acyclicity penalty.</li>
+</ol></section>
+<section id='sources'><h2>Sources</h2><p><strong>Papers</strong></p>
+<ul>
+<li>Nelson &amp; Oppen 1980, congruence closure: <a href="https://web.eecs.umich.edu/~weimerw/2011-6610/reading/nelson-oppen-congruence.pdf">https://web.eecs.umich.edu/~weimerw/2011-6610/reading/nelson-oppen-congruence.pdf</a></li>
+<li>Tate, Stepp, Tatlock, Lerner, Equality Saturation (POPL 2009 / LMCS): <a href="https://arxiv.org/abs/1012.1802">https://arxiv.org/abs/1012.1802</a> · <a href="https://cseweb.ucsd.edu/~rtate/publications/eqsat/">https://cseweb.ucsd.edu/~rtate/publications/eqsat/</a></li>
+<li>de Moura &amp; Bjørner, Efficient E-matching (CADE 2007): <a href="https://inst.eecs.berkeley.edu/~cs294-260/sp24/papers/efficient-ematching.pdf">https://inst.eecs.berkeley.edu/~cs294-260/sp24/papers/efficient-ematching.pdf</a></li>
+<li>Willsey et al., egg (POPL 2021): <a href="https://arxiv.org/abs/2004.03082">https://arxiv.org/abs/2004.03082</a></li>
+<li>Zhang et al., Relational E-matching (POPL 2022): <a href="https://arxiv.org/abs/2108.02290">https://arxiv.org/abs/2108.02290</a></li>
+<li>Flatt et al., Small Proofs from Congruence Closure (FMCAD 2022): <a href="https://arxiv.org/abs/2209.03398">https://arxiv.org/abs/2209.03398</a></li>
+<li>Zhang et al., egglog / Better Together (PLDI 2023): <a href="https://arxiv.org/abs/2304.04332">https://arxiv.org/abs/2304.04332</a></li>
+<li>Yang et al., Tensat (MLSys 2021): <a href="https://arxiv.org/abs/2101.01332">https://arxiv.org/abs/2101.01332</a></li>
+<li>Nandi et al., Ruler (OOPSLA 2021): <a href="https://arxiv.org/abs/2108.10436">https://arxiv.org/abs/2108.10436</a></li>
+<li>Koehler et al., Sketch-guided eqsat: <a href="https://arxiv.org/abs/2111.13040">https://arxiv.org/abs/2111.13040</a> · Guided Equality Saturation (POPL 2024): <a href="https://dl.acm.org/doi/abs/10.1145/3632900">https://dl.acm.org/doi/abs/10.1145/3632900</a></li>
+<li>Goharshady, Lam, Parreaux, Sparse e-graph extraction (OOPSLA 2024): <a href="https://2024.splashcon.org/details/splash-2024-oopsla/144/Fast-and-Optimal-Extraction-for-Sparse-Equality-Graphs">https://2024.splashcon.org/details/splash-2024-oopsla/144/Fast-and-Optimal-Extraction-for-Sparse-Equality-Graphs</a></li>
+<li>Sun, Zhang, Ni, E-Graphs as Circuits / treewidth: <a href="https://arxiv.org/abs/2408.17042">https://arxiv.org/abs/2408.17042</a></li>
+<li>Cai et al., SmoothE (ASPLOS 2025): <a href="https://www.csl.cornell.edu/~zhiruz/pdfs/smoothe-asplos2025.pdf">https://www.csl.cornell.edu/~zhiruz/pdfs/smoothe-asplos2025.pdf</a> · <a href="https://github.com/cornell-zhang/SmoothE">https://github.com/cornell-zhang/SmoothE</a></li>
+<li>Schneider et al., Slotted E-Graphs (PLDI 2025): <a href="https://steuwer.info/files/publications/2025/PLDI-Slotted-E-Graphs.pdf">https://steuwer.info/files/publications/2025/PLDI-Slotted-E-Graphs.pdf</a></li>
+<li>Suciu, Wang, Zhang, Semantic Foundations of Eqsat (ICDT 2025): <a href="https://arxiv.org/abs/2501.02413">https://arxiv.org/abs/2501.02413</a></li>
+<li>Merckx et al., eqsat MLIR dialect (EGRAPHS 2025): <a href="https://arxiv.org/abs/2505.09363">https://arxiv.org/abs/2505.09363</a> · Tamagoyaki: <a href="https://arxiv.org/abs/2602.16707">https://arxiv.org/abs/2602.16707</a></li>
+<li>Zayed &amp; Dubach, DialEgg (CGO 2025): <a href="https://2025.cgo.org/details/cgo-2025-papers/44/DialEgg-Dialect-Agnostic-MLIR-Optimizer-using-Equality-Saturation-with-Egglog">https://2025.cgo.org/details/cgo-2025-papers/44/DialEgg-Dialect-Agnostic-MLIR-Optimizer-using-Equality-Saturation-with-Egglog</a></li>
+<li>Arbore, Cheung, Willsey, Optimism in Equality Saturation (PLDI 2026): <a href="https://arxiv.org/abs/2511.20782">https://arxiv.org/abs/2511.20782</a></li>
+<li>Hong, Soi, Zhang, Aiken, Rewrite System Showdown (EGRAPHS 2026): <a href="https://arxiv.org/abs/2605.19005">https://arxiv.org/abs/2605.19005</a></li>
+<li>Rosin, Ullrich, Hack, Associativity and Commutativity in Eqsat (EGRAPHS 2026): <a href="https://compilers.cs.uni-saarland.de/papers/ullrich_egraphs2026-paper17.pdf">https://compilers.cs.uni-saarland.de/papers/ullrich_egraphs2026-paper17.pdf</a></li>
+<li>Rossel et al., Equational reasoning in ITPs by eqsat (POPL 2026): <a href="https://thok.eu/publications/2026/popl-theorem.pdf">https://thok.eu/publications/2026/popl-theorem.pdf</a></li>
+<li>EggMind, LLM-guided strategy synthesis: <a href="https://arxiv.org/abs/2604.17364">https://arxiv.org/abs/2604.17364</a></li>
+<li>EqiForge: <a href="https://arxiv.org/abs/2609.12330">https://arxiv.org/abs/2609.12330</a></li>
+<li>e-boost (ICCAD 2025): <a href="https://arxiv.org/abs/2508.13020">https://arxiv.org/abs/2508.13020</a></li>
+<li>Zucker, Omelets Need Onions (EGRAPHS 2025): <a href="https://arxiv.org/abs/2504.14340">https://arxiv.org/abs/2504.14340</a></li>
+<li>Colored e-graphs: <a href="https://arxiv.org/abs/2305.19203">https://arxiv.org/abs/2305.19203</a></li>
+<li>ROVER: <a href="https://arxiv.org/abs/2406.12421">https://arxiv.org/abs/2406.12421</a></li>
+<li>SEER (ASPLOS 2024): <a href="https://arxiv.org/abs/2308.07654">https://arxiv.org/abs/2308.07654</a></li>
+<li>EGRAPHS 2026 program: <a href="https://pldi26.sigplan.org/home/egraphs-2026">https://pldi26.sigplan.org/home/egraphs-2026</a></li>
+</ul>
+<p><strong>Code / docs</strong></p>
+<ul>
+<li>egg: <a href="https://docs.rs/egg">https://docs.rs/egg</a> · <a href="https://github.com/egraphs-good/egg/blob/main/src/run.rs">https://github.com/egraphs-good/egg/blob/main/src/run.rs</a> · <a href="https://github.com/egraphs-good/egg/blob/main/tests/simple.rs">https://github.com/egraphs-good/egg/blob/main/tests/simple.rs</a></li>
+<li>egglog: <a href="https://github.com/egraphs-good/egglog">https://github.com/egraphs-good/egglog</a> · egglog-python: <a href="https://github.com/egraphs-good/egglog-python">https://github.com/egraphs-good/egglog-python</a></li>
+<li>Cranelift egraph: <a href="https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/codegen/src/egraph/mod.rs">https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/codegen/src/egraph/mod.rs</a> · rule README: <a href="https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/codegen/src/opts/README.md">https://github.com/bytecodealliance/wasmtime/blob/main/cranelift/codegen/src/opts/README.md</a></li>
+<li>Cranelift RFC: <a href="https://github.com/bytecodealliance/rfcs/blob/main/accepted/cranelift-egraph.md">https://github.com/bytecodealliance/rfcs/blob/main/accepted/cranelift-egraph.md</a></li>
+<li>Wasmtime PRs/issues: #5382, #5587, #6167, #10471, #10524, #12156, #13068, #13204, #13476 (https://github.com/bytecodealliance/wasmtime)</li>
+<li>Wasmtime advisories: <a href="https://github.com/bytecodealliance/wasmtime/security/advisories">https://github.com/bytecodealliance/wasmtime/security/advisories</a></li>
+<li>Herbie: <a href="https://github.com/herbie-fp/herbie">https://github.com/herbie-fp/herbie</a> · FAQ: <a href="https://fpbench.cs.washington.edu/doc/2.1/faq.html">https://fpbench.cs.washington.edu/doc/2.1/faq.html</a></li>
+<li>Luminal: <a href="https://github.com/luminal-ai/luminal">https://github.com/luminal-ai/luminal</a> · RisingLight: <a href="https://github.com/risinglightdb/risinglight">https://github.com/risinglightdb/risinglight</a></li>
+<li>eggcc: <a href="https://github.com/egraphs-good/eggcc">https://github.com/egraphs-good/eggcc</a> · optir: <a href="https://github.com/jameysharp/optir">https://github.com/jameysharp/optir</a> · egg discussion #106: <a href="https://github.com/egraphs-good/egg/discussions/106">https://github.com/egraphs-good/egg/discussions/106</a></li>
+<li>awesome-egraphs: <a href="https://github.com/philzook58/awesome-egraphs">https://github.com/philzook58/awesome-egraphs</a></li>
+</ul>
+<p><strong>Articles / talks</strong></p>
+<ul>
+<li>Fallin, "The acyclic e-graph: Cranelift's mid-end optimizer" (2026): <a href="https://cfallin.org/blog/2026/04/09/aegraph/">https://cfallin.org/blog/2026/04/09/aegraph/</a></li>
+<li>Fallin, Dagstuhl slides (Jan 2026): <a href="https://cfallin.org/assets/cfallin-aegraphs-dagstuhl-20260108.pdf">https://cfallin.org/assets/cfallin-aegraphs-dagstuhl-20260108.pdf</a> · EGRAPHS 2023 slides: <a href="https://cfallin.org/pubs/egraphs2023_aegraphs_slides.pdf">https://cfallin.org/pubs/egraphs2023_aegraphs_slides.pdf</a></li>
+<li>Cranelift Progress 2022: <a href="https://bytecodealliance.org/articles/cranelift-progress-2022">https://bytecodealliance.org/articles/cranelift-progress-2022</a></li>
+<li>Flatt, e-graph complexity (UW PLSE 2025): <a href="https://uwplse.org/2025/06/16/egraph-complexity.html">https://uwplse.org/2025/06/16/egraph-complexity.html</a></li>
+<li>UW PLSE, phase ordering: <a href="https://uwplse.org/2025/04/14/Phase-ordering.html">https://uwplse.org/2025/04/14/Phase-ordering.html</a></li>
+<li>Zucker, smart-constructor aegraph: <a href="https://philipzucker.com/smart_constructor_aegraph/">https://philipzucker.com/smart_constructor_aegraph/</a></li>
+<li>Bernstein, "What's in an e-graph?": <a href="https://bernsteinbear.com/blog/whats-in-an-egraph/">https://bernsteinbear.com/blog/whats-in-an-egraph/</a></li>
+</ul></section>
+</main></div>
+<script>
+document.querySelectorAll('pre').forEach(p=>{const b=document.createElement('button');b.className='copy';b.type='button';b.textContent='Copy';
+ b.onclick=()=>{const t=p.querySelector('code')?p.querySelector('code').innerText:p.innerText;navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)}).catch(()=>{})};p.appendChild(b)});
+document.querySelectorAll('main a[href^="http"]').forEach(a=>{a.target='_blank';a.rel='noopener'});
+const links=[...document.querySelectorAll('nav a')];const secs=links.map(a=>document.getElementById(a.getAttribute('href').slice(1)));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id))}})},{rootMargin:'-10% 0px -80% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+const ra=document.getElementById('revealAll');if(ra){let open=false;ra.onclick=()=>{open=!open;document.querySelectorAll('details.q').forEach(d=>d.open=open);ra.textContent=open?'Hide all answers':'Reveal all answers'}}
+
+// ---- AC blowup ----
+(function(){const r=document.getElementById('acr');if(!r)return;const fmt=x=>x>=1e9?(x/1e9).toFixed(2)+' B':x>=1e6?(x/1e6).toFixed(2)+' M':x.toLocaleString();
+ const lim=Math.log10(10000)/Math.log10(3**24);document.querySelector('.bar').style.setProperty('--lim',(lim*100)+'%');
+ function f(){const n=+r.value;const c=2**n-1,nn=3**n-2**(n+1)+n+1;document.getElementById('acn').textContent=n;
+  document.getElementById('acc').textContent=fmt(c);document.getElementById('acnodes').textContent=fmt(nn);
+  const b=nn*40;document.getElementById('acmem').textContent=b>=2**30?(b/2**30).toFixed(1)+' GiB':b>=2**20?(b/2**20).toFixed(1)+' MiB':(b/1024).toFixed(1)+' KiB';
+  document.getElementById('acbar').style.width=(Math.log10(nn)/Math.log10(3**24)*100)+'%'}
+ r.addEventListener('input',f);f()})();
+
+// ---- e-graph stepper ----
+(function(){const svg=document.getElementById('eg');if(!svg)return;const NS='http://www.w3.org/2000/svg';
+ const P={e3:[250,24],e2:[40,122],e6:[400,122],e0:[20,228],e1:[300,228],e4:[480,228]};
+ const S=[
+  {note:'Step 0. Add the term bottom-up through the hashcons. "2" appears twice in the term but becomes one class (e1): sharing. Root = e3.',root:'e3',
+   cls:{e3:[['/','e2','e1']],e2:[['*','e0','e1']],e0:[['a']],e1:[['2']]},nw:[]},
+  {note:'Iteration 0. Read phase finds mul-two @e2 and div-assoc @e3. Write phase adds (<< e0 e4) into e2 and (* e0 e6) into e3, plus new classes e4 = {1} and e6 = {/ e1 e1}. Worklist [e2, e3]; rebuild finds nothing congruent.',root:'e3',
+   cls:{e3:[['/','e2','e1'],['*','e0','e6']],e2:[['*','e0','e1'],['<<','e0','e4']],e6:[['/','e1','e1']],e0:[['a']],e1:[['2']],e4:[['1']]},nw:['e3:1','e2:1','e6:0','e4:0']},
+  {note:'Iteration 1. div-same matches (/ e1 e1) and unions e6 with e4. Rebuild repairs e6\'s parents: the stale hashcons key (<< e0 e4) is re-canonicalized to (<< e0 e6). Class 1 and class 2/2 are now one.',root:'e3',
+   cls:{e3:[['/','e2','e1'],['*','e0','e6']],e2:[['*','e0','e1'],['<<','e0','e6']],e6:[['/','e1','e1'],['1']],e0:[['a']],e1:[['2']]},nw:['e6:1','e2:1']},
+  {note:'Iteration 2. e6 now contains 1, so mul-one matches (* e0 e6) inside e3 and unions e3 with e0. The root class IS the class of a. e0 now holds a node pointing to itself: a cycle that represents a, a*1, a*1*1, ...',root:'e0',
+   cls:{e2:[['*','e0','e1'],['<<','e0','e6']],e6:[['/','e1','e1'],['1']],e0:[['a'],['*','e0','e6'],['/','e2','e1']],e1:[['2']]},nw:['e0:1','e0:2']},
+  {note:'Iteration 3: four matches, every union is a no-op, so the e-graph is saturated (4 classes, 8 nodes). Extraction with AstSize picks the cheapest node in the root class: "a" (cost 1) beats (/ e2 e1) (cost 5).',root:'e0',
+   cls:{e2:[['*','e0','e1'],['<<','e0','e6']],e6:[['/','e1','e1'],['1']],e0:[['a'],['*','e0','e6'],['/','e2','e1']],e1:[['2']]},nw:[],pick:'e0:0'}];
+ let s=0;
+ function el(t,a,txt){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;svg.appendChild(e);return e}
+ function draw(){svg.innerHTML='';const st=S[s];const box={},pills=[];
+  const defs=document.createElementNS(NS,'defs');defs.innerHTML="<marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0L10,5L0,10z' fill='currentColor'/></marker>";svg.appendChild(defs);
+  for(const id in st.cls){const [x,y]=P[id];let cx=x+8;const ps=st.cls[id].map((n,i)=>{const lab=n.length===1?n[0]:n.join(' ');const w=16+lab.length*7.6;const p={id,i,lab,x:cx,y:y+10,w,h:24,kids:n.slice(1)};cx+=w+6;return p});
+   box[id]={x,y,w:Math.max(cx-x+2,78),h:44};pills.push(...ps)}
+  const g=document.createElementNS(NS,'g');svg.appendChild(g);
+  for(const id in box){const b=box[id];el('rect',{x:b.x,y:b.y,width:b.w,height:b.h,rx:10,class:'cls'+(id===st.root?' root':'')});
+   el('text',{x:b.x+2,y:b.y-5,class:'cl'+(id===st.root?' root':'')},id+(id===st.root?'  (root)':''))}
+  for(const p of pills){const isNew=st.nw.includes(p.id+':'+p.i);
+   p.kids.forEach((k,ki)=>{const t=box[k];const sx=p.x+p.w*(ki+1)/(p.kids.length+1);let d;
+    if(k===p.id){d=`M${sx},${p.y} C${sx-30},${p.y-40} ${sx+40},${p.y-40} ${sx+12},${p.y-1}`}
+    else if(t.y>box[p.id].y){d=`M${sx},${p.y+p.h} L${t.x+t.w*0.62},${t.y}`}
+    else if(t.y<box[p.id].y){d=`M${sx},${p.y} L${t.x+t.w/2},${t.y+t.h}`}
+    else{d=`M${sx},${p.y+p.h} Q${(sx+t.x)/2},${p.y+70} ${t.x+t.w/2},${t.y+t.h}`}
+    const e=document.createElementNS(NS,'path');e.setAttribute('d',d);e.setAttribute('class','edge'+(isNew?' new':''));e.setAttribute('marker-end','url(#ah)');e.style.color=isNew?'var(--ac)':'var(--mut)';g.appendChild(e)})}
+  for(const p of pills){const isNew=st.nw.includes(p.id+':'+p.i),pk=st.pick===p.id+':'+p.i;
+   el('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:12,class:'pill'+(isNew?' new':'')+(pk?' pick':'')});
+   el('text',{x:p.x+p.w/2,y:p.y+16.5,'text-anchor':'middle',class:pk?'pk':''},p.lab)}
+  document.getElementById('egNote').textContent=st.note;document.getElementById('egStep').textContent=`STEP ${s} / ${S.length-1}`;
+  document.getElementById('egPrev').disabled=s===0;document.getElementById('egNext').disabled=s===S.length-1}
+ document.getElementById('egPrev').onclick=()=>{if(s>0){s--;draw()}};document.getElementById('egNext').onclick=()=>{if(s<S.length-1){s++;draw()}};
+ svg.parentElement.addEventListener('keydown',e=>{if(e.key==='ArrowRight'&&s<S.length-1){s++;draw()}if(e.key==='ArrowLeft'&&s>0){s--;draw()}});draw()})();
+</script>
+<script defer src='https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js'></script>
+<script defer src='https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js' onload="renderMathInElement(document.querySelector('main'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],ignoredTags:['script','noscript','style','textarea','pre','code']})"></script>
+</body></html>
