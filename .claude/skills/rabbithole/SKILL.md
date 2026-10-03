@@ -1,6 +1,6 @@
 ---
 name: rabbithole
-description: Deep, web-researched dive into ONE random non-trivial CS topic (ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...) explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS", "rabbit hole", or asks to blog a past dive.
+description: Deep, web-researched dive into ONE random non-trivial CS topic (ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a polished interactive HTML page per dive. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS", "rabbit hole", or asks to blog a past dive.
 ---
 
 # rabbithole
@@ -35,7 +35,7 @@ Do not explain from memory alone. Research first, thoroughly.
 
 - Fan out: launch 3–4 parallel `general-purpose` subagents (one message), each with a distinct angle, each told to return dense notes with source URLs:
   1. **Foundations** — original paper(s), canonical explanation, the actual algorithm/spec/math.
-  2. **Implementation reality** — how real systems do it (source code, engineering blogs, docs, RFCs, kernel/compiler source), and where they deviate from the paper.
+  2. **Implementation reality** — how real systems do it (source code, engineering blogs, docs, RFCs, kernel/compiler source), and where they deviate from the paper. Also return the adoption context for section 1b: which real products/systems use it, why they adopted it, how practitioners call/configure it (API, flags, sample usage), and when people choose alternatives.
   3. **Frontier** — new papers (arXiv, conference proceedings: NeurIPS/ICML/ICLR/USENIX Security/CCS/S&P/OSDI/SOSP/SIGMOD/VLDB/PLDI etc.), recent advancements, benchmarks, what changed in the last 1–2 years. Use WebSearch `extended` mode here.
   4. **Breakage + open problems** — known attacks, CVEs, failure modes, critiques, misconceptions, replication failures, and what remains unsolved.
 - Frontier agent (angle 3) runs in BOTH modes and must return ≥3–5 recent papers/advancements (last ~2 years) with links, or explicitly report that the topic is settled and where active work moved to.
@@ -53,6 +53,15 @@ Primary output is **chat markdown**. Structure:
 
 ### 1. Bare-minimum context
 At most ~6 bullets: the prerequisites the reader needs to follow along, each one line. Not a tutorial — just enough to not get lost. Link a source for each if they want more.
+
+### 1b. Real-world context (where, how, why)
+Ground the topic before diving in. Mandatory. Short subsections, each backed by research (name real systems, versions, numbers; never generic "used in many places"):
+- **What it is, in one paragraph** — plain-language definition, no jargon left undefined.
+- **Why it exists / why it's used** — the pain it removes, who asked for it, what people did before, what it costs to not have it.
+- **Where it's used** — 4–8 concrete systems/products/companies/libraries/kernels/protocols that depend on it, with one line each on the role it plays there.
+- **How it's used** — what a practitioner actually touches: the API / config flag / syscall / CLI / library call, a minimal real usage snippet, typical parameter values, and the usual integration pattern.
+- **When to use it / when NOT to** — decision rule vs the main alternative; signs you picked wrong.
+- **Who should care** — which roles (backend, infra, ML, security…) hit this and in what situation.
 
 ### 2. The one-liner — and what it hides
 What everyone says about it in one sentence. Then list the 3–5 things that sentence hides; those are what the rest of the dive answers.
@@ -119,15 +128,29 @@ All URLs used, grouped by type (papers, code/docs, articles).
 - Reader is a working engineer: skip basics, define domain jargon on first use.
 - Flag uncertainty explicitly.
 
-## Step 4 — HTML only when it earns it
+## Step 4 — HTML companion (always)
 
-Default is chat only. Make an HTML companion **only** if the topic has something text can't show well: an interactive visualization, an animation of a process, a step-through state machine, a parameter you can drag to see the effect. Plain, self-contained single file (no external design kits), saved to `dives/<slug>/index.html`, and published with the Artifact tool. Mention it in chat with one line.
+Every dive ships a polished HTML page alongside the README: `dives/YYYY-MM-DD-<slug>/index.html`. It is the nicer way to read the dive, not a copy-paste of the markdown.
+
+Requirements:
+- **Self-contained single file**: inline CSS + JS, no build step. No external design kits; system fonts or one Google Font max. Must work offline.
+- **Complete**: contains every section of the dive, including 1b real-world context, frontier, open problems, question ladder, sources. Content must match the README (same facts, same links).
+- **Layout**: sticky sidebar / top table of contents with scroll-spy, topic card header (domain · topic · depth · date), a "TL;DR + why it matters" hero block, readable measure (~70ch), responsive down to phone width, light + dark via `prefers-color-scheme`.
+- **Informative at a glance**: a "Where it's used" card grid (system → role), a "How it's used" code block with copy button, a pros/cons or "use it / skip it" two-column box, a key-numbers strip (latencies, sizes, params), callouts for misconceptions and gotchas.
+- **Diagrams**: render flows and state as inline SVG (or styled HTML), not ASCII. Where the topic has a process, add a step-through (Back/Next) of the traced example. Add an interactive widget (slider, toggle, simulator) when a parameter's effect is the point; skip it when forced.
+- **Math**: render equations legibly (inline MathML or KaTeX from cdnjs); each followed by its "in plain terms" line.
+- **Question ladder**: each question in `<details>` with the answer, grouped by type, plus a "reveal all" toggle.
+- **Sources**: grouped, links open in new tab.
+- Accessibility: semantic headings, sufficient contrast, keyboard-operable controls, `prefers-reduced-motion` respected.
+- Verify before finishing: open the file (or screenshot via `mcp__claude-in-chrome__*`) and check it renders, no console errors, diagrams and widgets work, nothing overflows at phone width.
+
+Publish with the Artifact tool and give the link in chat with one line.
 
 ## Step 5 — Save + log + push
 
-1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`). Put any HTML/code in the same folder.
+1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`) AND `dives/YYYY-MM-DD-<slug>/index.html` (Step 4). Put any code from the hands-on section in the same folder.
 2. Append a row to `history.md`:
-   `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) | — |`
+   `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) · [html](dives/YYYY-MM-DD-<slug>/index.html) | — |`
    (last column = blog link, filled by `/rabbithole blog`).
 3. `git add` the new files + `history.md`, commit `dive: <topic>`, `git push`.
 
