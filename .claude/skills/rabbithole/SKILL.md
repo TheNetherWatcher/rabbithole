@@ -153,7 +153,7 @@ Requirements:
 - Accessibility: semantic headings, sufficient contrast, keyboard-operable controls, `prefers-reduced-motion` respected.
 - Verify before finishing: open the file (or screenshot via `mcp__claude-in-chrome__*`) and check it renders, no console errors, diagrams and widgets work, nothing overflows at phone width.
 
-Publish with the Artifact tool and give the link in chat with one line.
+Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverable is a plain HTML file in the dive folder, committed to the repo. In chat, mention the file path in one line.
 
 ## Step 5 — Save + log + push
 
