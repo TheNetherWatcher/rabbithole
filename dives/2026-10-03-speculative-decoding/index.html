@@ -122,6 +122,20 @@ details .ans p{margin:.6em 0}
 footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px}
 .notes{font-size:13.5px;color:var(--muted)}
 math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif}
+
+.plainbox{background:linear-gradient(135deg,var(--ok-soft),var(--accent-soft));border:2px solid var(--ok);border-radius:16px;padding:6px 24px 22px;margin:26px 0 8px;box-shadow:var(--shadow)}
+.plainbox>summary{cursor:pointer;list-style:none;padding:14px 0 6px}
+.plainbox>summary::-webkit-details-marker{display:none}
+.plainbox>summary::before{content:none!important}
+.plainbox>summary h2{display:inline;border:0;padding:0;margin:0;font-size:clamp(22px,3vw,28px);line-height:1.25}
+.plainbox>summary::after{content:" \25BE";color:var(--ok);font-size:1.2em}
+.plainbox:not([open])>summary::after{content:" \25B8"}
+.plainbox h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ok);margin:1.3em 0 .3em}
+.plainbox p{font-size:17.5px;max-width:68ch}
+.plainbox .bridge{font-weight:700;margin-bottom:0;color:var(--accent)}
+.dive-divider{margin:48px 0 8px;padding:14px 18px;border-radius:12px;background:var(--ink);color:var(--bg);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dive-divider h2{margin:0;padding:0;border:0;font-size:clamp(20px,3vw,26px);color:inherit}
+.dive-divider span{font-size:14px;opacity:.8}
 @media (max-width:960px){
   .layout{display:block}
   nav.toc{display:none}
@@ -148,7 +162,7 @@ math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif}
 </style></head><body>
 <div class="topbar"><details><summary><span id="mcur">Contents</span><span aria-hidden="true">&#9662;</span></summary><nav id="mtoc" aria-label="Contents"></nav></details></div>
 <div class="layout">
-<nav class="toc" aria-label="Contents"><div class="brand">Rabbithole &middot; Contents</div><div class="links"><a href="#s1">1. Bare-minimum context</a><a href="#s1b">1b. Real-world context (where, how, why)</a><a href="#s2">2. The one-liner — and what it hides</a><a href="#s3">3. The problem</a><a href="#s4">4. Mental model</a><a href="#s5">5. The mechanism, traced</a><a href="#s6">6. The math</a><a href="#s7">7. Why it works</a><a href="#s8">8. Design knobs &amp; alternatives</a><a href="#s9">9. Where it breaks</a><a href="#s10">10. In the wild</a><a href="#s11">11. Frontier (what&#x27;s new)</a><a href="#s11b">11b. Open problems</a><a href="#s12">12. Lineage</a><a href="#s13">13. Hands-on (≤30 min)</a><a href="#s14">14. Question ladder</a><a href="#s15">15. Go deeper next</a><a href="#sources">Sources</a></div></nav>
+<nav class="toc" aria-label="Contents"><div class="brand">Rabbithole &middot; Contents</div><div class="links"><a href="#s0b">0b. Plain-English first</a><a href="#s1b">1b. Real-world context (where, how, why)</a><a href="#deep">Technical deep dive</a><a href="#s1">1. Bare-minimum context</a><a href="#s2">2. The one-liner — and what it hides</a><a href="#s3">3. The problem</a><a href="#s4">4. Mental model</a><a href="#s5">5. The mechanism, traced</a><a href="#s6">6. The math</a><a href="#s7">7. Why it works</a><a href="#s8">8. Design knobs &amp; alternatives</a><a href="#s9">9. Where it breaks</a><a href="#s10">10. In the wild</a><a href="#s11">11. Frontier (what&#x27;s new)</a><a href="#s11b">11b. Open problems</a><a href="#s12">12. Lineage</a><a href="#s13">13. Hands-on (≤30 min)</a><a href="#s14">14. Question ladder</a><a href="#s15">15. Go deeper next</a><a href="#sources">Sources</a></div></nav>
 <main>
 
 <header class="hero">
@@ -170,14 +184,15 @@ math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif}
   </div>
 </header>
 
-<section id="s1"><h2>1. Bare-minimum context</h2><ul>
-<li><strong>Autoregressive decoding</strong>: one forward pass of the model per output token; token t+1 depends on token t, so passes are serial. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.17192">Leviathan et al.</a>)</li>
-<li><strong>Memory-bandwidth bound</strong>: at small batch, each decode step reads all weights + the KV cache from HBM but does very little math on them; time ≈ bytes / bandwidth, not FLOPs / peak. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2302.01318">Chen et al.</a>, "Conditional Scoring")</li>
-<li><strong>KV cache</strong>: per-layer keys/values for every previous token, kept so each new token only computes its own row of attention. (<a target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/features/speculative_decoding/">vLLM docs</a>)</li>
-<li><strong>Logits → distribution</strong>: temperature, top-k, top-p are transforms that turn logits into the distribution p you actually sample from.</li>
-<li><strong>Total variation distance</strong> TV(p,q) = ½ Σ|p(x) − q(x)|: the largest gap between the probabilities p and q assign to any event.</li>
-<li><strong>Teacher forcing / scoring</strong>: given a known sequence, one forward pass returns the model's next-token distribution at <em>every</em> position at once (same thing as a prefill).</li>
-</ul></section><section id="s1b"><h2>1b. Real-world context (where, how, why)</h2><h3>What it is</h3><p>Speculative decoding is an inference-time trick for autoregressive language models. A cheap "drafter" (a small model, extra heads on the big model, or just a lookup into the prompt) proposes several next tokens. The big "target" model then scores all of them in a single forward pass and keeps the longest prefix it agrees with, using a rule that keeps the output distribution exactly the same as the target's own. You get more than one token per target pass without changing what the model says. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</p><h3>Why it exists / why it's used</h3><ul>
+<section id="s0b"><details class="plainbox" open><summary><h2>0b. Plain-English first (no jargon)</h2></summary>
+<h3>Explained simply</h3>
+<p>Imagine a famous author who writes brilliant letters but is painfully slow: for every single word, they have to walk down to a huge library, look things up, and walk back. Now give them a quick assistant who just guesses the next few words. The author doesn't write the words one at a time anymore. They read the assistant's guess for the whole line in one trip to the library, tick off the words they would have written themselves, and cross out the first one they wouldn't have. Everything before the crossed-out word is kept for free.</p>
+<p>The clever part is how the author decides what to keep. The rule is tuned so that the finished letter reads exactly as if the author had written every word alone, no matter how good or bad the assistant's guesses are. Good guesses just mean fewer library trips. That is the whole trick: same words, less waiting.</p>
+<h3>Everyday example</h3>
+<p>The letter so far says "The cat sat on the". The assistant guesses the next three words: "mat", "and", "purred". The author makes one trip to the library and checks all three guesses together. "mat" is something they would happily write, so it stays. "and" is not what they had in mind, so it gets crossed out, and "purred" goes with it because it was a guess built on "and". The author then writes their own word in the crossed-out spot, say a full stop, and the letter now ends "...on the mat." That is two new words for a single trip to the library. Had all three guesses been fine, the author would have added one more word of their own, for four words in one trip.</p>
+<p class="bridge">Now the same thing, technically.</p>
+</details></section>
+<section id="s1b"><h2>1b. Real-world context (where, how, why)</h2><h3>What it is</h3><p>Speculative decoding is an inference-time trick for autoregressive language models. A cheap "drafter" (a small model, extra heads on the big model, or just a lookup into the prompt) proposes several next tokens. The big "target" model then scores all of them in a single forward pass and keeps the longest prefix it agrees with, using a rule that keeps the output distribution exactly the same as the target's own. You get more than one token per target pass without changing what the model says. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</p><h3>Why it exists / why it's used</h3><ul>
 <li><strong>The pain</strong>: LLM inference is usually memory-bound, so "ample computational resources" sit idle during decoding, and some tokens are easy to generate. Google's authors built it on those two observations. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</li>
 <li><strong>What people did before</strong>: distillation, quantization, or smaller models (all change the output), or Stern et al.'s greedy-only blockwise parallel decoding with custom heads. Speculative decoding is the first approach that is exact for sampling and needs no retraining of the target (§12).</li>
 <li><strong>What it buys</strong>: Google reports ~3× speed on an 11B T5-XXL with a 60M T5-small drafter, with an identical output distribution, and notes that faster results on the same hardware means fewer machines for the same traffic. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</li>
@@ -213,6 +228,14 @@ math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif}
 <li><strong>ML engineers who serve their own fine-tunes</strong>: a drafter tied to the old checkpoint loses acceptance after you fine-tune (see §9).</li>
 <li><strong>Backend / product engineers</strong> with a latency SLO on streaming responses: this is the lever that lowers time per token without changing model quality.</li>
 <li><strong>Security engineers</strong>: token-arrival timing leaks information (§9).</li>
+</ul></section><div class="dive-divider" id="deep"><h2>Technical deep dive</h2><span>Jargon ahead (defined on first use). Sections 1 and 2 onward.</span></div>
+<section id="s1"><h2>1. Bare-minimum context</h2><ul>
+<li><strong>Autoregressive decoding</strong>: one forward pass of the model per output token; token t+1 depends on token t, so passes are serial. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.17192">Leviathan et al.</a>)</li>
+<li><strong>Memory-bandwidth bound</strong>: at small batch, each decode step reads all weights + the KV cache from HBM but does very little math on them; time ≈ bytes / bandwidth, not FLOPs / peak. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2302.01318">Chen et al.</a>, "Conditional Scoring")</li>
+<li><strong>KV cache</strong>: per-layer keys/values for every previous token, kept so each new token only computes its own row of attention. (<a target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/features/speculative_decoding/">vLLM docs</a>)</li>
+<li><strong>Logits → distribution</strong>: temperature, top-k, top-p are transforms that turn logits into the distribution p you actually sample from.</li>
+<li><strong>Total variation distance</strong> TV(p,q) = ½ Σ|p(x) − q(x)|: the largest gap between the probabilities p and q assign to any event.</li>
+<li><strong>Teacher forcing / scoring</strong>: given a known sequence, one forward pass returns the model's next-token distribution at <em>every</em> position at once (same thing as a prefill).</li>
 </ul></section><section id="s2"><h2>2. The one-liner — and what it hides</h2><blockquote>
 <p>"A small model guesses a few tokens, the big model checks them in one pass, so you get 2–3× faster decoding with identical output."</p>
 </blockquote>
