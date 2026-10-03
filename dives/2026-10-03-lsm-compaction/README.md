@@ -2,7 +2,7 @@
 
 **Databases/storage · LSM-tree compaction policy, write/read/space amplification · hard · 2026-10-03**
 
-> Verification note: foundations (Monkey/Dostoevsky/O'Neil equations) were read from the primary PDFs. RocksDB defaults come from the RocksDB wiki and `advanced_options.h`; items marked *(unverified)* came from the researchers' memory or search-result summaries and were not fetched. Frontier papers were each checked on their arXiv abstract page.
+> Verification note (second pass, 2026-10-03): every number below was re-checked against a primary page unless tagged. Equations were read from the Monkey, Dostoevsky and O'Neil PDFs (equations rendered to images where text extraction garbled them). RocksDB defaults were read from `options.h` / `advanced_options.h` / `HISTORY.md` / the RocksDB wiki on `main`. Frontier papers were checked on their arXiv abstract pages. Tags: *(secondary)* = seen only in a secondary source; *(unverified)* = could not be confirmed this session (ACM/IEEE/dblp/Medium blocked some fetches).
 
 ---
 
@@ -35,22 +35,23 @@ Primary sources: [O'Neil 1996](https://www.cs.umb.edu/~poneil/lsmtree.pdf), [Mon
 
 **What it is.** A log-structured merge tree stores data as immutable sorted runs and *compaction* is the background process that merges runs to bound read cost, discard overwritten/deleted data, and reclaim space. The compaction *policy* (when, which runs, how much) is the single biggest tuning lever in an LSM engine.
 
-**Why it exists.** B-trees update pages in place: a random write per update, which is slow on spinning disks and wears SSDs. LSM turns random writes into sequential ones (one memtable flush) and pays later, in background merges. Facebook's MyRocks paper reported RocksDB using about half the space of compressed InnoDB and cutting storage write rate by more than half at similar latency ([MyRocks](https://engineering.fb.com/2016/08/31/core-infra/myrocks/); [Dong et al., CIDR'17](https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf)).
+**Why it exists.** B-trees update pages in place: a random write per update, which is slow on spinning disks and wears SSDs. LSM turns random writes into sequential ones (one memtable flush) and pays later, in background merges. Facebook's MyRocks post reports an instance 3.5× smaller than uncompressed InnoDB and 2× smaller than compressed InnoDB, with "orders of magnitude less" data written ([MyRocks](https://engineering.fb.com/2016/08/31/core-infra/myrocks/)); the CIDR'17 abstract says RocksDB uses less than half the storage InnoDB uses ([Dong et al.](https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf)).
 
-**Where it's used** (adoption from researcher notes; items marked * not verified this session):
-- **RocksDB** at Facebook/Meta: MyRocks (MySQL engine), ZippyDB*.
-- **Cassandra / ScyllaDB**: STCS (tiered) default; LCS (leveled); TWCS (time-window); Cassandra 5.0 adds UCS (CEP-26) unifying tiered and leveled via a scaling parameter. ScyllaDB's Incremental Compaction splits runs into ~1 GB fragments to avoid STCS's 2× temporary space spike.
-- **CockroachDB Pebble**: Go RocksDB descendant; uses L0 *sublevels* to bound L0 read amp; operators watch sublevel count.
-- **TiKV/TiDB**: RocksDB for raft-log and KV; Titan does key-value separation.
-- **YugabyteDB*, Flink and Kafka Streams state stores*, LevelDB/Chrome IndexedDB*, Bigtable* (original design), HBase*, ClickHouse MergeTree* (LSM-like, no memtable).
+**Where it's used** (each checked against a primary or official page unless tagged):
+- **RocksDB** at Facebook/Meta: MyRocks (MySQL engine).
+- **Cassandra / ScyllaDB**: the compaction overview docs say STCS is the default strategy (check your version); LCS "is optimized for read heavy workloads"; TWCS is for TTL'd, mostly immutable time-series. Cassandra 5.0 adds UCS (CEP-26) and its docs say it is "recommended for most workloads"; UCS default is `scaling_parameters = T4`, with the fan factor f = 2 + |w| (w<0 leveled `L_f`, w>0 tiered `T_f`). ScyllaDB's Incremental Compaction uses ~1 GB fragments (`sstable_size_in_mb`=1000) freed as they finish, cutting ~200 GB of STCS temporary space to ~2 GB and reaching ~90–93% disk use vs the ~50% STCS rule of thumb; steady-state space amp stays "relatively high" like STCS.
+- **CockroachDB Pebble**: Go RocksDB descendant; the CRDB docs call a read amplification below 10 healthy. L0 *sublevels* and the ">10 visible, >20 stalls" operator rule come from netdata guides *(secondary)*.
+- **TiKV/TiDB**: two RocksDB instances per node (data and Raft log); Titan (key-value separation) is on by default for new clusters since v7.6.0.
+- **SlateDB** (object-storage LSM): pluggable compaction scheduler, only size-tiered shipped; distributed compaction via a shared `.compactions` file (RFC-0025, v0.14.1+); "trivial move" off by default. Its scaling figures are the project's own claims.
+- **YugabyteDB** ("highly customized" RocksDB), **Flink** (EmbeddedRocksDBStateBackend), **Bigtable** (memtable→SSTable minor compaction, major compaction merges all SSTables), **LevelDB** as Chrome's IndexedDB backend (Wikipedia, secondary), **ClickHouse MergeTree** (parts merged in background; "no memtable" is an inference from the docs' silence). Kafka Streams default store RocksDB and HBase minor/major compaction: weak evidence *(unverified)*.
 
-**How it's used.** The practitioner touches options like these (RocksDB; values mix tuning-guide numbers and defaults, not one published reference config):
+**How it's used.** The practitioner touches options like these (RocksDB; 512 MB base and 8 jobs are my choices, not defaults; the tuning guide only uses 512 MB / L0 trigger 8–10 in example configs, never as a recommendation):
 
 ```cpp
 rocksdb::Options o;
 o.write_buffer_size = 64<<20;                    // memtable
 o.max_write_buffer_number = 4;
-o.level0_file_num_compaction_trigger = 4;        // L0 -> L1 trigger
+o.level0_file_num_compaction_trigger = 4;        // L0 -> L1 trigger (default 4)
 o.level0_slowdown_writes_trigger = 20;           // default 20
 o.level0_stop_writes_trigger = 36;               // default 36
 o.max_bytes_for_level_base = 512<<20;
@@ -58,7 +59,7 @@ o.max_bytes_for_level_multiplier = 10;           // T, default 10
 o.target_file_size_base = 64<<20;                // default 64 MB
 o.level_compaction_dynamic_level_bytes = true;   // default since 8.4
 o.compaction_pri = rocksdb::kMinOverlappingRatio;// default
-o.max_background_jobs = 8;
+o.max_background_jobs = 8;                       // default is 2
 o.max_subcompactions = 4;
 o.compression = rocksdb::kLZ4Compression;
 o.bottommost_compression = rocksdb::kZSTD;
@@ -66,7 +67,7 @@ o.bottommost_compression = rocksdb::kZSTD;
 // TTL/log data:  o.compaction_style = rocksdb::kCompactionStyleFIFO;
 ```
 
-**When to use / not.** Use leveled for read-heavy or space-sensitive workloads on SSD (tight space amp, ~1.11 with dynamic level bytes). Use tiered/universal for write-heavy ingestion where write amp dominates and you can afford 2× temporary space and more runs per read. Use FIFO for TTL'd caches/metrics (write amp ≈ 1). Pick a **B-tree** when read latency predictability matters more than write throughput, tail latency is critical (compaction/stalls are LSM-specific), or you want less operational tuning (InnoDB, Postgres, LMDB).
+**When to use / not.** Use leveled for read-heavy or space-sensitive workloads on SSD (worst case ≈1.111 with dynamic level bytes per Dong et al.). Use tiered/universal for write-heavy ingestion where write amp dominates and you can afford 2× temporary space and more runs per read. Use FIFO for TTL'd caches/metrics (write amp ≈ 1). Pick a **B-tree** when read latency predictability matters more than write throughput, tail latency is critical (compaction/stalls are LSM-specific), or you want less operational tuning (InnoDB, Postgres, LMDB).
 
 **Who should care.** Backend/infra engineers running RocksDB-backed stores; Cassandra/Scylla operators choosing strategies; anyone debugging p99 spikes, write stalls, disk-full-during-compaction, or SSD wear.
 
@@ -87,7 +88,7 @@ It hides:
 
 ## 3. The problem
 
-A random 4 KB update to a B-tree touches a leaf page: ~1 random read + 1 random write, with write amp up to page-size / entry-size (e.g. 4096 / 100 ≈ 40×) from rewriting whole pages. An LSM instead batches: buffer *B·P* entries, write once sequentially. But now a key's versions can be in the memtable and in *any* run. Without merging, runs grow without bound and lookup cost grows with them; obsolete versions and tombstones never die. Compaction bounds that, at the price of rewriting data. Question: how many times should each byte be rewritten, and how many runs may a lookup face?
+A random 4 KB update to a B-tree touches a leaf page: ~1 random read + 1 random write, with write amp up to page-size / entry-size from rewriting whole pages (illustrative arithmetic: 4096 / 100 ≈ 40×; not a measured figure). An LSM instead batches: buffer *B·P* entries, write once sequentially. But now a key's versions can be in the memtable and in *any* run. Without merging, runs grow without bound and lookup cost grows with them; obsolete versions and tombstones never die. Compaction bounds that, at the price of rewriting data. Question: how many times should each byte be rewritten, and how many runs may a lookup face?
 
 ---
 
@@ -164,7 +165,7 @@ Result: with enough memory R = O(e^(−M/N)), **independent of L**, versus O(L·
 - Eq.13: excess space = Z − 1 + 1/T  (T=10, 10 bits/entry: leveling 0.1, tiering 8.1)
 Sanity: K=Z=1 gives (T−1)/2·L; K=Z=T−1 gives (T−1)/T·L (matches Monkey Eq.10).
 
-*Caveat:* the exact closed forms of Monkey Eq.7/15/16 had garbled PDF extraction; structure above is verified, re-read the paper before quoting those two exactly.
+**Monkey exact forms** (rendered pages checked): per-level FPR leveling Eq.15 p_i = R/T^(L−i) · T^(L−1)/(T^L−1) · (T−1); tiering Eq.16 p_i = R/T^(L−i) · T^(L−1)/(T^L−1) (a factor (T−1) lower). For large L (≈5+): p_i ≈ R/T^(L−i+1)·(T−1) (leveling), R/T^(L−i+1) (tiering). Zero-result cost Eq.7: R = R_filtered + R_unfiltered, R_filtered = [T^(T/(T−1))/(T−1)] · e^(−(M_filters/N)·ln²2) · T^(L_unfiltered) for leveling (without the 1/(T−1) for tiering); R_unfiltered = L_unfiltered (leveling) or L_unfiltered·(T−1) (tiering). Eq.8: M_threshold = N/ln²2 · ln T/(T−1), and L_unfiltered = 0 if M_filters ≥ M_threshold. Dostoevsky Eq.7 gives the lazy-leveling threshold maximum **1.62 bits/entry at T=3** (and says the Fluid LSM generalization keeps 1.62). The "no strategy wins everywhere" statement elsewhere is a paraphrase of Sarkar et al., not a quote.
 
 ---
 
@@ -175,7 +176,7 @@ Key insight: **lookup and space cost are determined by the shape of the *last* l
 - Remove Bloom filters → every run is probed; tiering lookups cost T·L I/Os.
 - Uniform filters instead of Monkey's → lookup cost grows with L.
 - Remove tombstone dropping at the bottom level → deleted data is never freed.
-- Remove dynamic level sizing in RocksDB → space amp worse (static mode can approach ~2× worst case, *unverified*); with it ≈ 1.11 at T=10 because ~90% of data sits in the last level ([CIDR'17](https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf)).
+- Remove dynamic level sizing in RocksDB → space amp worse (static mode: Dong et al. §3.1 say space amp "would be larger than 2" when the last level is only slightly bigger than the previous level's target); with it ≈ 1.11 at T=10 because ~90% of data sits in the last level ([CIDR'17](https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf)).
 
 ---
 
@@ -189,7 +190,7 @@ Key insight: **lookup and space cost are determined by the shape of the *last* l
 | File granularity | Partial compaction (RocksDB SST-granular) changes constants, not asymptotics |
 | `compaction_pri` | `kMinOverlappingRatio` default picks least-overlap file → lowers write amp |
 | `level_compaction_dynamic_level_bytes` | Bottom level defines target sizes; space amp ≈ 1.11 |
-| Universal triggers | `max_size_amplification_percent` (default 200% *unverified*), size ratio, run count |
+| Universal triggers | `max_size_amplification_percent` (default 200, i.e. a 100-byte DB may need up to 300; the last run is excluded from the ratio), size ratio, run count |
 | Write-stall triggers | L0 slowdown 20 / stop 36; pending-bytes soft 64 GB / hard 256 GB |
 | Key-value separation | WiscKey/BlobDB/Titan: store values separately → lower write amp, GC cost, slower scans |
 | FIFO | No merging; TTL drop; write amp ≈ 1 |
@@ -200,13 +201,16 @@ Competing structures: B-trees (in-place, lower read amp, higher write amp), Bε-
 
 ## 9. Where it breaks
 
-- **Write stalls**: not a bug but deliberate backpressure when L0 file count or pending-compaction bytes exceed thresholds. Raising triggers moves the cliff later and deeper. Per [SILK (ATC'19)](https://www.usenix.org/conference/atc19/presentation/balmau): tail latency comes from client writes, flushes and compactions fighting for I/O bandwidth; they report up to 100× lower p99 by prioritizing flushes/low-level compactions and preempting long high-level ones (*search-summary figure; SILK scheduling logic is not in upstream RocksDB, unverified*).
-- **L0 read amp**: L0 files overlap, so a point read may probe every L0 file; Bloom filters help, range scans can't skip. Mitigations: intra-L0 compaction, subcompactions, Pebble's sublevels *(L0 behavior from memory, unverified)*.
+- **Write stalls**: not a bug but deliberate backpressure when L0 file count or pending-compaction bytes exceed thresholds. Raising triggers moves the cliff later and deeper. Per [SILK (ATC'19)](https://www.usenix.org/conference/atc19/presentation/balmau): tail latency comes from client writes, flushes and compactions fighting for I/O bandwidth; the abstract claims "up to two orders of magnitude lower 99th percentile latencies than RocksDB and TRIAD" by giving internal ops spare bandwidth when load is low, prioritizing flushes and lower-level compactions, and preempting compactions. SILK was a RocksDB prototype; I found no upstream merge *(unverified)*, though RocksDB does have an auto-tuned rate limiter and IO priorities *(search)*.
+- **L0 read amp**: the wiki says "we have to pick up all the L0 files because they usually are overlapping" and the tuning guide says point lookups "must consult all files in level 0"; range-scan read amp ≈ number_of_level0_files + number_of_non_empty_levels. Mitigations: intra-L0 compaction (bounded by `max_compaction_bytes`), subcompactions; Pebble's sublevels *(secondary)*.
+- **Write-stall conditions** (RocksDB Write-Stalls wiki): memtables ≥ `max_write_buffer_number`; L0 files reach slowdown/stop triggers; pending compaction bytes reach soft/hard limits. Stalls apply DB-wide though triggers are per column family.
 - **Space spikes**: universal compaction can need up to 2× disk during a full compaction; "leveling = 1.1× space" is a steady-state figure, snapshots/iterators pin old files.
-- **Delete problem** ([Lethe, SIGMOD'20](https://arxiv.org/pdf/2006.04777v2)): no bound on how long a tombstone takes to reach the last level, so physical deletion (GDPR!) is unbounded. FADE (age-prioritized compaction) and KiWi (page-level secondary range deletes) reported 1.17–1.4× read throughput, 2.1–9.8× lower space amp, 4–25% more write amp *(search-summary numbers)*.
-- **Write amp stacks**: total flash writes = app bytes × LSM WA (10–50× typical) × device WAF; compaction's large sequential rewrites keep device WAF low (1–2) on an uncrowded drive, worse when shared/near-full *(unverified)*.
-- **Correctness hazards**: compaction is the only place data is deliberately discarded. Incidents: [PingCAP RocksDB DeleteRange corruption](https://pingcap.medium.com/how-we-found-a-data-corruption-bug-in-rocksdb-60e708769352); [CockroachDB Advisory 48860](https://www.cockroachlabs.com/docs/advisories/a48860) (range deletions concurrent with replica GC could corrupt/lose data; fixed in v19.1.9, v19.2.7, v20.1.0). Cassandra **zombie data**: if repair doesn't finish within `gc_grace_seconds` (default 864000 s = 10 days), a replica can purge a tombstone while another still holds the live row, which then resurrects.
-- **Compaction storms** (many shards/column families compacting after bulk load/restart) *(from memory, unverified)*: mitigated by rate limiters, jitter, `max_background_jobs`.
+- **Delete problem** ([Lethe, SIGMOD'20](https://arxiv.org/pdf/2006.04777v2)): no bound on how long a tombstone takes to reach the last level, so physical deletion (GDPR!) is unbounded. FADE (age-prioritized compaction) and KiWi (page-level secondary range deletes) reported 1.17–1.4× read throughput, 2.1–9.8× lower space amp, 4–25% more write amp (arXiv abstract; the FADE/KiWi names are the paper's, not shown in my fetch).
+- **Write amp stacks** *(no primary quote obtained; follows from the definition of device WA = flash writes incl. GC ÷ host writes)*: total flash writes = app bytes × LSM WA (10–50× typical) × device WAF; compaction's large sequential rewrites keep device WAF low (1–2) on an uncrowded drive, worse when shared/near-full *(unverified)*.
+- **Correctness hazards**: compaction is the only place data is deliberately discarded. Incidents: [PingCAP's RocksDB DeleteRange corruption post](https://pingcap.medium.com/how-we-found-a-data-corruption-bug-in-rocksdb-60e708769352) (Medium returned 403; per search snippet: data corrupted, cluster panicked, *details unverified*); [CockroachDB Advisory 48860](https://www.cockroachlabs.com/docs/advisories/a48860) ("permanent data corruption or loss in rare cases" from range deletions concurrent with replica GC; "irrecoverable using regular node failover", needs backup restore; fixed in v19.1.9, v19.2.7, v20.1.0). Cassandra **zombie data**: if repair doesn't finish within `gc_grace_seconds` (default 864000 s = 10 days), a replica can purge a tombstone while another still holds the live row, which then resurrects.
+- **Compaction storms** (many shards/column families compacting after bulk load/restart) *(unverified, from memory)*: mitigated by rate limiters, jitter, `max_background_jobs`.
+
+- **Range deletes are the riskiest compaction feature.** RocksDB fragments range tombstones per SST so they don't overlap and can be binary-searched, rewrites them across files during compaction, keeps sequence numbers for snapshots, and drops them at the bottom level ([blog](https://rocksdb.org/blog/2018/11/21/delete-range.html)). Pebble truncates them to file bounds and needs *atomic compaction groups* (adjacent files sharing a boundary user key must be compacted together) so a tombstone can't wrongly cover data that moved down alone ([doc](https://github.com/cockroachdb/pebble/blob/master/docs/range_deletions.md)). Pebble range keys: unverified.
 
 Misconceptions: "stalls mean mis-tuning" (often it's sustained ingest > compaction bandwidth); "more threads is better" (SILK: scheduling beats parallelism); "deleting frees space now" (only after the tombstone hits the last level); "tombstone purge after gc_grace is safe" (only if repair completed).
 
@@ -214,41 +218,55 @@ Misconceptions: "stalls mean mis-tuning" (often it's sustained ingest > compacti
 
 ## 10. In the wild
 
-- **RocksDB**: leveled default; score-based picker; dynamic level bytes default since v8.4; subcompactions; universal and FIFO styles. Tuning guide's 512 MB-level example gives ≈33× write amp for leveled; wiki says leveled WA is "often larger than 10"; real systems see ~10–30× vs the paper bound.
-- **Universal (tiered)**: write amp often 2–7× *(unverified)*; priorities: periodic age → space-amp trigger → size-ratio → run-count fallback.
+- **RocksDB**: leveled default; score-based picker; dynamic level bytes default since v8.4; subcompactions; universal and FIFO styles. The tuning guide's worked example computes "1 + 2 + 10 + 10 + 10 = 33" write amp and space amp 1.14; the Leveled-Compaction wiki (Intra-L0 section) calls leveled write amp "often larger than 10"; "10–30× in practice" is my range from these sources, not one measurement.
+- **Universal (tiered)**: write amp often 2–7× *(unverified)*; wiki trigger order: data age (hard requirement) → space-amp (full compaction) → sorted-run count respecting size_ratio → run count without it; "temporarily double the disk space" during a full compaction.
 - **Cassandra**: STCS default; UCS (5.0) unifies tiered/leveled with scaling parameter W and density-based sharding.
-- **ScyllaDB ICS**: fragments of ~1 GB freed incrementally; Space Amplification Goal 1–2.
-- **Pebble**: L0 sublevels, sublevel count >10 → read amp visible, >20 → stalls near; admission control on L0 overload *(unverified)*.
+- **ScyllaDB ICS**: ~1 GB fragments freed incrementally (see section 1b). I could not find a "space amplification goal 1–2" in the primary post, so that claim was dropped.
+- **Pebble**: CRDB docs only say read amp <10 is healthy; the sublevel >10/>20 thresholds and `admission.l0_sub_level_count_overload_threshold = 20` come from netdata guides *(secondary)*.
 - **TiKV**: RocksDB + Titan for large values.
 
 ---
 
 ## 11. Frontier (what's new)
 
-All seven checked on their arXiv abstract page unless noted.
+Metadata below was fetched from arXiv abstract pages unless tagged *(search)* (ACM/IEEE/dblp blocked; venue rests on search snippets).
 
-1. **CAMAL: Optimizing LSM-trees via Active Learning**, SIGMOD 2025 ([arXiv 2409.15130](https://arxiv.org/abs/2409.15130)). Active-learning tuner; in RocksDB, 28% average and up to 8× gains.
-2. **How to Grow an LSM-tree? Bridging Theory and Practice** (Mo, Luo, Idreos), SIGMOD 2025 ([arXiv 2504.17178](https://arxiv.org/abs/2504.17178)). *Vertiorizon*: hybrid vertical + horizontal growth balancing read/write/space cost.
-3. **ArceKV: Workload-driven LSM-compactions under Dynamic Workloads**, arXiv Aug 2025, rev. Jan 2026, no venue stated ([2508.03565](https://arxiv.org/abs/2508.03565)). Relaxes structural constraints; lightweight decision engine picks compaction actions; ~3× faster in dynamic workloads.
-4. **RESYSTANCE: Hidden Performance of Compaction via eBPF**, ICDE 2026 ([2603.05162](https://arxiv.org/abs/2603.05162)). eBPF + io_uring to cut syscall overhead in compaction: −50% compaction time, up to +75% throughput on write-heavy loads.
-5. **DiaLSM: Write-Stall-Free Performance via Shard-based LSM-tree**, ICDE 2027 per the page, submitted 13 Sept 2026 ([2609.14370](https://arxiv.org/abs/2609.14370)). Shards write/flush/compaction path; up to 2.4× throughput, 94% fewer write stalls.
-6. **Scavenger: Space-Time Trade-offs for KV-Separated LSM-trees** ([2508.13909](https://arxiv.org/abs/2508.13909)). I/O-efficient GC + space-aware compaction; beats BlobDB and Titan. *Venue discrepancy: page says ICDE 2024 but the ID implies Aug 2025; treat venue as the page's claim.*
-7. **Rethinking LSM-tree based Key-Value Stores: A Survey** (Lv et al.), arXiv Jul 2025 ([2507.09642](https://arxiv.org/abs/2507.09642)). 100+ papers 2020–2025 on compaction unpredictability and amplification: a good citation hub.
+**Tuning & policy**
+1. **CAMAL: Optimizing LSM-trees via Active Learning** (Yu, Luo, Yu, Cong), SIGMOD 2025 ([2409.15130](https://arxiv.org/abs/2409.15130)). Active-learning tuner combining cost models, decoupled per-parameter analysis, and incremental updates; in RocksDB, "28% on average and up to 8x" over SOTA configs.
+2. **Rethinking the Compaction Policies in LSM-trees** (EcoTune; Wang, Qiu, Yuan, Zhang), SIGMOD 2025 *(search)* ([PDF](https://people.iiis.tsinghua.edu.cn/~huanchen/publications/ecotune-sigmod25.pdf)). Treats compaction as an investment in future query throughput; dynamic programming finds the optimal policy; 1.5–3× query throughput vs leveling, up to 2.5× vs lazy leveling.
+3. **How to Grow an LSM-tree?** (Vertiorizon; Mo, Luo, Idreos), SIGMOD 2025 ([2504.17178](https://arxiv.org/abs/2504.17178)). Hybrid of vertical growth (add levels, as RocksDB/LevelDB) and horizontal growth (bigger level capacities); better writes than vertical, ~6× less extra space than horizontal.
+4. **ArceKV** (Liu, Xie, Luo), arXiv Aug 2025, rev. Jan 2026, no venue stated ([2508.03565](https://arxiv.org/abs/2508.03565)). ElasticLSM relaxes structural constraints (adaptive compactions and write stalls as actions); a lightweight decision engine picks actions; "around 3x faster" in dynamic workloads.
+5. **AXE: Task Decomposition Approach to Learned LSM Tuning** (Huynh, Saha, Chaudhari, Athanassoulis), PVLDB 18(13) 2025 *(search)* ([PDF](https://www.vldb.org/pvldb/vol18/p5582-huynh.pdf)). Learned cost model as loss for a learned tuner; ~100× lower tuning overhead.
 
-**Pattern:** compaction is becoming adaptive/learned (CAMAL, ArceKV), stalls are attacked by sharding (DiaLSM), cost by kernel/offload tricks (RESYSTANCE), and KV-separation is co-designing GC with compaction (Scavenger).
+**Stalls, offload, disaggregation**
+6. **DiaLSM: Write-Stall-Free Performance via Shard-based LSM-tree** (Byun et al.), "Accepted to ICDE 2027" per its page, submitted Sept 2026 ([2609.14370](https://arxiv.org/abs/2609.14370)). Queuing argument that a monolithic write-flush-compaction pipeline cannot eliminate stalls; internal sharding with fallback redirection; 2.4× throughput, 94% fewer stalls vs ADOC/sub-compaction on RocksDB.
+7. **RESYSTANCE** (Byun, Lee, Yoo, Kim, Park), ICDE 2026 ([2603.05162](https://arxiv.org/abs/2603.05162)). Moves compaction reads into the kernel via eBPF + io_uring, no change to the algorithm: 99% fewer syscalls, 50% faster compaction, 75% higher write-heavy throughput, 40% lower p99.
+8. **CaaS-LSM: Compaction-as-a-Service** (Yu, Guo, Zhuang, Thakkar, Wang, Cao), SIGMOD 2024 *(search)* ([ACM](https://dl.acm.org/doi/10.1145/3654927)). Stateless compaction service decoupled from the LSM instance; up to 8× throughput, up to 98% lower p99 vs conventional LSM-KVS (RocksDB prototype, Kvrocks and Nebula).
+9. **O³-LSM** (Lin et al.), SIGMOD 2026 ([2603.05439](https://arxiv.org/abs/2603.05439)). Extends compaction offload to memtable and flush offload over disaggregated memory; up to 4.5× write throughput, 76% lower p99.
+10. **SlateDB** (object-storage LSM): pluggable scheduler (only size-tiered shipped), distributed compaction via shared `.compactions` file, subcompactions on the roadmap; scaling numbers are the project's own claims ([design](https://slatedb.io/docs/design/compaction/), [roadmap](https://slatedb.io/blog/compaction-roadmap/)). Not a paper.
 
-*Coverage gaps (not searched):* object-storage LSMs (SlateDB, RocksDB-Cloud), Cassandra UCS papers, range-delete handling. *Seen only in search snippets, not cited as verified:* "Rethinking the Compaction Policies in LSM-trees" (SIGMOD'25), AXE (VLDB'25), CaaS-LSM (SIGMOD'24), Mnemosyne (SIGMOD'25), dLSM.
+**Key-value separation**
+11. **Scavenger: Space-Time Trade-offs for KV-Separated LSM-trees** (Zhang et al.), ICDE 2024; arXiv upload Aug 2025 ([2508.13909](https://arxiv.org/abs/2508.13909)). I/O-efficient GC plus space-aware compaction (compensated size); better than BlobDB, Titan, TerarkDB. Extension Scavenger+ in IEEE TC 2025 ([2508.13935](https://arxiv.org/abs/2508.13935)). Venue discrepancy resolved: late arXiv upload of an ICDE 2024 paper (IEEE Xplore record seen via search; dblp not reachable).
+
+**Survey**
+12. **Rethinking LSM-tree based Key-Value Stores: A Survey** (Lv et al.), arXiv Jul 2025, no venue ([2507.09642](https://arxiv.org/abs/2507.09642)). Five years of work on compaction, stalls, and read amplification (100+ papers per search snippet).
+
+*Adjacent, fetched but not compaction-policy:* Mnemosyne (SIGMOD 2025, Bloom-filter memory tuning), dLSM (VLDB Journal 2024, disaggregated memory), LSM-OPD ([2508.11862](https://arxiv.org/abs/2508.11862), scans on compressed data), Nezha ([2603.09122](https://arxiv.org/abs/2603.09122), ICDE 2026, KV separation + Raft).
+
+**Pattern:** compaction is becoming adaptive/learned (CAMAL, EcoTune, ArceKV, AXE), stalls are attacked structurally (DiaLSM), compaction cost by kernel and offload tricks (RESYSTANCE, CaaS-LSM, O³-LSM), and KV-separation co-designs GC with compaction (Scavenger).
+
+*Still unverified (search snippets only, not cited above):* D2Comp and DFlush (DPU offload), multi-threaded compaction pipelining, GPComp/gLSM (GPU), the EDBT 2025 write-amplification benchmark paper. No ZNS-specific compaction paper found.
 
 ---
 
 ## 11b. Open problems
 
-- **No dominant strategy.** [Sarkar et al., VLDB'21](https://arxiv.org/pdf/2202.04522) decompose any compaction strategy into four primitives (trigger, data layout, granularity, data-movement policy), benchmark 10 strategies, and find none wins on every metric.
-- **Granularity done wrong.** [Spooky](https://mail.vldb.org/pvldb/volumes/15/paper/Spooky%3A%20Granulating%20LSM-Tree%20Compactions%20Correctly) argues partial-compaction granularity is often implemented incorrectly.
-- **Tuning under workload shift.** Policy changes require rewriting data, so transition cost is hard and rarely modeled. Work: RL tuners ([2308.07013](https://arxiv.org/pdf/2308.07013)), robust tuning ([2311.10005](https://arxiv.org/pdf/2311.10005)), and the 2024–26 papers above.
-- **Scheduling theory.** No clean optimal result trading tail latency vs write amp vs space; picking is heuristic (bLSM's spring-and-gear scheduler, SILK are partial answers) *(from memory)*.
+- **No dominant strategy.** [Sarkar et al., VLDB'21](https://arxiv.org/abs/2202.04522) decompose any compaction strategy into four primitives (trigger, data layout, granularity, data-movement policy), benchmark 10 strategies, and report 12 observations and 7 takeaways. That no strategy wins every metric is my paraphrase of their findings, not an abstract quote.
+- **Granularity done wrong.** Spooky (Dayan, Weiss, Dashevsky, Pan, Bortnikov, Twitto; PVLDB 15(11) 2022) argues partial-compaction granularity is often implemented incorrectly *(venue/authors from search; abstract not read)*.
+- **Tuning under workload shift.** Policy changes require rewriting data, so transition cost is hard and rarely modeled. Work: Endure/K-LSM ([2311.10005](https://arxiv.org/abs/2311.10005), Huynh, Chaudhari, Terzi, Athanassoulis; first at PVLDB 2022 *(from memory)*), RusKey RL tuner ([2308.07013](https://arxiv.org/abs/2308.07013), SIGMOD 2024 *(search)*), and the 2024–26 papers above.
+- **Scheduling theory.** No clean optimal result trading tail latency vs write amp vs space; picking is heuristic. bLSM's spring-and-gear scheduler (Sears & Ramakrishnan, SIGMOD 2012) and SILK are partial answers.
 - **Deletes/TTL.** Bounded-latency physical deletes remain mostly research (Lethe), not default.
-- **Cloud/object storage.** Request pricing shifts the optimum; offloaded compaction (CaaS-LSM, unverified) is an open design space.
+- **Cloud/object storage.** Request pricing shifts the optimum; SlateDB only ships size-tiered; offloaded compaction (CaaS-LSM, O³-LSM) is an open design space.
 - **KV separation** cuts write amp but moves cost to GC and range scans.
 
 Why hard: any change to the layout is paid for in rewritten data, workloads drift, and foreground/background I/O interact non-linearly.
@@ -372,11 +390,16 @@ Read it: the sim counts the initial flush write (+1) and boundary effects the as
 - SILK ATC'19: https://www.usenix.org/conference/atc19/presentation/balmau
 - Lethe SIGMOD'20: https://arxiv.org/pdf/2006.04777v2
 - Sarkar et al. VLDB'21 (design space): https://arxiv.org/pdf/2202.04522
-- Spooky: https://mail.vldb.org/pvldb/volumes/15/paper/Spooky%3A%20Granulating%20LSM-Tree%20Compactions%20Correctly
-- RL tuning: https://arxiv.org/pdf/2308.07013 · Robust tuning: https://arxiv.org/pdf/2311.10005
+- Spooky: https://mail.vldb.org/pvldb/volumes/15/paper/Spooky%3A%20Granulating%20LSM-Tree%20Compactions%20Correctly (PVLDB 15(11), 2022)
+- RL tuning: https://arxiv.org/abs/2308.07013 · Robust tuning: https://arxiv.org/abs/2311.10005
+- EcoTune: https://people.iiis.tsinghua.edu.cn/~huanchen/publications/ecotune-sigmod25.pdf · AXE: https://www.vldb.org/pvldb/vol18/p5582-huynh.pdf · CaaS-LSM: https://dl.acm.org/doi/10.1145/3654927 · O3-LSM: https://arxiv.org/abs/2603.05439 · Scavenger+: https://arxiv.org/abs/2508.13935
 - CAMAL https://arxiv.org/abs/2409.15130 · Vertiorizon https://arxiv.org/abs/2504.17178 · ArceKV https://arxiv.org/abs/2508.03565 · RESYSTANCE https://arxiv.org/abs/2603.05162 · DiaLSM https://arxiv.org/abs/2609.14370 · Scavenger https://arxiv.org/abs/2508.13909 · Survey https://arxiv.org/abs/2507.09642
 
 **Code / docs**
+- RocksDB Write Stalls: https://github.com/facebook/rocksdb/wiki/Write-Stalls · DeleteRange blog: https://rocksdb.org/blog/2018/11/21/delete-range.html · Pebble range deletions: https://github.com/cockroachdb/pebble/blob/master/docs/range_deletions.md
+- RocksDB `options.h` / `advanced_options.h` / `universal_compaction.h` / `HISTORY.md` (8.4.0): https://github.com/facebook/rocksdb
+- SlateDB compaction: https://slatedb.io/docs/design/compaction/ · https://slatedb.io/blog/compaction-roadmap/
+- Cassandra UCS: https://cassandra.apache.org/doc/5.0/cassandra/managing/operating/compaction/ucs.html · CEP-26: https://cwiki.apache.org/confluence/display/CASSANDRA/CEP-26%3A+Unified+Compaction+Strategy
 - RocksDB Leveled Compaction: https://github.com/facebook/rocksdb/wiki/Leveled-Compaction
 - RocksDB Universal Compaction: https://github.com/facebook/rocksdb/wiki/Universal-Compaction
 - RocksDB tuning guide: https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide
