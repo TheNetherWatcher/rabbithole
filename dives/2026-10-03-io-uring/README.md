@@ -13,6 +13,65 @@ Date: 2026-10-03. Verification tags: **[V]** read in primary source during resea
 - Acquire/release: producer *releases* (publishes) tail after writing entry; consumer *acquires* tail before reading entry. Entry visible iff tail visible.
 - Little's law: in-flight ops = throughput × latency. NVMe needs deep queues to hit rated IOPS.
 
+## 1b. Real-world context (where, how, why)
+
+Tags as above: **[V]** seen in a fetched/searched source during this backfill pass; **[K]** not re-verified.
+
+### What it is
+A Linux kernel interface (since 5.1, 2019) for asynchronous I/O. The app and kernel share two ring buffers in memory: the app drops request descriptors (SQEs) on the submission queue, the kernel posts results (CQEs) on the completion queue, and one `io_uring_enter(2)` call can submit many requests and wait for completions. [V man7 io_uring(7)] Cloudflare's framing: it is "a full-blown runtime for processing I/O requests", with its own worker threads and queues. [V Cloudflare]
+
+### Why it exists
+- Before: Linux aio (O_DIRECT only, copies, >=2 syscalls per I/O) and epoll (readiness only, nothing for regular files), so apps bolted on thread pools. Details in section 3.
+- Storage apps port from libaio easily, but networking "required rethinking": swapping epoll for io_uring notifiers "does not lead to an outcome that fully takes advantage" of it; the win is a changed event-loop design. [V liburing wiki "io_uring and networking in 2023"]
+- Cost of not having it: a user-space thread pool (libuv-style) with context switches even for cached reads, or giving up deep queue depths from one thread.
+
+### Where it's used (verified in this pass)
+| System | Role |
+|---|---|
+| **PostgreSQL 18** | `io_method = io_uring` selects it for the new async I/O subsystem (alternatives `worker` and `sync`); needs a build with `--with-liburing` / `-Dliburing`. Docs list `worker` as default. [V postgresql.org docs] (The PG18 release announcement page, as fetched, says `sync` is the default; docs and announcement disagree, so check your version's docs.) Announcement claims "up to 3x" in some scenarios for AIO overall, not io_uring specifically. [V] |
+| **QEMU** | Block-layer AIO engine since QEMU 5.0, `-drive aio=io_uring` (others: `threads`, `native`); uses READV/WRITEV/FSYNC ops. [V search of QEMU docs/source] |
+| **TigerBeetle** | Single thread alternates `replica.tick()` and `io.run_for_ns()`; every I/O is async, submitted through io_uring on Linux. [V TigerBeetle blog + linux.zig] |
+| **libuv (Node.js)** | v1.45.0 handed some file ops (read/write/fsync/fdatasync/stat family) to io_uring, "8x throughput" in the commit message, falling back to the thread pool. Opt-in via `UV_LOOP_USE_IO_URING_SQPOLL`; from v1.49.0 the default reverted to the thread pool. [V Phoronix, libuv docs via search] |
+| **RocksDB** | Opt-in: `PosixFileSystem` async read via io_uring (`ReadAsync`/`Poll`) used by MultiGet and iterators; if not enabled, `ReadAsync` returns NotSupported. [V RocksDB commit messages via search; the 2022 blog itself does not mention io_uring] |
+| **Glommio (Datadog)** | Rust thread-per-core runtime built on io_uring with no helper threads; needs Linux 5.8+ and >=512 KiB locked memory. [V GitHub/docs.rs via search] |
+| **Cloudflare** | Not a "we run it" claim: they dissected the io-wq worker pool because socket I/O is their core workload, and recommend `IORING_REGISTER_IOWQ_MAX_WORKERS` (5.15) over lowering `RLIMIT_NPROC`. [V Cloudflare blog] |
+| **Counter-adopters** | Google disabled it on ChromeOS and production servers and blocks it for Android apps via seccomp-bpf (2023). [V Phoronix + search of Google post; section 9] |
+
+### How it's used
+Practitioners call **liburing** (the helper library "to setup and teardown io_uring instances" with a simplified interface) rather than raw syscalls; liburing is not tied to a kernel release but features need matching kernels. [V liburing README] Core call sequence: `io_uring_queue_init` -> `io_uring_get_sqe` -> `io_uring_prep_*` -> `io_uring_submit` (or `io_uring_submit_and_wait`) -> `io_uring_wait_cqe` -> `io_uring_cqe_seen`. [V liburing wiki]
+
+Typical parameters: entries = power of two (e.g. 256); recommended networking flags `COOP_TASKRUN` (5.19+) and `SINGLE_ISSUER` + `DEFER_TASKRUN` (6.0/6.1+); `SQPOLL` only if a spare core is acceptable; multishot accept/recv with provided buffers (`IOSQE_BUFFER_SELECT`, watch `IORING_CQE_F_MORE`). [V liburing wiki, io_uring_setup(2)]
+
+```c
+// Illustrative; written for this dive from the verified call sequence, not compiled.
+struct io_uring ring;
+struct io_uring_params p = {0};
+p.flags = IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN;  // kernel >= 6.1
+io_uring_queue_init_params(256, &ring, &p);
+
+struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+io_uring_prep_read(sqe, fd, buf, 4096, 0);   // fd, buffer, len, file offset
+sqe->user_data = 42;                         // echoed back in the CQE
+
+io_uring_submit_and_wait(&ring, 1);          // one syscall: submit + wait for 1 completion
+struct io_uring_cqe *cqe;
+io_uring_wait_cqe(&ring, &cqe);
+// cqe->res = bytes read or -errno; cqe->user_data == 42
+io_uring_cqe_seen(&ring, cqe);
+```
+Usual integration pattern: one ring per thread, batch SQEs per loop iteration, correlate with `user_data`, re-arm multishot requests when `F_MORE` is clear (TigerBeetle's loop above is the canonical shape). Full runnable program: section 13.
+
+### When to use it / when not
+- **Use** when: many small ops can be batched; file and network I/O share one loop; you want deep queue depth from few threads (NVMe); you can redesign the loop and require a recent kernel. Search-level summaries and the liburing wiki agree on this shape. [V]
+- **Skip** (stay on epoll, or libaio for O_DIRECT) when: it is a plain network server and you won't restructure around completions (Alibaba Cloud's epoll comparison reports about 10% at 1000 connections [V via search snippet; not read in full]); you need old-kernel portability; the workload is untrusted/sandboxed (Google's stance, section 9); you want portability (Windows IoRing is a similar but separate API [V windows-internals.com]).
+- Signs you picked wrong: gains of 1.06x-1.10x after a drop-in swap (section 2), `iou-wrk-*` thread pile-ups, or code full of kernel-version fallbacks.
+
+### Who should care
+- **Database/storage engineers**: deep NVMe queues, async buffer managers (PostgreSQL 18, RocksDB, TigerBeetle).
+- **Runtime/library authors** (Node/libuv, Rust async runtimes, Zig): completion-model API and cancellation semantics.
+- **Infra/SRE**: kernel version, `RLIMIT_NPROC`/`pids.max`, QEMU `aio=` choice.
+- **Security/platform engineers**: whether to allow it in containers; syscall-based monitoring is blind to SQE opcodes (section 9).
+
 ## 2. The one-liner — and what it hides
 
 **"io_uring is async I/O via two shared ring buffers, so you skip syscalls."**
@@ -388,5 +447,17 @@ Predict then check:
 - without.boats "io-uring" — https://without.boats/blog/io-uring/
 - RocksDB async IO blog (2022-10-07); TigerBeetle abstraction blog + 2026-06-17 newsletter; libuv #1947; QEMU FOSDEM 2020; Alibaba io_uring vs epoll
 - u1f383 pbuf vulnerabilities — https://u1f383.github.io/linux/2025/03/02/a-series-of-io_uring-pbuf-vulnerabilities.html
+
+**Real-world context (1b) sources**
+- PostgreSQL docs, resource settings (`io_method`) — https://www.postgresql.org/docs/current/runtime-config-resource.html ; PG18 release announcement — https://www.postgresql.org/about/news/postgresql-18-released-3142/
+- liburing README — https://github.com/axboe/liburing ; wiki "io_uring and networking in 2023" — https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023
+- man7 io_uring(7) — https://man7.org/linux/man-pages/man7/io_uring.7.html ; io_uring_setup(2) — https://man7.org/linux/man-pages/man2/io_uring_setup.2.html
+- TigerBeetle, "A Programmer-Friendly I/O Abstraction Over io_uring and kqueue" — https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/ ; linux.zig — https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig
+- Phoronix, libuv io_uring — https://www.phoronix.com/news/libuv-io-uring ; libuv fs docs — https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt
+- QEMU io_uring AIO patch series — https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com
+- RocksDB io_uring async-read commit — https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86 ; RocksDB async IO blog — https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html
+- Glommio — https://github.com/DataDog/glommio
+- Alibaba Cloud, io_uring vs epoll — https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544 (snippet only)
+- Phoronix, Google restricting io_uring — https://www.phoronix.com/news/Google-Restricting-IO_uring
 
 **Unverified / dropped**: Scylla "no big win" claim [K]; 2026-numbered CVEs; BPF-filter merge version; sysctl landing version (6.6) not confirmed from kernel git; Docker default-seccomp claim search-only.

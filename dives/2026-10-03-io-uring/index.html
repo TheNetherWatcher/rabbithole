@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>io_uring: shared rings, zero-syscall I/O, and the security bill</title>
+<meta name="description" content="Rabbithole dive: io_uring SQ/CQ rings, inline-then-punt execution, security fallout. OS/kernels, hard depth, 2026-10-03.">
+<style>
+:root{
+  --bg:#fbfaf7;--surface:#ffffff;--surface2:#f3f1ea;--ink:#1b1c1f;--muted:#5d6068;--line:#dedbd0;
+  --accent:#0b6e75;--accent-soft:#d9eef0;--warn:#a4530a;--warn-soft:#fbe9d3;--bad:#a3262a;--bad-soft:#f9dedf;--good:#1d6b3a;--good-soft:#dcf1e3;
+  --code-bg:#f0eee6;--code-ink:#23252a;--shadow:0 1px 2px rgba(20,20,20,.06),0 4px 14px rgba(20,20,20,.05);
+  --k:#7a3e9d;--s:#0b6e75;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111315;--surface:#181b1e;--surface2:#1f2327;--ink:#e8e6e0;--muted:#a1a5ab;--line:#2d3237;
+  --accent:#5fc4cb;--accent-soft:#16363a;--warn:#f0a65a;--warn-soft:#3a2a15;--bad:#f28a8d;--bad-soft:#3a1c1e;--good:#7fd69a;--good-soft:#172e20;
+  --code-bg:#1b1f23;--code-ink:#dcdad3;--shadow:none;--k:#c79be6;--s:#5fc4cb;
+}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--accent);text-underline-offset:2px}
+code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{background:var(--code-bg);padding:.1em .35em;border-radius:5px;font-size:.88em;overflow-wrap:anywhere}
+pre{background:var(--code-bg);color:var(--code-ink);padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.55;margin:0;border:1px solid var(--line);tab-size:4}
+pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}
+.pre-wrap{position:relative;margin:16px 0}
+.copy{position:absolute;top:8px;right:8px;font:600 12px/1 inherit;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}
+.copy:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 16px}
+.topbar b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .sp{flex:1}
+.progress{position:absolute;left:0;bottom:-1px;height:2px;background:var(--accent);width:0}
+.layout{max-width:1220px;margin:0 auto;padding:0 16px;display:block}
+nav.toc{display:none}
+.toc-m{margin:12px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.toc-m summary{cursor:pointer;font-weight:600}
+.toc-m ol{margin:8px 0 4px;padding-left:20px;font-size:15px}
+.toc-m a{text-decoration:none}
+@media (min-width:1020px){
+  .layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:48px}
+  nav.toc{display:block;position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto;padding:24px 0;font-size:14px}
+  .toc-m{display:none}
+}
+nav.toc h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+nav.toc ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+nav.toc a{display:block;padding:4px 0 4px 12px;margin-left:-2px;border-left:2px solid transparent;color:var(--muted);text-decoration:none;line-height:1.35}
+nav.toc a:hover{color:var(--ink)}
+nav.toc a.on{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+main{min-width:0;padding-bottom:80px}
+.measure{max-width:74ch}
+header.hero{padding:36px 0 8px}
+.card-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent}
+.chip.plain{background:var(--surface2);color:var(--muted);border-color:var(--line)}
+h1{font-size:clamp(28px,5.2vw,44px);line-height:1.12;margin:0 0 16px;letter-spacing:-.02em}
+.tldr{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+.tldr h2{margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:0;padding:0}
+.tldr p{margin:.4em 0}
+.tldr ul{margin:.4em 0 0;padding-left:20px}
+.tag-note{font-size:13.5px;color:var(--muted);margin-top:12px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:22px 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:22px;line-height:1.15;letter-spacing:-.01em;color:var(--accent)}
+.stat span{font-size:12.5px;color:var(--muted);line-height:1.35;display:block;margin-top:4px}
+section{padding-top:18px;margin-top:28px;border-top:1px solid var(--line)}
+section h2{font-size:clamp(22px,3.4vw,28px);line-height:1.2;margin:0 0 10px;letter-spacing:-.01em}
+section h2 .n{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:.35em}
+h3{font-size:18.5px;margin:26px 0 6px}
+h4{font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+p{margin:.65em 0}
+ul,ol{padding-left:22px}
+li{margin:.3em 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:16px 0}
+.sys{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.sys h3{margin:0 0 4px;font-size:16px}
+.sys p{margin:.3em 0;font-size:14.5px;line-height:1.5}
+.sys .tag{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.sys.counter{border-color:var(--bad);background:linear-gradient(var(--bad-soft),var(--bad-soft)) ,var(--surface)}
+.two{display:grid;grid-template-columns:1fr;gap:12px;margin:16px 0}
+@media (min-width:720px){.two{grid-template-columns:1fr 1fr}}
+.use,.skip{border-radius:12px;padding:14px 18px;border:1px solid var(--line)}
+.use{background:var(--good-soft);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+.skip{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.use h3,.skip h3{margin:0 0 6px;font-size:15px;text-transform:uppercase;letter-spacing:.08em}
+.use h3{color:var(--good)}.skip h3{color:var(--bad)}
+.use ul,.skip ul{margin:0;padding-left:20px;font-size:15px}
+.callout{border-radius:10px;padding:12px 16px;margin:16px 0;border:1px solid var(--line);background:var(--surface2);font-size:15.5px}
+.callout>b:first-child{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.callout.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}.callout.warn>b:first-child{color:var(--warn)}
+.callout.myth{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}.callout.myth>b:first-child{color:var(--bad)}
+.callout.tip{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.callout.tip>b:first-child{color:var(--accent)}
+.callout p:last-child,.callout ul:last-child{margin-bottom:0}
+.tblwrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface2);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+.eq{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:14px 0}
+.eq .f{font:600 clamp(15px,3.6vw,19px)/1.5 Georgia,"Times New Roman",serif;font-style:italic;overflow-x:auto;padding:4px 0}
+.eq .f i{font-style:italic}
+.eq .f sub,.eq .f sup{font-size:.7em}
+.eq .plain{margin:6px 0 0;padding-top:8px;border-top:1px dashed var(--line);font-size:15px}
+.eq .plain::before{content:"in plain terms: ";font-weight:700;color:var(--accent)}
+.figure{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin:18px 0;box-shadow:var(--shadow)}
+.figure svg{width:100%;height:auto;display:block}
+.figure figcaption{font-size:13.5px;color:var(--muted);margin-top:6px}
+svg text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:var(--ink)}
+svg .lbl{font-size:12px}svg .sm{font-size:10.5px;fill:var(--muted)}svg .ttl{font-size:12px;font-weight:700;fill:var(--muted);letter-spacing:.06em}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .slot{fill:var(--surface);stroke:var(--line);stroke-width:1.2}
+svg .edge{stroke:var(--muted);stroke-width:1.6;fill:none;opacity:.35}
+svg .dim{opacity:.35;transition:opacity .2s}
+svg .on .box,svg .box.on{stroke:var(--accent);stroke-width:2.4;fill:var(--accent-soft)}
+svg .edge.on{stroke:var(--accent);opacity:1;stroke-width:2.6}
+svg .edge.k.on{stroke:var(--k)}
+svg .hl-fill{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .mk{fill:var(--accent)}svg .mk.kk{fill:var(--k)}
+@media (prefers-reduced-motion:no-preference){svg .edge.on{stroke-dasharray:7 5;animation:dash 1s linear infinite}@keyframes dash{to{stroke-dashoffset:-24}}}
+.stepper{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+.btn{font:600 14px/1 inherit;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
+@media (prefers-color-scheme:dark){.btn{color:#08201f}}
+.btn.ghost{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stepcap{margin-top:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--line);font-size:15px;min-height:4.4em}
+.stepcap code{font-size:.85em}
+.counter-s{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:18px 0;box-shadow:var(--shadow)}
+.widget h3{margin:0 0 4px}
+.widget .row{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0}
+@media (min-width:640px){.widget .row{grid-template-columns:repeat(3,1fr)}}
+.widget label{display:block;font-size:13.5px;color:var(--muted)}
+.widget label b{color:var(--ink);font-variant-numeric:tabular-nums}
+.widget input[type=range]{width:100%;accent-color:var(--accent)}
+.bar{height:16px;border-radius:8px;background:var(--surface2);overflow:hidden;border:1px solid var(--line);display:flex}
+.bar i{display:block;height:100%}
+.bar .a{background:var(--accent)}.bar .b{background:var(--k)}
+.out{font-size:16px;margin-top:8px}.out b{color:var(--accent);font-variant-numeric:tabular-nums}
+.legend{font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 4px 0 10px;vertical-align:-1px}
+.legend .la::before{background:var(--accent)}.legend .lb::before{background:var(--k)}
+.qgroup{margin:22px 0 6px}
+.qgroup h3{margin:0 0 8px}
+details.q{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:0}
+details.q>summary{cursor:pointer;padding:10px 14px;font-weight:600;list-style:none;display:flex;gap:10px}
+details.q>summary::-webkit-details-marker{display:none}
+details.q>summary::before{content:"+";color:var(--accent);font-weight:800;width:1ch;flex:none}
+details.q[open]>summary::before{content:"\2212"}
+details.q .ans{padding:2px 16px 14px 36px;font-size:15.5px;border-top:1px dashed var(--line)}
+.qn{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:500;flex:none}
+.reveal{display:flex;align-items:center;gap:10px;margin:8px 0}
+.src h3{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.src ul{padding-left:20px;font-size:15px}
+.src li{overflow-wrap:anywhere}
+footer{color:var(--muted);font-size:13.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+.v{font-size:.78em;font-weight:700;color:var(--good);background:var(--good-soft);padding:0 .35em;border-radius:4px;white-space:nowrap}
+.kk{font-size:.78em;font-weight:700;color:var(--warn);background:var(--warn-soft);padding:0 .35em;border-radius:4px;white-space:nowrap}
+@media print{.topbar,nav.toc,.toc-m,.copy,.stepper{display:none}details.q .ans{display:block}}
+</style>
+</head>
+<body>
+<div class="topbar" role="banner"><b>io_uring &middot; rabbithole dive</b><span class="sp"></span><span class="chip plain">2026-10-03</span><div class="progress" id="prog"></div></div>
+<div class="layout">
+<nav class="toc" aria-label="Table of contents"><h2>Contents</h2><ol id="toc"></ol></nav>
+<main>
+<details class="toc-m"><summary>Contents</summary><ol id="toc-m"></ol></details>
+
+<header class="hero" id="top">
+  <div class="card-meta"><span class="chip">OS / kernels</span><span class="chip">io_uring (SQ/CQ rings, inline-then-punt execution, security fallout)</span><span class="chip">Depth: hard</span><span class="chip plain">2026-10-03</span></div>
+  <h1>io_uring: shared rings, zero-syscall I/O, and the security bill</h1>
+  <div class="tldr measure">
+    <h2>TL;DR and why it matters</h2>
+    <p>io_uring is a Linux interface where your program and the kernel share two ring buffers (submission and completion), so you can hand the kernel a whole batch of I/O requests with one syscall and read results from memory.</p>
+    <ul>
+      <li>Most ops are tried <em>inline, non-blocking</em> first; async is the fallback, and for buffered file I/O the fallback is a kernel <strong>thread pool</strong>, not hardware async.</li>
+      <li>"No syscalls" only holds with <code>SQPOLL</code> (burns a core); otherwise it is one <code>io_uring_enter</code> per batch.</li>
+      <li>A naive swap gains little (1.06x / 1.10x measured); real gains need batching, registered resources, task-work control and a redesigned architecture.</li>
+      <li>It is a second syscall interface that seccomp cannot see into, which is why Google disabled it on ChromeOS and its production servers.</li>
+    </ul>
+    <p class="tag-note">Verification tags: <span class="v">V</span> read in primary source during research, <span class="kk">K</span> from memory/secondary, unverified. Flagged where it matters.</p>
+  </div>
+  <div class="strip" aria-label="Key numbers">
+    <div class="stat"><b>608K &rarr; 1.7M</b><span>4K random-read IOPS: aio vs io_uring (polling); 1.2M without polling. Authors' own caveat: not apples to apples.</span></div>
+    <div class="stat"><b>104 B</b><span>copied per "zero-copy" Linux aio I/O (64 + 8 submit, 32 completion)</span></div>
+    <div class="stat"><b>1.06x / 1.10x</b><span>naive port: buffer manager / shuffle</span></div>
+    <div class="stat"><b>2.05x</b><span>buffer manager 173K &rarr; 376K tx/s, one thread, after redesign</span></div>
+    <div class="stat"><b>5-6x</b><span>fewer cycles/op at batch &ge; 16</span></div>
+    <div class="stat"><b>~7.3 &micro;s</b><span>io-wq fallback cost per op; SQPOLL wake ~30 &micro;s</span></div>
+    <div class="stat"><b>60%</b><span>of 42 kCTF kernel-exploit submissions hit io_uring (Google, 2023)</span></div>
+    <div class="stat"><b>10M IOPS/core</b><span>per-I/O software overhead microbenchmark, not app throughput</span></div>
+  </div>
+</header>
+
+<!-- 1 -->
+<section id="s1" data-title="Bare-minimum context"><h2><span class="n">1</span>Bare-minimum context</h2>
+<ul class="measure">
+<li>Syscall = user&rarr;kernel mode switch. Cost = entry/exit + mitigations (post-Spectre/Meltdown), not the work itself. [paper &sect;1]</li>
+<li>Readiness vs completion: epoll says "fd <em>can</em> be read"; you still do the <code>read</code>. A completion API says "your read <em>is done</em>, here are the bytes".</li>
+<li>Buffered I/O goes through the page cache; <code>O_DIRECT</code> bypasses it. Linux aio only did true async for <code>O_DIRECT</code>.</li>
+<li>SPSC ring buffer: single-producer/single-consumer queue with <code>head</code> (consumer) and <code>tail</code> (producer) indexes; lock-free with proper memory ordering.</li>
+<li>Acquire/release: producer <em>releases</em> (publishes) tail after writing the entry; consumer <em>acquires</em> tail before reading the entry. Entry visible iff tail visible.</li>
+<li>Little's law: in-flight ops = throughput &times; latency. NVMe needs deep queues to hit rated IOPS.</li>
+</ul></section>
+
+<!-- 1b -->
+<section id="s1b" data-title="Real-world context"><h2><span class="n">1b</span>Real-world context (where, how, why)</h2>
+<p class="measure" style="color:var(--muted);font-size:14.5px">Tags: <span class="v">V</span> seen in a fetched/searched source during the backfill pass; <span class="kk">K</span> not re-verified.</p>
+
+<h3>What it is</h3>
+<p class="measure">A Linux kernel interface (since 5.1, 2019) for asynchronous I/O. The app and kernel share two ring buffers in memory: the app drops request descriptors (SQEs) on the submission queue, the kernel posts results (CQEs) on the completion queue, and one <code>io_uring_enter(2)</code> call can submit many requests and wait for completions. <span class="v">V</span> <a href="https://man7.org/linux/man-pages/man7/io_uring.7.html" target="_blank" rel="noopener">man7 io_uring(7)</a>. Cloudflare's framing: it is "a full-blown runtime for processing I/O requests", with its own worker threads and queues. <span class="v">V</span> Cloudflare</p>
+
+<h3>Why it exists</h3>
+<ul class="measure">
+<li>Before: Linux aio (O_DIRECT only, copies, &ge;2 syscalls per I/O) and epoll (readiness only, nothing for regular files), so apps bolted on thread pools. Details in <a href="#s3">section 3</a>.</li>
+<li>Storage apps port from libaio easily, but networking "required rethinking": swapping epoll for io_uring notifiers "does not lead to an outcome that fully takes advantage" of it; the win is a changed event-loop design. <span class="v">V</span> <a href="https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023" target="_blank" rel="noopener">liburing wiki "io_uring and networking in 2023"</a></li>
+<li>Cost of not having it: a user-space thread pool (libuv-style) with context switches even for cached reads, or giving up deep queue depths from one thread.</li>
+</ul>
+
+<h3>Where it's used</h3>
+<p class="measure">Verified in the backfill pass; each card is one system and the role io_uring plays there.</p>
+<div class="cards">
+ <div class="sys"><span class="tag">Database</span><h3>PostgreSQL 18</h3><p><code>io_method = io_uring</code> selects it for the new async I/O subsystem (alternatives <code>worker</code>, <code>sync</code>); needs a build with <code>--with-liburing</code> / <code>-Dliburing</code>. Docs list <code>worker</code> as default. <span class="v">V</span> <a href="https://www.postgresql.org/docs/current/runtime-config-resource.html" target="_blank" rel="noopener">docs</a></p><p style="color:var(--muted)">The PG18 release announcement page, as fetched, says <code>sync</code> is the default; docs and announcement disagree, so check your version's docs. It claims "up to 3x" in some scenarios for AIO overall, not io_uring specifically. <span class="v">V</span> <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">announcement</a></p></div>
+ <div class="sys"><span class="tag">Virtualization</span><h3>QEMU</h3><p>Block-layer AIO engine since QEMU 5.0, <code>-drive aio=io_uring</code> (others: <code>threads</code>, <code>native</code>); uses READV/WRITEV/FSYNC ops. <span class="v">V</span> <a href="https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com" target="_blank" rel="noopener">patch series</a></p></div>
+ <div class="sys"><span class="tag">Database</span><h3>TigerBeetle</h3><p>Single thread alternates <code>replica.tick()</code> and <code>io.run_for_ns()</code>; every I/O is async, submitted through io_uring on Linux. <span class="v">V</span> <a href="https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/" target="_blank" rel="noopener">blog</a>, <a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig" target="_blank" rel="noopener">linux.zig</a></p></div>
+ <div class="sys"><span class="tag">Runtime</span><h3>libuv (Node.js)</h3><p>v1.45.0 handed some file ops (read/write/fsync/fdatasync/stat family) to io_uring, "8x throughput" in the commit message, falling back to the thread pool. Opt-in via <code>UV_LOOP_USE_IO_URING_SQPOLL</code>; from v1.49.0 the default reverted to the thread pool. <span class="v">V</span> <a href="https://www.phoronix.com/news/libuv-io-uring" target="_blank" rel="noopener">Phoronix</a>, <a href="https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt" target="_blank" rel="noopener">libuv docs</a></p></div>
+ <div class="sys"><span class="tag">Storage engine</span><h3>RocksDB</h3><p>Opt-in: <code>PosixFileSystem</code> async read via io_uring (<code>ReadAsync</code>/<code>Poll</code>) used by MultiGet and iterators; if not enabled, <code>ReadAsync</code> returns NotSupported. <span class="v">V</span> <a href="https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86" target="_blank" rel="noopener">commit</a> (the 2022 <a href="https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html" target="_blank" rel="noopener">blog</a> itself does not mention io_uring)</p></div>
+ <div class="sys"><span class="tag">Async runtime</span><h3>Glommio (Datadog)</h3><p>Rust thread-per-core runtime built on io_uring with no helper threads; needs Linux 5.8+ and &ge;512 KiB locked memory. <span class="v">V</span> <a href="https://github.com/DataDog/glommio" target="_blank" rel="noopener">GitHub</a></p></div>
+ <div class="sys"><span class="tag">Edge / network</span><h3>Cloudflare</h3><p>Not a "we run it" claim: they dissected the io-wq worker pool because socket I/O is their core workload, and recommend <code>IORING_REGISTER_IOWQ_MAX_WORKERS</code> (5.15) over lowering <code>RLIMIT_NPROC</code>. <span class="v">V</span> <a href="https://blog.cloudflare.com/missing-manuals-io_uring-worker-pool/" target="_blank" rel="noopener">blog</a></p></div>
+ <div class="sys counter"><span class="tag">Counter-adopters</span><h3>Google (ChromeOS, servers, Android)</h3><p>Disabled it on ChromeOS and production servers and blocks it for Android apps via seccomp-bpf (2023). <span class="v">V</span> <a href="https://www.phoronix.com/news/Google-Restricting-IO_uring" target="_blank" rel="noopener">Phoronix</a>; see <a href="#s9">section 9</a>.</p></div>
+</div>
+
+<h3>How it's used</h3>
+<p class="measure">Practitioners call <strong>liburing</strong> (the helper library "to setup and teardown io_uring instances" with a simplified interface) rather than raw syscalls; liburing is not tied to a kernel release but features need matching kernels. <span class="v">V</span> <a href="https://github.com/axboe/liburing" target="_blank" rel="noopener">liburing README</a>. Core call sequence: <code>io_uring_queue_init</code> &rarr; <code>io_uring_get_sqe</code> &rarr; <code>io_uring_prep_*</code> &rarr; <code>io_uring_submit</code> (or <code>io_uring_submit_and_wait</code>) &rarr; <code>io_uring_wait_cqe</code> &rarr; <code>io_uring_cqe_seen</code>. <span class="v">V</span> liburing wiki</p>
+<p class="measure">Typical parameters: entries = power of two (e.g. 256); recommended networking flags <code>COOP_TASKRUN</code> (5.19+) and <code>SINGLE_ISSUER</code> + <code>DEFER_TASKRUN</code> (6.0/6.1+); <code>SQPOLL</code> only if a spare core is acceptable; multishot accept/recv with provided buffers (<code>IOSQE_BUFFER_SELECT</code>, watch <code>IORING_CQE_F_MORE</code>). <span class="v">V</span> liburing wiki, <a href="https://man7.org/linux/man-pages/man2/io_uring_setup.2.html" target="_blank" rel="noopener">io_uring_setup(2)</a></p>
+<div class="pre-wrap"><pre><code>// Illustrative; written for this dive from the verified call sequence, not compiled.
+struct io_uring ring;
+struct io_uring_params p = {0};
+p.flags = IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN;  // kernel &gt;= 6.1
+io_uring_queue_init_params(256, &amp;ring, &amp;p);
+
+struct io_uring_sqe *sqe = io_uring_get_sqe(&amp;ring);
+io_uring_prep_read(sqe, fd, buf, 4096, 0);   // fd, buffer, len, file offset
+sqe-&gt;user_data = 42;                         // echoed back in the CQE
+
+io_uring_submit_and_wait(&amp;ring, 1);          // one syscall: submit + wait for 1 completion
+struct io_uring_cqe *cqe;
+io_uring_wait_cqe(&amp;ring, &amp;cqe);
+// cqe-&gt;res = bytes read or -errno; cqe-&gt;user_data == 42
+io_uring_cqe_seen(&amp;ring, cqe);</code></pre></div>
+<p class="measure">Usual integration pattern: one ring per thread, batch SQEs per loop iteration, correlate with <code>user_data</code>, re-arm multishot requests when <code>F_MORE</code> is clear (TigerBeetle's loop above is the canonical shape). Full runnable program: <a href="#s13">section 13</a>.</p>
+
+<h3>When to use it / when not</h3>
+<div class="two">
+<div class="use"><h3>Use it</h3><ul>
+<li>Many small ops can be batched.</li><li>File and network I/O share one loop.</li><li>You want deep queue depth from few threads (NVMe).</li><li>You can redesign the loop and require a recent kernel.</li></ul><p style="font-size:13.5px;color:var(--muted);margin:8px 0 0">Search-level summaries and the liburing wiki agree on this shape. <span class="v">V</span></p></div>
+<div class="skip"><h3>Skip it</h3><ul>
+<li>Plain network server and you won't restructure around completions: stay on epoll (Alibaba Cloud's comparison reports about 10% at 1000 connections <span class="v">V</span> <a href="https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544" target="_blank" rel="noopener">snippet only, not read in full</a>), or libaio for O_DIRECT.</li>
+<li>You need old-kernel portability.</li>
+<li>Workload is untrusted/sandboxed (Google's stance, <a href="#s9">section 9</a>).</li>
+<li>You want cross-OS portability (Windows IoRing is a similar but separate API <span class="v">V</span> <a href="https://windows-internals.com/ioring-vs-io_uring-a-comparison-of-windows-and-linux-implementations/" target="_blank" rel="noopener">windows-internals.com</a>).</li></ul></div>
+</div>
+<div class="callout warn"><b>Signs you picked wrong</b>Gains of 1.06x-1.10x after a drop-in swap (<a href="#s2">section 2</a>), <code>iou-wrk-*</code> thread pile-ups, or code full of kernel-version fallbacks.</div>
+
+<h3>Who should care</h3>
+<ul class="measure">
+<li><strong>Database/storage engineers</strong>: deep NVMe queues, async buffer managers (PostgreSQL 18, RocksDB, TigerBeetle).</li>
+<li><strong>Runtime/library authors</strong> (Node/libuv, Rust async runtimes, Zig): completion-model API and cancellation semantics.</li>
+<li><strong>Infra/SRE</strong>: kernel version, <code>RLIMIT_NPROC</code>/<code>pids.max</code>, QEMU <code>aio=</code> choice.</li>
+<li><strong>Security/platform engineers</strong>: whether to allow it in containers; syscall-based monitoring is blind to SQE opcodes (<a href="#s9">section 9</a>).</li>
+</ul>
+</section>
+
+<!-- 2 -->
+<section id="s2" data-title="The one-liner"><h2><span class="n">2</span>The one-liner, and what it hides</h2>
+<p class="measure" style="font-size:19px"><strong>"io_uring is async I/O via two shared ring buffers, so you skip syscalls."</strong></p>
+<p>Hides:</p>
+<ol class="measure">
+<li>Most ops are <strong>not</strong> async: the kernel first tries the op <em>inline, non-blocking</em> in submit context. Async is the fallback, and for buffered file I/O the fallback is a <strong>thread pool</strong> (<code>io-wq</code>), not hardware async.</li>
+<li>"No syscalls" is only true with <code>SQPOLL</code> (burns a core); otherwise one <code>io_uring_enter</code> per <em>batch</em>. Win = amortization.</li>
+<li>Naive port gains about nothing (measured: 1.06x buffer mgr, 1.10x shuffle). Gains come from batching + registered resources + task-work control + redesigned architecture.</li>
+<li>It is a <strong>second syscall interface</strong>: ops live in SQEs, invisible to seccomp/syscall audit. Google disabled it on ChromeOS/prod.</li>
+<li>Zero-copy isn't free: ownership of buffers/cancellation is the hard part; ZC send loses to memcpy for small payloads <span class="kk">K</span>.</li>
+</ol></section>
+
+<!-- 3 -->
+<section id="s3" data-title="The problem"><h2><span class="n">3</span>The problem</h2>
+<p>Before: Linux aio (<code>io_submit</code>/<code>io_getevents</code>).</p>
+<ul class="measure">
+<li>Async only for O_DIRECT; buffered "behaves in a synchronous manner". <span class="v">V</span> paper &sect;1</li>
+<li>Submit can still block (metadata fetch, device request slots exhausted) &rarr; apps still ran thread pools.</li>
+<li>Copies: 64 B (iocb) + 8 B pointer on submit, 32 B (io_event) on completion &rarr; <strong>104 B copied for "zero-copy" I/O</strong>. <span class="v">V</span></li>
+<li>Completion ring exposed but "hard (impossible?) to use correctly". <span class="v">V</span></li>
+<li>&ge;2 syscalls per I/O (submit + getevents): "post spectre/meltdown ... a serious slowdown". <span class="v">V</span></li>
+<li>Devices &lt;10 &micro;s latency, millions of IOPS: slow non-deterministic submit, bad single-core scaling.</li>
+<li>epoll: readiness only; regular files always "ready" &rarr; no file I/O help; pair with thread pool. Thread pool for buffered I/O = &ge;2 context switches even on page-cache hit. <span class="v">V</span> paper &sect;9.2</li>
+</ul>
+<p class="measure">Axboe tried extending aio (2010 and again) &rarr; more entry points, worse API &rarr; started fresh. Goals: easy to use/hard to misuse, extensible, efficient, scalable; "no memory copies for either submissions or completion events, and no memory indirections" <span class="v">V</span> &sect;3-4. Merged 5.1 (Jan 2019 merge, May 2019 release).</p>
+<p class="measure">Headline numbers from paper &sect;9: 4K random reads &mdash; aio 608K IOPS, io_uring 1.2M (no polling), 1.7M (polling). Authors' own caveat: "these values don't carry a lot of absolute meaning" (unfair: aio has no polling).</p>
+</section>
+
+<!-- 4 -->
+<section id="s4" data-title="Mental model"><h2><span class="n">4</span>Mental model</h2>
+<div class="callout tip measure"><b>Restaurant order window</b>Kitchen (kernel) and diner (app) share two conveyor belts: orders in (SQ), plates out (CQ). The diner stacks 32 order slips then rings the bell <em>once</em>. The cook grabs whatever's quick (inline), parks slow orders on a side-queue (poll waitlist) or hands them to a prep crew (io-wq).</div>
+<p>Breaks where:</p>
+<ul class="measure">
+<li>The belt carries <em>indexes</em> to slips, not slips (SQ array indirection).</li>
+<li>The cook may <em>not</em> be asynchronous at all: simple orders finish while you're ringing the bell; the CQE is already there on return.</li>
+<li>The prep crew = real kernel threads in your process (since 5.12), counted against <code>RLIMIT_NPROC</code>.</li>
+<li>Once the cook has <em>read</em> a slip, you may reuse the slot, but the kernel may still be using your <strong>buffers</strong>.</li>
+</ul></section>
+
+<!-- 5 -->
+<section id="s5" data-title="Mechanism, traced"><h2><span class="n">5</span>The mechanism, traced</h2>
+<h3>5.1 Memory layout</h3>
+<div class="pre-wrap"><pre><code>mmap(fd, IORING_OFF_SQ_RING   = 0x0)         SQ ring: head tail ring_mask ring_entries flags dropped array[]
+mmap(fd, IORING_OFF_CQ_RING   = 0x8000000)   CQ ring: head tail ring_mask ring_entries overflow cqes[]   (single mmap w/ SQ since 5.4)
+mmap(fd, IORING_OFF_SQES      = 0x10000000)  sqes[ entries ] each 64 B</code></pre></div>
+<p>(<code>IORING_OFF_PBUF_RING = 0x80000000</code>, 5.19.) Offsets inside rings come from <code>io_uring_params.sq_off / cq_off</code> returned by <code>io_uring_setup</code>.</p>
+<p>SQE (64 B) <span class="v">V</span> field order; offsets reconstructed:</p>
+<div class="pre-wrap"><pre><code> 0 opcode u8 | 1 flags u8 | 2 ioprio u16 | 4 fd s32
+ 8 off/addr2 u64 | 16 addr u64 | 24 len u32 | 28 op-flags u32
+32 user_data u64   &lt;- echoed in CQE, your correlation id
+40 buf_index/buf_group u16 | 42 personality u16 | 44 splice_fd_in/file_index u32
+48 addr3 u64 + pad   (SQE128, 5.19: 128 B for NVMe passthrough cmd)</code></pre></div>
+<p>CQE (16 B): <code>user_data u64 | res s32 (bytes or -errno) | flags u32</code> (F_BUFFER, F_MORE, F_NOTIF; CQE32 = 32 B).</p>
+
+<figure class="figure"><svg viewBox="0 0 760 200" role="img" aria-labelledby="ind-t"><title id="ind-t">SQ ring array indexes into the SQE table; the CQ ring holds CQEs directly</title>
+<defs><marker id="ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>
+<text class="ttl" x="10" y="18">SQ RING  array[]  (indexes)</text>
+<g id="indA"></g>
+<text class="ttl" x="10" y="108">sqes[]  (64 B each, can live anywhere in this table)</text>
+<g id="indS"></g>
+<text class="ttl" x="10" y="150">CQ RING  cqes[]  (16 B each, indexed directly: no indirection)</text>
+<g id="indC"></g>
+</svg><figcaption>The kernel does <code>head = READ_ONCE(sq_array[cached_sq_head++ &amp; mask]); sqe = &amp;sq_sqes[head]</code> (with <code>array_index_nospec</code>). This lets apps embed SQEs in their own structures and submit non-contiguously. <code>IORING_SETUP_NO_SQARRAY</code> (6.6) drops it.</figcaption></figure>
+<p class="measure">SQ ring holds <strong>indexes into <code>array[]</code></strong>, which index <code>sqes[]</code>: kernel does <code>head = READ_ONCE(sq_array[cached_sq_head++ &amp; mask]); sqe = &amp;sq_sqes[head]</code> (with <code>array_index_nospec</code>). CQ indexes <code>cqes[]</code> directly. Indirection lets apps embed SQEs in own structures and submit non-contiguously. <code>IORING_SETUP_NO_SQARRAY</code> (6.6) drops it.</p>
+<p>CQ defaults to 2&times; SQ entries (<code>CQSIZE</code> overrides); sizes &rarr; power of 2.</p>
+
+<h3>5.2 One <code>read(fd, buf, 4096)</code> end to end</h3>
+<p class="measure">Step through the trace below (a socket read with no data yet, then the buffered-file variant). The ring pointers move as the app and kernel hand off.</p>
+
+<figure class="figure" id="trace">
+<svg viewBox="0 0 760 385" role="img" aria-labelledby="tr-t"><title id="tr-t">Step-through: SQE published, io_uring_enter, inline attempt, poll or io-wq, task_work, CQE posted, CQE reaped</title>
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker>
+</defs>
+<!-- app -->
+<g data-s="1 7"><rect class="box" x="8" y="96" width="132" height="168" rx="12"/><text class="ttl" x="20" y="118">USERSPACE APP</text>
+<text class="lbl" x="20" y="144">fill sqes[i]</text><text class="lbl" x="20" y="162">store_release</text><text class="lbl" x="20" y="180">(sq.tail)</text>
+<text class="lbl" x="20" y="212">acquire(cq.tail)</text><text class="lbl" x="20" y="230">use cqe.res</text><text class="lbl" x="20" y="248">store_release(cq.head)</text></g>
+<!-- SQ ring -->
+<text class="ttl" x="190" y="22">SQ RING (app produces)</text>
+<g id="sqslots"></g>
+<g id="sqHead"><polygon class="mk kk" points="0,0 -7,10 7,10"/><text class="sm" x="-10" y="9" text-anchor="end">head</text></g>
+<g id="sqTail"><polygon class="mk" points="0,0 -7,10 7,10"/><text class="sm" x="10" y="9">tail</text></g>
+<!-- kernel -->
+<g data-s="2 3 4"><rect class="box" x="190" y="112" width="320" height="136" rx="12"/><text class="ttl" x="204" y="134">KERNEL  io_uring_enter</text>
+<text class="lbl" x="204" y="158">io_submit_sqes (uring_lock)</text><text class="lbl" x="204" y="178">io_queue_sqe: NONBLOCK|COMPLETE_DEFER</text><text class="lbl" x="204" y="198">io_issue_sqe() inline, submitter ctx</text>
+<text class="sm" x="204" y="228" id="ktext">-</text></g>
+<!-- right side -->
+<g data-s="4 5"><rect class="box" x="560" y="96" width="192" height="64" rx="10"/><text class="ttl" x="572" y="118">POLL WAITLIST</text><text class="sm" x="572" y="138">socket/pipe: waitqueue</text><text class="sm" x="572" y="152">APOLL_OK, no thread</text></g>
+<g data-s="4 5" id="iowq"><rect class="box" x="560" y="200" width="192" height="64" rx="10"/><text class="ttl" x="572" y="222">IO-WQ  iou-wrk-*</text><text class="sm" x="572" y="242">buffered file: worker</text><text class="sm" x="572" y="256">APOLL_ABORTED</text></g>
+<!-- CQ ring -->
+<text class="ttl" x="190" y="300">CQ RING (kernel produces)</text>
+<g id="cqslots"></g>
+<g id="cqHead"><polygon class="mk kk" points="0,0 -7,10 7,10"/><text class="sm" x="-10" y="9" text-anchor="end">head</text></g>
+<g id="cqTail"><polygon class="mk" points="0,0 -7,10 7,10"/><text class="sm" x="10" y="9">tail</text></g>
+<!-- edges -->
+<path class="edge" data-s="1" d="M140 130 L190 52" marker-end="url(#ah)"/>
+<path class="edge" data-s="2" d="M140 180 L190 180" marker-end="url(#ah)"/>
+<path class="edge" data-s="2" d="M350 112 L350 80" marker-end="url(#ah)"/>
+<path class="edge k" data-s="4" d="M510 136 L560 128" marker-end="url(#ah)"/>
+<path class="edge k" data-s="4" d="M510 224 L560 232" marker-end="url(#ah)"/>
+<path class="edge k" data-s="5" d="M560 146 L510 158 M560 218 L510 206" marker-end="url(#ah)"/>
+<path class="edge" data-s="6" d="M350 248 L350 300" marker-end="url(#ah)"/>
+<path class="edge" data-s="7" d="M190 326 L110 264" marker-end="url(#ah)"/>
+</svg>
+<div class="stepper"><button class="btn ghost" id="tback" type="button">Back</button><button class="btn" id="tnext" type="button">Next</button><button class="btn ghost" id="treset" type="button">Reset</button><span class="counter-s" id="tcount">Step 1 / 7</span>
+<label style="font-size:14px;margin-left:auto"><input type="checkbox" id="tfile"> buffered-file variant (io-wq)</label></div>
+<div class="stepcap" id="tcap" role="status" aria-live="polite"></div>
+</figure>
+
+<div class="pre-wrap"><pre><code>app:   sqe = &amp;sqes[tail &amp; mask];  fill(opcode=READ, fd, addr=buf, len=4096, user_data=0xA1)
+       array[tail &amp; mask] = tail &amp; mask
+       store_release(sq.tail, tail+1)            # publish
+       io_uring_enter(fd, to_submit=1, min_complete=1, GETEVENTS)   # 1 syscall for N sqes
+
+kernel io_uring_enter -&gt; io_submit_sqes (uring_lock)
+   per SQE: io_alloc_req -&gt; io_get_sqe -&gt; io_submit_sqe -&gt; io_init_req
+   non-linked -&gt; io_queue_sqe:
+        issue_flags = NONBLOCK | COMPLETE_DEFER
+        io_issue_sqe()  ----- inline attempt in *submitter's context* ----&gt;
+             page-cache hit / O_DIRECT w/ NOWAIT / socket w/ data  =&gt; completes, CQE posted
+        ret == -EAGAIN ?
+          io_queue_async -&gt; copy SQE (slot about to be reused) -&gt; io_arm_poll_handler
+             APOLL_OK      pollable fd (socket/pipe): sleep on file waitqueue, no thread
+             APOLL_READY   became ready meanwhile: queue as task_work, retry
+             APOLL_ABORTED not pollable (regular file buffered, etc.): io_queue_iowq -&gt; io_wq_enqueue
+                              worker thread runs io_issue_sqe(UNLOCKED|IOWQ) *blocking*
+app:   acquire(cq.tail) != cq.head ?  cqe = cqes[head &amp; mask]; use(cqe.res, cqe.user_data)
+       store_release(cq.head, head+1)</code></pre></div>
+<p>Key facts <span class="v">V</span> from source:</p>
+<ul class="measure">
+<li>Non-blocking ops complete <strong>inside the submit call</strong>; the CQE is already in the ring on return (paper &sect;9.2).</li>
+<li><code>IOSQE_ASYNC</code> skips the inline attempt &rarr; straight to io-wq.</li>
+<li>Completions from poll/io-wq come back via <strong>task_work</strong> on the submitting task. Plain <code>TWA_SIGNAL</code> = IPI that interrupts userspace.</li>
+<li><code>__io_submit_flush_completions</code> batches CQE posting.</li>
+</ul>
+<div class="callout myth measure"><b>Reality check</b>"Async" for buffered file I/O = a kernel thread pool doing blocking syscalls (<code>iou-wrk-*</code> threads), like libuv's pool, just in-kernel and cheaper. Real async: O_DIRECT/NVMe with NOWAIT, sockets/pipes via poll.</div>
+
+<h3>5.3 io-wq details <span class="v">V</span></h3>
+<ul class="measure">
+<li>Two pools: <strong>bound</strong> (regular files/bdev; sized from SQ ring) and <strong>unbound</strong> (sockets, char devs; max = <code>RLIMIT_NPROC</code>).</li>
+<li>Per-task, per-NUMA pools; workers are threads of the submitting task (5.12 <code>NATIVE_WORKERS</code>), idle timeout 5 s.</li>
+<li>Hashed work serializes buffered writes to the same inode.</li>
+<li>Control: <code>IORING_REGISTER_IOWQ_MAX_WORKERS</code> (5.15). Hitting <code>RLIMIT_NPROC</code>/cgroup <code>pids.max</code> &rarr; the ring may burn CPU retrying thread creation (Cloudflare "missing manuals").</li>
+</ul>
+
+<h3>5.4 SQPOLL</h3>
+<p>A per-ring kernel thread polls the SQ tail. Zero syscalls while awake.</p>
+<div class="pre-wrap"><pre><code>thread idle &gt; sq_thread_idle (default 1 s):
+   atomic_or(sq.flags, NEED_WAKEUP); smp_mb__after_atomic(); recheck sq entries; sleep
+app after tail store:
+   full barrier;  if (load(sq.flags) &amp; NEED_WAKEUP) io_uring_enter(SQ_WAKEUP)</code></pre></div>
+<p class="measure">The full barrier pairs with the thread's post-flag barrier: a classic Dekker-style store&rarr;load race. Without it the app sees no flag while the thread sees no entry &rarr; lost wakeup. Unprivileged since 5.13. Costs a core; Jasny et al. measure ~30 &micro;s wake latency from sleep.</p>
+
+<h3>5.5 Flags that decide perf</h3>
+<div class="tblwrap"><table><thead><tr><th>Flag</th><th>Ver</th><th>What</th></tr></thead><tbody>
+<tr><td><code>COOP_TASKRUN</code></td><td>5.19</td><td>no IPI; task_work runs at next kernel entry</td></tr>
+<tr><td><code>SINGLE_ISSUER</code></td><td>6.0</td><td>one task submits &rarr; drop locks/atomics</td></tr>
+<tr><td><code>DEFER_TASKRUN</code></td><td>6.1</td><td>task_work runs <em>only</em> inside <code>io_uring_enter(GETEVENTS)</code> on <code>ctx-&gt;work_llist</code>; needs SINGLE_ISSUER; gotcha: never call GETEVENTS &rarr; nothing completes</td></tr>
+<tr><td>multishot accept/recv</td><td>5.19/6.0</td><td>1 SQE &rarr; many CQEs; <code>CQE_F_MORE</code> clear &rArr; must re-arm</td></tr>
+<tr><td>provided buffer rings</td><td>5.19</td><td>kernel picks buffer at data arrival; no buffer pinned per idle conn</td></tr>
+<tr><td><code>SEND_ZC</code></td><td>6.0</td><td>2 CQEs: result (F_MORE) then <code>F_NOTIF</code> = buffer reusable; <code>NOTIF_USAGE_ZC_COPIED</code> = kernel fell back to copy</td></tr>
+<tr><td>fixed files/buffers</td><td>5.1</td><td>skip per-op fdget/refcount atomics and per-op page pin (pinned, memlock-charged, &le;1 GiB/buf)</td></tr>
+<tr><td><code>IOSQE_IO_LINK</code></td><td>5.3</td><td>next SQE starts after prev success; error &rarr; rest <code>-ECANCELED</code>; HARDLINK doesn't sever</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- 6 -->
+<section id="s6" data-title="The math"><h2><span class="n">6</span>The math</h2>
+<h3>Amortization</h3>
+<p class="measure">Let <i>c<sub>s</sub></i> = enter syscall cost, <i>c<sub>o</sub></i> = per-op in-kernel work, <i>B</i> = ops per enter.</p>
+<div class="eq"><div class="f">cost/op = c<sub>s</sub> / B + c<sub>o</sub></div><p class="plain">batching divides the fixed cost. Jasny et al. measure 5-6&times; fewer cycles/op at B &ge; 16 <span class="v">V</span> arXiv 2512.04859. The limit B&rarr;&infin; gives c<sub>o</sub>: you can't beat it, which is why SQPOLL/polling matter only when c<sub>s</sub>/B is still visible.</p></div>
+
+<div class="widget" id="w-amort"><h3>Try it: batch size vs per-op cost</h3>
+<p class="legend" style="margin:0">Illustrative inputs you control, not measurements.</p>
+<div class="row">
+<label>c<sub>s</sub> syscall cost: <b id="wa-cs-v">1000</b> ns<input id="wa-cs" type="range" min="100" max="5000" step="50" value="1000"></label>
+<label>c<sub>o</sub> per-op kernel work: <b id="wa-co-v">500</b> ns<input id="wa-co" type="range" min="50" max="5000" step="50" value="500"></label>
+<label>B ops per enter: <b id="wa-b-v">16</b><input id="wa-b" type="range" min="0" max="8" step="1" value="4"></label></div>
+<div class="bar" aria-hidden="true"><i class="a" id="wa-bar-a"></i><i class="b" id="wa-bar-b"></i></div>
+<div class="legend"><span class="la">c<sub>s</sub>/B (amortized syscall)</span><span class="lb">c<sub>o</sub> (real work, the floor)</span></div>
+<p class="out">cost/op = <b id="wa-out">-</b> ns &middot; syscall share = <b id="wa-share">-</b> &middot; vs B=1: <b id="wa-x">-</b> cheaper</p></div>
+
+<h3>Little's law for queue depth</h3>
+<div class="eq"><div class="f">IOPS = QD / latency</div><p class="plain">100 &micro;s NVMe read, 1M IOPS &rArr; QD = 100. Sync I/O has QD=1 per thread &rArr; 10K IOPS/thread. Jasny's synchronous POSIX baseline 16.5K tx/s vs 376K tx/s with io_uring (buffer manager, 1 thread) is mostly <em>QD</em>, not syscall cost. Batching isn't the only win; <strong>concurrency in one thread</strong> is.</p></div>
+
+<div class="widget" id="w-little"><h3>Try it: queue depth and IOPS</h3>
+<p class="legend" style="margin:0">Illustrative: set latency and queue depth; read the ceiling.</p>
+<div class="row">
+<label>latency: <b id="wl-lat-v">100</b> &micro;s<input id="wl-lat" type="range" min="10" max="1000" step="10" value="100"></label>
+<label>queue depth QD: <b id="wl-qd-v">1</b><input id="wl-qd" type="range" min="0" max="9" step="1" value="0"></label>
+<label>threads: <b id="wl-th-v">1</b><input id="wl-th" type="range" min="1" max="16" step="1" value="1"></label></div>
+<p class="out">IOPS ceiling = <b id="wl-out">-</b> &middot; QD needed for 1M IOPS = <b id="wl-need">-</b></p></div>
+
+<h3>Ring index arithmetic</h3>
+<p class="measure"><code>head</code>, <code>tail</code> are free-running u32. <code>used = tail &minus; head</code> (mod 2<sup>32</sup>), <code>free = N &minus; used</code>, slot = <code>idx &amp; (N&minus;1)</code> (N power of 2).</p>
+<div class="eq"><div class="f">used = (tail &minus; head) mod 2<sup>32</sup>; free = N &minus; used; slot = idx &amp; (N&minus;1)</div><p class="plain">Why free-running instead of wrapping at N: full vs empty are distinguishable (<code>used==N</code> vs <code>0</code>) with no spare slot or flag; all N slots are usable. Correct across u32 overflow because of modular subtraction.</p></div>
+
+<h3>Memory-ordering contract (SQ)</h3>
+<p class="measure">App: write SQE; <code>store_release(tail)</code>. Kernel: <code>load_acquire(tail)</code>; read SQE. The release&rarr;acquire edge &rArr; SQE writes happen-before kernel reads. The kernel consumes with <code>smp_store_release(sq.head)</code> (seen in <code>io_commit_sqring</code> <span class="v">V</span>); the app <code>load_acquire(head)</code> before reusing a slot. CQ mirrored. Without release on tail, the CPU/compiler could expose tail before the entry bytes &rArr; the kernel reads a garbage SQE. (CQ-side acquire/release pairings are inferred from paper + liburing, not read from source.)</p>
+
+<h3>CQ overflow bound</h3>
+<p class="measure">Pending requests can exceed SQ size (SQE consumed &rArr; slot reusable, request still in flight). In-flight <code>P &le; SQ_entries + inflight_async</code>; CQ = 2&times;SQ by default doesn't bound P. Hence <code>NODROP</code> (5.5): overflow CQEs are held in a kernel list, flushed on next <code>enter(GETEVENTS)</code>; a purely userspace CQ poller can stall forever.</p>
+</section>
+
+<!-- 7 -->
+<section id="s7" data-title="Why it works"><h2><span class="n">7</span>Why it works</h2>
+<p class="measure" style="font-size:18px">Core insight: <strong>turn syscall into data.</strong> A syscall = control transfer + argument marshalling. Move marshalling to shared memory (SQE), make control transfer batched or removable (SQPOLL), and make completion a memory read (CQE).</p>
+<p>Ablate each piece:</p>
+<ul class="measure">
+<li>Remove shared rings &rarr; back to aio's copies/&ge;2 syscalls.</li>
+<li>Remove inline-first attempt &rarr; every op pays a context switch to a worker even on page-cache hit (the thread-pool problem).</li>
+<li>Remove poll-arm path &rarr; sockets need a worker thread per blocked op (thousands of threads) or you are back to epoll+read.</li>
+<li>Remove io-wq fallback &rarr; buffered file I/O blocks <code>io_uring_enter</code> (submit stalls for disk), breaking the "submit never blocks" promise.</li>
+<li>Remove registration &rarr; per-op atomic refcount + page pin; Jasny: registered buffers are part of the 2&times; gain.</li>
+<li>Remove DEFER_TASKRUN &rarr; IPIs interrupt the app mid-batch, break batching, add jitter.</li>
+<li>Remove the <code>user_data</code> indirection &rarr; can't match out-of-order completions.</li>
+</ul></section>
+
+<!-- 8 -->
+<section id="s8" data-title="Design knobs & alternatives"><h2><span class="n">8</span>Design knobs &amp; alternatives</h2>
+<p class="measure"><strong>Knobs:</strong> SQ depth; CQ size; batch size B; SQPOLL (core vs latency); IOPOLL (poll NVMe CQ; needs O_DIRECT; reaps via GETEVENTS or SQPOLL thread); COOP vs DEFER_TASKRUN; registered files/bufs; <code>IOWQ_MAX_WORKERS</code>; passthrough; multishot + buffer rings.</p>
+<p><strong>Alternatives:</strong></p>
+<ul class="measure">
+<li><strong>epoll + threads</strong>: simple, portable; no file I/O. Network gain of io_uring over tuned epoll &asymp; ~10% @1000 conns (Alibaba blog), single-digit&ndash;20% typical <span class="kk">K</span>, big only with ZC/large batches.</li>
+<li><strong>libaio</strong>: O_DIRECT only; competitive for tuned Seastar/Scylla (Scylla engineers reported no big win <span class="kk">K, unverified</span>).</li>
+<li><strong>SPDK</strong>: userspace NVMe polling; "io_uring within ~10% of SPDK but ~2&times; the cores" (SYSTOR 2022, outside the 2y window) <span class="v">V</span> via agent.</li>
+<li><strong>Windows IoRing</strong>: "almost identical" design, far fewer opcodes. <strong>IOCP</strong>: completion-based but a syscall per submit. <strong>kqueue</strong> (BSD/macOS): readiness only. TigerBeetle/Qt wrap them behind one API.</li>
+</ul></section>
+
+<!-- 9 -->
+<section id="s9" data-title="Where it breaks"><h2><span class="n">9</span>Where it breaks</h2>
+<h3>Security (the big one)</h3>
+<ul class="measure">
+<li>Google kCTF/VRP post (14 Jun 2023): "60% of the submissions exploited the io_uring component" (of 42 Linux kernel exploit submissions), "~1 million USD for io_uring alone". Disabled on ChromeOS, production servers; Android seccomp-blocks it for apps. Stance: safe only for trusted components. <span class="v">V</span></li>
+<li>Bug classes = object-lifetime between ring-owned resources and user-visible mappings/fds, plus new opcodes reusing old fields:
+<ul>
+<li><strong>CVE-2021-41073</strong>: <code>PROVIDE_BUFFERS</code> puts a kernel <code>io_buffer*</code> in <code>req-&gt;rw.addr</code>; <code>loop_rw_iter</code> treats it as a user ptr; later <code>io_put_kbuf</code> frees attacker-adjacent memory (type confusion). 5.10&ndash;5.14.6.</li>
+<li><strong>CVE-2022-2602</strong>: race between registered files in flight and <strong>unix-socket GC</strong> &rarr; UAF.</li>
+<li><strong>CVE-2023-2598</strong>: OOB physical-page access in fixed-buffer registration (folio/compound page coalescing), 6.3-rc1&rarr;6.4-rc1, full LPE.</li>
+<li><strong>CVE-2024-0582</strong>: pbuf ring register &rarr; mmap &rarr; unregister leaves a mapping to freed pages. (NVD says "memory leak"; mechanism from write-ups, confirm.)</li>
+</ul></li>
+<li><strong>Monitoring blind spot</strong>: seccomp sees only <code>io_uring_setup/enter/register</code>, never the SQE opcodes. ARMO "Curing" rootkit PoC (2025) ran C2 + file ops via io_uring; Falco blind, Tetragon default policies miss, MS Defender didn't detect <span class="v">V</span> ARMO. Ops run from io-wq/task_work context also dodge <code>sys_enter_*</code> tracing.</li>
+<li>Mitigations: <code>kernel.io_uring_disabled</code> sysctl (0 allow / 1 only <code>io_uring_group</code> or CAP_SYS_ADMIN, existing rings keep working / 2 <code>-EPERM</code> for all; 6.6 <span class="kk">K</span>); Docker default seccomp blocks it; containerd 2.0 removed from RuntimeDefault <span class="kk">search-only</span>.</li>
+</ul>
+
+<div class="callout warn measure"><b>Gotcha: seccomp sees three syscalls, not the ops</b>Everything an SQE does (<code>OPENAT</code>, <code>READ</code>, <code>SEND</code>, <code>CONNECT</code>) happens behind <code>io_uring_enter</code>. A syscall-keyed audit or EDR policy never sees it.</div>
+
+<h3>Correctness / perf pitfalls</h3>
+<ul class="measure">
+<li>Completions are unordered. <code>fsync</code> can complete <em>before</em> the write is issued unless linked (man page quote). <code>IOSQE_IO_DRAIN</code> = full barrier, expensive.</li>
+<li>Cancel: <code>ASYNC_CANCEL</code> yields 2 CQEs, order unspecified; in-flight disk I/O "typically cannot be canceled" (stray DMA risk). Tokio's drop-cancels-future model collides: a dropped future &ne; a stopped kernel write into your buffer &rarr; owned-buffer APIs (without.boats).</li>
+<li>io-wq thread explosion vs <code>RLIMIT_NPROC</code>/<code>pids.max</code>.</li>
+<li>Multishot: the ring of provided buffers runs dry &rArr; <code>-ENOBUFS</code>, multishot terminates <span class="kk">K</span>; absent <code>F_MORE</code> &rArr; re-arm.</li>
+<li>SEND_ZC: pin + extra notif CQE costs more than memcpy for small sends (~&lt;10 KB) <span class="kk">K</span>.</li>
+<li>io-wq/SQPOLL threads are real tasks &rArr; coredump/ptrace/freezer regressions <span class="kk">search-only</span>.</li>
+<li>Kernel-version fragmentation: 5.19&rarr;6.0&rarr;6.1&rarr;6.6&rarr;6.15&hellip; portable code needs fallbacks; nginx cited regressions + tuning cost, never merged.</li>
+</ul>
+<div class="callout myth measure"><b>Misconception</b>"io_uring = faster epoll." Jasny et al.: swapping interfaces naively &rarr; 1.06&times; / 1.10&times;.</div>
+</section>
+
+<!-- 10 -->
+<section id="s10" data-title="In the wild"><h2><span class="n">10</span>In the wild</h2>
+<div class="cards">
+<div class="sys"><h3>RocksDB</h3><p>io_uring on read paths only (MultiGet, iterator prefetch), thread-local rings, SINGLE_ISSUER|DEFER_TASKRUN; ~24% over pread on raw disk (blog summary). Not writes/compaction.</p></div>
+<div class="sys"><h3>TigerBeetle</h3><p>Single thread alternating <code>tick()</code> and <code>io.run_for_ns()</code>; all I/O via io_uring (kqueue/IOCP behind abstraction); a mid-2026 newsletter reports +8% from re-entering the kernel after each completion callback to pipeline IO and CPU (secondary).</p></div>
+<div class="sys"><h3>Seastar / Scylla</h3><p>io_uring reactor backend exists; long-default linux-aio+epoll <span class="kk">K</span>.</p></div>
+<div class="sys"><h3>libuv / Node</h3><p>io_uring for file ops only; network stays epoll; ref issue #1947 (+38% seq read, tighter variance in thread); later restricted for security <span class="kk">K</span>.</p></div>
+<div class="sys"><h3>QEMU</h3><p>1.2M (no poll) / 1.7M (poll) 4K IOPS vs Linux AIO cliff ~608K (FOSDEM 2020); 2025 series makes io_uring the event loop (<code>aio_add_sqe</code>).</p></div>
+<div class="sys"><h3>PostgreSQL 18</h3><p><code>io_method=io_uring</code> (default <code>worker</code>) <span class="kk">K</span>; guidelines from the Jasny paper &rarr; +14%.</p></div>
+<div class="sys"><h3>Glommio / tokio-uring / nginx</h3><p>Glommio (thread-per-core, io_uring-native), tokio-uring (stale since 0.5.0, May 2024), nginx (not merged).</p></div>
+<div class="sys"><h3>10M IOPS/core</h3><p>Axboe, Ryzen 5950X, 2&times; Optane P5800X, 512B polled random reads, fixed files/bufs: a per-IO software overhead microbenchmark, not app throughput. <span class="v">V</span> Phoronix</p></div>
+</div></section>
+
+<!-- 11 -->
+<section id="s11" data-title="Frontier"><h2><span class="n">11</span>Frontier</h2>
+<ol class="measure">
+<li><strong>High-Performance DBMSs with io_uring: When and How to Use It</strong> &mdash; Jasny, El-Hindi, Ziegler, Leis, Binnig. PVLDB 19(9):2317&ndash;2330 (2026), <a href="https://arxiv.org/abs/2512.04859" target="_blank" rel="noopener">arXiv 2512.04859</a>. <span class="v">V</span> numbers from PDF. Setup: EPYC 9654P, 8&times; PCIe5 Kioxia CM7-R, ConnectX-7 400G, Linux 6.15.
+<ul>
+<li>Problem: naive io_uring swap &rArr; 1.06&times; (buffer mgr), 1.10&times; (network shuffle).</li>
+<li>Method: add one feature at a time &mdash; batching, fibers, DEFER_TASKRUN (avoids IPI preemption), registered buffers, NVMe passthrough, IOPoll, SQPoll.</li>
+<li>Buffer manager: 173K &rarr; 376K tx/s (2.05&times;) one thread; +1 core for SQPoll &rarr; 546.5K. Sync POSIX: 16.5K. Shuffle: 12.0 &rarr; 30.5 GiB/s (2.31&times;).</li>
+<li>Costs: io-wq fallback &asymp; 7.3 &micro;s/op; SQPoll wake &asymp; 30 &micro;s; needs app redesign. Applying to Postgres: +14%.</li></ul></li>
+<li><strong>Zero-copy receive (zcrx)</strong> &mdash; Begunkov &amp; Wei, merged Linux 6.15 (2025); DMA-BUF follow-up targeted 6.16, large buffers later (Phoronix-reported). <a href="https://docs.kernel.org/networking/iou-zcrx.html" target="_blank" rel="noopener">docs.kernel.org/networking/iou-zcrx.html</a>
+<ul>
+<li>Problem: kernel&rarr;user copy caps TCP RX at 100&ndash;400G.</li>
+<li>Mechanism: page_pool hands user-registered memory to the NIC RX queue; HW header/data split; flow steering to that queue; completion CQEs + refill ring returns buffers. Demo: one core saturates 200G.</li>
+<li>Limits: needs NIC header/data split, flow steering, queue config; app owns buffer lifetime.</li></ul></li>
+<li><strong>BPF-controlled io_uring</strong> &mdash; Begunkov struct_ops series (v1&ndash;v10, Jan&ndash;Feb 2026), LWN reports Axboe applied 17 Mar 2026 for the 7.1 merge window; competing <code>IORING_OP_BPF</code> (Ming Lei) pending. LWN 1062286, 1044989; merge status secondhand.
+<ul><li>A BPF program replaces the enter loop: <code>bpf_io_uring_submit_sqes()</code>, <code>bpf_io_uring_get_region()</code>, returns <code>IOU_LOOP_CONTINUE/STOP</code>. Goal: fewer syscalls, custom completion logic. No benchmarks seen.</li></ul></li>
+<li><strong>Task-level restrictions + cBPF filter</strong> &mdash; <code>IORING_REGISTER_RESTRICTIONS_TASK</code>, <code>IORING_REGISTER_BPF_FILTER</code> (Jan 2026, v5 at LWN 1054225; <strong>merge version unconfirmed</strong>). cBPF so it works unprivileged in containers; per-opcode, cannot inspect args like seccomp, defaults allow.</li>
+<li><strong>"Asynchronous I/O &mdash; With Great Power Comes Great Responsibility"</strong> &mdash; Pestka, Paradies, Pohl, <a href="https://arxiv.org/abs/2411.16254" target="_blank" rel="noopener">arXiv 2411.16254</a> (Nov 2024): API complexity limits DBMS adoption.</li>
+<li><strong>Upstreaming a flexible and efficient I/O path in Linux (I/O Passthru)</strong> &mdash; Joshi et al., <a href="https://www.usenix.org/system/files/fast24-joshi.pdf" target="_blank" rel="noopener">FAST 2024</a>: <code>IORING_OP_URING_CMD</code> + NVMe char dev <code>/dev/ngXnY</code> + SQE128; 16&ndash;40% higher IOPS than the block path (fio); in SPDK, xNVMe, fio, liburing.</li>
+<li><strong>xNVMe for DBMS I/O</strong> &mdash; Houlborg, CIDR 2026 (title/URL only, not read). <a href="https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf" target="_blank" rel="noopener">https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf</a></li>
+<li><strong>ARMO "Curing"</strong> &mdash; Apr 2025 PoC; Sysdig detection write-up.</li>
+<li>Audit hooks: <code>security_uring_cmd</code> LSM (5.19); Dec 2024 patch for an <code>io_uring_setup</code> LSM hook (Microsoft; merge unconfirmed).</li>
+<li>Dropped: 2026-numbered CVEs (zcrx races, "PinTheft") &mdash; only vendor-snippet sourced, unverified against NVD.</li>
+</ol>
+<p class="measure"><em>Gap: no 2024&ndash;26 formal cross-OS benchmark paper found.</em></p>
+</section>
+
+<!-- 11b -->
+<section id="s11b" data-title="Open problems"><h2><span class="n">11b</span>Open problems</h2>
+<ol class="measure">
+<li><strong>Sandboxing.</strong> Disable-for-untrusted is the current answer. seccomp can't see opcodes; attack surface grows per opcode/registration type (zcrx, uring_cmd). The task-restriction/cBPF filter is the live attempt; coarse (no arg inspection). Hard because opcodes carry pointers/flags nested in shared memory the filter can't TOCTOU-safely inspect. [reasoning mine]</li>
+<li><strong>Cancellation of in-flight block I/O.</strong> Needs hardware-side cancel to avoid stray DMA into reused pages. Axboe on LKML: file/bdev I/O can't be cancelled.</li>
+<li><strong>Truly async buffered I/O.</strong> Page-cache miss alloc, block allocation, journalling, fsync still punt to io-wq; needs NOWAIT through every FS path. Async-buffered-read patches (2020: preadv 1m13s vs io_uring 12.0 s/82% CPU vs patched 9.3 s/52% CPU) fixed reads only partially.</li>
+<li><strong>Resource accounting.</strong> io-wq per-task&times;NUMA pools vs <code>RLIMIT_NPROC</code>/<code>pids.max</code>; no clean per-ring CPU accounting.</li>
+<li><strong>Security observability.</strong> EDR keyed on syscalls is blind; LSM/KRSI hooks proposed, not default.</li>
+<li><strong>API complexity vs adoption.</strong> Pestka et al.; Jasny et al. say gains need redesign. Open: can a higher-level library give 80% of the win without redesign? (tokio-uring's stall suggests cancellation semantics are the blocker.)</li>
+<li><strong>Cross-OS standard.</strong> Windows IoRing is similar but narrower; BSDs/macOS have no completion API.</li>
+</ol></section>
+
+<!-- 12 -->
+<section id="s12" data-title="Lineage"><h2><span class="n">12</span>Lineage</h2>
+<p class="measure">POSIX aio / glibc thread-emulated aio &rarr; Linux aio (2002, O_DIRECT) &rarr; Windows IOCP (1990s, completion model) &rarr; <strong>io_uring 5.1 (2019)</strong> &rarr; fixed resources, multishot, buffer rings (5.19&ndash;6.0) &rarr; DEFER_TASKRUN/SINGLE_ISSUER (6.0&ndash;6.1) &rarr; NVMe passthrough (5.19&ndash;6.0) &rarr; zcrx (6.15, 2025) &rarr; BPF-in-ring (7.1 target, 2026). Peers: Windows IoRing (Win11), SPDK.</p>
+<p class="measure">Key papers: Axboe "Efficient IO with io_uring" (2019, v0.4); Joshi FAST'24; Jasny VLDB'26.</p></section>
+
+<!-- 13 -->
+<section id="s13" data-title="Hands-on"><h2><span class="n">13</span>Hands-on (&le;30 min)</h2>
+<p class="measure">See the syscall count collapse and the inline/punt split. Needs Linux &ge;5.19, <code>liburing-dev</code>, <code>strace</code>.</p>
+<div class="pre-wrap"><pre><code>// cc -O2 t.c -luring -o t
+#include &lt;liburing.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#define N 4096
+int main(int argc, char **argv) {
+    int sqpoll = argc &gt; 2 &amp;&amp; !strcmp(argv[2], "sqpoll");
+    int fd = open(argv[1], O_RDONLY /* | O_DIRECT for true async */);
+    struct io_uring r; struct io_uring_params p = {0};
+    if (sqpoll) { p.flags = IORING_SETUP_SQPOLL; p.sq_thread_idle = 2000; }
+    io_uring_queue_init_params(256, &amp;r, &amp;p);
+    static char buf[N][4096];
+    for (int round = 0; round &lt; 100; round++) {
+        for (int i = 0; i &lt; 64; i++) {
+            struct io_uring_sqe *s = io_uring_get_sqe(&amp;r);
+            io_uring_prep_read(s, fd, buf[i], 4096, (__u64)i * 4096);
+            s-&gt;user_data = i;
+        }
+        io_uring_submit(&amp;r);              // 1 enter per 64 reads (0 w/ SQPOLL awake)
+        for (int i = 0; i &lt; 64; i++) {
+            struct io_uring_cqe *c;
+            io_uring_wait_cqe(&amp;r, &amp;c);
+            io_uring_cqe_seen(&amp;r, c);
+        }
+    }
+    printf("done\n");
+}</code></pre></div>
+<p>Run:</p>
+<div class="pre-wrap"><pre><code>dd if=/dev/urandom of=f bs=1M count=64; strace -f -c -e trace=io_uring_enter,pread64 ./t f   # vs: ... ./t f sqpoll</code></pre></div>
+<p>Predict then check:</p>
+<ol class="measure">
+<li>Enter count &asymp; 100&ndash;200 (not 6400). Why not exactly 100? (<code>wait_cqe</code> enters when CQ is empty.)</li>
+<li>With a page-cache-warm file: most CQEs are already present on return from submit &rArr; <code>wait_cqe</code> doesn't enter (inline completion).</li>
+<li>Drop caches (<code>echo 3 &gt; /proc/sys/vm/drop_caches</code>), rerun, <code>ps -L</code> / <code>top -H</code> during the run: see <code>iou-wrk-*</code> threads &rArr; buffered punt to io-wq.</li>
+<li>Switch <code>open</code> to O_DIRECT (aligned buffers needed: use <code>posix_memalign</code>) &rarr; threads vanish on NVMe.</li>
+<li><code>sqpoll</code>: strace shows ~0 enters; <code>top -H</code> shows an <code>iou-sqp-*</code> thread at 100% CPU.</li>
+</ol></section>
+
+<!-- 14 -->
+<section id="s14" data-title="Question ladder"><h2><span class="n">14</span>Question ladder</h2>
+<div class="reveal"><button class="btn ghost" id="revall" type="button" aria-pressed="false">Reveal all answers</button><span class="counter-s" id="revcount">24 questions</span></div>
+<div id="ladder"></div>
+</section>
+
+<!-- 15 -->
+<section id="s15" data-title="Go deeper next"><h2><span class="n">15</span>Go deeper next</h2>
+<ol class="measure">
+<li><strong>NVMe queue pairs, doorbells, and SPDK polling</strong> &mdash; what io_uring passthrough sits on top of.</li>
+<li><strong>TCP zero-copy: MSG_ZEROCOPY, page_pool, header/data split, flow steering</strong> &mdash; the hardware side of zcrx.</li>
+<li><strong>Kernel object lifetime &amp; Linux LPE exploitation (kCTF, cross-cache attacks)</strong> &mdash; why ring-owned resources keep producing UAFs.</li>
+</ol></section>
+
+<!-- sources -->
+<section id="sources" data-title="Sources" class="src"><h2>Sources</h2>
+<h3>Papers / specs</h3><ul>
+<li>Axboe, Efficient IO with io_uring (v0.4, 2019) &mdash; <a href="https://web.archive.org/web/2024/https://kernel.dk/io_uring.pdf" target="_blank" rel="noopener">https://web.archive.org/web/2024/https://kernel.dk/io_uring.pdf</a> (origin kernel.dk cert fails)</li>
+<li>Jasny et al., PVLDB 19(9) 2026 &mdash; <a href="https://arxiv.org/abs/2512.04859" target="_blank" rel="noopener">https://arxiv.org/abs/2512.04859</a> (code github.com/mjasny/vldb26-iouring)</li>
+<li>Pestka, Paradies, Pohl &mdash; <a href="https://arxiv.org/abs/2411.16254" target="_blank" rel="noopener">https://arxiv.org/abs/2411.16254</a></li>
+<li>Joshi et al., FAST'24 &mdash; <a href="https://www.usenix.org/system/files/fast24-joshi.pdf" target="_blank" rel="noopener">https://www.usenix.org/system/files/fast24-joshi.pdf</a></li>
+<li>Houlborg, CIDR 2026 &mdash; <a href="https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf" target="_blank" rel="noopener">https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf</a> (not read)</li>
+<li>SYSTOR 2022 storage APIs &mdash; <a href="https://atlarge-research.com/pdfs/2022-systor-apis.pdf" target="_blank" rel="noopener">https://atlarge-research.com/pdfs/2022-systor-apis.pdf</a></li></ul>
+<h3>Code / docs</h3><ul>
+<li>UAPI header, io_uring/{io_uring,sqpoll,io-wq,poll}.c &mdash; <a href="https://github.com/torvalds/linux" target="_blank" rel="noopener">https://github.com/torvalds/linux</a> (master)</li>
+<li>liburing man pages, wiki "io_uring and networking in 2023" &mdash; <a href="https://github.com/axboe/liburing" target="_blank" rel="noopener">https://github.com/axboe/liburing</a></li>
+<li>man7 io_uring_enter(2), io_uring_setup(2), io_uring_cancelation(7)</li>
+<li>zcrx docs &mdash; <a href="https://docs.kernel.org/networking/iou-zcrx.html" target="_blank" rel="noopener">https://docs.kernel.org/networking/iou-zcrx.html</a></li>
+<li>sysctl &mdash; <a href="https://docs.kernel.org/admin-guide/sysctl/kernel.html" target="_blank" rel="noopener">https://docs.kernel.org/admin-guide/sysctl/kernel.html</a></li>
+<li>Windows IoRing comparison &mdash; <a href="https://windows-internals.com/ioring-vs-io_uring-a-comparison-of-windows-and-linux-implementations/" target="_blank" rel="noopener">https://windows-internals.com/ioring-vs-io_uring-a-comparison-of-windows-and-linux-implementations/</a></li></ul>
+<h3>Articles</h3><ul>
+<li>Google Security Blog, kCTF VRP learnings (2023-06-14) &mdash; <a href="https://security.googleblog.com/2023/06/learnings-from-kctf-vrps-42-linux.html" target="_blank" rel="noopener">https://security.googleblog.com/2023/06/learnings-from-kctf-vrps-42-linux.html</a></li>
+<li>Phoronix: Google restricting io_uring; 6.6 sysctl; 6.15 io_uring; 10M IOPS</li>
+<li>Cloudflare, io_uring worker pool &mdash; <a href="https://blog.cloudflare.com/missing-manuals-io_uring-worker-pool/" target="_blank" rel="noopener">https://blog.cloudflare.com/missing-manuals-io_uring-worker-pool/</a></li>
+<li>ARMO Curing &mdash; <a href="https://www.armosec.io/blog/io_uring-rootkit-bypasses-linux-security/" target="_blank" rel="noopener">https://www.armosec.io/blog/io_uring-rootkit-bypasses-linux-security/</a>; Sysdig detection write-up</li>
+<li>StarLabs CVE-2021-41073 &mdash; <a href="https://starlabs.sg/blog/2022/06-io_uring-new-code-new-bugs-and-a-new-exploit-technique" target="_blank" rel="noopener">https://starlabs.sg/blog/2022/06-io_uring-new-code-new-bugs-and-a-new-exploit-technique</a></li>
+<li>oss-security CVE-2022-2602, CVE-2023-2598 (openwall 2022/10/18/4, 2023/05/08/3)</li>
+<li>LWN: 776703, 810414, 879724, 906470, 1044989, 1054225, 1062286, 821274</li>
+<li>without.boats "io-uring" &mdash; <a href="https://without.boats/blog/io-uring/" target="_blank" rel="noopener">https://without.boats/blog/io-uring/</a></li>
+<li>RocksDB async IO blog (2022-10-07); TigerBeetle abstraction blog + 2026-06-17 newsletter; libuv #1947; QEMU FOSDEM 2020; Alibaba io_uring vs epoll</li>
+<li>u1f383 pbuf vulnerabilities &mdash; <a href="https://u1f383.github.io/linux/2025/03/02/a-series-of-io_uring-pbuf-vulnerabilities.html" target="_blank" rel="noopener">https://u1f383.github.io/linux/2025/03/02/a-series-of-io_uring-pbuf-vulnerabilities.html</a></li></ul>
+<h3>Real-world context (1b) sources</h3><ul>
+<li>PostgreSQL docs, resource settings (<code>io_method</code>) &mdash; <a href="https://www.postgresql.org/docs/current/runtime-config-resource.html" target="_blank" rel="noopener">https://www.postgresql.org/docs/current/runtime-config-resource.html</a>; PG18 release announcement &mdash; <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">https://www.postgresql.org/about/news/postgresql-18-released-3142/</a></li>
+<li>liburing README &mdash; <a href="https://github.com/axboe/liburing" target="_blank" rel="noopener">https://github.com/axboe/liburing</a>; wiki "io_uring and networking in 2023" &mdash; <a href="https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023" target="_blank" rel="noopener">https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023</a></li>
+<li>man7 io_uring(7) &mdash; <a href="https://man7.org/linux/man-pages/man7/io_uring.7.html" target="_blank" rel="noopener">https://man7.org/linux/man-pages/man7/io_uring.7.html</a>; io_uring_setup(2) &mdash; <a href="https://man7.org/linux/man-pages/man2/io_uring_setup.2.html" target="_blank" rel="noopener">https://man7.org/linux/man-pages/man2/io_uring_setup.2.html</a></li>
+<li>TigerBeetle, "A Programmer-Friendly I/O Abstraction Over io_uring and kqueue" &mdash; <a href="https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/" target="_blank" rel="noopener">https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/</a>; linux.zig &mdash; <a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig" target="_blank" rel="noopener">https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig</a></li>
+<li>Phoronix, libuv io_uring &mdash; <a href="https://www.phoronix.com/news/libuv-io-uring" target="_blank" rel="noopener">https://www.phoronix.com/news/libuv-io-uring</a>; libuv fs docs &mdash; <a href="https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt" target="_blank" rel="noopener">https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt</a></li>
+<li>QEMU io_uring AIO patch series &mdash; <a href="https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com" target="_blank" rel="noopener">https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com</a></li>
+<li>RocksDB io_uring async-read commit &mdash; <a href="https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86" target="_blank" rel="noopener">https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86</a>; RocksDB async IO blog &mdash; <a href="https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html" target="_blank" rel="noopener">https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html</a></li>
+<li>Glommio &mdash; <a href="https://github.com/DataDog/glommio" target="_blank" rel="noopener">https://github.com/DataDog/glommio</a></li>
+<li>Alibaba Cloud, io_uring vs epoll &mdash; <a href="https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544" target="_blank" rel="noopener">https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544</a> (snippet only)</li>
+<li>Phoronix, Google restricting io_uring &mdash; <a href="https://www.phoronix.com/news/Google-Restricting-IO_uring" target="_blank" rel="noopener">https://www.phoronix.com/news/Google-Restricting-IO_uring</a></li></ul>
+<h3>Unverified / dropped</h3><ul><li>Scylla "no big win" claim <span class="kk">K</span>; 2026-numbered CVEs; BPF-filter merge version; sysctl landing version (6.6) not confirmed from kernel git; Docker default-seccomp claim search-only.</li></ul>
+</section>
+<footer>Generated from <code>README.md</code> in this folder. Self-contained, works offline.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s,r){return (r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS="http://www.w3.org/2000/svg";
+function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+
+/* TOC + scroll-spy */
+var secs=$$("main section[data-title]"),toc=$("#toc"),tocm=$("#toc-m");
+secs.forEach(function(s){
+  [toc,tocm].forEach(function(ol){var li=document.createElement("li"),a=document.createElement("a");a.href="#"+s.id;var n=s.querySelector(".n");a.textContent=(n?n.textContent+"  ":"")+s.dataset.title;a.dataset.t=s.id;li.appendChild(a);ol.appendChild(li)});
+});
+var links=$$("nav.toc a");
+function spy(){
+  var y=window.scrollY+110,cur=secs[0];
+  secs.forEach(function(s){if(s.offsetTop<=y)cur=s});
+  links.forEach(function(a){var on=a.dataset.t===cur.id;a.classList.toggle("on",on);if(on)a.setAttribute("aria-current","true");else a.removeAttribute("aria-current")});
+  var h=document.documentElement,p=h.scrollTop/(h.scrollHeight-h.clientHeight||1);$("#prog").style.width=(p*100)+"%";
+}
+window.addEventListener("scroll",spy,{passive:true});window.addEventListener("resize",spy);spy();
+$$(".toc-m a").forEach(function(a){a.addEventListener("click",function(){$(".toc-m").open=false})});
+
+/* copy buttons */
+$$(".pre-wrap").forEach(function(w){
+  var b=document.createElement("button");b.type="button";b.className="copy";b.textContent="Copy";b.setAttribute("aria-label","Copy code");
+  b.addEventListener("click",function(){
+    var t=w.querySelector("code").innerText,done=function(){b.textContent="Copied";setTimeout(function(){b.textContent="Copy"},1400)};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){fb(t);done()})}else{fb(t);done()}
+  });w.appendChild(b);
+});
+function fb(t){var ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}document.body.removeChild(ta)}
+
+/* indirection figure */
+(function(){
+  var A=$("#indA"),S=$("#indS"),C=$("#indC"),i;
+  var map=[5,2,7,0,3,6];
+  for(i=0;i<6;i++){var x=10+i*52;el("rect",{class:"slot",x:x,y:26,width:46,height:30,rx:4},A);var t=el("text",{class:"lbl",x:x+23,y:46,"text-anchor":"middle"},A);t.textContent=map[i]}
+  for(i=0;i<8;i++){var x2=10+i*52;var r=el("rect",{class:"slot"+"",x:x2,y:116,width:46,height:30,rx:4},S);if(map.indexOf(i)>=0)r.setAttribute("style","fill:var(--accent-soft);stroke:var(--accent)");var t2=el("text",{class:"lbl",x:x2+23,y:136,"text-anchor":"middle"},S);t2.textContent="sqe"+i}
+  map.forEach(function(m,k){el("path",{d:"M"+(33+k*52)+" 56 L"+(33+m*52)+" 116",stroke:"var(--accent)","stroke-width":1.5,fill:"none","marker-end":"url(#ah0)",opacity:.8},A)});
+  for(i=0;i<6;i++){var x3=10+i*52;el("rect",{class:"slot",x:x3,y:158,width:46,height:30,rx:4,style:"fill:var(--surface2)"},C);var t3=el("text",{class:"lbl",x:x3+23,y:178,"text-anchor":"middle"},C);t3.textContent="cqe"+i}
+})();
+
+/* trace stepper */
+(function(){
+  var SQ=8,sx=190,sw=40,sy=34,cy=310;
+  var sqg=$("#sqslots"),cqg=$("#cqslots"),i;
+  for(i=0;i<SQ;i++){el("rect",{class:"slot",x:sx+i*sw,y:sy,width:sw-4,height:30,rx:4},sqg);var t=el("text",{class:"sm",x:sx+i*sw+(sw-4)/2,y:sy+19,"text-anchor":"middle"},sqg);t.textContent=i}
+  var sqe0=el("rect",{x:sx+4,y:sy+4,width:sw-12,height:22,rx:3,class:"hl-fill",id:"sqe0",style:"opacity:0"},sqg);
+  for(i=0;i<SQ;i++){el("rect",{class:"slot",x:sx+i*sw,y:cy,width:sw-4,height:30,rx:4},cqg);var t2=el("text",{class:"sm",x:sx+i*sw+(sw-4)/2,y:cy+19,"text-anchor":"middle"},cqg);t2.textContent=i}
+  var cqe0=el("rect",{x:sx+4,y:cy+4,width:sw-12,height:22,rx:3,class:"hl-fill",style:"opacity:0"},cqg);
+  var sqH=$("#sqHead"),sqT=$("#sqTail"),cqH=$("#cqHead"),cqT=$("#cqTail");
+  function place(g,idx,y){g.setAttribute("transform","translate("+(sx+idx*sw+(sw-4)/2)+","+y+")")}
+  var steps=[
+   {sock:true,t:0,h:0,ct:0,ch:0,k:"waiting",cap:"The app fills <code>sqes[0]</code> (READ, fd, buf, len=4096, <code>user_data=0xA1</code>), writes <code>array[0]=0</code>, then <code>store_release(sq.tail, 1)</code>. Release ordering guarantees the kernel can't see the new tail before the SQE bytes. No syscall yet."},
+   {t:1,h:0,ct:0,ch:0,k:"io_uring_enter",cap:"<code>io_uring_enter(fd, to_submit=1, min_complete=1, GETEVENTS)</code>: the one syscall for the batch. The kernel takes <code>uring_lock</code>, reads <code>array[head]</code>, copies nothing yet, and walks <code>io_submit_sqes</code>."},
+   {t:1,h:1,ct:0,ch:0,k:"io_issue_sqe NONBLOCK",cap:"<code>io_queue_sqe</code> sets <code>issue_flags = NONBLOCK|COMPLETE_DEFER</code> and calls <code>io_issue_sqe()</code> inline in the submitter's context. The kernel advances <code>sq.head</code> (<code>smp_store_release</code>); the slot is reusable. A page-cache hit or a socket with data would finish right here with the CQE already posted."},
+   {t:1,h:1,ct:0,ch:0,k:"-EAGAIN: queue_async",cap:"Here it returns <code>-EAGAIN</code> (no data yet). <code>io_queue_async</code> <strong>copies the SQE</strong> (the slot is about to be reused) and calls <code>io_arm_poll_handler</code>. <span class=\"poll\">Socket: <code>APOLL_OK</code>, the request sleeps on the file's waitqueue, no thread.</span><span class=\"file\"> Buffered file: <code>APOLL_ABORTED</code>, so <code>io_queue_iowq</code> hands it to an <code>iou-wrk-*</code> worker that runs it blocking.</span>",branch:true,hot:true},
+   {t:1,h:1,ct:0,ch:0,k:"task_work",cap:"<span class=\"poll\">Data arrives, the waitqueue wakes, <code>io_poll_task_func</code> runs as <strong>task_work</strong> on the submitting task, rechecks with <code>vfs_poll</code>, reissues the read.</span><span class=\"file\"> The worker finishes its blocking read and completes via task_work back on the submitting task.</span> With DEFER_TASKRUN this runs only inside <code>io_uring_enter(GETEVENTS)</code>; plain <code>TWA_SIGNAL</code> would IPI userspace.",branch:true,hot:true},
+   {t:1,h:1,ct:1,ch:0,k:"CQE posted",cap:"The kernel writes <code>cqes[0] = {user_data=0xA1, res=4096, flags}</code> and <code>store_release(cq.tail, 1)</code>. <code>__io_submit_flush_completions</code> batches this for many requests."},
+   {t:1,h:1,ct:1,ch:1,k:"reaped",cap:"The app does <code>acquire(cq.tail) != cq.head</code>, reads <code>cqes[0]</code> (<code>res=4096</code>, <code>user_data=0xA1</code> tells it which request), then <code>store_release(cq.head, 1)</code>. Done: one syscall total for the batch."}
+  ];
+  var sI=0,all=$$("#trace [data-s]"),cap=$("#tcap"),cnt=$("#tcount"),file=$("#tfile"),kt=$("#ktext");
+  function render(){
+    var s=steps[sI],n=sI+1,isFile=file.checked;
+    all.forEach(function(e){
+      var on=e.getAttribute("data-s").split(" ").indexOf(String(n))>=0;
+      if(e.id==="iowq"&&n>=4&&n<=5)on=isFile;
+      if(e.tagName==="g"&&e.querySelector(".ttl")&&e.querySelector(".ttl").textContent==="POLL WAITLIST"&&n>=4&&n<=5)on=!isFile;
+      e.classList.toggle("on",on);
+    });
+    $$("#trace path.edge").forEach(function(p){
+      var on=p.getAttribute("data-s").split(" ").indexOf(String(n))>=0;
+      if(n===4){var d=p.getAttribute("d");if(d.indexOf("560 128")>0)on=!isFile;if(d.indexOf("560 232")>0)on=isFile}
+      p.classList.toggle("on",on);
+    });
+        sqT.setAttribute("transform","translate("+(sx+s.t*sw+(sw-4)/2)+","+(sy+34)+")");
+    sqH.setAttribute("transform","translate("+(sx+s.h*sw+(sw-4)/2)+","+(sy+34)+")");
+    cqT.setAttribute("transform","translate("+(sx+s.ct*sw+(sw-4)/2)+","+(cy+34)+")");
+    cqH.setAttribute("transform","translate("+(sx+s.ch*sw+(sw-4)/2)+","+(cy+34)+")");
+    sqe0.style.opacity=(s.t>s.h||n===2||n===3)?1:(s.t>0&&s.h>0?0.35:0);
+    cqe0.style.opacity=(s.ct>s.ch)?1:(s.ct>0?0.35:0);
+    kt.textContent=n>=2&&n<=5?"state: "+s.k:"";
+    cap.innerHTML=s.cap;
+    $$(".poll",cap).forEach(function(x){x.style.display=isFile?"none":"inline"});
+    $$(".file",cap).forEach(function(x){x.style.display=isFile?"inline":"none"});
+    cnt.textContent="Step "+n+" / "+steps.length;
+    $("#tback").disabled=sI===0;$("#tnext").disabled=sI===steps.length-1;
+  }
+  $("#tnext").addEventListener("click",function(){if(sI<steps.length-1){sI++;render()}});
+  $("#tback").addEventListener("click",function(){if(sI>0){sI--;render()}});
+  $("#treset").addEventListener("click",function(){sI=0;render()});
+  file.addEventListener("change",render);
+  $("#trace").addEventListener("keydown",function(e){if(e.key==="ArrowRight"&&!e.target.matches("input")){$("#tnext").click()}else if(e.key==="ArrowLeft"&&!e.target.matches("input")){$("#tback").click()}});
+  render();
+})();
+
+/* amortization widget */
+(function(){
+  var cs=$("#wa-cs"),co=$("#wa-co"),b=$("#wa-b");
+  function f(){
+    var S=+cs.value,O=+co.value,B=Math.pow(2,+b.value);
+    $("#wa-cs-v").textContent=S;$("#wa-co-v").textContent=O;$("#wa-b-v").textContent=B;
+    var c=S/B+O,base=S+O,sh=(S/B)/c;
+    $("#wa-out").textContent=c.toFixed(0);$("#wa-share").textContent=(sh*100).toFixed(0)+"%";$("#wa-x").textContent=(base/c).toFixed(2)+"x";
+    var pa=(S/B)/base*100,pb=O/base*100;
+    $("#wa-bar-a").style.width=pa+"%";$("#wa-bar-b").style.width=pb+"%";
+  }
+  [cs,co,b].forEach(function(e){e.addEventListener("input",f)});f();
+})();
+/* little widget */
+(function(){
+  var lat=$("#wl-lat"),qd=$("#wl-qd"),th=$("#wl-th");
+  function f(){
+    var L=+lat.value,Q=Math.pow(2,+qd.value),T=+th.value;
+    $("#wl-lat-v").textContent=L;$("#wl-qd-v").textContent=Q;$("#wl-th-v").textContent=T;
+    var iops=Q*T/(L*1e-6);
+    $("#wl-out").textContent=iops>=1e6?(iops/1e6).toFixed(2)+"M":(iops/1e3).toFixed(1)+"K";
+    $("#wl-need").textContent=Math.ceil(1e6*L*1e-6/T)+" per thread";
+  }
+  [lat,qd,th].forEach(function(e){e.addEventListener("input",f)});f();
+})();
+
+/* question ladder */
+(function(){
+var G=[
+["Mechanism",[
+["What exactly happens, step by step, from <code>io_uring_submit()</code> for a socket read with no data yet?","SQE written, tail released; <code>enter</code> &rarr; <code>io_submit_sqes</code> &rarr; <code>io_queue_sqe</code> &rarr; inline <code>io_issue_sqe</code> with NONBLOCK &rarr; socket returns <code>-EAGAIN</code> &rarr; <code>io_queue_async</code> copies SQE &rarr; <code>io_arm_poll_handler</code> &rarr; <code>APOLL_OK</code>: request sleeps on socket waitqueue (no thread). Data arrives &rarr; wakeup &rarr; <code>io_poll_task_func</code> (task_work) rechecks with <code>vfs_poll</code>, reissues, posts CQE."],
+["Why does the SQ ring hold indexes into <code>array[]</code> rather than SQEs, and what did 6.6 change?","Lets apps submit non-contiguous SQEs / embed SQEs in own structs. <code>NO_SQARRAY</code> (6.6) removes the extra load and the indirection when apps don't need it."],
+["How does the kernel know the app has freed an SQE slot, and why is that safe with in-flight requests?","Kernel <code>smp_store_release(sq.head)</code> after consuming (<code>io_commit_sqring</code>); app acquires head. Safe because the kernel copies the SQE into the request (<code>io_req_sqe_copy</code>, FEAT_SUBMIT_STABLE 5.5) when it will need it later; user buffers aren't copied &mdash; you must keep those alive."],
+["What does <code>CQE_F_MORE</code> mean for multishot recv and SEND_ZC, and how do the two differ?","MORE on multishot: request still armed, more CQEs will come; absence &rArr; re-arm. MORE on SEND_ZC: a second <code>F_NOTIF</code> CQE follows meaning \"buffer reusable\"; the first CQE carries bytes sent."],
+["Why must SQPOLL's NEED_WAKEUP flow have a full barrier on both sides?","Store-load ordering (Dekker): app stores tail then loads flag; thread stores flag then loads tail. Without a full barrier both can read stale values &rarr; app sees no flag, thread sees no entries &rarr; sleeps forever with work pending."],
+["What is task_work, and why does DEFER_TASKRUN require SINGLE_ISSUER?","task_work = a callback run in the context of a specific task at kernel&rarr;user transition (or an explicit point). DEFER_TASKRUN runs it only within <code>io_uring_enter(GETEVENTS)</code> on the ring's <code>work_llist</code>; only the submitter task may reap, hence single issuer."]]],
+["Why",[
+["Why try inline non-blocking first rather than always queue?","Most ops (page-cache hit, ready socket, NOWAIT O_DIRECT) finish immediately; queueing costs &ge;2 context switches. Inline = no handoff, CQE ready on return."],
+["Why two io-wq pools (bound/unbound)?","Bound ops (regular files/bdev) have bounded concurrency tied to the device queue; unbound (sockets) can block indefinitely; mixing would let slow sockets starve disk work or force an arbitrary cap."],
+["Why are free-running indexes better than wrapping indexes?","Full vs empty distinguishable without a wasted slot; all N usable; modular subtraction handles u32 wrap."],
+["Why do provided buffer rings make multishot recv scale better than epoll+read for idle connections?","Provided buffers are picked at data arrival, so idle connections hold no buffer; epoll+read typically needs a buffer per connection (or read-after-ready, which still needs a buffer at that time but costs a syscall each)."]]],
+["Counterfactual",[
+["If CQ were exactly SQ size and no NODROP, what breaks?","A burst of completions exceeds CQ while the app is busy &rArr; completions dropped (pre-5.5) or must be stored; with NODROP they pile in kernel memory until the app enters; extreme case: lost/stalled completions."],
+["If io-wq workers were kernel threads (pre-5.12) not process threads, what changes for cgroups/creds/ptrace?","Kernel threads: separate creds/cgroup/ptrace invisibility, harder accounting, no <code>RLIMIT_NPROC</code> coupling; 5.12 made them process threads: inherit cgroup/creds, visible to ptrace/coredump (and regressions)."],
+["If SEND_ZC had no notification CQE, what could go wrong?","App reuses/frees the buffer while the NIC still DMAs from it &rArr; corrupted data on the wire or use-after-free of page contents."],
+["If the kernel read your SQE lazily (after returning) without copying it, what bug appears?","App reuses the slot, kernel executes the new SQE (or a half-written one) &rArr; wrong op/args. Hence copy-on-defer."]]],
+["Adversarial",[
+["How would you hide file exfiltration from a seccomp+Falco setup using io_uring?","Do exfil via SQEs: <code>OPENAT</code>, <code>READ</code>, <code>SEND</code>/<code>CONNECT</code> ops; seccomp sees only <code>enter</code>; Falco hooks syscalls &rarr; blind (ARMO Curing)."],
+["Where is the TOCTOU surface when the kernel reads shared-memory SQEs?","Kernel reads SQE fields from user-writable memory (after <code>READ_ONCE</code>); an app thread can mutate the SQE or pointed-to structs concurrently. A per-opcode filter that inspects args at filter time may see different values than at execution; the kernel mitigates by copying the SQE before use, but pointer targets (iovecs, msghdr) remain user memory."],
+["How could a registered-buffer bug give physical-memory access (cf. CVE-2023-2598)?","Fixed-buffer registration coalesces pages into compound-page folios; wrong arithmetic computes a buffer range/length past the folio &rArr; read/write to adjacent physical pages through the registered buffer &rArr; kernel memory R/W &rArr; LPE."],
+["How would you DoS a host using only unprivileged io_uring and <code>RLIMIT_NPROC</code>?","Queue many blocking unbound ops (e.g., reads on a socket/pipe that never gets data) across many ring-submitting threads: each can spawn io-wq workers up to <code>RLIMIT_NPROC</code> (per-user), starving the user/container of threads; with <code>pids.max</code>, workers burn CPU retrying creation."]]],
+["Connection",[
+["Compare io_uring's SQ/CQ with NVMe's submission/completion queues. What does passthrough remove?","Same producer/consumer queue pair idea; io_uring has an extra software layer (block layer, page cache, FS). Passthrough (<code>URING_CMD</code> + <code>/dev/ng*</code>) skips block layer/FS so the NVMe SQE goes nearly straight to the device queue; you give up caching, FS semantics, LBA mgmt (16&ndash;40% IOPS gain in FAST'24)."],
+["How does completion-based I/O change Rust's <code>Future</code> cancellation model?","Rust futures are cancelled by drop; with readiness that's safe. With completion, the kernel may still write into your buffer after drop &rArr; UB. Fix: ownership transfer of buffers (tokio-uring style APIs) or cancel-and-wait; cost: ergonomics, no <code>&amp;mut [u8]</code> APIs."],
+["How is Little's law behind both NVMe queue depth and why sync I/O is slow?","IOPS = QD/latency: the device has ~&micro;s&ndash;100 &micro;s latency, so to reach 1M IOPS you need ~100 in flight. Sync I/O has QD=1/thread; io_uring/NVMe queues allow deep QD from one thread."]]],
+["Open",[
+["Can a sandbox filter io_uring per-op without TOCTOU and without disabling it?","Open. Needs filtering at the semantic level (opcode + stable args) with a TOCTOU-safe copy; the current cBPF filter doesn't inspect args. Alternative: capability-style per-ring restrictions (existing <code>REGISTER_RESTRICTIONS</code>) &mdash; coarse."],
+["Can buffered file I/O ever be truly async on Linux without per-filesystem NOWAIT work?","Open. Requires NOWAIT support for allocation, journalling, writeback throttling in each FS; or accept the thread pool as the implementation (what io-wq is)."],
+["Should the ring be BPF-programmable, or does that grow the attack surface faster than it removes syscalls?","Open. BPF removes syscalls and enables custom completion logic but adds a verified-code attack surface and interaction with cancellation; the history of BPF verifier bugs argues caution; the unprivileged cBPF filter is the conservative variant."]]]
+];
+var host=$("#ladder"),n=0,all=[];
+G.forEach(function(g){
+  var d=document.createElement("div");d.className="qgroup";var h=document.createElement("h3");h.textContent=g[0];d.appendChild(h);
+  g[1].forEach(function(q){n++;var de=document.createElement("details");de.className="q";
+    de.innerHTML='<summary><span class="qn">'+n+'.</span><span>'+q[0]+'</span></summary><div class="ans">'+q[1]+'</div>';
+    d.appendChild(de);all.push(de)});
+  host.appendChild(d);
+});
+$("#revcount").textContent=n+" questions";
+var btn=$("#revall"),open=false;
+btn.addEventListener("click",function(){open=!open;all.forEach(function(x){x.open=open});btn.textContent=open?"Hide all answers":"Reveal all answers";btn.setAttribute("aria-pressed",String(open))});
+})();
+})();
+</script>
+</body>
+</html>
