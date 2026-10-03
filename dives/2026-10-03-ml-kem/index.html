@@ -1,0 +1,797 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ML-KEM (Kyber) dive</title>
+<meta name="description" content="Deep dive into ML-KEM / FIPS 203: Module-LWE, the incomplete NTT, Fujisaki-Okamoto with implicit rejection, noise math, KyberSlash and Clangover.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+:root{--bg:#f8f8fb;--fg:#1b1c22;--mut:#5a5c6b;--card:#fff;--bd:#dfe0e8;--ac:#c2410c;--ac2:#0f766e;--code:#f0f1f6;--warm:#fff6ea;--warmbd:#f3d2a4;--ok:#15803d;--bad:#b91c1c;--band:rgba(15,118,110,.10);--z1:rgba(194,65,12,.18)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111218;--fg:#e8e9f0;--mut:#9ea0b0;--card:#191a22;--bd:#2c2e3a;--ac:#fb923c;--ac2:#5eead4;--code:#20222c;--warm:#262017;--warmbd:#5b4626;--ok:#4ade80;--bad:#f87171;--band:rgba(94,234,212,.12);--z1:rgba(251,146,60,.22)}}
+:root[data-theme="dark"]{--bg:#111218;--fg:#e8e9f0;--mut:#9ea0b0;--card:#191a22;--bd:#2c2e3a;--ac:#fb923c;--ac2:#5eead4;--code:#20222c;--warm:#262017;--warmbd:#5b4626;--ok:#4ade80;--bad:#f87171;--band:rgba(94,234,212,.12);--z1:rgba(251,146,60,.22)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 14px;border-right:1px solid var(--bd);font-size:13.5px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(74ch + 56px);min-width:0}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.5rem;margin:1.6em 0 .5em}h3{margin-top:1.4em}h4{margin:.2em 0 .4em}
+section{scroll-margin-top:12px}
+.card-line{font:600 12px/1.4 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.tldr{font-size:1.05rem}.nums,.labnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.nums div,.labnums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b,.labnums b{display:block;font-size:1.2rem;color:var(--ac)}.nums span,.labnums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}
+.plain h2{margin-top:.8em}.bridge{font-size:1.05rem;border-top:1px dashed var(--warmbd);padding-top:10px}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);border-radius:0 8px 8px 0}
+blockquote.callout{border-left-color:var(--ac);background:var(--warm)}
+a{color:var(--ac2);overflow-wrap:anywhere}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px}button:disabled{opacity:.4;cursor:default}
+button.sel{border-color:var(--ac);color:var(--ac);font-weight:600}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac2);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0}
+.ucard{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;font-size:14px}.ucard h4{color:var(--ac)}.ucard p{margin:.2em 0}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}.col{border-radius:12px;padding:10px 16px;border:1px solid var(--bd);background:var(--card);font-size:14.5px}
+.col.use h4{color:var(--ok)}.col.skip h4{color:var(--bad)}.col ul{padding-left:18px;margin:.3em 0}.col li{margin:.4em 0}
+details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 6px}
+.svg{width:100%;height:auto;display:block;margin:8px 0}.fig{margin:18px 0}.fig figcaption{font-size:13.5px;color:var(--mut)}
+.dial{max-width:300px;margin:0 auto}.svg .ring{fill:none;stroke:var(--bd);stroke-width:14}.svg .zone1{fill:none;stroke:var(--z1);stroke-width:14}
+.svg .tick{stroke:var(--mut);stroke-width:2}.svg .bnd{stroke:var(--mut);stroke-dasharray:4 4}.svg .d1{fill:var(--ac)}.svg .d0{fill:var(--ac2)}
+.svg .lbl{font:12px system-ui,sans-serif;fill:var(--mut)}.svg .mono{font:12.5px ui-monospace,monospace;fill:var(--fg)}.svg .ntitle{font:600 15px system-ui,sans-serif;fill:var(--fg)}
+.svg .node{fill:var(--code);stroke:var(--bd);stroke-width:1.5;transition:stroke .3s}.svg .node.hot{stroke:var(--ac);stroke-width:3}
+.svg .flow{stroke:var(--bd);stroke-width:2}.svg .flow.on{stroke:var(--ac);stroke-width:3;stroke-dasharray:6 4;animation:dash 1s linear infinite}.svg .ahead{fill:var(--mut)}
+@keyframes dash{to{stroke-dashoffset:-20}}
+.stepper,.lab,.eqbox{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 18px;margin:16px 0}
+.stctl{display:flex;align-items:center;gap:12px;justify-content:center}.stcount{font:600 13px ui-monospace,monospace;color:var(--mut)}
+.sttext{min-height:5em;margin-top:8px}.stdata{margin:6px 0 0;white-space:pre}
+.math{overflow-x:auto;overflow-y:hidden;margin:.6em 0}.plain-terms{color:var(--mut);font-size:14.5px;margin-top:0}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 16px}
+.sliders label{display:flex;align-items:center;gap:8px;font-size:14px}.sliders input{flex:1;min-width:0;accent-color:var(--ac)}.sliders output{font:600 13px ui-monospace,monospace;width:1.5em}
+.verdict{padding:8px 12px;border-radius:8px;font-weight:600;background:var(--code)}.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+.svg .vb0{fill:var(--ac2)}.svg .vb1{fill:#6366f1}.svg .vb2{fill:var(--mut)}.svg .vb3{fill:var(--ac)}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav{position:sticky;top:0;z-index:5;background:var(--bg);height:auto;border:0;border-bottom:1px solid var(--bd);display:flex;overflow-x:auto;white-space:nowrap;gap:2px;padding:8px 12px}nav a{border-left:0;border-bottom:2px solid transparent;border-radius:6px}nav a.on{border-bottom-color:var(--ac)}main{padding:16px 16px 60px}.twocol{grid-template-columns:1fr}h1{font-size:1.55rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+</style></head><body>
+<div class="layout"><nav aria-label="Table of contents"><a href="#s0b">Plain English</a><a href="#s1b">Real-world context</a><a href="#s1">1 · Context</a><a href="#s2">2 · One-liner</a><a href="#s3">3 · Problem</a><a href="#s4">4 · Mental model</a><a href="#s5">5 · Mechanism traced</a><a href="#s6">6 · Math + lab</a><a href="#s7">7 · Why it works</a><a href="#s8">8 · Knobs & alternatives</a><a href="#s9">9 · Where it breaks</a><a href="#s10">10 · In the wild</a><a href="#s11">11 · Frontier</a><a href="#s11b">11b · Open problems</a><a href="#s12">12 · Lineage</a><a href="#s13">13 · Hands-on</a><a href="#s14">14 · Question ladder</a><a href="#s15">15 · Go deeper</a><a href="#src">Sources</a></nav>
+<main>
+<div class="card-line">Cryptography · ML-KEM / FIPS 203 · hard · 2026-10-03</div>
+<h1>ML-KEM (Kyber): noisy lattices, the FO transform, and why the bugs are always in the implementation</h1>
+<div class="hero">
+<p class="tldr"><b>TL;DR</b>: ML-KEM hides a 32-byte secret by writing each bit as "0 or half of 3329" plus a sum of small random errors. The receiver cancels the big term with its secret and rounds. The leftover noise (σ ≈ 76) is nowhere near the 832 needed to cause an error: failure probability is 2<sup>−164.8</sup>, and you can reproduce that number here. A Fujisaki–Okamoto re-encryption check makes it CCA-secure, and that same check turns every side channel in decapsulation into key recovery.</p>
+<p><b>Why it matters</b>: it is the post-quantum half of <code>X25519MLKEM768</code>, which protects more than 65% of human traffic through Cloudflare, plus OpenSSH 10, Signal, iMessage and AWS. Every practical break so far (KyberSlash, Clangover, comparison bugs) came through code, not math.</p>
+<div class="nums">
+<div><b>1184 B</b><span>encapsulation key (768)</span></div>
+<div><b>1088 B</b><span>ciphertext (768)</span></div>
+<div><b>64 B</b><span>seed-format private key</span></div>
+<div><b>2<sup>−164.8</sup></b><span>decryption failure / ct</span></div>
+<div><b>σ ≈ 76 vs 832</b><span>noise vs decode margin</span></div>
+<div><b>~30k cycles</b><span>encaps, AVX2 (≈ X25519 or faster)</span></div>
+<div><b>183 bits</b><span>classical core-SVP (768)</span></div>
+<div><b>&gt;65%</b><span>Cloudflare human traffic PQ (Apr 2026)</span></div>
+</div></div>
+<section id="s0b" class="plain"><h2>Plain English first</h2><h3>Explain it simply</h3>
+<p>Two computers that have never met want to agree on a secret key while everyone on the network listens. For decades they did this with a trick (Diffie–Hellman) that a large quantum computer could undo. People are recording encrypted traffic today in case they can decrypt it later, so the replacement has to be in place before such a machine exists.</p>
+<p>ML-KEM works like a <strong>locked box mailed in one direction</strong>. You publish an open box with a special lock. I put a random 32-byte note inside, snap it shut and mail it back. Only you can open it, and we both turn the note into the session key. The odd part is how the lock works. Imagine a clock face with 3,329 ticks instead of 12. To write one bit of the note I set a hand to <strong>12 o'clock for 0 or 6 o'clock for 1</strong>, then bump it by a few hundred random ticks of "smudge", which hides it from eavesdroppers. You hold a secret that removes most of the smudge, though not all of it. What remains is still small enough that you can see whether the hand is nearer 12 or 6, and you round it. The scheme is tuned so the remaining smudge almost never pushes a hand past 3 or 9 o'clock. The chance of that happening is lower than guessing a 160-bit number.</p>
+<p>There is one more safety step. Once you have read my note, you <strong>rebuild the box yourself</strong> from the note, the same way I built it, and check it matches what arrived byte for byte. If it doesn't, someone tampered with it. You don't announce that. You quietly use a nonsense key, so the tamperer learns nothing from your reaction.</p>
+
+<figure class="fig"><svg class="svg dial" viewBox="0 0 300 300" role="img" aria-label="Dial with 3329 positions: hands near the top decode to 0, near the bottom to 1">
+<circle class="ring" cx="150" cy="150" r="110"/>
+<path class="zone1" d="M260.0,150.2 A110,110 0 0 1 40.0,150.2"/>
+<line class="tick" x1="150" y1="30" x2="150" y2="48"/><line class="tick" x1="150" y1="252" x2="150" y2="270"/>
+<line class="bnd" x1="35" y1="150" x2="265" y2="150"/>
+<text class="lbl" x="150" y="22" text-anchor="middle">0 / 3329 → bit 0</text>
+<text class="lbl" x="150" y="292" text-anchor="middle">1665 → bit 1</text>
+<text class="lbl" x="268" y="146" text-anchor="end">832</text><text class="lbl" x="32" y="146">2497</text>
+<circle class="d1" cx="149.7" cy="260.0" r="6"><title>coefficient 0: w=1666, bit 1</title></circle><circle class="d0" cx="169.6" cy="41.8" r="6"><title>coefficient 1: w=95, bit 0</title></circle><circle class="d1" cx="153.6" cy="259.9" r="6"><title>coefficient 2: w=1647, bit 1</title></circle><circle class="d0" cx="147.7" cy="40.0" r="6"><title>coefficient 3: w=3318, bit 0</title></circle><circle class="d0" cx="141.9" cy="40.3" r="6"><title>coefficient 4: w=3290, bit 0</title></circle><circle class="d1" cx="130.3" cy="258.2" r="6"><title>coefficient 5: w=1760, bit 1</title></circle><circle class="d0" cx="125.1" cy="42.9" r="6"><title>coefficient 6: w=3208, bit 0</title></circle><circle class="d1" cx="126.0" cy="257.4" r="6"><title>coefficient 7: w=1781, bit 1</title></circle>
+</svg><figcaption>The eight decoded hands from the example. Orange dots sit in the bottom half (bit 1), teal in the top half (bit 0). Mistakes happen only if leftover smudge pushes a hand across the horizontal line, 832 ticks away. The worst smudge here was 121.</figcaption></figure>
+<h3>Everyday example</h3>
+<p>Your laptop opens your bank's website.</p>
+<ol>
+<li>The laptop invents a fresh lock and sends the open box (1,184 bytes) inside its first "hello" message.</li>
+<li>The bank's server picks 32 random bytes as the note. It writes each of the 256 bits as a smudged clock hand and seals them into a reply box (1,088 bytes).</li>
+<li>The laptop removes its share of the smudge. The first eight hands come out at ticks 1666, 95, 1647, 3318, 3290, 1760, 3208 and 1781. Near 6 o'clock (1665) reads as 1; near 12 o'clock (0 or 3329) reads as 0. That gives 1, 0, 1, 0, 0, 1, 0, 1, which is exactly what the server wrote. The worst leftover smudge in this run was 121 ticks, and it would take 832 to cause a mistake.</li>
+<li>The laptop re-seals the note into a box of its own. It is identical to the one that arrived, so the laptop trusts it.</li>
+<li>Both sides now hold the same 32-byte key, and the rest of the session is encrypted with it.</li>
+</ol>
+<p>Someone who copied every byte of that exchange is left facing a "find the small smudge" puzzle in 768 dimensions. Nobody knows how to solve it, on a classical or a quantum computer.</p><p class="bridge"><b>Now the same thing, technically.</b></p></section><section id="s1b"><h2>Real-world context</h2><h3>What it is, in one paragraph</h3><p>ML-KEM (Module-Lattice-based Key-Encapsulation Mechanism) is NIST's standardized post-quantum KEM, published as <strong>FIPS 203 on Aug 13, 2024</strong>. It is CRYSTALS-Kyber with some changes. It has three parameter sets, ML-KEM-512, -768 and -1024, targeting NIST security categories 1, 3 and 5 (equivalent to AES-128, -192 and -256). NIST recommends <strong>ML-KEM-768 as the default</strong>. One party sends an encapsulation key, the other sends a ciphertext, and both end up with a 32-byte shared secret. Its security rests on the <strong>Module-LWE</strong> problem.</p><h3>Why it exists</h3><ul>
+<li><strong>Shor's algorithm</strong> breaks RSA, finite-field DH and elliptic-curve DH in polynomial time on a large enough quantum computer.</li>
+<li><strong>Harvest-now-decrypt-later</strong> means that key exchange performed today is already exposed if the recorded traffic still matters in 10–20 years. Authentication can wait until a quantum computer exists; confidentiality cannot. That is why KEMs are being migrated first and signatures (ML-DSA) lag behind.</li>
+<li><strong>NIST ran a competition</strong>: call for proposals Dec 2016, 69 round-1 submissions, Kyber selected Jul 5 2022, FIPS 203 published Aug 13 2024. HQC was added as a code-based backup on Mar 11 2025. (<a href="https://csrc.nist.gov/projects/post-quantum-cryptography/workshops-and-timeline" target="_blank" rel="noopener">NIST timeline</a>)</li>
+<li><strong>Why Kyber won</strong>: it is very fast (often faster than X25519 in CPU time) and its keys and ciphertexts are around 1 KB. Classic McEliece needs about 261 KB public keys and FrodoKEM about 15.6 KB.</li>
+</ul><h3>Where it's used</h3><div class="grid"><div class="ucard"><h4>TLS 1.3 / Chrome, Firefox, Safari</h4><p>Hybrid group <code>X25519MLKEM768</code> (codepoint 0x11EC). On by default since Chrome 131 (Nov 2024), Firefox 132 and Apple OS 26 (Sep 2025). It replaced the draft <code>X25519Kyber768Draft00</code> (0x6399, Chrome 124) (<a href="https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html" target="_blank" rel="noopener">Google</a>, <a href="https://blog.cloudflare.com/pq-2025/" target="_blank" rel="noopener">Cloudflare</a>)</p></div><div class="ucard"><h4>Cloudflare edge</h4><p>More than 50% of human traffic used PQ key agreement by Oct 2025 and more than 65% by Apr 2026. Origin support lags: about 10% of origins by Feb 2026 (<a href="https://blog.cloudflare.com/pq-2025/" target="_blank" rel="noopener">pq-2025</a>, <a href="https://blog.cloudflare.com/post-quantum-roadmap/" target="_blank" rel="noopener">roadmap</a>)</p></div><div class="ucard"><h4>OpenSSH 10.0</h4><p><code>mlkem768x25519-sha256</code> has been the default key exchange since Apr 2025. It replaced <code>sntrup761x25519</code>, the default since 9.0 in 2022. Uses libcrux's formally verified C (<a href="https://www.openssh.com/txt/release-10.0" target="_blank" rel="noopener">release notes</a>)</p></div><div class="ucard"><h4>Signal</h4><p>PQXDH (Sep 2023) adds Kyber to X3DH. SPQR / Triple Ratchet (Oct 2025) runs an ML-KEM-768 "Braid" ratchet that sends erasure-coded chunks of keys and ciphertexts on ordinary messages (<a href="https://signal.org/blog/spqr/" target="_blank" rel="noopener">Signal</a>)</p></div><div class="ucard"><h4>Apple iMessage PQ3</h4><p>Kyber-1024 for the initial key, Kyber-768 for rekeying about every 50 messages (<a href="https://security.apple.com/blog/imessage-pq3/" target="_blank" rel="noopener">Apple</a>)</p></div><div class="ucard"><h4>AWS KMS / ACM / Secrets Manager</h4><p>Hybrid PQ TLS through s2n-tls and AWS-LC, which uses the formally verified mlkem-native. Cost: about 1600 extra bytes and 80–150 µs per handshake (<a href="https://aws.amazon.com/blogs/security/ml-kem-post-quantum-tls-now-supported-in-aws-kms-acm-and-secrets-manager/" target="_blank" rel="noopener">AWS</a>)</p></div><div class="ucard"><h4>Go 1.24, OpenSSL 3.5, Java 24, Windows CNG</h4><p>Standard-library ML-KEM. Go and OpenSSL enable hybrid TLS by default (<a href="https://go.dev/doc/go1.24" target="_blank" rel="noopener">Go 1.24</a>, <a href="https://openssl-library.org/news/openssl-3.5-notes" target="_blank" rel="noopener">OpenSSL 3.5</a>, <a href="https://openjdk.org/jeps/496" target="_blank" rel="noopener">JEP 496</a>)</p></div><div class="ucard"><h4>Mullvad / Rosenpass (WireGuard)</h4><p>ML-KEM alongside Classic McEliece to derive WireGuard's pre-shared key (<a href="https://mullvad.net/blog/quantum-resistant-tunnels-are-now-the-default-on-desktop" target="_blank" rel="noopener">Mullvad</a>)</p></div></div><h3>How it's used</h3><p>Application code calls three functions. Go 1.24:</p>
+<pre><button class="copy" type="button">copy</button><code class="language-go">import &quot;crypto/mlkem&quot;
+
+dk, _ := mlkem.GenerateKey768()                // receiver
+ekBytes := dk.EncapsulationKey().Bytes()        // 1184 B, send to peer
+
+ek, _ := mlkem.NewEncapsulationKey768(ekBytes)  // sender (runs the modulus check)
+ss, ct := ek.Encapsulate()                      // 32 B secret, 1088 B ciphertext; send ct
+
+ss2, _ := dk.Decapsulate(ct)                    // receiver: ss2 == ss
+seed := dk.Bytes()                              // 64-byte d||z: the recommended private-key format
+</code></pre>
+<p>OpenSSL 3.5+ CLI (in this folder I checked it interoperates byte for byte with <code>mlkem.py</code>):</p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash">openssl genpkey -algorithm ML-KEM-768 -out key.pem
+openssl pkeyutl -encap -inkey key.pem -secret ss.bin -out ct.bin
+openssl pkeyutl -decap -inkey key.pem -in ct.bin -secret ss2.bin
+</code></pre>
+<p>Typical integration is a <strong>hybrid</strong>: run X25519 and ML-KEM-768 side by side and feed both secrets to the KDF. TLS concatenates <code>ML-KEM ss ‖ X25519 ss</code> (64 bytes) into the key schedule. The client key share is 1216 bytes (1184 + 32) and the server share is 1120 bytes (1088 + 32). Clients usually send a plain X25519 share as well, so a server that doesn't support the hybrid doesn't force a HelloRetryRequest round trip.</p><h3>When to use it, and when not</h3><div class="twocol"><div class="col use"><h4>✓ Use ML-KEM when</h4><ul><li>You need ephemeral key agreement in an interactive protocol (TLS, SSH, IKE, messaging handshakes)</li><li>The data must stay confidential for 10+ years</li><li>Bandwidth is about 1 KB per side</li><li>You want a conservative choice: run it as a <strong>hybrid</strong> with X25519</li></ul></div><div class="col skip"><h4>✗ Skip it / use something else when</h4><ul><li>You need <strong>non-interactive</strong> DH: static-static agreement, the DH ratchet, implicit authentication in Noise or WireGuard. A KEM can't do that. Redesign the protocol or look at lattice NIKEs like SWOOSH (about 220 KB keys)</li><li>You need authentication. ML-KEM authenticates nobody. Use signatures (ML-DSA) or KEM-based authentication</li><li>Payloads must fit 100-byte radio frames. Consider Classic McEliece (tiny ciphertext, huge pre-distributed key) or chunking like Signal</li><li>You distrust structured lattices: FrodoKEM (plain LWE) or HQC (codes), at 4–15 KB</li></ul></div></div><p>Signs you picked wrong: connections time out behind old middleboxes (ClientHello now spans two packets), or a protocol proof assumed "DH-like" properties that a KEM lacks.</p><h3>Who should care</h3><ul>
+<li><strong>Infra and backend</strong>: TLS terminators, load balancers and proxies have to read multi-packet ClientHellos (see <a href="https://tldr.fail/" target="_blank" rel="noopener">tldr.fail</a>).</li>
+<li><strong>Security and crypto engineers</strong>: side channels in decapsulation, binding, private-key formats.</li>
+<li><strong>Protocol designers</strong>: KEM ≠ DH.</li>
+<li><strong>Compliance</strong>: CNSA 2.0 wants ML-KEM-1024. BSI and ANSSI want hybrids.</li>
+</ul></section><div class="divider">Technical deep dive</div><section id="s1"><h2>1. Bare-minimum context</h2><ul>
+<li><strong>KEM (key encapsulation mechanism)</strong>: <code>KeyGen() → (ek, dk)</code>, <code>Encaps(ek) → (K, c)</code>, <code>Decaps(dk, c) → K</code>. It is not a two-sided DH exchange: only one party picks the secret. (<a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" target="_blank" rel="noopener">FIPS 203 §3</a>)</li>
+<li><strong>LWE (Learning With Errors)</strong>: given A and b = As + e with s and e small, finding s is believed hard even for quantum computers. Remove the e and Gaussian elimination solves it. (<a href="https://cims.nyu.edu/~regev/papers/qcrypto.pdf" target="_blank" rel="noopener">Regev 2005</a>)</li>
+<li><strong>Polynomial ring R_q = Z_q[X]/(X^256+1)</strong>: vectors of 256 integers mod q, multiplied as polynomials where X^256 wraps to −1 (a negacyclic convolution).</li>
+<li><strong>NTT (number-theoretic transform)</strong>: an FFT over Z_q. It turns that convolution into pointwise products. (<a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" target="_blank" rel="noopener">FIPS 203 §4.3</a>)</li>
+<li><strong>IND-CPA vs IND-CCA2</strong>: IND-CPA means secure against eavesdroppers. IND-CCA2 means secure against someone who can submit ciphertexts of their choice and watch the result. Reusable keys need CCA2.</li>
+<li><strong>Random oracle model (ROM/QROM)</strong>: proofs treat hash functions as ideal random functions. The QROM version lets a quantum attacker query them in superposition.</li>
+</ul></section><section id="s2"><h2>2. The one-liner and what it hides</h2><blockquote class="callout">
+<p>"ML-KEM is a lattice-based KEM whose security comes from Module-LWE: a public key is As + e, and the small error e makes it hard to recover s."</p>
+</blockquote>
+<p>What that sentence leaves out:</p>
+<ol>
+<li><strong>The error that protects the secret also corrupts the message.</strong> Why does decryption work anyway, and how was 2^-164.8 computed? (§6)</li>
+<li><strong>The lattice core is only CPA-secure.</strong> On its own it falls to chosen-ciphertext key recovery. The <strong>Fujisaki–Okamoto</strong> transform with <em>re-encryption</em> and <em>implicit rejection</em> fixes that, and it also makes every side channel in decryption a key-recovery oracle. (§5, §7, §9)</li>
+<li><strong>The NTT is part of the format, not just an optimization.</strong> The matrix A is sampled directly in the NTT domain, and q = 3329 was picked so a 7-layer <em>incomplete</em> NTT exists. (§5, §6)</li>
+<li><strong>"Compression" removes ciphertext bits and adds noise on purpose.</strong> The noise budget is shared between sampled noise and rounding noise. (§6, §8)</li>
+<li><strong>The shared key doesn't commit to everything you would assume.</strong> ML-KEM isn't MAL-BIND-K-CT (an attacker with a malicious key can make two ciphertexts give the same K), which is why hybrids hash the transcript. (§9, §11)</li>
+</ol></section><section id="s3"><h2>3. The problem</h2><ul>
+<li><strong>The quantum threat is a deadline.</strong> Shor's algorithm turns every DH and RSA key exchange recorded today into plaintext once a cryptographically relevant quantum computer exists. Nobody knows when that will be, but migrating takes a decade.</li>
+<li><strong>Plain LWE is too big.</strong> An unstructured LWE public key is an n×n matrix of numbers mod q. FrodoKEM-976 has about 15.6 KB keys and ciphertexts. Ring-LWE puts structure in A (a single polynomial stands for a 256×256 matrix) and shrinks that 256-fold, but ties security to one ring.</li>
+<li><strong>Module-LWE is the compromise.</strong> A is a k×k matrix of ring elements, so you raise security by increasing k (2→3→4) without redesigning the arithmetic. The same NTT code and q serve every security level.</li>
+<li><strong>Constraints that set q.</strong> With n = 256 the scheme carries one message bit per coefficient, so 32 bytes per polynomial. A fast NTT needs n | (q−1). The smaller primes that qualify, 257 and 769, leave too little room between the noise and q/4 for a failure rate low enough for CCA security. 3329 = 13·2^8 + 1 is the next one (<a href="https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf" target="_blank" rel="noopener">Kyber R3 spec §1.4</a>).</li>
+<li><strong>What the CPA core alone allows.</strong> A static key used with the bare K-PKE falls to <strong>key-mismatch attacks</strong> that need only a few hundred to a few thousand queries (Qin et al.; 78 queries plus 2^32 lattice work in <a href="https://eprint.iacr.org/2024/810" target="_blank" rel="noopener">ePrint 2024/810</a>). Ring-LWE key exchanges with reused keys were broken the same way back in <a href="https://eprint.iacr.org/2016/085" target="_blank" rel="noopener">Fluhrer 2016</a>. CCA security isn't optional.</li>
+</ul>
+<p>Resulting sizes (FIPS 203 Table 3):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>ek</th>
+<th>dk (expanded)</th>
+<th>ciphertext</th>
+<th>K</th>
+<th>failure δ</th>
+<th>classical core-SVP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ML-KEM-512</td>
+<td>800</td>
+<td>1632</td>
+<td>768</td>
+<td>32</td>
+<td>2^-138.8</td>
+<td>118 (112 without the LWR-style argument)</td>
+</tr>
+<tr>
+<td>ML-KEM-768</td>
+<td>1184</td>
+<td>2400</td>
+<td>1088</td>
+<td>32</td>
+<td>2^-164.8</td>
+<td>183</td>
+</tr>
+<tr>
+<td>ML-KEM-1024</td>
+<td>1568</td>
+<td>3168</td>
+<td>1568</td>
+<td>32</td>
+<td>2^-174.8</td>
+<td>256</td>
+</tr>
+</tbody>
+</table></section><section id="s4"><h2>4. Mental model</h2><p><strong>A noisy dial with a secret calibration.</strong> Each coefficient is a dial with q = 3329 positions. The public key is a set of dials (t = As + e) that look random unless you know the small calibration s. To send a bit, the sender adds a random-looking combination of public dials (tᵀy) plus small noise, then turns the dial by half a revolution for a 1. The receiver can compute nearly the same random combination from the other half of the ciphertext (sᵀu). Subtracting it leaves "half a turn or none, plus a small wobble".</p>
+<p><strong>Where the analogy breaks:</strong></p>
+<ul>
+<li>The wobble isn't independent per dial. It is a <strong>sum of hundreds of products</strong> of small secrets (eᵀy − sᵀe₁ …), which is why its distribution can be computed exactly and why failures are correlated with the secret (failure boosting, §9).</li>
+<li>The dial isn't read once. Under FO the receiver <strong>re-runs the sender's entire computation</strong>, so the security argument depends on determinism (r = G(m‖H(ek))), and so do the attacks.</li>
+<li>The "noise" partly comes from <strong>deliberately throwing away low-order bits</strong> (compression). That isn't random noise the sender chose. It is a deterministic rounding error that only behaves like noise.</li>
+</ul></section><section id="s5"><h2>5. The mechanism, traced</h2><p>One ML-KEM-768 encapsulation and decapsulation, with fixed seeds <code>d = 00…00</code>, <code>z = 01…01</code>, <code>m = a5 00 … 00</code>. All numbers come from <code>trace.py</code> in this folder. The same implementation round-trips against OpenSSL 3.6.</p>
+
+<div id="stepper" class="stepper">
+<svg class="svg" viewBox="0 0 640 230" role="img" aria-label="Receiver and sender exchanging ek and c">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahead" d="M0,0 L10,5 L0,10z"/></marker></defs>
+<rect id="nR" class="node" x="10" y="20" width="210" height="190" rx="12"/>
+<text class="ntitle" x="115" y="46" text-anchor="middle">Receiver (laptop)</text>
+<text class="lbl" x="115" y="70" text-anchor="middle">KeyGen · Decaps</text>
+<text id="rTxt" class="mono" x="115" y="120" text-anchor="middle">holds d‖z</text>
+<rect id="nS" class="node" x="420" y="20" width="210" height="190" rx="12"/>
+<text class="ntitle" x="525" y="46" text-anchor="middle">Sender (server)</text>
+<text class="lbl" x="525" y="70" text-anchor="middle">Encaps</text>
+<text id="sTxt" class="mono" x="525" y="120" text-anchor="middle">—</text>
+<line id="eEk" class="flow" x1="225" y1="80" x2="412" y2="80" marker-end="url(#ah)"/>
+<text class="lbl" x="318" y="70" text-anchor="middle">ek · 1184 B</text>
+<line id="eCt" class="flow" x1="415" y1="160" x2="228" y2="160" marker-end="url(#ah)"/>
+<text class="lbl" x="318" y="150" text-anchor="middle">c · 1088 B</text>
+<text id="kTxt" class="mono" x="320" y="215" text-anchor="middle"></text>
+</svg>
+<div class="stctl"><button id="stPrev" type="button">◀ Back</button><span id="stCount" class="stcount" aria-live="polite">STEP 1 / 9</span><button id="stNext" type="button">Next ▶</button></div>
+<div id="stText" class="sttext"></div>
+<pre class="stdata"><code id="stData"></code></pre>
+</div>
+
+<p><strong>Step 1: KeyGen expands the seed.</strong> <code>(ρ, σ) = G(d ‖ 0x03)</code>. The <code>k</code> byte was added in the final FIPS so a seed can't be expanded under two parameter sets. ρ = <code>6d3ae406…</code>, σ = <code>47730327…</code>.</p>
+<p><strong>Step 2: Matrix Â from ρ.</strong> Each entry is SHAKE128(ρ‖j‖i), read in 12-bit chunks and kept if below 3329. 4096 − 3329 = 767, so about 18.7% of chunks are rejected. Â[0][0] begins <code>686, 85, 609, 2930</code>. These values are <strong>already in the NTT domain</strong>: nobody ever computes A in the coefficient domain. That is why FIPS 203 calls the NTT "integral" to the scheme.</p>
+<p><strong>Step 3: Small secrets via the centered binomial distribution.</strong> For η = 2, each coefficient is (b₀+b₁) − (b₂+b₃) over 4 pseudo-random bits, so it lies in {−2,…,2} with probabilities 1/16, 4/16, 6/16, 4/16, 1/16 and variance η/2 = 1. Here s[0] begins <code>1, 1, 0, 2, 0, 0, 0, 0</code> and e[0] begins <code>1, −1, 0, 2, 1, 2, 0, 0</code>. CBD replaced the discrete Gaussian because it needs only bit counting: no tables, no floating point, nothing to leak through timing.</p>
+<p><strong>Step 4: t̂ = Â∘ŝ + ê, stored uncompressed.</strong> t̂[0] begins <code>2597, 1940, 1400, 3176</code>. These look uniform, which is the MLWE assumption. ek = 3 × 384 bytes (256 coefficients × 12 bits) + 32-byte ρ = <strong>1184 B</strong>. dk = ŝ (1152) ‖ ek (1184) ‖ H(ek) (32) ‖ z (32) = <strong>2400 B</strong>. It can be regenerated from the <strong>64-byte seed d‖z</strong>, which is what RFC 9935 recommends storing.</p>
+<p><strong>Step 5: Encaps derandomizes.</strong> m = <code>a5 00…</code>. <code>(K, r) = G(m ‖ H(ek))</code>, with H(ek) = <code>07f81a8b…</code>, K = <code>23571523…</code>, r = <code>202f8989…</code>. <strong>All</strong> encryption randomness (y, e₁, e₂) is derived from r, so encryption is a deterministic function of (ek, m). That makes re-encryption possible.</p>
+<p><strong>Step 6: K-PKE.Encrypt.</strong></p>
+<pre><button class="copy" type="button">copy</button><code>y, e1 ← CBD_2 (3 polys each);  e2 ← CBD_2
+u = NTT⁻¹(Âᵀ ∘ NTT(y)) + e1                    3 polys
+v = NTT⁻¹(t̂ᵀ ∘ NTT(y)) + e2 + Decompress_1(m)  each bit → 0 or 1665
+c1 = enc10(Compress_10(u))   3·256·10 bits = 960 B
+c2 = enc4(Compress_4(v))       256·4 bits  = 128 B        → c = 1088 B
+</code></pre>
+<p>Compression keeps only the top 10 bits of each u coefficient and the top <strong>4</strong> bits of each v coefficient. Rounding v to 16 levels adds up to ±104 of error per coefficient, the largest single noise source (§6).</p>
+<p><strong>Step 7: Decrypt.</strong> w = v′ − NTT⁻¹(ŝᵀ ∘ NTT(u′)):</p>
+<table>
+<thead>
+<tr>
+<th>coefficient</th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>m bit</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>w</td>
+<td>1666</td>
+<td>95</td>
+<td>1647</td>
+<td>3318</td>
+<td>3290</td>
+<td>1760</td>
+<td>3208</td>
+<td>1781</td>
+</tr>
+<tr>
+<td>noise = w − 1665·bit (centered)</td>
+<td>1</td>
+<td>95</td>
+<td>−18</td>
+<td>−11</td>
+<td>−39</td>
+<td>95</td>
+<td>−121</td>
+<td>116</td>
+</tr>
+<tr>
+<td>Compress_1(w)</td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Compress_1 rounds 2w/q. It returns 1 when w lies in [833, 2496], within q/4 of 1665. The noise is about ±100, nowhere near 832.</p>
+<p><strong>Step 8: FO re-encryption.</strong> Derive (K′, r′) = G(m′ ‖ h) using the h = H(ek) <strong>stored in dk</strong>, re-run Encrypt, and compare all 1088 bytes. They match, so return K′ = K.</p>
+<p><strong>Step 9: Tampered ciphertext.</strong> Flip one bit of c[0]. Decrypt probably still returns the same m′ (the bit flipped a u coefficient by about 3, which is in the noise), but re-encryption gives the <em>original</em> c, so c′ ≠ c_tampered. Decaps returns K̄ = SHAKE256(z ‖ c_tampered) = <code>f595db36…</code>. No error is raised, and the output is deterministic and pseudorandom. This is <strong>implicit rejection</strong>.</p>
+<p>Rejection is implicit because:</p>
+<ul>
+<li>An explicit "invalid ciphertext" error is a one-bit oracle. Key-recovery attacks (decryption-failure and plaintext-checking attacks) need about 10³–10⁴ such bits.</li>
+<li>Implicit rejection makes accept and reject look the same to anyone without z. The FIPS forbids exposing the reject flag at all.</li>
+</ul></section><section id="s6"><h2>6. The math</h2>
+<div class="eqbox">
+<h3>Key equations</h3>
+<div class="math">\[ w = v' - \mathbf{s}^{\top}\mathbf{u}' = \left\lceil \tfrac{q}{2} \right\rfloor m \;+\; \underbrace{\mathbf{e}^{\top}\mathbf{y} - \mathbf{s}^{\top}(\mathbf{e}_1 + \mathbf{c}_u) + e_2 + c_v}_{n_{\text{total}}} \]</div>
+<p class="plain-terms">→ in plain terms: the big term s<sup>T</sup>A<sup>T</sup>y cancels exactly. What remains is the message plus small noise, and decryption works while |n<sub>total</sub>| &lt; q/4 = 832.</p>
+<div class="math">\[ \sigma^2 \approx kn\left(\tfrac{\eta_1}{2}\right)^2 + kn\,\tfrac{\eta_1}{2}\left(\tfrac{\eta_2}{2} + \tfrac{(q/2^{d_u})^2}{12}\right) + \tfrac{\eta_2}{2} + \tfrac{(q/2^{d_v})^2}{12} \]</div>
+<p class="plain-terms">→ in plain terms: ML-KEM-768 gives 768 + 1444 + 1 + 3608 ≈ 5821, so σ ≈ 76. Most of it comes from rounding v to 4 bits.</p>
+<div class="math">\[ \mathrm{Adv}^{\text{IND-CCA}} \le 2\,\mathrm{Adv}^{\text{MLWE}}_{k+1,k,\eta} + \mathrm{Adv}^{\text{PRF}} + 4\,q_{\text{RO}}\,\delta \]</div>
+<p class="plain-terms">→ in plain terms: every hash query is a lottery ticket for a decryption failure. With 2<sup>64</sup> queries and δ = 2<sup>−164.8</sup> the term is 2<sup>−98.8</sup>.</p>
+<div class="math">\[ X^{256}+1 = \prod_{i=0}^{127}\left(X^2 - \zeta^{2\,\mathrm{BitRev}_7(i)+1}\right),\quad \zeta = 17,\; q = 3329 = 13\cdot 2^8 + 1 \]</div>
+<p class="plain-terms">→ in plain terms: Z<sub>3329</sub> has 256th roots of unity but no 512th, so the NTT stops one layer early and multiplication works on 128 degree-1 pairs.</p>
+<div class="math">\[ \mathrm{Compress}_d(x) = \left\lceil \tfrac{2^d}{q}x \right\rfloor \bmod 2^d, \qquad \mathrm{Decompress}_d(y) = \left\lceil \tfrac{q}{2^d}y \right\rfloor \]</div>
+<p class="plain-terms">→ in plain terms: keep the top d bits. The round trip adds an error of up to ±q/2<sup>d+1</sup> (±104 for d = 4). The reference code computed this with a C <code>/</code>, which was KyberSlash.</p>
+</div>
+
+<div id="lab" class="lab">
+<h3>Noise-budget lab</h3>
+<p>Change the parameters. The page convolves the real noise distributions (the same method as <code>failure_prob.py</code>) and compares the exact failure probability with a Gaussian estimate.</p>
+<div class="presets"><button type="button" data-p="2,3,2,10,4">ML-KEM-512</button><button type="button" data-p="3,2,2,10,4" class="sel">ML-KEM-768</button><button type="button" data-p="4,2,2,11,5">ML-KEM-1024</button></div>
+<div class="sliders">
+<label>k (rank) <input id="lk" type="range" min="2" max="4" value="3"><output id="ok">3</output></label>
+<label>η₁ <input id="le1" type="range" min="1" max="3" value="2"><output id="oe1">2</output></label>
+<label>η₂ <input id="le2" type="range" min="1" max="3" value="2"><output id="oe2">2</output></label>
+<label>dᵤ <input id="ldu" type="range" min="8" max="11" value="10"><output id="odu">10</output></label>
+<label>dᵥ <input id="ldv" type="range" min="2" max="6" value="4"><output id="odv">4</output></label>
+</div>
+<div class="labout">
+<svg class="svg" id="varbar" viewBox="0 0 600 70" role="img" aria-label="Variance contributions"></svg>
+<div class="labnums">
+<div><b id="rSig">–</b><span>σ of noise</span></div>
+<div><b id="rExact">–</b><span>exact δ (per ciphertext)</span></div>
+<div><b id="rGauss">–</b><span>Gaussian estimate</span></div>
+<div><b id="rCt">–</b><span>ciphertext / ek bytes</span></div>
+</div>
+<p id="rVerdict" class="verdict" aria-live="polite"></p>
+</div>
+</div>
+<h3>6.1 Why decryption works: the cancellation</h3>
+<p>Write ρ_d(x) = x − Decompress_d(Compress_d(x)) for the rounding error. Let c_u = −ρ_du(u) and c_v = −ρ_dv(v) be the errors compression adds. Then the receiver sees</p>
+<p>u′ = Aᵀy + e₁ + c_u,  v′ = tᵀy + e₂ + ⌈q/2⌋·m + c_v,  with t = As + e.</p>
+<p>Compute w = v′ − sᵀu′:</p>
+<p>w = (As + e)ᵀy + e₂ + ⌈q/2⌋m + c_v − sᵀ(Aᵀy + e₁ + c_u)
+  = <strong>sᵀAᵀy</strong> + eᵀy + e₂ + ⌈q/2⌋m + c_v − <strong>sᵀAᵀy</strong> − sᵀe₁ − sᵀc_u</p>
+<p>→ in plain terms: the large, uniform-looking term sᵀAᵀy appears once from the sender's side and once from the receiver's side, so it <strong>cancels exactly</strong>. What remains is the message plus</p>
+<p><strong>n_total = eᵀy − sᵀ(e₁ + c_u) + e₂ + c_v</strong>,</p>
+<p>where every term is a product of small things or a bounded rounding error.</p>
+<p><strong>Correctness condition:</strong> ‖n_total‖_∞ &lt; ⌈q/4⌋ = 832. Why q/4: the two symbols sit at 0 and q/2, and the decision boundary is halfway between them.</p>
+<h3>6.2 How big is the noise? (variance)</h3>
+<p>One coefficient of a product of two polynomials in Z_q[X]/(X^256+1) is a signed sum of 256 coefficient products. The wraparound X^256 = −1 only flips signs. A dot product over a rank-k module therefore sums <strong>kn = 768</strong> such products for ML-KEM-768.</p>
+<ul>
+<li>CBD_η variance is η/2, so 1 for η = 2.</li>
+<li>eᵀy: 768 products of two variance-1 variables, giving variance 768.</li>
+<li>sᵀ(e₁ + c_u): c_u is roughly uniform with width q/2^du = 3.25, so Var(c_u) ≈ 3.25²/12 = 0.88. Variance = 768·(1 + 0.88) ≈ 1444.</li>
+<li>e₂: 1.</li>
+<li>c_v: width q/2^dv = 208, so Var = 208²/12 ≈ <strong>3608</strong>.</li>
+</ul>
+<p>σ² ≈ 768 + 1444 + 1 + 3608 = 5821, <strong>σ ≈ 76.3</strong></p>
+<p>→ in plain terms: the typical leftover wobble is about ±76 out of 3329. Measured over 51,200 coefficients with <code>experiments.py</code>, σ = 76.6 and the worst value was 292. Most of the noise, <strong>62% of the variance</strong>, comes from rounding v down to 4 bits, not from the sampled secrets. Kyber deliberately spends the noise budget on compression, because every bit saved there makes the ciphertext smaller.</p>
+<h3>6.3 Why the failure rate isn't what a Gaussian predicts</h3>
+<p>The threshold is 832 / 76.3 ≈ 10.9σ. A Gaussian tail for each of 256 coefficients gives</p>
+<p>P_fail ≈ 256 · erfc(10.9/√2) ≈ <strong>2^-81</strong>.</p>
+<p>FIPS 203 gives <strong>2^-164.8</strong>. Convolving the actual distributions exactly (<code>failure_prob.py</code>, the same method as the Kyber team's script) reproduces 2^-138.8, 2^-164.8 and 2^-174.8 for the three parameter sets.</p>
+<p>The 84-bit gap comes from a <strong>bounded</strong> term: |c_v| ≤ 104 always. To fail, the unbounded part eᵀy − sᵀ(e₁+c_u) has to supply at least 832 − 104 = 728 on its own. That part has σ ≈ √2213 ≈ 47, so 728 is about 15.5σ, far deeper in the tail. Even that part is a sum of products of <em>bounded</em> variables, so its tail is lighter than Gaussian too. (The decomposition is my own explanation; the numbers are from the scripts.)</p>
+<p>→ in plain terms: you can't estimate lattice-KEM failure rates with a CLT approximation. You have to convolve the real distributions.</p>
+<h3>6.4 Why δ must be about 2^-128 or lower: the CCA bound</h3>
+<p>In the classical ROM, the Kyber R3 spec (Theorem 2) gives</p>
+<p>Adv^{IND-CCA}_{ML-KEM} ≤ 2·Adv^{MLWE}_{k+1,k,η} + Adv^{PRF} + <strong>4·q_RO·δ</strong></p>
+<p>where q_RO is the number of hash queries. With q_RO = 2^64 and ML-KEM-768, 4·2^64·2^-164.8 = 2^-98.8, which is negligible. In the QROM the bound degrades to 4q_RO·√Adv^{MLWE} + 8q_RO²·δ. That square root is why QROM tightness is still open (§11b).</p>
+<p>→ in plain terms: each hash query is a lottery ticket for finding a ciphertext that fails to decrypt, and a failure leaks information about s. δ has to be small enough that 2^64 tickets win nothing.</p>
+<h3>6.5 Why the NTT has this form</h3>
+<p>q − 1 = 3328 = 2^8 · 13, so Z_3329 contains 256th roots of unity (ζ = 17: 17^128 ≡ −1) but <strong>no 512th roots</strong>. A full negacyclic NTT for X^256 + 1 would need a 512th root. So the polynomial splits only into 128 quadratics:</p>
+<p>X^256 + 1 = ∏_{i=0}^{127} (X² − ζ^{2·BitRev₇(i)+1})</p>
+<p>The NTT therefore has <strong>7 layers instead of 8</strong>, and "pointwise" multiplication is 128 products in Z_q[X]/(X² − γᵢ):</p>
+<p>(a₀ + a₁X)(b₀ + b₁X) = (a₀b₀ + a₁b₁γᵢ) + (a₀b₁ + a₁b₀)X</p>
+<p>→ in plain terms: one of the smaller primes would allow a full NTT but has too little room for noise. 3329 gives up one butterfly layer in exchange for a small modulus whose coefficients fit in 12 bits, and products of two fit in 32-bit lanes.</p>
+<p><strong>Cost.</strong> Schoolbook ring multiplication takes 256² = 65,536 multiplications. With the NTT it is about 7·128 = 896 butterfly multiplications per transform plus 128 base multiplications of about 5 multiplications each. A matrix–vector product Âᵀŷ needs k² = 9 base multiplications and only k transforms each way, because the operands are kept in the NTT domain.</p>
+<h3>6.6 Compression, exactly</h3>
+<p>Compress_d(x) = ⌈(2^d / q)·x⌋ mod 2^d,  Decompress_d(y) = ⌈(q / 2^d)·y⌋</p>
+<p>The round-trip error is nearly uniform on |·| ≤ ⌈q/2^{d+1}⌋: ±2 for d = 10, ±1 for d = 11, ±104 for d = 4, ±52 for d = 5. FIPS 203 says floating point <strong>shall not</strong> be used. The reference code computed ⌈2^d·x/q⌋ with a C <code>/</code> by q. That line was <strong>KyberSlash</strong> (§9).</p></section><section id="s7"><h2>7. Why it works</h2><p><strong>Core insight:</strong> the receiver doesn't undo the noise. It <strong>cancels the large term</strong> sᵀAᵀy algebraically and leaves noise that is a sum of products of small values. MLWE hides s because t = As + e looks uniform. Correctness only needs the <em>products</em> of small values to stay below q/4. Those two requirements push η in opposite directions, and k, η, du, dv are chosen at the point where both hold.</p>
+<p><strong>Ablations: remove each piece and see what breaks.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Remove</th>
+<th>What breaks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>e (the error in t)</td>
+<td>t = As is solvable by Gaussian elimination, so the key is recovered from ek alone</td>
+</tr>
+<tr>
+<td>The FO transform (use K-PKE directly)</td>
+<td>Static keys fall to key-mismatch or plaintext-checking attacks after a few hundred to a few thousand chosen ciphertexts</td>
+</tr>
+<tr>
+<td>Re-encryption (decrypt and hash, no comparison)</td>
+<td>Malformed ciphertexts are processed and their effect on m′ leaks s coefficient by coefficient. This is what a fault attack that skips the comparison achieves</td>
+</tr>
+<tr>
+<td>Implicit rejection (return ⊥ instead)</td>
+<td>Still IND-CCA in theory (FO^⊥ variants exist), but you get a clean oracle for any side-channel-assisted attack and worse QROM bounds. Implicit rejection also hides reject-path timing</td>
+</tr>
+<tr>
+<td>H(ek) in G(m ‖ H(ek))</td>
+<td>Multi-target attacks: precomputed failing ciphertexts would work against every key at once. Hashing ek ties r to one key</td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>Ciphertext grows from 1088 to 1536 B (3·384 + 384) with no security gain. Compression error is noise the design counts on</td>
+</tr>
+<tr>
+<td>The k byte in G(d ‖ k)</td>
+<td>The same seed at two parameter sets gives related keys, which complicates seed-only key storage</td>
+</tr>
+<tr>
+<td>The modulus check on ek</td>
+<td>Non-canonical ek (coefficient ≥ q) is interpreted differently by different implementations, so they derive different secrets. That is an interoperability and consistency gap</td>
+</tr>
+</tbody>
+</table></section><section id="s8"><h2>8. Design knobs and alternatives</h2><table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Values</th>
+<th>Increase it and…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>k (module rank)</td>
+<td>2/3/4</td>
+<td>lattice dimension kn grows (512/768/1024) → security ↑, ek and ct grow by about 384 B per step, noise variance grows linearly</td>
+</tr>
+<tr>
+<td>η₁ (secret / y noise)</td>
+<td>3/2/2</td>
+<td>hardness ↑, failure rate ↑. ML-KEM-512 uses η₁ = 3 because its smaller dimension needs more noise per coefficient</td>
+</tr>
+<tr>
+<td>η₂ (e₁, e₂)</td>
+<td>2</td>
+<td>as above, smaller effect</td>
+</tr>
+<tr>
+<td>du</td>
+<td>10/10/11</td>
+<td>ciphertext ↑, c_u noise ↓</td>
+</tr>
+<tr>
+<td>dv</td>
+<td>4/4/5</td>
+<td>ciphertext ↑ by 32 B per bit, c_v noise ↓ (the dominant term)</td>
+</tr>
+<tr>
+<td>q, n</td>
+<td>fixed 3329, 256</td>
+<td>not tunable: NTT and encoding are built around them</td>
+</tr>
+</tbody>
+</table>
+<p>Round-3 history (<a href="https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf" target="_blank" rel="noopener">R3 spec</a>): Kyber-512 moved η₁ from 2 to 3 and dv from 3 to 4. The ciphertext grew from 736 to 768 B in exchange for more security margin.</p>
+<p><strong>Alternatives:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Assumption</th>
+<th>pk / ct</th>
+<th>Why chosen / not chosen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FrodoKEM</strong></td>
+<td>plain LWE (no ring)</td>
+<td>≈15.6 KB / 15.6 KB (976)</td>
+<td>Most conservative lattice option, recommended by BSI. 10–15× bigger</td>
+</tr>
+<tr>
+<td><strong>NTRU / sntrup761</strong></td>
+<td>NTRU, prime-degree ring</td>
+<td>1158 / 1039 B (from memory)</td>
+<td>Avoids cyclotomic structure. OpenSSH's PQ default 2022–2025</td>
+</tr>
+<tr>
+<td><strong>HQC</strong></td>
+<td>quasi-cyclic codes</td>
+<td>2241 / 4433 B (HQC-1)</td>
+<td>NIST backup (Mar 2025), a different assumption family. Slower decaps (≈353k cycles)</td>
+</tr>
+<tr>
+<td><strong>Classic McEliece</strong></td>
+<td>Goppa codes (1978)</td>
+<td>≈261 KB / ≈96–208 B</td>
+<td>Decades of cryptanalysis. Only for pre-distributed long-term keys</td>
+</tr>
+<tr>
+<td><strong>Saber</strong></td>
+<td>Module-LWR (rounding instead of noise)</td>
+<td>similar to Kyber</td>
+<td>Power-of-two q, no NTT. Lost to Kyber in round 3</td>
+</tr>
+</tbody>
+</table>
+<p>Kyber won on balance: around 1 KB, CPU cost at or below X25519 (ML-KEM-768 AVX2 runs about 29k/30k/40k cycles for keygen/encaps/decaps on recent x86 (<a href="https://arxiv.org/pdf/2404.13544" target="_blank" rel="noopener">arXiv 2404.13544</a>); Cloudflare measured 29–45k ops/s against about 19k for X25519), and a single arithmetic core for every level.</p></section><section id="s9"><h2>9. Where it breaks</h2><p>The math has held. Every practical key recovery so far came through <strong>implementations</strong> or <strong>composition</strong>, and the FO re-encryption step is what turns small leaks into full key recovery.</p>
+<p><strong>KyberSlash 1 &amp; 2 (Dec 2023 – Jan 2024; TCHES 2025, Best Paper).</strong></p>
+<ul>
+<li>The reference code computed <code>t = (((t &lt;&lt; 1) + KYBER_Q/2)/KYBER_Q) &amp; 1</code> in <code>poly_tomsg</code> (KyberSlash1, during decryption) and similar <code>/KYBER_Q</code> lines in <code>poly_compress</code>/<code>polyvec_compress</code> (KyberSlash2, during encryption, which decaps runs as re-encryption on the secret m′).</li>
+<li>Whether this leaks depends on the compiler and CPU. <code>gcc -Os</code> on x86 emits DIV, and on Raspberry Pi 2 it calls <code>__divsi3</code>, which branches on its input. DIV latency depends on the operands: on Zen 2 it is 1 cycle slower once the numerator reaches 8192.</li>
+<li>Chosen ciphertexts steer the secret numerator across those thresholds. KyberSlash2 recovered keys in minutes on a Cortex-M4; KyberSlash1 took hours on a Raspberry Pi 2.</li>
+<li>Found by Cryspen while writing verified Rust, and independently by Bernstein via SUPERCOP.</li>
+<li>The fix is a multiply-and-shift <code>t = ((t&lt;&lt;1)+1665)*80635 &gt;&gt; 28 &amp; 1</code>. <code>experiments.py</code> checks it equals the division for all 3329 inputs.</li>
+<li>More than 15 libraries were patched (liboqs, AWS-LC, Botan, pqm4, PQClean, zig std, …). Never vulnerable: BoringSSL, Go's mlkem768, libjade, the pq-crystals AVX2 code.</li>
+<li>Follow-up: the multiply-and-shift fix still leaks through <strong>power</strong>, giving SPA-assisted key recovery in about 30 s on a Cortex-M4 (<a href="https://eprint.iacr.org/2024/2051" target="_blank" rel="noopener">ePrint 2024/2051</a>).</li>
+<li>Sources: <a href="https://kyberslash.cr.yp.to/faq.html" target="_blank" rel="noopener">kyberslash.cr.yp.to</a>, <a href="https://eprint.iacr.org/2024/1049" target="_blank" rel="noopener">ePrint 2024/1049</a>.</li>
+</ul>
+<p><strong>Clangover (Jun 2024, CVE-2024-37880).</strong></p>
+<ul>
+<li><code>poly_frommsg</code> used the branch-free idiom <code>mask = -((msg[i]&gt;&gt;j)&amp;1)</code>. Clang 15–18 recognized that the value is 0 or 1 and compiled it into a branch on secret m′, at <code>-Os</code>, <code>-O1</code>, and <code>-O2/-O3</code> with <code>-fno-vectorize</code>.</li>
+<li>That gives a timing plaintext-checking oracle and ML-KEM-512 key recovery in 5–10 minutes.</li>
+<li>Fixed with an empty inline-asm value barrier. liboqs: CVE-2024-36405.</li>
+<li>Lesson: <strong>constant-time C is not preserved by the compiler</strong>.</li>
+<li>Source: <a href="https://github.com/antoonpurnal/clangover" target="_blank" rel="noopener">clangover</a>.</li>
+</ul>
+<p><strong>Re-encryption comparison oracles.</strong></p>
+<ul>
+<li>A <code>memcmp</code> that exits early in FO decaps leaks how many bytes matched. Guo–Johansson–Nilsson broke FrodoKEM with about 2^30 decapsulations this way (<a href="https://eprint.iacr.org/2020/743" target="_blank" rel="noopener">CRYPTO 2020</a>).</li>
+<li>Power and EM leakage from the SHA-3 calls during re-encryption is a generic plaintext-checking oracle ("Curse of Re-encryption", <a href="https://eprint.iacr.org/2021/849" target="_blank" rel="noopener">TCHES 2022</a>).</li>
+<li>Fault injection that skips one instruction in decoding recovered a Kyber512 key from about 6,500 faulty decapsulations (<a href="https://eprint.iacr.org/2021/064" target="_blank" rel="noopener">Pessl–Prokop TCHES 2021</a>).</li>
+<li><strong>2026 logic bug:</strong> wolfSSL's AVX2 <code>mlkem_cmp_avx2</code> compared only 1536 of the 1568 ciphertext bytes of ML-KEM-1024, so tampering with the last 32 bytes skipped implicit rejection. That is a plaintext-checking oracle needing about 350 queries and no timing at all. Reported as CVE-2026-10097 (<a href="https://app.opencve.io/cve/CVE-2026-10097" target="_blank" rel="noopener">OpenCVE</a>; I have only seen this in aggregator listings, not NVD).</li>
+</ul>
+<p><strong>Side channels on protected code (2025).</strong></p>
+<ul>
+<li>Chosen-ciphertext power attacks recover keys even from <strong>shuffled</strong> implementations: about 1,072 queries with an MLP classifier (<a href="https://eprint.iacr.org/2025/1956" target="_blank" rel="noopener">ePrint 2025/1956</a>).</li>
+<li>Template attacks on base multiplication need at most 40 traces (<a href="https://eprint.iacr.org/2025/1577" target="_blank" rel="noopener">ePrint 2025/1577</a>).</li>
+<li>Masking has to cover compress/decompress, the hashes and the comparison, not only the NTT.</li>
+</ul>
+<p><strong>Binding failures.</strong></p>
+<ul>
+<li>An expanded dk is (ŝ, ek, H(ek), z), and decaps doesn't check that these are consistent. With a malicious key you can make two different ciphertexts, or two public keys, decapsulate to the same K.</li>
+<li>So ML-KEM is <strong>not MAL-BIND-K-CT / MAL-BIND-K-PK</strong> (<a href="https://eprint.iacr.org/2024/523" target="_blank" rel="noopener">Schmieg, ePrint 2024/523</a>; <a href="https://eprint.iacr.org/2023/1933" target="_blank" rel="noopener">Cremers–Dax–Medinger CCS 2024</a>). It is LEAK-BIND for honestly generated keys.</li>
+<li>Fixes: seed-only private keys (64 B d‖z, now RFC 9935's recommendation) and protocols that hash ct and pk into the final key.</li>
+</ul>
+<p><strong>Conformance gaps.</strong></p>
+<ul>
+<li>Symbolic Software's 2026 "Crucible" suite found that pq-crystals ref, PQClean and pqcrypto skip the FIPS modulus check and accept coefficient 3329 (<a href="https://symbolic.software/blog/2026-03-23-crucible" target="_blank" rel="noopener">blog</a>).</li>
+<li>Bouncy Castle 1.80 accepted a 2399-byte dk.</li>
+</ul>
+<p><strong>Deployment breakage.</strong></p>
+<ul>
+<li>The ClientHello with a hybrid share is larger than one MTU. Middleboxes and servers that call <code>read()</code> once and expect the whole ClientHello broke when Chrome 124 shipped Kyber (<a href="https://tldr.fail/" target="_blank" rel="noopener">tldr.fail</a>).</li>
+<li>Go keeps <code>GODEBUG=tlsmlkem=0</code> as an escape hatch.</li>
+</ul>
+<blockquote class="callout">
+<p><strong>Misconceptions</strong>
+- <em>"Kyber is quantum-proof."</em> It rests on the <em>assumption</em> that MLWE is hard. In April 2024 Yilei Chen's claimed polynomial-time quantum LWE algorithm caused real alarm until a bug in Step 9 was found and the claim was withdrawn on Apr 18 (<a href="https://eprint.iacr.org/2024/555" target="_blank" rel="noopener">ePrint 2024/555</a>). That episode is the argument for hybrids.
+- <em>"ML-KEM is a drop-in replacement for DH."</em> A KEM isn't a NIKE. There is no static-static agreement, no DH ratchet and no implicit authentication. Signal, Noise, WireGuard and EDHOC need redesigns (<a href="https://datatracker.ietf.org/doc/html/draft-sfluhrer-cfrg-ml-kem-security-considerations-00" target="_blank" rel="noopener">draft-sfluhrer-cfrg-ml-kem-security-considerations</a>).
+- <em>"Decryption failures don't matter at 2^-139."</em> Failures are why the parameters look the way they do. Failure boosting means finding the first one makes the next ones much cheaper (<a href="https://eprint.iacr.org/2019/1399" target="_blank" rel="noopener">D'Anvers et al. 2020</a>).
+- <em>"You can use K-PKE if you're careful."</em> FIPS 203 says it "shall not be used as a stand-alone scheme". With reused keys it leaks s.
+- <em>"Round-3 Kyber == ML-KEM."</em> They aren't wire-compatible: the FO variant changed, H(m) was removed and domain separation was added. That is why TLS needed a new codepoint.</p>
+</blockquote></section><section id="s10"><h2>10. In the wild: how implementations deviate from the textbook</h2><ul>
+<li><strong>AVX2 / AVX-512 implementations</strong> merge NTT layers, use signed <strong>Montgomery</strong> (R = 2^16, QINV = −3327) and <strong>Barrett</strong> (v = 20159) reduction with lazy reduction across layers, and vectorize rejection sampling. Seiler's AVX2 NTT made polynomial multiplication 6.3× faster (<a href="https://eprint.iacr.org/2018/039" target="_blank" rel="noopener">ePrint 2018/039</a>). The reference code stores zetas in Montgomery form, and the inverse NTT finishes with a scale of 1441 = mont²/128.</li>
+<li><strong>libcrux (Cryspen)</strong>: Rust verified with hax→F<em> for panic freedom, functional correctness and secret independence. Extracted to C, it ships in </em><em>Firefox/NSS</em><em> and </em><em>OpenSSH</em>*. It warns that compiled binaries aren't verified side-channel free. Its verification work found KyberSlash.</li>
+<li><strong>mlkem-native (PQ Code Package, AWS)</strong>: C proven memory-safe and overflow-free with <strong>CBMC</strong>. AArch64 and x86-64 assembly proven correct and constant-time in <strong>HOL Light</strong>. AArch64 code superoptimized with <strong>SLOTHY</strong>, which sits outside the trusted computing base because the proofs don't depend on scheduling. Gives 2.0–2.4× over the reference code in AWS-LC. Default ML-KEM in liboqs 0.13+ (<a href="https://github.com/pq-code-package/mlkem-native" target="_blank" rel="noopener">repo</a>, <a href="https://www.amazon.science/blog/verifying-and-optimizing-post-quantum-cryptography-at-amazon" target="_blank" rel="noopener">Amazon Science</a>).</li>
+<li><strong>Jasmin / libjade + EasyCrypt</strong>: a machine-checked IND-CCA proof of ML-KEM linked to a constant-time x86 implementation that is about as fast as unverified AVX2 code (<a href="https://eprint.iacr.org/2024/843" target="_blank" rel="noopener">CRYPTO 2024, ePrint 2024/843</a>).</li>
+<li><strong>Go <code>crypto/mlkem</code></strong> (Filippo Valsorda): written from scratch against the spec, about 500 lines, specialized encoders for 1/4/10/12 bits, Barrett reduction without division, seed-only keys. Now inside the FIPS 140-3 Go module (<a href="https://words.filippo.io/mlkem768/" target="_blank" rel="noopener">blog</a>).</li>
+<li><strong>Private keys</strong>: BoringSSL, Go and RFC 9935 recommend the <strong>64-byte seed</strong> over the 2400-byte expanded key. OpenSSL keeps both by default (<code>seed-priv</code>) because HSMs often only hold expanded keys.</li>
+<li><strong>TLS byte order</strong>: X25519MLKEM768 puts <strong>ML-KEM first</strong> (<code>mlkem ‖ x25519</code>). The NIST-curve hybrids put ECDHE first. The draft codepoint 0x6399 used the opposite order.</li>
+<li><strong>Signal SPQR</strong>: uses the fact that the 960-byte part of an ML-KEM-768 ciphertext depends only on ρ and the randomness, not on t, so the sender can start once a 64-byte header arrives. Keys and ciphertexts are erasure-coded into chunks (37 and 34) that ride on ordinary messages (<a href="https://signal.org/blog/spqr/" target="_blank" rel="noopener">Signal</a>).</li>
+</ul></section><section id="s11"><h2>11. Frontier (what&#x27;s new, 2024–2026)</h2><ol>
+<li><strong>KyberSlash</strong>: Bernstein, Bhargavan, Bhasin, Chattopadhyay, Chia, Kannwischer, Kiefer, Paiva, Ravi, Tamvada. <em>TCHES 2025(2), CHES 2025 Best Paper.</em> Secret-dependent division timing in compress; practical key recovery; Valgrind patch scanning more than 1000 SUPERCOP implementations. <a href="https://eprint.iacr.org/2024/1049" target="_blank" rel="noopener">ePrint 2024/1049</a></li>
+<li><strong>Formally Verifying Kyber Episode V</strong>: Almeida et al. <em>CRYPTO 2024.</em> Machine-checked IND-CCA security and correctness of ML-KEM in EasyCrypt, linked to a verified constant-time Jasmin implementation. <a href="https://eprint.iacr.org/2024/843" target="_blank" rel="noopener">ePrint 2024/843</a></li>
+<li><strong>Keeping Up with the KEMs</strong>: Cremers, Dax, Medinger. <em>ACM CCS 2024.</em> Defines the X-BIND-P-Q binding notions, analyses KEM-based protocols automatically in Tamarin, and shows implicit rejection complicates MAL-binding. <a href="https://eprint.iacr.org/2023/1933" target="_blank" rel="noopener">ePrint 2023/1933</a>. Companion: <strong>Unbindable Kemmy Schmidt</strong>, Schmieg 2024: ML-KEM is neither MAL-BIND-K-CT nor MAL-BIND-K-PK. <a href="https://eprint.iacr.org/2024/523" target="_blank" rel="noopener">ePrint 2024/523</a></li>
+<li><strong>X-Wing</strong>: Barbosa, Connolly, Duarte, Kaiser, Schwabe, Varner, Westerbaan. <em>IACR CiC 1(1), 2024.</em> Hybrid KEM K = SHA3-256(label ‖ ss_M ‖ ss_X ‖ ct_X ‖ pk_X). It can leave ct_M and pk_M out of the hash because ML-KEM's binding of honest keys is proven. Shipped in Apple CryptoKit HPKE. <a href="https://eprint.iacr.org/2024/039" target="_blank" rel="noopener">ePrint 2024/039</a></li>
+<li><strong>Triple Ratchet / SPQR</strong>: Dodis, Jost, Katsumata, Prest, Schmidt (and Auerbach). <em>Eurocrypt 2025 + USENIX Security 2025.</em> Bandwidth-efficient hybrid-secure Signal with an ML-KEM Braid and erasure-coded chunks. Deployed Oct 2025. <a href="https://eprint.iacr.org/2025/078" target="_blank" rel="noopener">ePrint 2025/078</a></li>
+<li><strong>Dual attacks on firmer ground</strong>: Ducas–Pulles, "Does the Dual-Sieve Attack on LWE even Work?" (<em>CRYPTO 2023</em>, <a href="https://eprint.iacr.org/2023/302" target="_blank" rel="noopener">2023/302</a>) showed MATZOV-style estimates relied on a flawed independence heuristic. Since then: Pouly–Shen, provable dual attacks (<em>EUROCRYPT 2024</em>, <a href="https://eprint.iacr.org/2023/1508" target="_blank" rel="noopener">2023/1508</a>); Ducas–Pulles accurate score prediction (<em>J. Cryptology 2026</em>, <a href="https://eprint.iacr.org/2023/1850" target="_blank" rel="noopener">2023/1850</a>); a provable FFT dual attack on ML-KEM (<a href="https://eprint.iacr.org/2026/2166" target="_blank" rel="noopener">2026/2166</a>; seen in search results only). No result puts ML-KEM below its claimed category.</li>
+<li><strong>Side channels against protected code</strong>: chosen-ciphertext attacks on shuffled Kyber, about 1,072 queries (<a href="https://eprint.iacr.org/2025/1956" target="_blank" rel="noopener">2025/1956</a>); SPA on the KyberSlash-patched code (<a href="https://eprint.iacr.org/2024/2051" target="_blank" rel="noopener">2024/2051</a>); an open EM dataset of 200k traces each for the reference, pqm4 and masked implementations (<a href="https://eprint.iacr.org/2026/1851" target="_blank" rel="noopener">2026/1851</a>).</li>
+<li><strong>Standards and measurement</strong>: NIST <strong>SP 800-227</strong> <em>Recommendations for KEMs</em> (final Sep 18 2025, <a href="https://csrc.nist.gov/pubs/sp/800/227/final" target="_blank" rel="noopener">csrc</a>); <strong>RFC 9935</strong> (ML-KEM in X.509, seed-preferred private keys); the TLS hybrid draft <code>draft-ietf-tls-ecdhe-mlkem</code> (one source says it was published as an RFC in Aug 2026, another lists it as draft -05 in May 2026; check the <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/" target="_blank" rel="noopener">datatracker</a>). Measurement: "Mind the Gap: Policy vs Reality in PQ TLS" (<em>IMC 2026</em>, <a href="https://arxiv.org/abs/2607.29005" target="_blank" rel="noopener">arXiv 2607.29005</a>) found that by March 2026 about half of a stable domain panel defaulted to PQ key exchange, almost all X25519MLKEM768, with deployment driven by CDNs rather than national roadmaps.</li>
+</ol></section><section id="s11b"><h2>11b. Open problems</h2><ul>
+<li><strong>Concrete hardness of the parameters.</strong> Do refined attacks push ML-KEM-512 below category 1? MATZOV (2022) lowered Kyber-512 to about 2^137.5 gates, against a 2^143 floor. NIST argued memory-access costs restore the margin. Bernstein (2023) argued NIST multiplied costs that should be added. Ducas–Pulles then questioned the dual-attack success estimates themselves. It is unsettled because "cost" depends on the model: gates, memory access (RAM vs. area-time) and quantum sieving speedups are all debated. In practice deployments chose 768 and CNSA 2.0 chose 1024.</li>
+<li><strong>Module structure.</strong> Cramer–Ducas–Wesolowski (2017) showed quantum attacks on approx-SVP in <em>ideal</em> lattices of cyclotomic fields at large approximation factors. Nothing similar is known for <em>module</em> lattices at Kyber's parameters, but nobody can prove the module structure is harmless. Hedges: FrodoKEM (no structure) and HQC (different math).</li>
+<li><strong>Tight QROM proofs.</strong> The QROM reduction loses a square root and a q_RO² factor. Tight bounds exist only under non-standard assumptions (pseudorandomness of deterministic K-PKE). Direct proofs for implicit-rejection FO (Barbosa–Hülsing <a href="https://eprint.iacr.org/2023/755" target="_blank" rel="noopener">2023/755</a>) improve on that but don't close the gap.</li>
+<li><strong>Constant-time all the way down.</strong> Clangover showed compilers undo constant-time C. KyberSlash showed "obvious" arithmetic compiles to DIV. The SPA follow-up showed the fix still leaks power. Verified assembly (HOL Light, Jasmin) covers the instructions but not microarchitectural leakage such as variable-time multipliers or power. Hard because it needs leakage models of real silicon.</li>
+<li><strong>Masking cost.</strong> First-order masking of decaps (A2B and B2A conversions around compress and the comparison) costs several times the unmasked runtime, and attacks on shuffled and masked code keep improving.</li>
+<li><strong>No lattice NIKE yet.</strong> SWOOSH has about 220 KB keys. Protocols built on static DH (Noise IK, WireGuard, the DH ratchet) need either expensive NIKEs or redesigns around KEMs, each with its own proof.</li>
+<li><strong>Binding as the default.</strong> Should future KEM APIs commit to (ct, pk) by default? X-Wing and the CFRG combiners do it in the hybrid layer. Plain ML-KEM leaves it to each protocol.</li>
+<li><strong>Authentication sizes.</strong> ML-DSA signatures are 2.4–4.6 KB. A PQ-authenticated TLS chain adds about 15 KB against Chrome's 10% regression budget. Candidates: KEMTLS, Merkle tree certificates, trust-anchor negotiation.</li>
+</ul></section><section id="s12"><h2>12. Lineage</h2><pre><button class="copy" type="button">copy</button><code>Ajtai 1996 (SIS, worst-case → average-case)
+  └─ Regev 2005: LWE + public-key encryption
+      ├─ Lyubashevsky–Peikert–Regev 2010: Ring-LWE  →  NewHope (2016, Chrome CECPQ1 experiment)
+      ├─ Langlois–Stehlé 2012/15: Module-LWE
+      │     └─ Bos et al. 2017/18 (EuroS&amp;P): CRYSTALS-Kyber
+      │           └─ NIST rounds 1–3 (2017–2020) → selected Jul 2022
+      │                 └─ FIPS 203 ML-KEM (Aug 13 2024)
+      │                       ├─ X25519MLKEM768 in TLS, OpenSSH 10, SPQR, PQ3
+      │                       └─ X-Wing, CFRG hybrid combiners, SP 800-227 (2025)
+      └─ Frodo (2016): plain LWE  →  FrodoKEM
+Fujisaki–Okamoto 1999 → Hofheinz–Hövelmanns–Kiltz 2017 (modular FO, implicit rejection)
+Hoffstein–Pipher–Silverman 1996: NTRU  →  NTRU Prime / sntrup761 (OpenSSH 2022)
+</code></pre></section><section id="s13"><h2>13. Hands-on (≤30 min)</h2><p>Everything is in this folder and needs only Python 3 (+ numpy for <code>failure_prob.py</code>).</p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash">python3 mlkem.py         # all 3 parameter sets: sizes + round-trip + implicit-rejection demo
+python3 trace.py         # the section-5 trace with fixed seeds
+python3 experiments.py   # noise histogram (σ≈76, worst ≈290 of 832), KyberSlash fix check, rejection
+python3 failure_prob.py  # reproduces FIPS 203's 2^-138.8 / 2^-164.8 / 2^-174.8 vs Gaussian 2^-76/-81/-146
+</code></pre>
+<p><strong>Interoperability with OpenSSL 3.5+</strong> (checked here with OpenSSL 3.6):</p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash">SEED=$(python3 -c &quot;print(bytes(range(64)).hex())&quot;)
+openssl genpkey -algorithm ML-KEM-768 -pkeyopt hexseed:$SEED -out k.pem
+openssl pkey -in k.pem -pubout -outform DER -out pub.der
+openssl pkeyutl -encap -inkey k.pem -secret ss.bin -out ct.bin
+python3 -c &quot;
+import mlkem
+ek, dk = mlkem.keygen('ML-KEM-768', bytes(range(32)), bytes(range(32,64)))
+print('ek matches:', open('pub.der','rb').read().endswith(ek))
+print('decaps matches:', mlkem.decaps(dk, open('ct.bin','rb').read()) == open('ss.bin','rb').read())&quot;
+</code></pre>
+<p><strong>Things to try:</strong></p>
+<ol>
+<li>Call <code>failure_prob.failure(3, 2, 2, 10, dv)</code> for dv = 3, 4, 5. Each bit of dv moves δ by tens of bits: 2^-123.5, 2^-164.8, 2^-187.0. At dv = 3 the Gaussian estimate says 2^-25, an even bigger gap, because the bounded c_v term (±208) now carries even more of the variance. Saving 32 bytes would cost about 41 bits of failure margin.</li>
+<li>In <code>experiments.py</code>, log <code>w</code> for a ciphertext whose <code>c2</code> you corrupt by +1 in one 4-bit nibble. The coefficient moves by 208. Find how many such corruptions flip a bit.</li>
+<li>Replace <code>ok = c == c2</code> in <code>decaps</code> with a byte loop that returns early, and time it with <code>time.perf_counter_ns</code> on flipped bytes at the start and at the end of c. This is the Guo–Johansson–Nilsson oracle in miniature. Python is far too noisy for a real attack, but the structure is the same.</li>
+</ol></section><section id="s14"><h2>14. Question ladder</h2><p><button id="revealAll" type="button" aria-pressed="false">Reveal all answers</button></p><h3>Mechanism</h3><details class="q"><summary><b>1.</b> In w = v′ − sᵀu′, which term cancels, and why does the receiver need s and not e to cancel it?</summary><div class="ans"><p>sᵀAᵀy. The sender's v contains tᵀy = (As+e)ᵀy = sᵀAᵀy + eᵀy. The receiver computes sᵀu′ = sᵀAᵀy + sᵀe₁ + sᵀc_u. Only the s-part of t needs cancelling, because the e-part eᵀy is already small. That is why the secret key is s alone.</p></div></details><details class="q"><summary><b>2.</b> Why is Â sampled directly in the NTT domain, and what would change if FIPS 203 sampled A in the coefficient domain?</summary><div class="ans"><p>A uniform polynomial maps to a uniform NTT vector (the NTT is a bijection), so sampling Â directly is statistically identical and skips k² forward NTTs. If the standard defined A in the coefficient domain, every implementation would pay k² extra transforms, and test vectors would differ. FIPS 203 makes the NTT normative for exactly this reason.</p></div></details><details class="q"><summary><b>3.</b> Exactly which values in decapsulation depend on the secret, and which of them did KyberSlash1 and KyberSlash2 leak?</summary><div class="ans"><p>ŝ, the intermediate w = v′ − sᵀu′, the decoded m′, (K′, r′) = G(m′‖h), every value inside the re-encryption (y′, e₁′, e₂′, u, v before compression), the comparison result, and z. KyberSlash1 leaked through Compress_1(w) in poly_tomsg (division of a w-derived numerator by q). KyberSlash2 leaked through Compress_du/dv in poly_compress during re-encryption, where the inputs depend on m′ and r′.</p></div></details><details class="q"><summary><b>4.</b> Why does Decaps use the H(ek) stored in dk rather than recomputing it, and what goes wrong if the stored value is inconsistent?</summary><div class="ans"><p>For speed: hashing 1184 bytes on every decapsulation costs time. FIPS 203 requires a "hash check" on dk import (H(ek part) == stored h). Without that check a malicious or corrupted dk can carry an h unrelated to ek. Then K and r are derived from the wrong h, re-encryption fails or binds to the wrong key, and that is one ingredient of the MAL-BIND attacks. Seed-only keys rebuild everything, so this can't happen.</p></div></details><details class="q"><summary><b>5.</b> Walk through what happens to K when a single bit of c₂ is flipped.</summary><div class="ans"><p>One 4-bit nibble of v changes, moving one coefficient by 208 (or more if a high bit flipped). Decrypt may or may not still produce m′ (noise ±76 + 208 is usually still below 832, so m′ often doesn't change). Re-encryption from m′ then gives the original c, which differs from the tampered c in that bit, so Decaps returns J(z‖c_tampered): a pseudorandom key unrelated to K. The sender's K and the receiver's K disagree, and the handshake fails at key confirmation. No error comes from the KEM itself.</p></div></details><h3>Why</h3><details class="q"><summary><b>6.</b> Why q = 3329 and not 257 or 769, both of which also allow an NTT?</summary><div class="ans"><p>A fast NTT needs n | (q−1) with n = 256. The primes 257 and 769 qualify, but they leave too little room: q/4 would be about 64 or 192, smaller than the noise needed for security. Reaching δ ≈ 2^-128 or lower for CCA wouldn't work. 3329 is the next qualifying prime, fits 12 bits, and keeps products under 2^24. It only has 256th roots of unity (not 512th), hence the incomplete NTT.</p></div></details><details class="q"><summary><b>7.</b> Why does dv = 4 dominate the noise, and why is that a deliberate choice?</summary><div class="ans"><p>The rounding error for d bits is roughly uniform with width q/2^d. For d = 4 that is 208, variance about 3608, against about 2213 for all sampled noise combined. Kyber accepts this because each extra bit of dv costs 32 bytes of ciphertext, and the bounded, uniform rounding noise hurts the failure tail much less than the same variance of unbounded noise would (see Q8). Rounding noise is effectively cheap.</p></div></details><details class="q"><summary><b>8.</b> Why does the Gaussian estimate (2^-81) disagree with the exact convolution (2^-164.8) by about 84 bits?</summary><div class="ans"><p>The Gaussian treats the whole noise as unbounded with σ ≈ 76, putting failure at 10.9σ. In reality 62% of the variance (c_v) is bounded by ±104. Failure needs the remaining sum-of-products part (σ ≈ 47) to reach at least 728, which is 15.5σ, and that part is itself a sum of bounded products with sub-Gaussian tails. The exact convolution captures both effects.</p></div></details><details class="q"><summary><b>9.</b> Why implicit rejection rather than returning an error?</summary><div class="ans"><p>An explicit ⊥ is a 1-bit oracle. Combined with even a weak side channel or a failure-boosting search, it speeds up key recovery and makes timing differences between paths easy to see. Returning J(z‖c) makes the reject path output look like a valid key, keeps the code path uniform (compute both, select in constant time), and gives tighter QROM proofs (FO with implicit rejection). The flag must never leave the function.</p></div></details><details class="q"><summary><b>10.</b> Why does TLS still run X25519 alongside ML-KEM?</summary><div class="ans"><p>ML-KEM's hardness is a younger assumption than ECDH's. Chen's April 2024 scare showed how quickly confidence can wobble, and implementation bugs are still being found. A hybrid stays secure if <em>either</em> component holds, for about 32 extra bytes and microseconds. ANSSI and BSI require it. CNSA 2.0 accepts it.</p></div></details><h3>Counterfactual</h3><details class="q"><summary><b>11.</b> If ML-KEM skipped re-encryption and returned H(m′, c), what attack becomes practical?</summary><div class="ans"><p>The attacker submits crafted (u, v) pairs, for example with v nudged near the decision boundary in one coefficient, and observes whether the derived key matches a guess (a plaintext-checking oracle via key confirmation). Each query reveals a linear inequality on s, and a few thousand queries recover s. This is exactly the key-mismatch attack on CPA Kyber.</p></div></details><details class="q"><summary><b>12.</b> If keys were only ever ephemeral (used once), which parts of ML-KEM could you drop, and why did NIST keep them anyway?</summary><div class="ans"><p>With truly one-time keys, chosen-ciphertext attacks get one query, so the FO transform and implicit rejection buy almost nothing, and a CPA KEM would do (as in TLS 1.3 ephemeral exchange). NIST kept full CCA because keys get reused in practice (caching, static server keys, HPKE, bugs), because one primitive for all uses is safer, and because re-encryption costs only one extra encryption.</p></div></details><details class="q"><summary><b>13.</b> If n were 512 with k = 1 (Ring-LWE), what would you gain and lose?</summary><div class="ans"><p>Gain: one big polynomial, slightly faster. Lose: each security level needs a different ring and NTT (n = 512 or 1024 and possibly a different q), and the scheme commits to a single ring structure (more algebraic structure per dimension). Module-LWE keeps one arithmetic core, and k scales security.</p></div></details><details class="q"><summary><b>14.</b> What if the shared key were G(m ‖ H(ek)) without H(ek), as an attacker precomputing failures would like?</summary><div class="ans"><p>Then r depends only on m, and the same (m → ciphertext) map holds for every public key's randomness derivation. An attacker can precompute "weak" m values whose noise terms are large and use the work against <strong>all</strong> keys at once (multi-target failure search). It also weakens binding of K to the recipient. H(ek) makes the work per key.</p></div></details><h3>Adversarial</h3><details class="q"><summary><b>15.</b> You can measure decapsulation time to 1 cycle precision on a Cortex-M4. Sketch how KyberSlash1 recovers s.</summary><div class="ans"><p>poly_tomsg divides (2w + 1665) by q, and the DIV timing jumps at numerator thresholds (for example 8192 on Zen 2). Craft ciphertexts with u = small multiples chosen so w's coefficients equal v − (coefficient of s) times a known value. Then whether a numerator crosses a threshold depends on one secret coefficient. Time thousands of decapsulations per ciphertext, classify slow vs fast, and solve for each coefficient of s in {−2..2}. Recovery took hours on a Raspberry Pi 2.</p></div></details><details class="q"><summary><b>16.</b> An implementation compares only the first 1536 of 1568 ciphertext bytes. Build a plaintext-checking oracle from it.</summary><div class="ans"><p>Modify only the last 32 bytes, which are part of c₂ (v's encoding). Re-encryption from m′ gives c′. If m′ didn't change, c′ equals the original c, and the truncated comparison over bytes 0..1535 matches, so Decaps returns the <strong>real</strong> K′ instead of K̄. If your modification flipped a message bit, K′ changes. So "does my modified ciphertext give the honest K?" reveals whether a coefficient crossed the boundary, which is a plaintext-checking oracle. Choose modifications to binary-search each coefficient of the noise and hence s. The wolfSSL PoC needed about 350 queries.</p></div></details><details class="q"><summary><b>17.</b> You control a victim's ML-KEM private key file (expanded format). How do you make two different ciphertexts decapsulate to the same K, and why does a seed-only key stop you?</summary><div class="ans"><p>In the expanded dk you can set ŝ, ek, h and z independently. For example, choose ek and h inconsistent with ŝ so that re-encryption always fails. Then every ciphertext takes the reject path, K = J(z‖c), and you control z, so outputs are predictable to you. Or construct cases where two ciphertexts both reject to keys you can relate. Schmieg gives explicit constructions for K-CT and K-PK collisions. A 64-byte seed forces honest derivation of every component, so these inconsistencies can't be represented.</p></div></details><details class="q"><summary><b>18.</b> A middlebox drops ClientHellos larger than one packet. What does the client see, and how do Chrome and Go fall back?</summary><div class="ans"><p>The connection stalls or resets after the first packet: the server read one segment, failed to parse it, and closed or waited. Chrome added enterprise policies and a flag, Go kept <code>GODEBUG=tlsmlkem=0</code>, and clients often send an X25519-only share as well. The real fix is servers that loop on read until the record is complete (tldr.fail).</p></div></details><h3>Connection</h3><details class="q"><summary><b>19.</b> How is FO re-encryption related to the "decrypt then verify" idea in authenticated encryption, and how is it different?</summary><div class="ans"><p>Both reject anything that wasn't produced honestly. AEAD does it with a MAC under a shared key. FO does it by recomputing the sender's deterministic encryption from the recovered m and checking for equality, which works without a shared secret because the randomness is a hash of the message. The difference: FO's check happens after decryption, so decryption itself must be side-channel safe, whereas AEAD verifies before decrypting.</p></div></details><details class="q"><summary><b>20.</b> How does ML-KEM's compression relate to Learning With Rounding (LWR) and Saber?</summary><div class="ans"><p>Learning With Rounding replaces sampled error with deterministic rounding (b = ⌊(p/q)·As⌉). ML-KEM's ciphertext compression is a partial LWR step on u and v, adding rounding noise on top of sampled noise. Kyber512's 118-bit core-SVP figure counts on that rounding ("akin to LWR"); without it the figure is 112. Saber went fully LWR with a power-of-two modulus.</p></div></details><details class="q"><summary><b>21.</b> Why can't Signal's Double Ratchet simply swap X25519 for ML-KEM, and what does SPQR do instead?</summary><div class="ans"><p>The DH ratchet works because each new public key, combined with the peer's last key, immediately gives a fresh shared secret (non-interactive). A KEM needs a round trip (ek one way, ct back) and about 2.3 KB. SPQR runs a separate ML-KEM Braid ratchet: send the 64-byte header early, stream erasure-coded chunks of ek and ct on ordinary messages, then mix the resulting key with the Double Ratchet output through a KDF.</p></div></details><h3>Open</h3><details class="q"><summary><b>22.</b> Is the module structure exploitable? What would a Cramer–Ducas–Wesolowski-style result for modules need?</summary><div class="ans"><p>CDW exploits the unit group and class group of a cyclotomic field to shorten principal or ideal lattice vectors. Module lattices of rank at least 2 don't reduce to ideals directly. An attack would need a module analogue: an efficient way to reduce module lattice bases using the ring structure, beating plain BKZ at Kyber's approximation factors. Results so far (for example module-LLL) help only at large approximation factors. Open.</p></div></details><details class="q"><summary><b>23.</b> What is the "right" cost model for lattice sieving (gates vs memory access vs area-time), and how does the choice move ML-KEM-512 relative to category 1?</summary><div class="ans"><p>Sieving in dimension β needs about 2^{0.2075β} memory and accesses it randomly. If memory access is free (the gate model), MATZOV-style estimates put Kyber-512 near 2^137.5, below 2^143. If you charge for distance (area-time or physically realistic RAM), costs rise by about 2^20 or more. NIST took the latter position, Bernstein disputed the arithmetic, and Ducas–Pulles disputed the attack's success probability. No consensus, so practice avoids 512.</p></div></details><details class="q"><summary><b>24.</b> Can constant-time guarantees be established end to end, from spec to silicon?</summary><div class="ans"><p>Partly. Spec→code correctness (hax/F*, EasyCrypt) and code→assembly constant-time (Jasmin, HOL Light) are done for some implementations. The remaining gap is assembly→silicon: variable-time multipliers, power and EM leakage, and speculative execution. That needs hardware leakage contracts (ISA-level guarantees like Intel DIT / Arm DIT) and masking. Open.</p></div></details></section><section id="s15"><h2>15. Go deeper next</h2><ol>
+<li><strong>ML-DSA (FIPS 204) and Fiat–Shamir with aborts</strong>: the same ring, but rejection sampling hides the secret in signatures. Why signatures are 2.4–4.6 KB, and what that means for TLS certificates.</li>
+<li><strong>Masking lattice KEMs</strong>: arithmetic↔Boolean conversions, why Compress and the FO comparison are the expensive parts, and the 2025 attacks on shuffled and masked code.</li>
+<li><strong>Lattice sieving and BKZ</strong>: how core-SVP numbers like 183 are computed, G6K/GPU sieving records (SVP-200), and the dual-attack dispute.</li>
+</ol></section><section id="src"><h2>Sources</h2><p><strong>Standards and specs</strong></p>
+<ul>
+<li>FIPS 203: <a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" target="_blank" rel="noopener">https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf</a></li>
+<li>Kyber round-3 spec v3.02: <a href="https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf" target="_blank" rel="noopener">https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf</a></li>
+<li>NIST PQC timeline: <a href="https://csrc.nist.gov/projects/post-quantum-cryptography/workshops-and-timeline" target="_blank" rel="noopener">https://csrc.nist.gov/projects/post-quantum-cryptography/workshops-and-timeline</a></li>
+<li>NIST IR 8413: <a href="https://nvlpubs.nist.gov/nistpubs/ir/2022/NIST.IR.8413-upd1.pdf" target="_blank" rel="noopener">https://nvlpubs.nist.gov/nistpubs/ir/2022/NIST.IR.8413-upd1.pdf</a></li>
+<li>NIST HQC selection: <a href="https://www.nist.gov/news-events/news/2025/03/nist-selects-hqc-fifth-algorithm-post-quantum-encryption" target="_blank" rel="noopener">https://www.nist.gov/news-events/news/2025/03/nist-selects-hqc-fifth-algorithm-post-quantum-encryption</a></li>
+<li>SP 800-227: <a href="https://csrc.nist.gov/pubs/sp/800/227/final" target="_blank" rel="noopener">https://csrc.nist.gov/pubs/sp/800/227/final</a></li>
+<li>RFC 9935 (ML-KEM in X.509): <a href="https://www.rfc-editor.org/rfc/rfc9935.html" target="_blank" rel="noopener">https://www.rfc-editor.org/rfc/rfc9935.html</a></li>
+<li>draft-ietf-tls-ecdhe-mlkem: <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/" target="_blank" rel="noopener">https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/</a></li>
+<li>draft-irtf-cfrg-hybrid-kems: <a href="https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems" target="_blank" rel="noopener">https://datatracker.ietf.org/doc/draft-irtf-cfrg-hybrid-kems</a></li>
+<li>draft-sfluhrer-cfrg-ml-kem-security-considerations: <a href="https://datatracker.ietf.org/doc/html/draft-sfluhrer-cfrg-ml-kem-security-considerations-00" target="_blank" rel="noopener">https://datatracker.ietf.org/doc/html/draft-sfluhrer-cfrg-ml-kem-security-considerations-00</a></li>
+<li>TLS key-share prediction: <a href="https://www.ietf.org/archive/id/draft-ietf-tls-key-share-prediction-04.html" target="_blank" rel="noopener">https://www.ietf.org/archive/id/draft-ietf-tls-key-share-prediction-04.html</a></li>
+</ul>
+<p><strong>Papers</strong></p>
+<ul>
+<li>Bos et al., CRYSTALS-Kyber (EuroS&amp;P 2018): <a href="https://eprint.iacr.org/2017/634" target="_blank" rel="noopener">https://eprint.iacr.org/2017/634</a></li>
+<li>KyberSlash (TCHES 2025): <a href="https://eprint.iacr.org/2024/1049" target="_blank" rel="noopener">https://eprint.iacr.org/2024/1049</a> · <a href="https://tches.iacr.org/index.php/TCHES/article/view/12046" target="_blank" rel="noopener">https://tches.iacr.org/index.php/TCHES/article/view/12046</a></li>
+<li>SPA on patched ML-KEM: <a href="https://eprint.iacr.org/2024/2051" target="_blank" rel="noopener">https://eprint.iacr.org/2024/2051</a></li>
+<li>Formally Verifying Kyber Episode V (CRYPTO 2024): <a href="https://eprint.iacr.org/2024/843" target="_blank" rel="noopener">https://eprint.iacr.org/2024/843</a></li>
+<li>Formally verifying Kyber (TCHES 2023): <a href="https://tches.iacr.org/index.php/TCHES/article/view/10960" target="_blank" rel="noopener">https://tches.iacr.org/index.php/TCHES/article/view/10960</a></li>
+<li>Keeping Up with the KEMs (CCS 2024): <a href="https://eprint.iacr.org/2023/1933" target="_blank" rel="noopener">https://eprint.iacr.org/2023/1933</a></li>
+<li>Unbindable Kemmy Schmidt: <a href="https://eprint.iacr.org/2024/523" target="_blank" rel="noopener">https://eprint.iacr.org/2024/523</a></li>
+<li>X-Wing: <a href="https://eprint.iacr.org/2024/039" target="_blank" rel="noopener">https://eprint.iacr.org/2024/039</a></li>
+<li>Triple Ratchet (Eurocrypt 2025): <a href="https://eprint.iacr.org/2025/078" target="_blank" rel="noopener">https://eprint.iacr.org/2025/078</a></li>
+<li>PQXDH analysis (USENIX Sec 2024): <a href="https://eprint.iacr.org/2024/702" target="_blank" rel="noopener">https://eprint.iacr.org/2024/702</a></li>
+<li>Guo–Johansson–Nilsson (CRYPTO 2020): <a href="https://eprint.iacr.org/2020/743" target="_blank" rel="noopener">https://eprint.iacr.org/2020/743</a></li>
+<li>Curse of Re-encryption (TCHES 2022): <a href="https://eprint.iacr.org/2021/849" target="_blank" rel="noopener">https://eprint.iacr.org/2021/849</a></li>
+<li>Pessl–Prokop fault attacks (TCHES 2021): <a href="https://eprint.iacr.org/2021/064" target="_blank" rel="noopener">https://eprint.iacr.org/2021/064</a></li>
+<li>(One) failure is not an option: <a href="https://eprint.iacr.org/2019/1399" target="_blank" rel="noopener">https://eprint.iacr.org/2019/1399</a></li>
+<li>Fluhrer 2016: <a href="https://eprint.iacr.org/2016/085" target="_blank" rel="noopener">https://eprint.iacr.org/2016/085</a></li>
+<li>Key mismatch with limited reuse: <a href="https://eprint.iacr.org/2024/810" target="_blank" rel="noopener">https://eprint.iacr.org/2024/810</a> · <a href="https://cic.iacr.org/p/1/3/21" target="_blank" rel="noopener">https://cic.iacr.org/p/1/3/21</a></li>
+<li>Ducas–Pulles dual sieve (CRYPTO 2023): <a href="https://eprint.iacr.org/2023/302" target="_blank" rel="noopener">https://eprint.iacr.org/2023/302</a></li>
+<li>Ducas–Pulles score prediction: <a href="https://eprint.iacr.org/2023/1850" target="_blank" rel="noopener">https://eprint.iacr.org/2023/1850</a></li>
+<li>Pouly–Shen provable dual attacks: <a href="https://eprint.iacr.org/2023/1508" target="_blank" rel="noopener">https://eprint.iacr.org/2023/1508</a></li>
+<li>Provable FFT dual attack on ML-KEM (2026): <a href="https://eprint.iacr.org/2026/2166" target="_blank" rel="noopener">https://eprint.iacr.org/2026/2166</a></li>
+<li>Chen quantum LWE (withdrawn): <a href="https://eprint.iacr.org/2024/555" target="_blank" rel="noopener">https://eprint.iacr.org/2024/555</a></li>
+<li>Barbosa–Hülsing QROM FO: <a href="https://eprint.iacr.org/2023/755" target="_blank" rel="noopener">https://eprint.iacr.org/2023/755</a></li>
+<li>Cramer–Ducas–Wesolowski: <a href="https://eprint.iacr.org/2016/885" target="_blank" rel="noopener">https://eprint.iacr.org/2016/885</a></li>
+<li>SWOOSH: <a href="https://eprint.iacr.org/2023/271" target="_blank" rel="noopener">https://eprint.iacr.org/2023/271</a></li>
+<li>Seiler AVX2 NTT: <a href="https://eprint.iacr.org/2018/039" target="_blank" rel="noopener">https://eprint.iacr.org/2018/039</a></li>
+<li>Shuffled Kyber CCA side channel: <a href="https://eprint.iacr.org/2025/1956" target="_blank" rel="noopener">https://eprint.iacr.org/2025/1956</a></li>
+<li>Pointwise-mult template attack: <a href="https://eprint.iacr.org/2025/1577" target="_blank" rel="noopener">https://eprint.iacr.org/2025/1577</a></li>
+<li>EM dataset: <a href="https://eprint.iacr.org/2026/1851" target="_blank" rel="noopener">https://eprint.iacr.org/2026/1851</a></li>
+<li>Mind the Gap (IMC 2026): <a href="https://arxiv.org/abs/2607.29005" target="_blank" rel="noopener">https://arxiv.org/abs/2607.29005</a></li>
+<li>ML-KEM AVX-512 cycles: <a href="https://arxiv.org/pdf/2404.13544" target="_blank" rel="noopener">https://arxiv.org/pdf/2404.13544</a></li>
+<li>Regev 2005: <a href="https://cims.nyu.edu/~regev/papers/qcrypto.pdf" target="_blank" rel="noopener">https://cims.nyu.edu/~regev/papers/qcrypto.pdf</a></li>
+</ul>
+<p><strong>Code and docs</strong></p>
+<ul>
+<li>pq-crystals/kyber ref: <a href="https://github.com/pq-crystals/kyber" target="_blank" rel="noopener">https://github.com/pq-crystals/kyber</a></li>
+<li>mlkem-native: <a href="https://github.com/pq-code-package/mlkem-native" target="_blank" rel="noopener">https://github.com/pq-code-package/mlkem-native</a></li>
+<li>libcrux: <a href="https://github.com/cryspen/libcrux" target="_blank" rel="noopener">https://github.com/cryspen/libcrux</a></li>
+<li>Go crypto/mlkem: <a href="https://pkg.go.dev/crypto/mlkem" target="_blank" rel="noopener">https://pkg.go.dev/crypto/mlkem</a></li>
+<li>OpenSSL EVP_PKEY-ML-KEM: <a href="https://docs.openssl.org/3.5/man7/EVP_PKEY-ML-KEM/" target="_blank" rel="noopener">https://docs.openssl.org/3.5/man7/EVP_PKEY-ML-KEM/</a></li>
+<li>BoringSSL mlkem.h: <a href="https://boringssl.googlesource.com/boringssl/+/HEAD/include/openssl/mlkem.h" target="_blank" rel="noopener">https://boringssl.googlesource.com/boringssl/+/HEAD/include/openssl/mlkem.h</a></li>
+<li>liboqs-python: <a href="https://github.com/open-quantum-safe/liboqs-python" target="_blank" rel="noopener">https://github.com/open-quantum-safe/liboqs-python</a></li>
+<li>Clangover: <a href="https://github.com/antoonpurnal/clangover" target="_blank" rel="noopener">https://github.com/antoonpurnal/clangover</a></li>
+<li>KyberSlash site: <a href="https://kyberslash.cr.yp.to/faq.html" target="_blank" rel="noopener">https://kyberslash.cr.yp.to/faq.html</a> · <a href="https://kyberslash.cr.yp.to/libraries.html" target="_blank" rel="noopener">https://kyberslash.cr.yp.to/libraries.html</a></li>
+<li>JEP 496: <a href="https://openjdk.org/jeps/496" target="_blank" rel="noopener">https://openjdk.org/jeps/496</a></li>
+<li>Go 1.24 notes: <a href="https://go.dev/doc/go1.24" target="_blank" rel="noopener">https://go.dev/doc/go1.24</a></li>
+<li>OpenSSL 3.5 notes: <a href="https://openssl-library.org/news/openssl-3.5-notes" target="_blank" rel="noopener">https://openssl-library.org/news/openssl-3.5-notes</a></li>
+<li>OpenSSH 10.0: <a href="https://www.openssh.com/txt/release-10.0" target="_blank" rel="noopener">https://www.openssh.com/txt/release-10.0</a></li>
+</ul>
+<p><strong>Articles and engineering blogs</strong></p>
+<ul>
+<li>Cloudflare pq-2024: <a href="https://blog.cloudflare.com/pq-2024/" target="_blank" rel="noopener">https://blog.cloudflare.com/pq-2024/</a> · pq-2025: <a href="https://blog.cloudflare.com/pq-2025/" target="_blank" rel="noopener">https://blog.cloudflare.com/pq-2025/</a> · roadmap: <a href="https://blog.cloudflare.com/post-quantum-roadmap/" target="_blank" rel="noopener">https://blog.cloudflare.com/post-quantum-roadmap/</a> · radar: <a href="https://blog.cloudflare.com/radar-origin-pq-key-transparency-aspa/" target="_blank" rel="noopener">https://blog.cloudflare.com/radar-origin-pq-key-transparency-aspa/</a></li>
+<li>Google, new path for Kyber: <a href="https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html" target="_blank" rel="noopener">https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html</a></li>
+<li>Signal SPQR: <a href="https://signal.org/blog/spqr/" target="_blank" rel="noopener">https://signal.org/blog/spqr/</a> · PQXDH: <a href="https://signal.org/blog/pqxdh/" target="_blank" rel="noopener">https://signal.org/blog/pqxdh/</a></li>
+<li>Apple iMessage PQ3: <a href="https://security.apple.com/blog/imessage-pq3/" target="_blank" rel="noopener">https://security.apple.com/blog/imessage-pq3/</a></li>
+<li>AWS PQ TLS: <a href="https://aws.amazon.com/blogs/security/ml-kem-post-quantum-tls-now-supported-in-aws-kms-acm-and-secrets-manager/" target="_blank" rel="noopener">https://aws.amazon.com/blogs/security/ml-kem-post-quantum-tls-now-supported-in-aws-kms-acm-and-secrets-manager/</a></li>
+<li>Amazon Science, verifying PQC: <a href="https://www.amazon.science/blog/verifying-and-optimizing-post-quantum-cryptography-at-amazon" target="_blank" rel="noopener">https://www.amazon.science/blog/verifying-and-optimizing-post-quantum-cryptography-at-amazon</a></li>
+<li>Cryspen ML-KEM verification: <a href="https://cryspen.com/post/ml-kem-verification/" target="_blank" rel="noopener">https://cryspen.com/post/ml-kem-verification/</a></li>
+<li>Filippo Valsorda, mlkem768: <a href="https://words.filippo.io/mlkem768/" target="_blank" rel="noopener">https://words.filippo.io/mlkem768/</a></li>
+<li>Bernstein, "The inability to count correctly": <a href="https://blog.cr.yp.to/20231003-countcorrectly.html" target="_blank" rel="noopener">https://blog.cr.yp.to/20231003-countcorrectly.html</a></li>
+<li>MATZOV report: <a href="https://zenodo.org/records/6412487" target="_blank" rel="noopener">https://zenodo.org/records/6412487</a></li>
+<li>Symbolic Software Crucible: <a href="https://symbolic.software/blog/2026-03-23-crucible" target="_blank" rel="noopener">https://symbolic.software/blog/2026-03-23-crucible</a></li>
+<li>tldr.fail: <a href="https://tldr.fail/" target="_blank" rel="noopener">https://tldr.fail/</a></li>
+<li>Scott Aaronson on Chen: <a href="https://scottaaronson.blog/?p=7946" target="_blank" rel="noopener">https://scottaaronson.blog/?p=7946</a></li>
+<li>Mullvad: <a href="https://mullvad.net/blog/quantum-resistant-tunnels-are-now-the-default-on-desktop" target="_blank" rel="noopener">https://mullvad.net/blog/quantum-resistant-tunnels-are-now-the-default-on-desktop</a></li>
+<li>wolfSSL CVE-2026-10097 (aggregator): <a href="https://app.opencve.io/cve/CVE-2026-10097" target="_blank" rel="noopener">https://app.opencve.io/cve/CVE-2026-10097</a></li>
+</ul></section></main></div>
+<script>(function(){
+var $=function(id){return document.getElementById(id);};
+// scroll-spy
+var links=[].slice.call(document.querySelectorAll('nav a'));
+var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));});
+function spy(){var y=window.scrollY+90,cur=0;secs.forEach(function(s,i){if(s&&s.getBoundingClientRect().top+window.scrollY<=y)cur=i;});
+ links.forEach(function(a,i){a.classList.toggle('on',i===cur);});}
+window.addEventListener('scroll',spy,{passive:true});spy();
+// copy
+document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){
+ var t=b.parentNode.querySelector('code').innerText;
+ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='copied';},function(){b.textContent='select+copy';});
+ setTimeout(function(){b.textContent='copy';},1500);});});
+// reveal all
+var ra=$('revealAll');
+if(ra)ra.addEventListener('click',function(){var open=ra.getAttribute('aria-pressed')!=='true';
+ document.querySelectorAll('details.q').forEach(function(d){d.open=open;});
+ ra.setAttribute('aria-pressed',open);ra.textContent=open?'Hide all answers':'Reveal all answers';});
+// KaTeX
+window.addEventListener('load',function(){if(window.renderMathInElement)renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true}],throwOnError:false});});
+
+// stepper
+var S=[
+ {hot:'R',e:'',r:'d = 00…00',s:'—',k:'',t:'<b>KeyGen expands the seed.</b> (ρ, σ) = SHA3-512(d ‖ 0x03). The k byte stops one seed from being expanded under two parameter sets.',d:'d        = 0000…00   (32 B)\nz        = 0101…01   (32 B, kept for implicit rejection)\nρ        = 6d3ae406763c5045…   (public, matrix seed)\nσ        = 4773032792cfd2de…   (secret, noise seed)'},
+ {hot:'R',e:'',r:'Â ← SHAKE128(ρ‖j‖i)',s:'—',k:'',t:'<b>Matrix Â, sampled directly in the NTT domain.</b> SHAKE128 is read in 12-bit chunks and values ≥ 3329 are rejected (≈18.7%). Nobody ever computes A in the coefficient domain.',d:'Â[0][0] = [686, 85, 609, 2930, …]   (256 coeffs mod 3329)\nÂ is 3×3 of these → never stored, regenerated from ρ'},
+ {hot:'R',e:'',r:'s, e ← CBD₂',s:'—',k:'',t:'<b>Small secrets.</b> Centered binomial η = 2: (b₀+b₁) − (b₂+b₃) ∈ {−2..2}, variance 1. Only bit counting: no tables, no floating point.',d:'s[0][:8] = [1, 1, 0, 2, 0, 0, 0, 0]\ne[0][:8] = [1, −1, 0, 2, 1, 2, 0, 0]\nP(−2..2) = 1/16, 4/16, 6/16, 4/16, 1/16'},
+ {hot:'R',e:'ek',r:'t̂ = Â∘ŝ + ê',s:'receives ek',k:'',t:'<b>Publish ek.</b> t̂ looks uniform; that is the MLWE assumption. ek = 3×384 B + 32 B ρ = 1184 B. The private key can be stored as just the 64-byte seed d‖z.',d:'t̂[0][:4] = [2597, 1940, 1400, 3176]\nek = enc12(t̂) ‖ ρ                     = 1184 B\ndk = enc12(ŝ) ‖ ek ‖ H(ek) ‖ z         = 2400 B   (or seed: 64 B)'},
+ {hot:'S',e:'',r:'waits',s:'(K, r) = G(m‖H(ek))',k:'',t:'<b>Encaps derandomizes.</b> After the modulus check on ek, pick m at random. Every bit of encryption randomness comes from r = G(m ‖ H(ek)), so encryption is a deterministic function of (ek, m). That is what makes re-encryption possible later.',d:'m     = a5 00 00 … 00\nH(ek) = 07f81a8b0e266a3e…\nK     = 2357152347a7f0b1…   ← sender\'s shared secret\nr     = 202f89893517d53f…'},
+ {hot:'S',e:'ct',r:'receives c',s:'u, v → compress',k:'',t:'<b>Encrypt and compress.</b> u keeps 10 bits per coefficient, v only 4 bits. Rounding v to 16 levels adds up to ±104 of error per coefficient, the largest noise source.',d:'u: 3 polys → Compress₁₀ → 960 B   c1 = 66c4758e8bc0…\nv: 1 poly  → Compress₄  → 128 B   c2 = 063c38550a17…\nc = c1 ‖ c2 = 1088 B'},
+ {hot:'R',e:'',r:'w = v′ − sᵀu′',s:'—',k:'',t:'<b>Decrypt.</b> sᵀAᵀy cancels. Each w lands within ±(noise) of 0 (bit 0) or 1665 (bit 1). Compress₁ rounds; the decision boundary is 832 away.',d:'bit    1     0     1     0     0     1     0     1\nw    1666    95  1647  3318  3290  1760  3208  1781\nnoise   1    95   −18   −11   −39    95  −121   116\nout    1     0     1     0     0     1     0     1   ✓'},
+ {hot:'R',e:'',r:'c′ = Enc(ek, m′, r′)',s:'—',k:'K′ = K = 23571523…',t:'<b>FO re-encryption.</b> Recompute (K′, r′) = G(m′ ‖ h) with the h stored in dk, re-encrypt, and compare all 1088 bytes in constant time. They match, so return K′.',d:'c′ == c   → true (1088/1088 bytes)\nK′ = 2357152347a7f0b1…  == sender\'s K'},
+ {hot:'R',e:'ct',r:'c′ ≠ c_tampered',s:'—',k:'K̄ = J(z‖c) = f595db36…',t:'<b>Tampered ciphertext: implicit rejection.</b> Flip one bit of c. m′ probably doesn\'t change, but re-encryption reproduces the original c, so the comparison fails. Decaps returns SHAKE256(z ‖ c_tampered): no error, deterministic, pseudorandom. The attacker gets no 1-bit oracle.',d:'c_tampered[0] ^= 0x01\nc′ (re-encrypted) ≠ c_tampered\nreturn K̄ = J(z ‖ c_tampered) = f595db3605c7e7bb…\nreject flag: never exposed (FIPS 203 requirement)'}
+];
+var si=0;
+function rs(){var s=S[si];$('stCount').textContent='STEP '+(si+1)+' / '+S.length;
+ $('nR').classList.toggle('hot',s.hot==='R');$('nS').classList.toggle('hot',s.hot==='S');
+ $('eEk').classList.toggle('on',s.e==='ek');$('eCt').classList.toggle('on',s.e==='ct');
+ $('rTxt').textContent=s.r;$('sTxt').textContent=s.s;$('kTxt').textContent=s.k;
+ $('stText').innerHTML=s.t;$('stData').textContent=s.d;$('stPrev').disabled=si===0;$('stNext').disabled=si===S.length-1;}
+if($('stepper')){$('stPrev').onclick=function(){if(si>0){si--;rs();}};$('stNext').onclick=function(){if(si<S.length-1){si++;rs();}};rs();}
+
+// noise lab: exact convolution (dense arrays, offset-indexed)
+var Q=3329,N=256,WIN=1800;
+function binom(n,k){var r=1;for(var i=1;i<=k;i++)r=r*(n-k+i)/i;return r;}
+function cbd(eta){var m={};var tot=Math.pow(2,2*eta);for(var i=0;i<=2*eta;i++)m[i-eta]=binom(2*eta,i)/tot;return m;}
+function cerr(d){var m={};for(var x=0;x<Q;x++){var y=Math.floor(((x<<d)+(Q>>1))/Q)%(1<<d);var xr=(y*Q+(1<<(d-1)))>>d;var e=((xr-x+(Q>>1))%Q+Q)%Q-(Q>>1);m[e]=(m[e]||0)+1/Q;}return m;}
+function prod(a,b){var m={};for(var i in a)for(var j in b){var k=(+i)*(+j);m[k]=(m[k]||0)+a[i]*b[j];}return m;}
+function addD(a,b){var m={};for(var i in a)for(var j in b){var k=(+i)+(+j);m[k]=(m[k]||0)+a[i]*b[j];}return m;}
+function arr(m){var ks=Object.keys(m).map(Number);var lo=Math.min.apply(null,ks),hi=Math.max.apply(null,ks);var a=new Float64Array(hi-lo+1);ks.forEach(function(k){a[k-lo]=m[k];});return {a:a,lo:lo};}
+function conv(x,y){var n=x.a.length,m=y.a.length,o=new Float64Array(n+m-1);for(var i=0;i<n;i++){var xi=x.a[i];if(xi===0)continue;for(var j=0;j<m;j++)o[i+j]+=xi*y.a[j];}
+ var lo=x.lo+y.lo,r={a:o,lo:lo};return clip(r);}
+function clip(r){var lo=r.lo,a=r.a;var s=Math.max(0,-WIN-lo),e=Math.min(a.length,WIN-lo+1);if(s===0&&e===a.length)return r;var b=a.slice(s,e);return {a:b,lo:lo+s};}
+function pw(m,n){var res={a:new Float64Array([1]),lo:0},base=arr(m);while(n){if(n&1)res=conv(res,base);n>>=1;if(n)base=conv(base,base);}return res;}
+var memo={};function cached(key,f){if(!(key in memo))memo[key]=f();return memo[key];}
+function failure(k,e1,e2,du,dv){
+ var ey=cached('ey'+k+e1,function(){return pw(prod(cbd(e1),cbd(e1)),k*N);});
+ var se=cached('se'+[k,e1,e2,du],function(){return pw(prod(cbd(e1),addD(cbd(e2),cerr(du))),k*N);});
+ var tail=arr(addD(cbd(e2),cerr(dv)));
+ var t=conv(cached('es'+[k,e1,e2,du],function(){return conv(ey,se);}),tail);var pf=0,v=0,z=0;
+ for(var i=0;i<t.a.length;i++){var x=i+t.lo;z+=t.a[i];v+=t.a[i]*x*x;if(Math.abs(x)>=(Q>>2))pf+=t.a[i];}
+ return {sig:Math.sqrt(v/z),pc:Math.min(1,N*pf/z)};}
+function erfc(x){var t=1/(1+0.5*x);return t*Math.exp(-x*x-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));}
+function lg(x){return x<=0?'≈0':'2^'+(Math.log2(x)).toFixed(1);}
+var ids=['lk','le1','le2','ldu','ldv'],outs=['ok','oe1','oe2','odu','odv'],timer=null;
+function read(){return ids.map(function(i){return +$(i).value;});}
+function bar(p){var k=p[0],e1=p[1],e2=p[2],du=p[3],dv=p[4],kn=k*N;
+ var v=[kn*(e1/2)*(e1/2),kn*(e1/2)*(e2/2+Math.pow(Q/Math.pow(2,du),2)/12),e2/2,Math.pow(Q/Math.pow(2,dv),2)/12];
+ var tot=v.reduce(function(a,b){return a+b;},0),x=0,svg='',names=['eᵀy','sᵀ(e₁+c_u)','e₂','c_v (rounding v)'];
+ v.forEach(function(val,i){var w=580*val/tot;svg+='<rect class="vb'+i+'" x="'+(10+x)+'" y="8" width="'+Math.max(w,0.5)+'" height="24" rx="3"><title>'+names[i]+': '+val.toFixed(0)+'</title></rect>';
+  if(w>60)svg+='<text class="lbl" x="'+(14+x)+'" y="50">'+names[i]+' '+Math.round(100*val/tot)+'%</text>';x+=w;});
+ $('varbar').innerHTML=svg;}
+function run(){var p=read();outs.forEach(function(o,i){$(o).textContent=p[i];});bar(p);
+ $('rExact').textContent='…';clearTimeout(timer);timer=setTimeout(function(){
+  var r=failure(p[0],p[1],p[2],p[3],p[4]);var g=Math.min(1,N*erfc((Q>>2)/r.sig/Math.SQRT2));
+  $('rSig').textContent=r.sig.toFixed(1);$('rExact').textContent=lg(r.pc);$('rGauss').textContent=lg(g);
+  $('rCt').textContent=(32*(p[3]*p[0]+p[4]))+' / '+(384*p[0]+32);
+  var ok=r.pc<Math.pow(2,-128);var vd=$('rVerdict');vd.className='verdict '+(ok?'ok':'bad');
+  vd.textContent=ok?'δ below 2^-128: failure-boosting attacks are out of reach for this level.':'δ above 2^-128: too many decryption failures for a CCA KEM with reusable keys.';
+  document.querySelectorAll('.presets button').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-p')===p.join(','));});
+ },30);}
+if($('lab')){ids.forEach(function(i){$(i).addEventListener('input',run);});
+ document.querySelectorAll('.presets button').forEach(function(b){b.addEventListener('click',function(){var v=b.getAttribute('data-p').split(',');ids.forEach(function(i,j){$(i).value=v[j];});run();});});run();}
+})();</script></body></html>
