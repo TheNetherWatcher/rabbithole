@@ -1,0 +1,362 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Rowhammer DDR5 dive</title><style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5c5c66;--card:#fff;--bd:#e3e0d8;--ac:#b4442b;--ac2:#1f6f78;--code:#f3f1ea;--warm:#fff4e2;--warmbd:#f1cf9a;--vic:#b4442b;--agg:#1f6f78}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e9e9ee;--mut:#9a9aa6;--card:#1a1b20;--bd:#2b2d35;--ac:#ff8a6b;--ac2:#6fd0d9;--code:#202229;--warm:#2a2318;--warmbd:#5c4a28;--vic:#ff8a6b;--agg:#6fd0d9}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--bd);font-size:13.5px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(70ch + 56px)}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.5rem;margin:1.6em 0 .5em;scroll-margin-top:12px}h3{margin-top:1.4em}
+.card-line{font:600 12px/1 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.tldr{font-size:1.05rem}.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b{display:block;font-size:1.25rem;color:var(--ac)}.nums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}
+.plain h2{margin-top:.8em}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:6px;cursor:pointer}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);color:var(--mut);border-radius:0 8px 8px 0}
+a{color:var(--ac2)}details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 10px;color:var(--mut)}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px}button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}.gc{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.gc b{display:block}.gc span{font-size:13.5px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.twocol>div{border-radius:10px;padding:4px 16px 10px;border:1px solid var(--bd)}.use{background:rgba(31,111,120,.08)}.skip{background:rgba(180,68,43,.08)}.twocol h4{margin:.8em 0 .2em}
+.widget{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:18px 0}.widget label{display:block;margin:6px 0}.widget input[type=range]{width:min(320px,100%);vertical-align:middle}
+.ctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.note{font-size:13.5px;color:var(--mut)}
+.eq{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;margin:10px 0;font-family:ui-monospace,monospace;font-size:14px;overflow:auto}
+.plainterms{color:var(--ac2);font-size:14px;margin:4px 0 14px}
+.mis{background:rgba(180,68,43,.08);border:1px solid var(--warmbd);border-radius:10px;padding:4px 16px;margin:12px 0}
+.step{display:flex;gap:4px;align-items:stretch;margin:4px 0}.step i{font-style:normal;color:var(--mut);width:70px;font-size:12px;font-family:ui-monospace,monospace}
+.rowviz rect{transition:fill .25s,opacity .25s}
+@media(prefers-reduced-motion:reduce){.rowviz rect{transition:none}}
+.key{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:6px 0}.key span{display:inline-flex;gap:6px;align-items:center}.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border:0;border-bottom:1px solid var(--bd);display:flex;overflow:auto;white-space:nowrap;gap:2px;padding:10px 16px}nav a{border:0}main{padding:16px}.twocol{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+</style></head><body>
+<div class='layout'><nav aria-label='Table of contents'>
+<a href='#plain'>0b. Plain English</a><a href='#ctx'>1. Context</a><a href='#rw'>1b. Real-world</a><a href='#one'>2. One-liner</a><a href='#prob'>3. The problem</a><a href='#model'>4. Mental model</a><a href='#mech'>5. Mechanism traced</a><a href='#math'>6. The math</a><a href='#why'>7. Why it works</a><a href='#knobs'>8. Design knobs</a><a href='#breaks'>9. Where it breaks</a><a href='#wild'>10. In the wild</a><a href='#front'>11. Frontier</a><a href='#open'>11b. Open problems</a><a href='#lin'>12. Lineage</a><a href='#hands'>13. Hands-on</a><a href='#q'>14. Question ladder</a><a href='#deep'>15. Go deeper</a><a href='#src'>Sources</a>
+</nav>
+<main>
+<div class='hero'>
+ <div class='card-line'>Security / Hardware &middot; Rowhammer on DDR5 &middot; depth: research &middot; 2026-10-03</div>
+ <h1>Rowhammer on DDR5 — why in-DRAM mitigations keep failing</h1>
+ <p class='tldr'><b>TL;DR.</b> Hammering one DRAM row electrically disturbs its neighbors and flips bits you never touched. The defenses split into two camps: <em>sampling</em> (TRR) keeps a small list of "hot" rows and refreshes their neighbors — and is repeatedly broken because the list is bounded and its schedule can be learned (TRRespass → ZenHammer → Phoenix). <em>Counting</em> (DDR5's PRAC) keeps an exact per-row counter — the structural fix — but 2024–26 work shows it is expensive and itself a side channel.</p>
+ <p class='why'><b>Why it matters.</b> A single flipped bit — a page-table permission, a pointer, an ML weight — can hand an attacker a machine they share with you. It's a software-triggered <em>hardware</em> bug, so you can't patch it away. Phoenix got root on a default DDR5 desktop in ~5 minutes (CVE-2025-6202).</p>
+ <div class='nums'>
+  <div><b>139K → 4.8K</b><span>HC_first, DDR3 (2014) → LPDDR4 (2020); ~128 projected</span></div>
+  <div><b>110/129</b><span>DDR3 modules vulnerable, Kim et al. 2014</span></div>
+  <div><b>15/15</b><span>SK Hynix DDR5 DIMMs flipped by Phoenix</span></div>
+  <div><b>~109 s</b><span>Phoenix time to first flip; root in ~5 min</span></div>
+  <div><b>~1.36M</b><span>max activations per 64 ms window per bank (tREFW/tRC)</span></div>
+  <div><b>80% → 0.1%</b><span>ML accuracy after one GPUHammer weight flip</span></div>
+ </div>
+</div>
+
+<div class='plain'><div id='plain'><h2>0b. Plain English first</h2>
+<p><strong>Explain it simply.</strong> RAM is a huge grid of tiny buckets, each holding a little water. Full = "1", empty = "0". The buckets are packed so tightly that sloshing one over and over makes a neighbor you never touched slowly leak — and if it drains past half before the automatic top-up truck comes around, its value silently flips. That is Rowhammer: you corrupt data you were never allowed to touch, just by reading your <em>own</em> data very fast, right next to it.</p>
+<p>Why care: one flipped bit in the right place — a permission flag, a pointer, a security check — can hand an attacker control of a machine they share with you (a cloud server, your phone, a browser tab).</p>
+<p><strong>Everyday example.</strong> A library with shelves one millimetre apart. You yank one book off a shelf and slam it back, thousands of times a second. The vibration makes the book two rows over slip and fall — though you never touched that shelf. The librarian (refresh) re-shelves everything every 64&nbsp;ms. Rowhammer is yanking fast enough that the neighbour falls <em>before the librarian arrives</em>. Every defense is a smarter librarian watching which books you yank — and attackers keep finding the moments the librarian isn't looking.</p>
+<p><strong>Bridge:</strong> now the same thing, technically.</p></div></div>
+
+<section id='ctx'><h2>1. Bare-minimum context</h2><ul>
+<li><strong>DRAM cell = 1 transistor + 1 capacitor.</strong> The bit is the capacitor's charge; charge leaks, so it must be <em>refreshed</em>. (<a href='https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf' target='_blank' rel='noopener'>Kim 2014</a>)</li>
+<li><strong>Row buffer.</strong> A <em>wordline</em> turns on a whole row onto the <em>bitlines</em>; sense amps read and restore into the row buffer. Reading a row is destructive and immediately rewritten.</li>
+<li><strong>ACT / PRE / REF.</strong> Open a row, close it, top it up. Fastest same-bank reopen is <code>tRC</code> (~45–48 ns).</li>
+<li><strong>Refresh window tREFW = 64 ms</strong> (DDR3/4; 32 ms DDR5), split into REFs every <code>tREFI</code> (~7.8 µs DDR3/4, ~3.9 µs DDR5).</li>
+<li><strong>HC_first</strong> = hammer count to first flip. The number that governs everything — it falls ~10× per generation.</li>
+<li><strong>TRR / RFM / PRAC</strong> — the three in-DRAM defenses, in order. This dive is why the first two failed and whether the third is enough.</li>
+</ul></section>
+
+<section id='rw'><h2>1b. Real-world context</h2>
+<p><strong>What it is.</strong> A read-disturbance phenomenon: repeatedly activating one row leaks charge from physically adjacent rows fast enough to flip their bits before refresh. Kim et al. (ISCA 2014) found it in 110/129 DDR3 modules, with as few as 139K reads, in every module made 2012–2013. It's a <em>scaling</em> defect — worse as cells shrink — not a single-vendor bug.</p>
+<div class='grid'>
+ <div class='gc'><b>Cloud multi-tenant</b><span>Your VM flips a neighbor tenant's page-table entry</span></div>
+ <div class='gc'><b>Browsers</b><span>Rowhammer.js — flips from JavaScript, no native code</span></div>
+ <div class='gc'><b>Android / mobile</b><span>Drammer — deterministic flips via ION allocator</span></div>
+ <div class='gc'><b>AMD Zen</b><span>ZenHammer — AMD + first-ever DDR5 flip (2024)</span></div>
+ <div class='gc'><b>NVIDIA GPUs</b><span>GPUHammer — GDDR6 flips, ML accuracy 80%→0.1%</span></div>
+ <div class='gc'><b>SK Hynix DDR5</b><span>Phoenix — root on default desktop, CVE-2025-6202</span></div>
+</div>
+<p><strong>How a practitioner touches it (defensive, read-only):</strong></p>
+<pre><button class='copy'>copy</button><code># Watch corrected/uncorrected ECC errors per DIMM (rising CE = marginal cells / pressure)
+sudo systemctl enable --now rasdaemon
+sudo ras-mc-ctl --error-count
+sudo ras-mc-ctl --summary
+edac-util -v</code></pre>
+<p>Server BIOS exposes a <strong>refresh-rate multiplier</strong> (1×/2×/4× tREFI); the 2015 reflex forced 2×. Memtest86 ships a Rowhammer check (test 13). JEDEC's modern answer is controller/firmware settings for RFM and (future) PRAC.</p>
+<div class='twocol'>
+ <div class='use'><h4>Care about it if</h4><ul><li>You run multi-tenant hardware, a browser engine, or a mobile platform</li><li>You serve ML on shared GPUs</li><li>You design DRAM / memory controllers, or certify hardware</li></ul></div>
+ <div class='skip'><h4>Mostly ignore if</h4><ul><li>Single-user, physically-secured, non-adversarial box</li><li>No untrusted code runs on the same DRAM as your secrets</li><li>(The attacker needs co-located execution)</li></ul></div>
+</div>
+<p><strong>Who should care:</strong> cloud/infra security, DRAM &amp; memory-controller designers, browser/OS sandbox authors, ML-serving infra, hardware-security researchers.</p></section>
+
+<div class='divider' id='tech'>■ Technical deep dive</div>
+
+<section id='one'><h2>2. The one-liner — and what it hides</h2>
+<blockquote>"Rowhammer flips bits in memory you can't access by hammering an adjacent row; vendors added TRR to fix it."</blockquote>
+<p>What that hides:</p>
+<ol>
+<li><strong>Why</strong> hammering disturbs a neighbor at all — three distinct physical effects, not "vibration".</li>
+<li>TRR is a <strong>sampling heuristic with bounded state</strong> — that bound is what every bypass exploits.</li>
+<li>The threshold <strong>keeps collapsing</strong> (139K → 4.8K → ~128), so today's cheap defense is tomorrow's ruin.</li>
+<li>Hammering isn't the only trigger — <strong>RowPress</strong> (holding a row open) and <strong>Half-Double</strong> (distance-2) break the "refresh the neighbor" assumption.</li>
+<li>DDR5's real fix is <strong>counting (PRAC), not sampling</strong> — and 2025–26 work shows even counting is expensive and leaky.</li>
+</ol></section>
+
+<section id='prob'><h2>3. The problem</h2>
+<p>Software's bedrock assumption: memory you cannot name, you cannot change. DRAM scaling broke it. By ~20 nm, the charge separating "1" from "0" and the row spacing both shrank to where normal-rate activations leak a neighbor past its margin inside one 64 ms window.</p>
+<p>The forcing constraint is the <strong>activation budget vs. HC_first</strong>. One bank admits ≈ <code>tREFW/tRC = 64 ms / 47 ns ≈ 1.36M</code> activations per window. At HC_first 139K you need ~10% of that aimed at one victim; at 4.8K it's trivial; projected chips sit near 128. The defense must catch an over-activated row before a threshold that's shrinking out from under it — cheaply, across billions of rows.</p>
+<table><thead><tr><th>Gen</th><th>HC_first (old node → new node)</th></tr></thead><tbody>
+<tr><td>DDR3</td><td>69.2K → 22.4K</td></tr>
+<tr><td>DDR4</td><td>17.5K → 10K</td></tr>
+<tr><td>LPDDR4</td><td>16.8K → <b>4.8K</b></td></tr>
+</tbody></table>
+<p>Minimum observed: <strong>9.6K</strong> total (double-sided). Flips per fixed activation count rose ~500× over the span. (<a href='https://arxiv.org/pdf/2005.13121' target='_blank' rel='noopener'>Revisiting RowHammer, 1580 chips</a>)</p></section>
+
+<section id='model'><h2>4. Mental model</h2>
+<p><strong>Leaky-bucket grid with a patrolling top-up truck.</strong> Each cell is a bucket slowly leaking; the refresh truck tops every bucket every 64 ms. Hammering shakes neighbors so they leak faster; flip = a neighbor empties past half before the truck arrives. TRR = a spotter on the truck noting which buckets you shake a lot, topping those neighbors early. PRAC = a counter on every bucket that rings a bell once it's been shaken too much.</p>
+<p><strong>Where it breaks:</strong> the disturbance isn't mechanical — it's three electrical effects, it can reach the bucket <em>two rows away</em> (Half-Double), and it can be driven by <em>holding a bucket open</em> (RowPress). A vibration intuition predicts none of these.</p></section>
+
+<section id='mech'><h2>5. The mechanism, traced</h2>
+<p>Double-sided disturbance on a DDR4 bank. Victim <b>V</b>; aggressors <b>A₁ = V−1</b>, <b>A₂ = V+1</b>. Step through it:</p>
+<div class='widget'>
+ <div class='key'>
+  <span><i class='sw' style='background:var(--agg)'></i> aggressor (being activated)</span>
+  <span><i class='sw' style='background:var(--vic)'></i> victim (leaking)</span>
+  <span><i class='sw' style='background:var(--code)'></i> idle row</span>
+ </div>
+ <svg class='rowviz' viewBox='0 0 360 150' width='100%' height='150' role='img' aria-label='DRAM rows: two aggressors bracketing a victim'>
+  <g font-family='ui-monospace,monospace' font-size='12'>
+   <rect id='r0' x='20' y='10' width='320' height='30' rx='5' fill='var(--code)' stroke='var(--bd)'/><text x='30' y='29' fill='var(--mut)'>Row V-2 (idle)</text>
+   <rect id='r1' x='20' y='45' width='320' height='30' rx='5' fill='var(--code)' stroke='var(--bd)'/><text x='30' y='64' fill='var(--mut)'>Row V-1 = A₁ (aggressor)</text>
+   <rect id='r2' x='20' y='80' width='320' height='30' rx='5' fill='var(--code)' stroke='var(--bd)'/><text x='30' y='99' fill='var(--mut)'>Row V (victim)</text>
+   <rect id='r3' x='20' y='115' width='320' height='30' rx='5' fill='var(--code)' stroke='var(--bd)'/><text x='30' y='134' fill='var(--mut)'>Row V+1 = A₂ (aggressor)</text>
+  </g>
+ </svg>
+ <div class='ctl'><button id='pv'>&larr; Back</button><button id='nx'>Next &rarr;</button><span class='note' id='stepn'>Step 1 / 6</span></div>
+ <p class='note' id='stepd' style='min-height:3em'></p>
+</div>
+<p>The attacker never issues a single <code>ACT V</code>. After ~9.6K total activations (worst DDR4-era chip) V's charge crosses the sense-amp decision point and the next read latches the <strong>wrong</strong> value. Three physical effects do the damage (<a href='https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf' target='_blank' rel='noopener'>Kim 2014 §3</a>): capacitive/EM coupling between wordlines, conductive bridges, and hot-carrier injection.</p>
+<p><strong>RowPress knob:</strong> keep A₁ <em>open</em> (long tAggON) instead of toggling — cumulative leakage replaces activation count. ~17.6× fewer at tAggON 7.8 µs, ~159× at 70.2 µs, a <em>single</em> activation at ~30 ms, worse when hot (<a href='https://arxiv.org/abs/2306.17061' target='_blank' rel='noopener'>RowPress, ISCA 2023</a>).</p></section>
+
+<section id='math'><h2>6. The math</h2>
+<h3>Refresh-window arithmetic</h3>
+<div class='eq'>tREFI = tREFW / 8192 = 64 ms / 8192 = 7.8 µs   ·   max ACT/window ≈ tREFW / tRC = 64 ms / 47 ns ≈ 1.36M</div>
+<p class='plainterms'>→ The attacker's whole budget is ~1.36M hammers; a defense only has to make "aim 4.8K of them at one victim undetected" impossible.</p>
+<h3>PARA — the stateless probabilistic defense</h3>
+<p>On every row close, with probability <code>p</code> refresh an adjacent row. Chance a victim is <em>never</em> rescued over <code>N</code> aggressor activations:</p>
+<div class='eq'>P_miss = (1 − p)^N     (or (1 − p/2)^N if the coin picks one of two neighbors)</div>
+<p class='plainterms'>→ Each hammer is an independent coin flip for "refresh the neighbor now." Dodging rescue for N hammers needs every coin to come up tails — a probability that decays geometrically. With p ≈ 0.001–0.005, P_miss falls below the hardware hard-error budget (~10⁻¹⁵) at &lt;0.75% cost. Zero state is the whole point — but the required p rises as HC_first falls.</p>
+<h3>Graphene — counting with Misra–Gries</h3>
+<p>To find every row exceeding ~T_RH/2 activations among N_ACT activations:</p>
+<div class='eq'>entries &gt; N_ACT / (T_RH / 2) = 2 · N_ACT / T_RH</div>
+<p class='plainterms'>→ You don't need a counter per row — just one per "slot of hammering budget big enough to matter," a few hundred per bank. But it scales inversely with T_RH: as the threshold falls 1000 → 125, storage balloons ~207 KiB → ~1.5 MiB. (<a href='https://arxiv.org/html/2402.18769v1' target='_blank' rel='noopener'>bound restated in CoMeT</a>)</p>
+<div class='widget'>
+ <b>Interactive: budget &amp; PARA safety as HC_first collapses</b>
+ <label>HC_first (hammers to first flip): <b id='hcv'>4800</b><br><input id='hc' type='range' min='7' max='17' step='1' value='12'></label>
+ <label>PARA probability p: <b id='pv2'>0.002</b><br><input id='pp' type='range' min='1' max='20' step='1' value='2'></label>
+ <p class='note' id='out'></p>
+</div></section>
+
+<section id='why'><h2>7. Why it works (and ablation)</h2>
+<p>The insight dividing the field: <strong>sampling vs. counting.</strong></p>
+<ul>
+<li><strong>Sampling (TRR)</strong> keeps a small fixed set of hot candidates. Works only if real aggressors stay in that set. Remove the "few distinct rows" assumption → tracker overflows → an aggressor goes unrefreshed. That one property is what TRRespass, U-TRR, Blacksmith, ZenHammer, Phoenix all exploit.</li>
+<li><strong>Counting (PRAC)</strong> keeps an exact per-row count — nothing to overflow, nothing to under-sample. Remove exactness (shared/approx counters) and blind spots return.</li>
+</ul>
+<p><strong>Ablation:</strong> remove refresh → data dies in ms regardless. Remove neighbor-refresh-on-detection from TRR → it's plain refresh, flips trivially. Remove exact counting from PRAC → back to TRR's failure. Remove PRAC's Alert Back-Off window bound → attacker races activations in after the alert; the ~180 ns / ~3-ACT residual window is the controlled remnant of that risk.</p></section>
+
+<section id='knobs'><h2>8. Design knobs &amp; alternatives</h2>
+<table><thead><tr><th>Defense</th><th>Knob</th><th>Trade-off</th></tr></thead><tbody>
+<tr><td>Increased refresh (2×/4×)</td><td>tREFI multiplier</td><td>Cheap reflex; power+bandwidth; insufficient as HC_first drops</td></tr>
+<tr><td>ECC (SECDED)</td><td>code strength</td><td>Corrects 1 / detects 2 per word; multi-flip words defeat it; correction timing is a side channel (ECCploit)</td></tr>
+<tr><td>On-die ECC (DDR5)</td><td>8 bits / 128</td><td>Reliability only; can <em>mask</em> flips, hurting detection</td></tr>
+<tr><td>PARA</td><td>probability p</td><td>Stateless, &lt;0.75%; only statistical; retune as T_RH falls</td></tr>
+<tr><td>TRR</td><td>#entries, sample rate</td><td>Bounded state → many-sided / synchronized bypass</td></tr>
+<tr><td>Graphene / CoMeT</td><td>#counter entries</td><td>Provable no-false-negative; storage ∝ 1/T_RH</td></tr>
+<tr><td>RFM (DDR5)</td><td>RAAIMT, RAAMMT</td><td>Forces mitigation budget by ACT count; <em>which</em> rows is still TRR-blind</td></tr>
+<tr><td>PRAC (DDR5)</td><td>N_BO, N_mit∈{1,2,4}, ABO</td><td>Exact; but RMW-per-precharge latency (~10–18%) + new side/DoS channels</td></tr>
+</tbody></table>
+<p>Counting won because sampling was structurally, repeatedly broken. It hasn't ended the problem because exact per-row counting at DRAM scale is expensive — the whole 2024–26 PRAC-optimization literature exists to claw that cost back.</p></section>
+
+<section id='breaks'><h2>9. Where it breaks</h2>
+<p><strong>TRR — bounded tracking.</strong> A tracker remembering N rows is beaten by N+1 aggressors.</p>
+<ul>
+<li><em>TRRespass</em> (S&amp;P 2020): many-sided (~19 aggressors) overflowed trackers; 13/42 DDR4 DIMMs flipped (<a href='https://download.vusec.net/papers/trrespass_sp20.pdf' target='_blank' rel='noopener'>paper</a>).</li>
+<li><em>U-TRR</em> (MICRO 2021): used retention failures to see exactly when/how many rows TRR refreshes; bypassed on 45 modules (<a href='https://arxiv.org/abs/2110.10603' target='_blank' rel='noopener'>arXiv</a>).</li>
+<li><em>Blacksmith</em> (S&amp;P 2022): non-uniform patterns flipped all 40/40 DDR4 DIMMs.</li>
+</ul>
+<p><strong>DDR5 TRR — Phoenix (S&amp;P 2026, CVE-2025-6202).</strong> SK Hynix TRR samples over a 128-tREFI schedule (~8× longer than assumed); self-correcting synchronization lands hammers in its blind spots. 15/15 DIMMs flipped; root on a default DDR5 desktop in ~109 s; on-die ECC bypassed (<a href='https://comsec.ethz.ch/research/dram/phoenix/' target='_blank' rel='noopener'>ETH COMSEC</a>).</p>
+<p><strong>The physics breaks "refresh the neighbor" too.</strong> <em>Half-Double</em> (Google 2021): disturbance reaches distance-2; TRR's own refresh of the intermediate row propagates it. <em>RowPress</em> (ISCA 2023): pressing, orthogonal to activation-count defenses.</p>
+<div class='mis'><h4>Misconceptions (each wrong)</h4><ul>
+<li>"ECC fixes it" → ECCploit crafts multi-flip words + correction-timing oracle.</li>
+<li>"DDR5 is immune" → ZenHammer + Phoenix.</li>
+<li>"Server/ECC memory is safe" → ECCploit targeted server ECC; ZenHammer hit AMD.</li>
+<li>"It needs physical access" → Project Zero 2015 from userland; Rowhammer.js from JS.</li>
+<li>"TRR solved it" → every bypass above.</li>
+</ul></div></section>
+
+<section id='wild'><h2>10. In the wild</h2>
+<ul>
+<li><strong>Exploits:</strong> Project Zero 2015 (PTE flip → kernel privesc); Drammer (Android); Rowhammer.js (browser); Throwhammer (RDMA/network).</li>
+<li><strong>GPUHammer</strong> (USENIX Sec 2025): GDDR6 on RTX A6000 (non-ECC default); one weight-bit flip dropped accuracy ~80%→0.1%; 56–80% across 5 nets (<a href='https://arxiv.org/abs/2507.08166' target='_blank' rel='noopener'>arXiv</a>). ECC GPUs (H100, RTX 5090) detect these.</li>
+<li><strong>Deployed today (2025–26):</strong> TRR + on-die ECC + RFM — all bypassable on default DDR5 (Phoenix). Google: PRAC is <em>not</em> in the DDR5 systems it evaluated — standardized for future revisions, not shipping.</li>
+<li><strong>2015 stopgap:</strong> Apple/HP/Cisco/Lenovo/IBM BIOS forced 2× refresh (tREFI 7.8→3.9 µs). Partial, costly.</li>
+</ul></section>
+
+<section id='front'><h2>11. Frontier (2024–2026)</h2>
+<p>Two live fronts: <strong>(a) make PRAC practical &amp; secure</strong>, <strong>(b) attack PRAC itself.</strong></p>
+<h3>Phoenix (ETH COMSEC + Google, S&amp;P 2026) — CVE-2025-6202</h3>
+<p>Reverse-engineered SK Hynix TRR's 128-tREFI sampling period, found lightly-sampled sub-intervals, self-synchronized hammers into them and re-aligned after missed refreshes. First end-to-end DDR5 exploit on default settings; root in ~5 min; on-die ECC bypassed. Lesson: sampling is structurally defeatable once the schedule is known — the capstone case for counting. (<a href='https://comsec-files.ethz.ch/papers/phoenix_sp26.pdf' target='_blank' rel='noopener'>PDF</a> · <a href='https://github.com/comsec-group/phoenix' target='_blank' rel='noopener'>code</a>)</p>
+<h3>QPRAC (HPCA 2025) — secure <em>and</em> practical PRAC</h3>
+<p>MOAT (ASPLOS 2025) showed naive PRAC queues are "tardy" — counts reach ~1150 vs. a threshold of 128 before mitigation lands. QPRAC adds an N-entry priority service queue per bank tracking the top-N rows, with provable bounds; claims security down to T_RH = 71. Still pays per-activation counter cost. (<a href='https://arxiv.org/abs/2501.18861' target='_blank' rel='noopener'>arXiv</a>)</p>
+<h3>PRACLeak (ISCA 2025) — the defense is a new side channel</h3>
+<p>PRAC's ABO/RFM mitigation actions are observable via memory-access latency — a timing channel that leaks secrets, plus forced-ABO DoS. Follow-ups: AutoPRAC (model-checking to auto-find PRAC attacks); a CCS 2025 result that both sampling- and counting-based defenses leak via mitigation activity. (<a href='https://arxiv.org/abs/2505.10111' target='_blank' rel='noopener'>arXiv</a>)</p>
+<p><strong>More:</strong> <a href='https://arxiv.org/abs/2407.09995' target='_blank' rel='noopener'>MOAT</a> · <a href='https://arxiv.org/abs/2406.16153' target='_blank' rel='noopener'>RowPress IEEE Micro 2024</a> · <a href='https://arxiv.org/abs/2406.13080' target='_blank' rel='noopener'>combined RH+RowPress</a> · <a href='https://arxiv.org/abs/2402.18769' target='_blank' rel='noopener'>CoMeT (DSN 2024)</a> · <a href='https://arxiv.org/abs/2210.04084' target='_blank' rel='noopener'>SpyHammer</a> · <a href='https://arxiv.org/abs/2211.07613' target='_blank' rel='noopener'>Fundamentally Understanding (ASP-DAC 2023)</a>. <span class='note'>(Exact venues/dates for GPUThor, DejaVu, ScaleDisturb, PVAC, Loaded Dice, ARTA, AutoPRAC, FP-Rowhammer, SpyHammer flagged unverified — inferred from arXiv IDs.)</span></p></section>
+
+<section id='open'><h2>11b. Open problems</h2>
+<ul>
+<li><strong>Is PRAC enough, at what cost?</strong> Closes sampling holes, but precharge-time read-modify-write inflates timings (~10–18% reported); the spec "leaves some questions unanswered" and flips still seen on PRAC paths (NDSS 2026). Major advance, not closed.</li>
+<li><strong>Threshold-setting.</strong> Every counter scheme needs a threshold below HC_first — but HC_first keeps falling (139K → 4.8K → ~128). No stable safe margin.</li>
+<li><strong>Counting at scale.</strong> Exact per-row counters over billions of rows are costly; where to store them is unsettled.</li>
+<li><strong>Where should mitigation live?</strong> DRAM-only (deployable, failed), controller, or OS-cooperative (SAFARI's Self-Managing DRAM vs. VUSec/MSR). No consensus.</li>
+<li><strong>Verification.</strong> No accepted method to prove a DIMM safe; TRR was unauditable; "RowHammer-free" labels proved false; aging uncharacterized.</li>
+<li><strong>Supply-chain variation.</strong> Vulnerability varies by vendor/die/batch, even within one chip — patterns don't transfer, defeating one-size thresholds.</li>
+<li><strong>Economic misalignment.</strong> TRR was optional in JEDEC, an undocumented black box; VUSec argues self-interested vendors under-invest while users bear the cost.</li>
+</ul></section>
+
+<section id='lin'><h2>12. Lineage</h2>
+<p><strong>2014</strong> Kim et al. name Rowhammer, propose PARA → <strong>2015</strong> Project Zero weaponizes it; 2× refresh stopgap; Rowhammer.js → <strong>2016–18</strong> Drammer, Throwhammer → <strong>2019</strong> ECCploit breaks ECC → <strong>2020</strong> TRRespass breaks TRR; HC_first collapse quantified; Graphene → <strong>2021</strong> U-TRR; Half-Double → <strong>2022</strong> Blacksmith (40/40) → <strong>2023</strong> RowPress; SAFARI framing → <strong>2024</strong> ZenHammer (AMD+first DDR5 flip); JEDEC PRAC; CoMeT, MOAT → <strong>2025–26</strong> GPUHammer; QPRAC; PRACLeak; <strong>Phoenix</strong> (first full DDR5 exploit).</p></section>
+
+<section id='hands'><h2>13. Hands-on (≤30 min, non-destructive)</h2>
+<ol>
+<li><strong>Watch RAS/ECC counters</strong> (read-only): <code>rasdaemon</code> → <code>ras-mc-ctl --summary</code> / <code>--error-count</code> → <code>edac-util -v</code>. A rising CE count on one DIMM is the fingerprint of marginal cells.</li>
+<li><strong>Compute your activation budget.</strong> Budget ≈ tREFW/tRC; divide by a plausible HC_first. Watch it balloon as you plug in the projected HC_first of 128. (Use the slider in §6.)</li>
+<li><strong>Reason through PARA.</strong> p=0.002, N=50,000 → P_miss ≈ e⁻⁵⁰ ≈ 2×10⁻²². Now set N (the hammers you must survive) to match HC_first=128 and ask what p you'd need — and what it costs.</li>
+<li>(Your hardware only) Memtest86 <strong>test 13</strong> runs a Rowhammer check from a bootable stick.</li>
+</ol></section>
+
+<section id='q'><h2>14. Question ladder</h2>
+<p><button id='revall'>Reveal all</button></p>
+<h3>Mechanism</h3>
+<details class='q'><summary>What are the three physical effects by which activating a row disturbs a neighbor?</summary><div class='ans'>Capacitive/EM coupling between adjacent wordlines (partially turns on neighbor transistors), conductive bridges/shorts, and hot-carrier injection altering transistor leakiness over time.</div></details>
+<details class='q'><summary>Why is reading a DRAM row destructive, and what restores it?</summary><div class='ans'>Sensing dumps the capacitor's charge onto the bitline to detect it, draining the cell; the sense amplifier simultaneously rewrites the charge back ("restore").</div></details>
+<details class='q'><summary>Why is double-sided hammering worse than single-sided?</summary><div class='ans'>Coupling from both bracketing aggressors (V−1 and V+1) adds, so the victim loses charge from two sides — fewer total activations to cross the margin.</div></details>
+<details class='q'><summary>How does RowPress differ physically from classic hammering?</summary><div class='ans'>It keeps the aggressor open (long tAggON) rather than toggling; cumulative leakage while open replaces many ACTs — 1–2 orders of magnitude fewer, worse when hot.</div></details>
+<details class='q'><summary>What makes Half-Double reach a distance-2 row?</summary><div class='ans'>Coupling isn't strictly nearest-neighbor; heavy access to a distance-2 row plus a little to the intermediate row propagates disturbance, and TRR's refresh of the intermediate row acts as an extra access.</div></details>
+<h3>Why</h3>
+<details class='q'><summary>Why does HC_first fall with each process node?</summary><div class='ans'>Smaller cells hold less charge (smaller noise margin) and sit at tighter pitch (stronger coupling), so less injected disturbance flips a bit.</div></details>
+<details class='q'><summary>Why did the field move from sampling (TRR) to counting (PRAC)?</summary><div class='ans'>Sampling keeps bounded state and can be overflowed or dodged by learning the schedule; counting is ground truth with nothing to overflow.</div></details>
+<details class='q'><summary>Why is PARA stateless, and why is that both strength and weakness?</summary><div class='ans'>It stores nothing — just a per-close coin flip; strength = zero area/state; weakness = only a statistical bound, and required p rises as HC_first falls, raising overhead.</div></details>
+<details class='q'><summary>Why does Graphene need only ~2·N_ACT/T_RH counters?</summary><div class='ans'>You only catch rows exceeding ~T_RH/2 within N_ACT total; Misra–Gries guarantees that with counters proportional to stream/threshold, far fewer than one per row.</div></details>
+<details class='q'><summary>Why doesn't on-die ECC stop Rowhammer — and why can it make detection harder?</summary><div class='ans'>It's a reliability code, not adversarial; multi-flip words defeat SECDED, and by silently correcting isolated flips it hides the onset of corruption from monitoring.</div></details>
+<h3>Counterfactual</h3>
+<details class='q'><summary>If HC_first stabilized at 50K forever, which defenses would suddenly be "good enough"?</summary><div class='ans'>Increased-refresh and PARA with modest p would be cheap and sufficient; the crisis is driven by HC_first collapsing.</div></details>
+<details class='q'><summary>Remove the ABO back-off window bound from PRAC — what reopens?</summary><div class='ans'>The attacker races a burst of activations in after the alert but before mitigation; the bounded ~180 ns/~3-ACT window exists to cap exactly that.</div></details>
+<details class='q'><summary>If trackers had unlimited entries, would TRR be secure? At what cost?</summary><div class='ans'>Yes in principle, but one entry per row is billions of counters — the area/latency/energy is precisely why counting was avoided until PRAC's optimized forms.</div></details>
+<h3>Adversarial</h3>
+<details class='q'><summary>How does Phoenix stay synchronized with a 128-tREFI sampling schedule?</summary><div class='ans'>It reverse-engineered the period and uses self-correcting synchronization to re-align hammers into lightly-sampled sub-intervals after any missed refresh.</div></details>
+<details class='q'><summary>Why does many-sided hammering defeat a bounded tracker?</summary><div class='ans'>The tracker holds N candidates; N+1 distinct aggressors guarantee at least one real aggressor is never selected for neighbor-refresh.</div></details>
+<details class='q'><summary>How does ECCploit turn error correction into an oracle?</summary><div class='ans'>A corrected single-bit read takes measurably longer; timing it reveals which flips the code absorbed, guiding the attacker toward an undetectable multi-flip word.</div></details>
+<details class='q'><summary>How could a mitigation mechanism (PRAC) itself leak secrets?</summary><div class='ans'>Its mitigation actions (ABO/RFM stalls) change memory latency observably; an attacker times their own accesses to infer a victim's activation/mitigation pattern (PRACLeak).</div></details>
+<h3>Connection</h3>
+<details class='q'><summary>How does sampling-vs-counting mirror heavy-hitter problems in streaming/databases?</summary><div class='ans'>Both are "find elements exceeding a frequency threshold in a stream with bounded memory" — Misra–Gries / Count-Min-Sketch are the shared tools.</div></details>
+<details class='q'><summary>How is GPUHammer's ML-weight attack related to the PTE attack conceptually?</summary><div class='ans'>Both flip a single high-leverage bit — a permission bit vs. a model weight — so a tiny targeted corruption yields outsized control/damage.</div></details>
+<details class='q'><summary>How does threshold-setting resemble a moving target in any rate-limiter?</summary><div class='ans'>A rate-limiter tuned to a drifting threshold must over-provision (overhead) or risk misses; HC_first is that drifting threshold.</div></details>
+<h3>Open</h3>
+<details class='q'><summary>Should mitigation live in DRAM, the controller, or the OS?</summary><div class='ans'>Unsettled: DRAM-only is deployable but has failed; OS-cooperative is flexible but needs new controller primitives; likely defense-in-depth across all three.</div></details>
+<details class='q'><summary>How would you prove a DIMM Rowhammer-safe?</summary><div class='ans'>Open: no accepted test vectors; you'd need exhaustive characterization across patterns, temperature, aging, and per-chip variation — currently infeasible.</div></details>
+<details class='q'><summary>Is PRAC's ~10–18% overhead acceptable, and who decides?</summary><div class='ans'>Contested: depends on workload/threat model; buyers ultimately pay in performance/power, with no neutral arbiter.</div></details>
+<details class='q'><summary>Does per-chip variation make certification impossible in principle?</summary><div class='ans'>Possibly: if patterns don't transfer across chips, per-die certification may be the only sound approach — economically brutal.</div></details>
+</section>
+
+<section id='deep'><h2>15. Go deeper next</h2>
+<ul>
+<li><strong>PRAC/RFM internals &amp; the counter-optimization race</strong> (QPRAC, MOAT, Chronus, CoMeT).</li>
+<li><strong>Side channels from defenses</strong> (PRACLeak, ECCploit timing) — adding a mitigation adds an oracle.</li>
+<li><strong>Memory integrity for ML accelerators</strong> (GPUHammer, DeepHammer).</li>
+</ul></section>
+
+<section id='src'><h2>Sources</h2>
+<h3>Papers</h3><ul>
+<li><a href='https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf' target='_blank' rel='noopener'>Kim et al., Flipping Bits in Memory Without Accessing Them, ISCA 2014</a></li>
+<li><a href='https://arxiv.org/abs/2005.13121' target='_blank' rel='noopener'>Kim et al., Revisiting RowHammer, ISCA 2020</a></li>
+<li><a href='https://arxiv.org/abs/2306.17061' target='_blank' rel='noopener'>Luo et al., RowPress, ISCA 2023</a></li>
+<li><a href='https://download.vusec.net/papers/trrespass_sp20.pdf' target='_blank' rel='noopener'>Frigo et al., TRRespass, S&amp;P 2020</a></li>
+<li><a href='https://arxiv.org/abs/2110.10603' target='_blank' rel='noopener'>Hassan et al., U-TRR, MICRO 2021</a></li>
+<li><a href='https://download.vusec.net/papers/eccploit_sp19.pdf' target='_blank' rel='noopener'>Cojocar et al., ECCploit, S&amp;P 2019</a></li>
+<li><a href='https://comsec-files.ethz.ch/papers/phoenix_sp26.pdf' target='_blank' rel='noopener'>Phoenix, IEEE S&amp;P 2026</a></li>
+<li><a href='https://www.usenix.org/system/files/usenixsecurity24-jattke.pdf' target='_blank' rel='noopener'>Jattke et al., ZenHammer, USENIX Sec 2024</a></li>
+<li><a href='https://arxiv.org/abs/2507.08166' target='_blank' rel='noopener'>Lin et al., GPUHammer, USENIX Sec 2025</a></li>
+<li><a href='https://arxiv.org/abs/2501.18861' target='_blank' rel='noopener'>QPRAC, HPCA 2025</a></li>
+<li><a href='https://arxiv.org/abs/2407.09995' target='_blank' rel='noopener'>MOAT, ASPLOS 2025</a></li>
+<li><a href='https://arxiv.org/abs/2505.10111' target='_blank' rel='noopener'>PRACLeak, ISCA 2025</a></li>
+<li><a href='https://arxiv.org/abs/2402.18769' target='_blank' rel='noopener'>CoMeT, DSN 2024</a></li>
+<li><a href='https://arxiv.org/abs/2211.07613' target='_blank' rel='noopener'>Mutlu et al., Fundamentally Understanding and Solving RowHammer, ASP-DAC 2023</a></li>
+<li><a href='https://ar5iv.labs.arxiv.org/html/2306.16093' target='_blank' rel='noopener'>Mutlu, RowHammer Retrospective (ISCA-50)</a></li>
+</ul>
+<h3>Code / docs</h3><ul>
+<li><a href='https://github.com/comsec-group/phoenix' target='_blank' rel='noopener'>Phoenix artifacts</a></li>
+<li><a href='https://github.com/comsec-group/zenhammer' target='_blank' rel='noopener'>ZenHammer code</a></li>
+<li><a href='https://github.com/CMU-SAFARI/RowPress' target='_blank' rel='noopener'>RowPress code</a></li>
+<li><a href='https://app.opencve.io/cve/CVE-2025-6202' target='_blank' rel='noopener'>CVE-2025-6202</a></li>
+</ul>
+<h3>Articles / vendor</h3><ul>
+<li><a href='https://security.googleblog.com/2021/05/introducing-half-double-new-hammering.html' target='_blank' rel='noopener'>Google, Introducing Half-Double, 2021</a></li>
+<li><a href='https://googleprojectzero.blogspot.com/2015/03/exploiting-dram-rowhammer-bug-to-gain.html' target='_blank' rel='noopener'>Project Zero, Exploiting the DRAM Rowhammer bug, 2015</a></li>
+<li><a href='https://www.intel.com/content/www/us/en/security/security-practices/blogs/rowhammer-whose-issue-to-mitigate.html' target='_blank' rel='noopener'>Intel, Rowhammer: whose issue to mitigate</a></li>
+<li><a href='https://en.wikipedia.org/wiki/Memory_timings' target='_blank' rel='noopener'>JEDEC timing reference</a></li>
+</ul>
+</section>
+</main></div>
+<script>
+// copy buttons
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{const c=b.parentElement.querySelector('code');navigator.clipboard&&navigator.clipboard.writeText(c.innerText);const t=b.textContent;b.textContent='copied';setTimeout(()=>b.textContent=t,1200)}));
+// scroll-spy
+const links=[...document.querySelectorAll('nav a')],secs=links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const spy=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('on'));const m=links.find(l=>l.getAttribute('href')==='#'+e.target.id);m&&m.classList.add('on')}})},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>spy.observe(s));
+// reveal all
+document.getElementById('revall').addEventListener('click',function(){const ds=[...document.querySelectorAll('details.q')];const open=ds.every(d=>d.open);ds.forEach(d=>d.open=!open);this.textContent=open?'Reveal all':'Hide all'});
+// step-through mechanism
+const rows={r0:document.getElementById('r0'),r1:document.getElementById('r1'),r2:document.getElementById('r2'),r3:document.getElementById('r3')};
+const AGG=getComputedStyle(document.documentElement).getPropertyValue('--agg').trim();
+const VIC=getComputedStyle(document.documentElement).getPropertyValue('--vic').trim();
+const IDLE=getComputedStyle(document.documentElement).getPropertyValue('--code').trim();
+const steps=[
+ {d:'Start. All rows idle. Victim V holds its charge; aggressors A₁=V−1 and A₂=V+1 are ordinary rows the attacker is allowed to read.',f:{r0:IDLE,r1:IDLE,r2:IDLE,r3:IDLE},o:{r2:1}},
+ {d:'ACT A₁: A₁ wordline goes high. Its cells drive the bitlines, sense amps latch and RESTORE A₁ (intact). But the wordline swing couples into V — V bleeds a sliver of charge.',f:{r1:AGG,r2:VIC},o:{r2:.85}},
+ {d:'PRE A₁: close A₁. Then ACT A₂ from the other side of V — same coupling, now from below. Double-sided: both neighbors inject into V, and the effect adds.',f:{r1:IDLE,r3:AGG,r2:VIC},o:{r2:.7}},
+ {d:'Repeat the A₁/A₂ cycle thousands of times. V is never activated and its scheduled REF is up to 64 ms away, so its lost charge is not topped up.',f:{r1:AGG,r3:AGG,r2:VIC},o:{r2:.5}},
+ {d:'After ~9.6K total activations (worst DDR4 chip), V\'s charge crosses the sense-amp decision point. It is now below the "1" threshold but has had no refresh.',f:{r1:AGG,r3:AGG,r2:VIC},o:{r2:.28}},
+ {d:'Next read of V: the sense amp latches the WRONG value. Bit flipped — in a row the attacker never activated. Memory integrity violated.',f:{r1:IDLE,r3:IDLE,r2:VIC},o:{r2:.15}}
+];
+let si=0;
+function render(){const s=steps[si];for(const k in rows){rows[k].setAttribute('fill',s.f&&s.f[k]?s.f[k]:IDLE);rows[k].setAttribute('opacity',(s.o&&s.o[k]!=null)?s.o[k]:1)}document.getElementById('stepn').textContent='Step '+(si+1)+' / '+steps.length;document.getElementById('stepd').textContent=s.d;document.getElementById('pv').disabled=si===0;document.getElementById('nx').disabled=si===steps.length-1}
+document.getElementById('nx').addEventListener('click',()=>{if(si<steps.length-1){si++;render()}});
+document.getElementById('pv').addEventListener('click',()=>{if(si>0){si--;render()}});
+render();
+// interactive slider
+const hc=document.getElementById('hc'),pp=document.getElementById('pp');
+function fmt(n){return n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':Math.round(n)}
+function upd(){
+ const HC=Math.round(Math.pow(2,+hc.value)/100)*100; // ~128 .. ~1.3M, rounded
+ const p=(+pp.value)/1000;
+ document.getElementById('hcv').textContent=fmt(HC);
+ document.getElementById('pv2').textContent=p.toFixed(3);
+ const budget=64e-3/47e-9; // 1.36M
+ const victims=Math.floor(budget/HC);
+ const Pmiss=Math.pow(1-p/2,HC);
+ document.getElementById('out').innerHTML=
+  'Budget ≈ <b>'+fmt(budget)+'</b> activations/window. At HC_first = <b>'+fmt(HC)+'</b>, one window could threaten ≈ <b>'+victims+'</b> independent victim(s). '+
+  'PARA miss probability over HC_first hammers = (1−p/2)^HC_first ≈ <b>'+Pmiss.toExponential(1)+'</b> '+
+  (Pmiss<1e-15?'(below the hardware hard-error budget — safe).':'(ABOVE ~10⁻¹⁵ — this p is no longer safe at this threshold; raise p, pay overhead).');
+}
+hc.addEventListener('input',upd);pp.addEventListener('input',upd);upd();
+</script>
+</body></html>
