@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Speculative decoding - rabbithole dive</title>
+<meta name="description" content="Why speculative decoding's rejection sampling keeps LLM output exactly target-distributed: mechanism, math, real-world use, frontier.">
+<style>:root{
+  --bg:#faf8f4;--surface:#fff;--surface2:#f3efe8;--ink:#1d1b18;--muted:#5f5a52;--line:#e2dccf;
+  --accent:#3b4fd8;--accent-ink:#fff;--accent-soft:#e8ebff;
+  --ok:#1b7f4b;--ok-soft:#e2f4ea;--bad:#b4281f;--bad-soft:#fbe5e2;--warn:#8a5a00;--warn-soft:#fff1d2;
+  --code-bg:#f1ede5;--shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14151a;--surface:#1c1e25;--surface2:#23262f;--ink:#ecebe6;--muted:#a5a39b;--line:#32353f;
+  --accent:#8c9bff;--accent-ink:#10131f;--accent-soft:#252a4a;
+  --ok:#5fd394;--ok-soft:#173326;--bad:#ff8b80;--bad-soft:#3b1d1a;--warn:#f0c068;--warn-soft:#3a2d12;
+  --code-bg:#101116;--shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--accent);text-underline-offset:2px;overflow-wrap:anywhere}
+code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{background:var(--code-bg);padding:.1em .35em;border-radius:5px;font-size:.88em;overflow-wrap:anywhere}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.5;position:relative;margin:1em 0}
+pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}
+.copy{position:absolute;top:8px;right:8px;font:600 12px/1 system-ui;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:6px 10px;cursor:pointer}
+.copy:hover{border-color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:28px 18px 28px 24px;border-right:1px solid var(--line);font-size:13.5px}
+nav.toc .brand{font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+nav.toc a{display:block;padding:5px 10px;border-left:2px solid transparent;color:var(--muted);text-decoration:none;line-height:1.35;overflow-wrap:normal}
+nav.toc a:hover{color:var(--ink)}
+nav.toc a.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-soft);font-weight:600;border-radius:0 6px 6px 0}
+.topbar{display:none}
+main{padding:0 32px 80px;min-width:0}
+header.hero{padding:44px 0 8px}
+.card-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:99px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent}
+.chip.plain{background:var(--surface2);color:var(--muted);border-color:var(--line)}
+h1{font-size:clamp(28px,4.4vw,44px);line-height:1.12;margin:.1em 0 .4em;letter-spacing:-.02em;max-width:22em}
+.tldr{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;padding:18px 22px;box-shadow:var(--shadow);margin:22px 0}
+.tldr h2{margin:0 0 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:0;padding:0}
+.tldr p{margin:.4em 0;max-width:none}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0 6px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px}
+.stat b{display:block;font-size:26px;line-height:1.1;letter-spacing:-.02em;color:var(--accent)}
+.stat span{font-size:12.5px;color:var(--muted);line-height:1.35;display:block;margin-top:4px}
+section{padding-top:18px}
+section>h2{font-size:clamp(22px,3vw,28px);letter-spacing:-.01em;margin:1.6em 0 .5em;padding-top:1.1em;border-top:1px solid var(--line);line-height:1.25}
+h3{font-size:19px;margin:1.6em 0 .4em;line-height:1.3}
+h4{font-size:16.5px}
+p,li{max-width:72ch}
+li{margin:.25em 0}
+.table-wrap{overflow-x:auto;margin:1em 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:13px;letter-spacing:.02em;color:var(--muted);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+blockquote{margin:1em 0;padding:12px 18px;border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;font-size:1.05em}
+blockquote p{margin:.2em 0}
+.callout{border-radius:10px;padding:12px 16px;margin:1.2em 0;border:1px solid var(--line);max-width:80ch}
+.callout.miscon{background:var(--warn-soft);border-color:transparent}
+.callout.gotcha{background:var(--bad-soft);border-color:transparent}
+.callout .ttl{font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;display:block}
+.callout.miscon .ttl{color:var(--warn)}.callout.gotcha .ttl{color:var(--bad)}
+.callout ul{margin:.3em 0;padding-left:1.2em}.callout p{margin:.2em 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:1em 0}
+.sys{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.sys h4{margin:0 0 6px;font-size:15.5px;color:var(--accent)}
+.sys p{margin:0;font-size:14.2px;color:var(--ink);line-height:1.55}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:1.2em 0}
+.twocol>div{border-radius:12px;padding:14px 18px;border:1px solid var(--line)}
+.twocol .use{background:var(--ok-soft)}.twocol .skip{background:var(--bad-soft)}
+.twocol h4{margin:0 0 6px;font-size:13px;letter-spacing:.07em;text-transform:uppercase}
+.twocol .use h4{color:var(--ok)}.twocol .skip h4{color:var(--bad)}
+.twocol ul{margin:0;padding-left:1.15em}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:1.4em 0;box-shadow:var(--shadow)}
+.panel>h4{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+button.btn{font:600 14px system-ui;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer}
+button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.btn:disabled{opacity:.4;cursor:not-allowed}
+.stepcount{font-weight:700;font-size:13px;color:var(--muted)}
+.caption{min-height:3.6em;margin:10px 0 0;font-size:15px;max-width:none}
+svg.dia{width:100%;height:auto;display:block}
+svg text{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;fill:var(--ink)}
+svg .lbl{font-family:system-ui,sans-serif;font-size:12px;fill:var(--muted)}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .arrow{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .g{transition:opacity .35s ease}
+svg .hid{opacity:0}
+svg .dim{opacity:.35}
+svg .hl .box{stroke:var(--accent);stroke-width:3}
+svg .ok .box{fill:var(--ok-soft);stroke:var(--ok)}
+svg .bad .box{fill:var(--bad-soft);stroke:var(--bad)}
+svg .ok text.v{fill:var(--ok);font-weight:700}svg .bad text.v{fill:var(--bad);font-weight:700}
+svg .gr .box{fill:var(--surface2);stroke:var(--line);stroke-dasharray:4 3}
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.sliders label{font-size:14px;display:block}
+.sliders input[type=range]{width:100%;accent-color:var(--accent)}
+.sliders output{font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.readout div{background:var(--surface2);border-radius:10px;padding:10px 12px}
+.readout b{font-size:22px;display:block;font-variant-numeric:tabular-nums}
+.readout small{color:var(--muted);font-size:12.5px}
+.readout .good b{color:var(--ok)}.readout .badv b{color:var(--bad)}
+.eq{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:1em 0;overflow-x:auto}
+.eq math{font-size:1.25em;display:block;margin:.3em 0}
+.eq .plain{font-size:14.5px;color:var(--muted);margin:.2em 0 0;max-width:none}
+.eq .plain b{color:var(--accent)}
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:.55em 0;max-width:80ch}
+details>summary{cursor:pointer;padding:10px 14px;font-weight:600;list-style:none;display:flex;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"+";color:var(--accent);font-weight:800;width:1ch;flex:none}
+details[open]>summary::before{content:"\2212"}
+details .ans{padding:2px 16px 14px 36px;border-top:1px dashed var(--line);margin-top:2px}
+details .ans p{margin:.6em 0}
+.qn{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.ladder-bar{display:flex;gap:10px;align-items:center;margin:8px 0 4px;flex-wrap:wrap}
+.src h3{margin-top:1.2em}
+.src ul{padding-left:1.1em}.src li{font-size:14.5px}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px}
+.notes{font-size:13.5px;color:var(--muted)}
+math{font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif}
+@media (max-width:960px){
+  .layout{display:block}
+  nav.toc{display:none}
+  .topbar{display:block;position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 16px}
+  .topbar summary{border:0;padding:6px 0;background:none;cursor:pointer;font-weight:700;display:flex;justify-content:space-between}
+  .topbar details{border:0;max-width:none;margin:0;background:none}
+  .topbar summary::before{content:none}
+  .topbar nav{max-height:60vh;overflow:auto;padding:4px 0 10px}
+  .topbar a{display:block;padding:7px 4px;text-decoration:none;color:var(--ink);font-size:14.5px;border-bottom:1px solid var(--line)}
+  .topbar a.active{color:var(--accent);font-weight:700}
+  main{padding:0 16px 60px}
+  html{scroll-padding-top:56px}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  .twocol{grid-template-columns:1fr}
+  th,td{padding:7px 9px}
+  pre{font-size:12.5px;padding:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+</style></head><body>
+<div class="topbar"><details><summary><span id="mcur">Contents</span><span aria-hidden="true">&#9662;</span></summary><nav id="mtoc" aria-label="Contents"></nav></details></div>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><div class="brand">Rabbithole &middot; Contents</div><div class="links"><a href="#s1">1. Bare-minimum context</a><a href="#s1b">1b. Real-world context (where, how, why)</a><a href="#s2">2. The one-liner — and what it hides</a><a href="#s3">3. The problem</a><a href="#s4">4. Mental model</a><a href="#s5">5. The mechanism, traced</a><a href="#s6">6. The math</a><a href="#s7">7. Why it works</a><a href="#s8">8. Design knobs &amp; alternatives</a><a href="#s9">9. Where it breaks</a><a href="#s10">10. In the wild</a><a href="#s11">11. Frontier (what&#x27;s new)</a><a href="#s11b">11b. Open problems</a><a href="#s12">12. Lineage</a><a href="#s13">13. Hands-on (≤30 min)</a><a href="#s14">14. Question ladder</a><a href="#s15">15. Go deeper next</a><a href="#sources">Sources</a></div></nav>
+<main>
+
+<header class="hero">
+  <div class="card-meta"><span class="chip">LLM systems</span><span class="chip plain">Speculative decoding (draft &rarr; verify &rarr; modified rejection sampling)</span><span class="chip plain">Depth: hard</span><span class="chip plain">2026-10-03</span></div>
+  <h1>Speculative decoding: why rejection sampling keeps the output exactly target-distributed</h1>
+  <div class="tldr">
+    <h2>TL;DR</h2>
+    <p>A cheap drafter guesses the next &gamma; tokens. The big model scores all of them in <b>one</b> forward pass, accepts each draft token with probability <code>min(1, p/q)</code>, and on the first rejection samples a replacement from the <b>residual</b> <code>max(0, p &minus; q)</code>. That pair is a maximal coupling of p and q, so the emitted tokens are <b>exactly</b> p-distributed for any drafter, and the acceptance rate is <code>1 &minus; TV(p,q)</code>.</p>
+    <p><b>Why it matters:</b> decoding is memory-bandwidth bound at small batch, so checking &gamma;+1 tokens costs about the same as generating one. You trade spare FLOPs for latency: 2&ndash;3&times; at batch 1, and below 1&times; once the target is compute-bound.</p>
+  </div>
+  <div class="strip" aria-label="Key numbers">
+    <div class="stat"><b>14.1 ms</b><span>per token, Chinchilla 70B on 16 TPU v4, plain sampling (Chen et al.)</span></div>
+    <div class="stat"><b>2.0&ndash;2.5&times;</b><span>speedup, same model, batch 1 (Chen et al.)</span></div>
+    <div class="stat"><b>1 &minus; TV</b><span>acceptance rate &alpha; = &Sigma; min(p,q)</span></div>
+    <div class="stat"><b>0.83 vs 0.23</b><span>residual rule vs sample-and-match acceptance on the &sect;13 toy</span></div>
+    <div class="stat"><b>1.63&times; / 3.69&times;</b><span>more FLOPs / less latency at &alpha;=0.8, &gamma;=5 (Leviathan)</span></div>
+    <div class="stat"><b>1.75&times; &rarr; 1.01&times;</b><span>EAGLE-3 in vLLM, 8B, batch 2 &rarr; 56</span></div>
+    <div class="stat"><b>85&ndash;90%</b><span>DeepSeek-V3 MTP 2nd-token acceptance</span></div>
+  </div>
+</header>
+
+<section id="s1"><h2>1. Bare-minimum context</h2><ul>
+<li><strong>Autoregressive decoding</strong>: one forward pass of the model per output token; token t+1 depends on token t, so passes are serial. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.17192">Leviathan et al.</a>)</li>
+<li><strong>Memory-bandwidth bound</strong>: at small batch, each decode step reads all weights + the KV cache from HBM but does very little math on them; time ≈ bytes / bandwidth, not FLOPs / peak. (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2302.01318">Chen et al.</a>, "Conditional Scoring")</li>
+<li><strong>KV cache</strong>: per-layer keys/values for every previous token, kept so each new token only computes its own row of attention. (<a target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/features/speculative_decoding/">vLLM docs</a>)</li>
+<li><strong>Logits → distribution</strong>: temperature, top-k, top-p are transforms that turn logits into the distribution p you actually sample from.</li>
+<li><strong>Total variation distance</strong> TV(p,q) = ½ Σ|p(x) − q(x)|: the largest gap between the probabilities p and q assign to any event.</li>
+<li><strong>Teacher forcing / scoring</strong>: given a known sequence, one forward pass returns the model's next-token distribution at <em>every</em> position at once (same thing as a prefill).</li>
+</ul></section><section id="s1b"><h2>1b. Real-world context (where, how, why)</h2><h3>What it is</h3><p>Speculative decoding is an inference-time trick for autoregressive language models. A cheap "drafter" (a small model, extra heads on the big model, or just a lookup into the prompt) proposes several next tokens. The big "target" model then scores all of them in a single forward pass and keeps the longest prefix it agrees with, using a rule that keeps the output distribution exactly the same as the target's own. You get more than one token per target pass without changing what the model says. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</p><h3>Why it exists / why it's used</h3><ul>
+<li><strong>The pain</strong>: LLM inference is usually memory-bound, so "ample computational resources" sit idle during decoding, and some tokens are easy to generate. Google's authors built it on those two observations. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</li>
+<li><strong>What people did before</strong>: distillation, quantization, or smaller models (all change the output), or Stern et al.'s greedy-only blockwise parallel decoding with custom heads. Speculative decoding is the first approach that is exact for sampling and needs no retraining of the target (§12).</li>
+<li><strong>What it buys</strong>: Google reports ~3× speed on an 11B T5-XXL with a 60M T5-small drafter, with an identical output distribution, and notes that faster results on the same hardware means fewer machines for the same traffic. (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</li>
+<li><strong>Cost of not having it</strong>: at low batch you pay full weight-reading time for every single token, with the compute units mostly idle.</li>
+</ul><h3>Where it's used</h3><p>Only systems I saw documented in the sources below.</p><div class="cards"><div class="sys"><h4>Google Search AI Overviews</h4><p>Speculative decoding is deployed so AI Overviews generate faster "while maintaining the same quality of responses". (<a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">Google Research</a>)</p></div><div class="sys"><h4>vLLM</h4><p>Serving engine. Supports EAGLE, MTP, draft model, PARD, MLP speculator, n-gram, suffix decoding. (<a target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/features/speculative_decoding/">docs</a>)</p></div><div class="sys"><h4>SGLang</h4><p>Serving engine. EAGLE-2/3 and MTP-style drafting with tree verification. Used for EAGLE-3 on Google Vertex AI (Llama 4 Scout), reported 2-3× decoding speedup. (<a target="_blank" rel="noopener" href="https://lmsys.org/blog/2025-12-01-eagle3-vertex/">LMSYS</a>)</p></div><div class="sys"><h4>TensorRT-LLM</h4><p>NVIDIA's engine. Draft-target, NGram, Medusa, ReDrafter, EAGLE, Lookahead. Its docs frame it as a way to cut latency "where the GPU is underutilized due to small batch sizes". (<a target="_blank" rel="noopener" href="https://nvidia.github.io/TensorRT-LLM/advanced/speculative-decoding.html">docs</a>)</p></div><div class="sys"><h4>Hugging Face transformers</h4><p><code>assistant_model=</code> in <code>generate()</code> ("assisted generation"). Initially batch size 1 only. (<a target="_blank" rel="noopener" href="https://huggingface.co/blog/assisted-generation">HF blog</a>)</p></div><div class="sys"><h4>llama.cpp</h4><p>Local inference. <code>--spec-type</code> accepts draft-simple, draft-eagle3, draft-dflash, draft-mtp, and several n-gram modes. (<a target="_blank" rel="noopener" href="https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md">docs</a>)</p></div><div class="sys"><h4>DeepSeek-V3 / R1 serving</h4><p>Multi-token-prediction module used as the drafter. In TensorRT-LLM, MTP=3 gave 2.16× at batch 1 on 8×B200 (2.33× with relaxed acceptance). (<a target="_blank" rel="noopener" href="https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog02_DeepSeek_R1_MTP_Implementation_and_Optimization.md">TRT-LLM blog</a>)</p></div></div><h3>How it's used</h3><p>A practitioner touches one config object: the method (draft model, EAGLE-3, MTP, n-gram) and the draft length. vLLM, draft-model method, from the official docs:</p>
+<pre><code class="language-bash">vllm serve &lt;target-model&gt; \
+  --speculative-config '{
+    &quot;method&quot;: &quot;draft_model&quot;,
+    &quot;model&quot;: &quot;&lt;draft-model&gt;&quot;,
+    &quot;num_speculative_tokens&quot;: 5
+  }'
+</code></pre>
+<p>SGLang with an EAGLE-3 drafter (command from the SGLang docs):</p>
+<pre><code class="language-bash">python3 -m sglang.launch_server \
+    --model meta-llama/Meta-Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 4 \
+    --speculative-num-draft-tokens 16
+</code></pre>
+<p>Hugging Face transformers (from the HF blog):</p>
+<pre><code class="language-python">outputs = model.generate(**inputs, assistant_model=assistant)
+</code></pre>
+<p>llama.cpp: <code>llama-server -m Qwen3-4B.gguf -md Qwen3-4B-eagle3.gguf --spec-type draft-eagle3</code>. TensorRT-LLM MTP: <code>speculative_config: {decoding_type: MTP, num_nextn_predict_layers: 3}</code>.</p>
+<p><strong>Typical parameters</strong> (from the docs above, not a universal rule):</p>
+<ul>
+<li>draft length 3 is the default for llama.cpp (<code>--spec-draft-n-max</code>), SGLang's DeepSeek recipe (<code>num-steps 3</code>, <code>topk 1</code>, <code>num-draft-tokens 4</code>), and TRT-LLM's MTP example (3 predict layers).</li>
+<li>vLLM's docs example uses 5 for a draft model and 3 in the cross-vocabulary example.</li>
+<li>Integration pattern: pick a drafter that matches the target checkpoint (EAGLE-3/MTP heads are trained per target), turn it on in the server launch config, then benchmark at your real concurrency. See §8 for how to tune γ.</li>
+</ul><h3>When to use it / when NOT to</h3><div class="twocol"><div class="use"><h4>Use it</h4><ul><li>Latency-sensitive serving at low batch / low QPS (interactive chat, agents, single-user local inference).</li><li>Input-grounded tasks (summarization, translation, speech recognition, code editing) where the output copies the input. HF: "optimal for input-grounded tasks". vLLM measured up to 2.8× on summarization at low QPS. (<a target="_blank" rel="noopener" href="https://vllm.ai/blog/2024-10-17-spec-decode">vLLM blog</a>)</li><li>A trained drafter exists for your exact target (EAGLE-3 head, MTP module).</li></ul></div><div class="skip"><h4>Skip it</h4><ul><li>High-QPS, compute-bound serving. vLLM's 2024 blog measured 1.4-1.8× <strong>slowdowns</strong> at high QPS, versus up to 1.5× (general) and 2.8× (summarization) at low QPS.</li><li>Open-ended high-temperature sampling with a weak drafter: low acceptance (HF: sampling reduces the latency gain vs greedy).</li><li>No drafter for your checkpoint and you can't train one, or the draft model uses a different tokenizer (HF: assistant must share the tokenizer).</li></ul></div></div><p>Signs you picked wrong: throughput per GPU falls when you turn it on under production load, or the measured acceptance length is close to 1. Decision rule vs the alternative (plain decoding, optionally with larger batch): speculative decoding trades spare FLOPs for latency, so it wins only while there are spare FLOPs. The speedup also depends on the task, as TensorRT-LLM's docs note.</p><h3>Who should care</h3><ul>
+<li><strong>Inference / infra engineers</strong>: choosing the engine flags and drafter, and tuning draft length against batch size and QPS.</li>
+<li><strong>ML engineers who serve their own fine-tunes</strong>: a drafter tied to the old checkpoint loses acceptance after you fine-tune (see §9).</li>
+<li><strong>Backend / product engineers</strong> with a latency SLO on streaming responses: this is the lever that lowers time per token without changing model quality.</li>
+<li><strong>Security engineers</strong>: token-arrival timing leaks information (§9).</li>
+</ul></section><section id="s2"><h2>2. The one-liner — and what it hides</h2><blockquote>
+<p>"A small model guesses a few tokens, the big model checks them in one pass, so you get 2–3× faster decoding with identical output."</p>
+</blockquote>
+<p>What that sentence hides:</p>
+<ol>
+<li><strong>"Checks them"</strong> isn't "keeps the matching ones". Under sampling, checking means a specific accept rule <code>min(1, p/q)</code> plus a specific <em>resample from the residual</em> on rejection. A naive "keep if equal" check is also correct but accepts far less (Σ p·q instead of Σ min(p,q)).</li>
+<li><strong>"Identical output"</strong> means identical <em>in distribution</em>, in exact arithmetic. It is not bitwise identical in practice, and batched implementations have been shown to break even the distributional guarantee.</li>
+<li><strong>"One pass costs the same as one token"</strong> is only true while the target is memory-bound. At large batch it's compute-bound and the speedup can go <strong>below 1×</strong>.</li>
+<li><strong>"2–3×"</strong> depends on the acceptance rate α, the cost ratio c, and draft length γ through one formula, and α depends on temperature, domain, language and tokenizer.</li>
+<li><strong>"Small model"</strong>: modern drafters aren't separate small models. They're heads on the target's hidden states (EAGLE, MTP) or block-diffusion drafters (DFlash), and in production drafts are usually argmax.</li>
+</ol></section><section id="s3"><h2>3. The problem</h2><p>Decoding a 70B model at batch 1 reads ~140 GB of bf16 weights per token. On Chinchilla 70B across 16 TPU v4, Chen et al. measured <strong>14.1 ms/token</strong> for plain sampling. The hardware is mostly idle on compute: the minimum time per token is model bytes ÷ memory bandwidth, and that floor holds no matter how many FLOPs remain unused.</p>
+<p>The constraint that forces the design: <strong>you can't parallelize across output positions</strong>, because token t+1 needs token t. But scoring a <em>known</em> sequence of k tokens <em>is</em> parallel (it's a prefill), and at small k it costs about the same wall time as one decode step. Chen et al. give three reasons:</p>
+<ol>
+<li>Linear layers stay memory-bound for small k.</li>
+<li>Attention is dominated by reading the KV cache, which doesn't grow with k.</li>
+<li>Tensor-parallel all-reduces are latency-bound, not throughput-bound.</li>
+</ol>
+<p>So the question becomes: <em>can we get a cheap guess of the next k tokens, score them in one target pass, and still produce samples from exactly the target distribution?</em> Blockwise parallel decoding (Stern et al., NeurIPS 2018) already did this for <strong>greedy</strong> decoding only, with custom-trained heads. The 2022–23 papers did it for <strong>sampling</strong>, with any off-the-shelf drafter.</p></section><section id="s4"><h2>4. Mental model</h2><p><strong>An intern and an editor.</strong> The intern (draft model q) quickly writes the next γ words. The editor (target p) reads the whole draft in one sitting. Reading goes left to right: each word is kept with a probability that depends on how much the editor "agrees". At the first word the editor strikes out, they write their own word instead and throw away everything after. If they keep everything, they add one more word of their own for free.</p>
+<p><strong>Where the analogy breaks:</strong></p>
+<ul>
+<li>The editor doesn't "pick a better word" on rejection. They sample from a specific <strong>residual distribution</strong> <code>max(0, p − q)</code> that excludes exactly the mass the intern already over-proposed. That's what makes the result exact, and it's non-intuitive: the replacement is biased <em>away</em> from what the intern liked.</li>
+<li>The editor's read isn't free when the editor is busy with many manuscripts (large batch). Then reading γ+1 words costs γ+1 times as much.</li>
+<li>The intern isn't required to be any good. Correctness holds for <strong>any</strong> q, even uniform. Only speed depends on q.</li>
+</ul></section><section id="s5"><h2>5. The mechanism, traced</h2><p>One iteration, γ = 3, temperature 1. Prefix: <code>"The cat sat on the"</code>.</p>
+
+<div class="panel" id="stepper" aria-label="Step-through of the traced example">
+  <h4>Step through the trace (&gamma; = 3, T = 1)</h4>
+  <svg class="dia" viewBox="0 0 800 360" role="img" aria-label="Diagram of one speculative decoding iteration: draft three tokens, verify in one target pass, accept mat, reject and, emit a resampled token">
+    <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <text class="lbl" x="10" y="22">prefix</text>
+    <g class="g" data-show="0" data-hl="0"><rect class="box" x="10" y="30" width="190" height="46" rx="8"/><text x="105" y="58" text-anchor="middle">The cat sat on the</text></g>
+    <text class="lbl g hid" data-show="1" x="250" y="22">draft q &mdash; 3 serial cheap passes</text>
+    <path class="arrow g hid" data-show="1" d="M200 53 H250" marker-end="url(#ah)"/>
+    <g class="g hid" data-show="1" data-hl="1" transform="translate(250,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x1 = "mat"</text><text x="65" y="37" text-anchor="middle" class="lbl">q1(x1) = 0.50</text></g>
+    <path class="arrow g hid" data-show="1" d="M380 53 H410" marker-end="url(#ah)"/>
+    <g class="g hid" data-show="1" data-hl="1" transform="translate(410,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x2 = "and"</text><text x="65" y="37" text-anchor="middle" class="lbl">q2(x2) = 0.40</text></g>
+    <path class="arrow g hid" data-show="1" d="M540 53 H570" marker-end="url(#ah)"/>
+    <g class="g hid" data-show="1" data-hl="1" transform="translate(570,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x3 = "purred"</text><text x="65" y="37" text-anchor="middle" class="lbl">q3(x3)</text></g>
+    <text class="lbl g hid" data-show="2" x="10" y="132">target p &mdash; ONE forward pass over prefix + [x1,x2,x3]</text>
+    <path class="arrow g hid" data-show="2" d="M315 76 V142 M475 76 V142 M635 76 V142" marker-end="url(#ah)"/>
+    <g class="g hid" data-show="2" data-hl="2,3" transform="translate(250,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p1(x1) = 0.60</text><text x="65" y="37" text-anchor="middle" class="lbl">p1(&middot;|prefix)</text></g>
+    <g class="g hid" data-show="2" data-hl="2,4,5" transform="translate(410,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p2(x2) = 0.10</text><text x="65" y="37" text-anchor="middle" class="lbl">p2(&middot;|&hellip;mat)</text></g>
+    <g class="g hid" data-show="2" data-hl="2" transform="translate(570,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p3(&middot;|&hellip;mat and)</text><text x="65" y="37" text-anchor="middle" class="lbl">never used</text></g>
+    <g class="g hid" data-show="2" transform="translate(710,146)"><rect class="box" width="84" height="46" rx="8"/><text x="42" y="20" text-anchor="middle">p4</text><text x="42" y="37" text-anchor="middle" class="lbl">bonus slot</text></g>
+    <text class="lbl g hid" data-show="3" x="10" y="226">verdict, left to right</text>
+    <g class="g hid ok" data-show="3" data-hl="3" transform="translate(250,234)"><rect class="box" width="130" height="46" rx="8"/><text class="v" x="65" y="20" text-anchor="middle">accept</text><text x="65" y="37" text-anchor="middle" class="lbl">p/q&#8805;1, so keep</text></g>
+    <g class="g hid bad" data-show="4" data-hl="4" transform="translate(410,234)"><rect class="box" width="130" height="46" rx="8"/><text class="v" x="65" y="20" text-anchor="middle">reject</text><text x="65" y="37" text-anchor="middle" class="lbl">p/q=.25 &lt; r=.83</text></g>
+    <g class="g hid gr" data-show="4" transform="translate(570,234)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">discarded</text><text x="65" y="37" text-anchor="middle" class="lbl">conditioned on "and"</text></g>
+    <text class="lbl g hid" data-show="5" x="10" y="312">emitted</text>
+    <g class="g hid ok" data-show="5" data-hl="5,6" transform="translate(250,320)"><rect class="box" width="130" height="34" rx="8"/><text class="v" x="65" y="22" text-anchor="middle">"mat"</text></g>
+    <g class="g hid ok" data-show="5" data-hl="5,6" transform="translate(410,320)"><rect class="box" width="210" height="34" rx="8"/><text class="v" x="105" y="22" text-anchor="middle">"." (from residual)</text></g>
+  </svg>
+  <p class="caption" id="stepcap" aria-live="polite"></p>
+  <div class="ctrls">
+    <button class="btn" id="stepback" type="button">&larr; Back</button>
+    <button class="btn primary" id="stepnext" type="button">Next &rarr;</button>
+    <button class="btn" id="stepreset" type="button">Reset</button>
+    <span class="stepcount" id="stepcount"></span>
+  </div>
+</div>
+
+<p>Position by position (numbers illustrative):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>i</th>
+<th>draft token</th>
+<th>q_i(x_i)</th>
+<th>p_i(x_i)</th>
+<th>accept prob min(1, p/q)</th>
+<th>r_i ~ U(0,1)</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>"mat"</td>
+<td>0.50</td>
+<td>0.60</td>
+<td>1.00</td>
+<td>0.71</td>
+<td>accept</td>
+</tr>
+<tr>
+<td>2</td>
+<td>"and"</td>
+<td>0.40</td>
+<td>0.10</td>
+<td>0.25</td>
+<td>0.83</td>
+<td><strong>reject</strong> → stop</td>
+</tr>
+<tr>
+<td>3</td>
+<td>"purred"</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>discarded</td>
+</tr>
+</tbody>
+</table></div>
+<p>On the rejection at i = 2 we sample a replacement from <code>norm(max(0, p2 − q2))</code>. Suppose for the vocab slice <code>{and, ., ,, while}</code>:</p>
+<pre><code>p2 = [0.10, 0.50, 0.30, 0.10]
+q2 = [0.40, 0.30, 0.20, 0.10]
+p2−q2 clipped = [0, 0.20, 0.10, 0]  →  normalized [0, 0.667, 0.333, 0]
+</code></pre>
+<p>"and" can't be chosen again: it was already over-proposed. Sample "." → emit <code>"mat ."</code>. Two tokens for one target pass plus three cheap draft passes.</p>
+<p>If all three had been accepted, we'd also sample a 4th token from p4 (the "bonus" token). So each iteration emits 1..γ+1 tokens, and it is never slower in target calls than plain decoding.</p>
+<p><strong>KV-cache bookkeeping</strong> (what engines actually do):</p>
+<ul>
+<li>vLLM v1 schedules the draft tokens as part of the request's lookahead slots. After verify it does <code>num_computed_tokens -= num_rejected</code>. The rejected K/V entries stay in the paged blocks and get overwritten next step. Rollback is pointer arithmetic, no copy. (<a target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">scheduler.py</a>)</li>
+<li>HF transformers crops both caches with <code>past_key_values.crop(-n)</code>.</li>
+<li>llama.cpp calls <code>llama_memory_seq_rm(mem, seq, n_past, -1)</code>. For recurrent/SSM hybrids, which can't drop a suffix of the state, it checkpoints the state before verifying and restores it on partial accept.</li>
+</ul>
+<p>Leviathan's Algorithm 1, compactly:</p>
+<pre><code class="language-python">def spec_step(prefix, Mp, Mq, gamma):
+    xs, qs = [], []
+    for _ in range(gamma):                      # serial, cheap
+        q = Mq(prefix + xs); x = sample(q)
+        xs.append(x); qs.append(q)
+    ps = Mp.score(prefix, xs)                   # ONE pass → gamma+1 dists
+    for i, x in enumerate(xs):
+        if rand() &gt; min(1, ps[i][x] / qs[i][x]):
+            resid = clip(ps[i] - qs[i], 0); resid /= resid.sum()
+            return prefix + xs[:i] + [sample(resid)]
+    return prefix + xs + [sample(ps[gamma])]    # all accepted: bonus token
+</code></pre>
+<div class="callout gotcha"><span class="ttl">Gotcha</span><p>Notation trap: Leviathan uses p = target, q = draft. Chen et al. (DeepMind) <strong>swap</strong> them, so their <code>min(1, q/p)</code> is the same rule.</p></div></section><section id="s6"><h2>6. The math</h2><p><strong>Symbols.</strong> p(x) is the target distribution at one position, q(x) the draft's, both over vocab V. γ is the draft length. α is the expected acceptance probability. c is the cost ratio = (time of one draft pass) / (time of one target pass).</p>
+
+<div class="eq-group">
+<div class="eq"><math display="block"><mrow><mi>a</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mi>min</mi><mo>(</mo><mn>1</mn><mo>,</mo><mfrac><mrow><mi>p</mi><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mrow><mi>q</mi><mo>(</mo><mi>x</mi><mo>)</mo></mrow></mfrac><mo>)</mo><mo>,</mo><mspace width="1em"/><mi>r</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mfrac><mrow><mi>max</mi><mo>(</mo><mn>0</mn><mo>,</mo><mi>p</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>&#x2212;</mo><mi>q</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>)</mo></mrow><mi>Z</mi></mfrac></mrow></math>
+<p class="plain"><b>In plain terms:</b> accept a draft token with probability p/q (capped at 1); on rejection, draw from the leftover mass where p exceeds q.</p></div>
+<div class="eq"><math display="block"><mrow><mi>P</mi><mo>(</mo><mtext>emit&#xA0;</mtext><msup><mi>x</mi><mo>&#x2032;</mo></msup><mo>)</mo><mo>=</mo><munder><mrow><mi>min</mi><mo>(</mo><mi>p</mi><mo>,</mo><mi>q</mi><mo>)</mo></mrow><mtext>via accept</mtext></munder><mo>+</mo><munder><mrow><mo>(</mo><mi>p</mi><mo>&#x2212;</mo><mi>min</mi><mo>(</mo><mi>p</mi><mo>,</mo><mi>q</mi><mo>)</mo><mo>)</mo></mrow><mtext>via reject</mtext></munder><mo>=</mo><mi>p</mi><mo>(</mo><msup><mi>x</mi><mo>&#x2032;</mo></msup><mo>)</mo></mrow></math>
+<p class="plain"><b>In plain terms:</b> acceptance hands out min(p,q) of each token's mass; rejection hands out exactly the leftover, so the total is p.</p></div>
+<div class="eq"><math display="block"><mrow><mi>&#x3B2;</mi><mo>=</mo><munder><mo>&#x2211;</mo><mi>x</mi></munder><mi>min</mi><mo>(</mo><mi>p</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>,</mo><mi>q</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>)</mo><mo>=</mo><mn>1</mn><mo>&#x2212;</mo><mi>TV</mi><mo>(</mo><mi>p</mi><mo>,</mo><mi>q</mi><mo>)</mo><mo>,</mo><mspace width="1em"/><mi>&#x3B1;</mi><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mtext>prefix</mtext></msub><mo>[</mo><mi>&#x3B2;</mi><mo>]</mo></mrow></math>
+<p class="plain"><b>In plain terms:</b> you accept exactly as often as the two distributions overlap.</p></div>
+<div class="eq"><math display="block"><mrow><mi>E</mi><mo>[</mo><mtext>tokens</mtext><mo>]</mo><mo>=</mo><munderover><mo>&#x2211;</mo><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mi>&#x3B3;</mi></munderover><msup><mi>&#x3B1;</mi><mi>k</mi></msup><mo>=</mo><mfrac><mrow><mn>1</mn><mo>&#x2212;</mo><msup><mi>&#x3B1;</mi><mrow><mi>&#x3B3;</mi><mo>+</mo><mn>1</mn></mrow></msup></mrow><mrow><mn>1</mn><mo>&#x2212;</mo><mi>&#x3B1;</mi></mrow></mfrac></mrow></math>
+<p class="plain"><b>In plain terms:</b> the k-th draft token is worth &alpha;<sup>k</sup> tokens, so returns decay geometrically.</p></div>
+<div class="eq"><math display="block"><mrow><mtext>speedup</mtext><mo>=</mo><mfrac><mrow><mn>1</mn><mo>&#x2212;</mo><msup><mi>&#x3B1;</mi><mrow><mi>&#x3B3;</mi><mo>+</mo><mn>1</mn></mrow></msup></mrow><mrow><mo>(</mo><mn>1</mn><mo>&#x2212;</mo><mi>&#x3B1;</mi><mo>)</mo><mo>(</mo><mi>&#x3B3;</mi><mi>c</mi><mo>+</mo><mn>1</mn><mo>)</mo></mrow></mfrac></mrow></math>
+<p class="plain"><b>In plain terms:</b> the numerator is the tokens you gain by drafting; the denominator is the &gamma;c extra time you pay for it.</p></div>
+</div>
+
+<h3>6.1 Exactness (one position)</h3>
+<p>Draft samples x ~ q. Accept with probability a(x) = min(1, p(x)/q(x)). On reject, sample from r(x) = max(0, p(x) − q(x)) / Z.</p>
+<p>Probability of emitting x′ <strong>via acceptance</strong>:</p>
+<pre><code>P(draw x′, accept) = q(x′) · min(1, p(x′)/q(x′)) = min(q(x′), p(x′))
+</code></pre>
+<p>→ in plain terms: the draft "covers" each token up to whichever of p, q is smaller.</p>
+<p>Total rejection probability:</p>
+<pre><code>β = Σ_x min(p,q)          (acceptance prob)
+P(reject) = 1 − β = Σ_x (p − min(p,q)) = Σ_x max(0, p − q) = Z
+</code></pre>
+<p>The normalizer of the residual equals the rejection probability. That isn't luck: it's forced by both being "the mass of p not covered by q".</p>
+<p>Probability of emitting x′ <strong>via rejection</strong>:</p>
+<pre><code>P(reject) · r(x′) = Z · max(0, p(x′) − q(x′)) / Z = p(x′) − min(p(x′), q(x′))
+</code></pre>
+<p>Sum:</p>
+<pre><code>P(emit x′) = min(p,q) + (p − min(p,q)) = p(x′)          ∎
+</code></pre>
+<p>→ in plain terms: acceptance hands out <code>min(p,q)</code> of each token's mass. Rejection hands out exactly the leftover <code>p − min(p,q)</code>, never more, because the residual only lives where p &gt; q.</p>
+<p><strong>Why this form and not simpler:</strong></p>
+<ul>
+<li><em>Plain rejection sampling</em> accepts with p/(M·q), M = max p/q. That's exact but needs a global bound M and accepts much less often. Leviathan A.2 shows the one-shot version accepts Σ p·min(q/p) ≤ Σ min(p,q).</li>
+<li><em>"Keep the draft if the target's own sample equals it"</em> (sample-and-match) is exact too: emit the target's sample regardless. But it accepts with probability Σ p·q. For the toy in §13 that's <strong>0.23 vs 0.83</strong>.</li>
+<li><code>min(1, p/q)</code> is the <em>largest</em> per-token accept probability that still leaves a valid (non-negative) correction. Accepting more anywhere would require negative residual mass. This is the maximal coupling of p and q.</li>
+</ul>
+<p><strong>Sequence level.</strong> The argument applies position by position. After a rejection the remaining drafts are discarded, so every emitted token is p-distributed conditional on the prefix actually emitted. Induction gives the joint distribution.</p>
+<p><strong>Greedy as a special case.</strong> With temperature → 0, p and q become one-hot. min(1, p/q) ∈ {0, 1}, so you accept iff argmax q = argmax p. The residual is the target's one-hot, so you emit the target's argmax. That is exactly Stern et al.'s 2018 greedy-match rule.</p>
+<h3>6.2 Acceptance rate is 1 − TV</h3>
+<pre><code>β = Σ_x min(p(x), q(x))
+  = 1 − ½ Σ_x |p(x) − q(x)|        (since min(a,b) = (a+b−|a−b|)/2, Σp = Σq = 1)
+  = 1 − TV(p, q)
+α = E_prefix[β]
+</code></pre>
+<p>→ in plain terms: you accept exactly as often as the two distributions overlap. Leviathan calls the distance D_LK and proves D_LK = 1 − Σ min(p,q). The TV identity is ours (D_LK = ½‖p−q‖₁); the paper doesn't use the words "total variation". It's also the best possible: no coupling of p and q can make X_draft = X_target with probability above 1 − TV.</p>
+<h3>6.3 Expected tokens per iteration</h3>
+<p>Assume each position accepts independently with probability α (Leviathan's simplifying i.i.d. assumption). The number of accepted drafts N is a geometric variable capped at γ, and you emit N + 1 tokens:</p>
+<pre><code>E[tokens] = Σ_{k=0}^{γ} α^k = (1 − α^{γ+1}) / (1 − α)
+</code></pre>
+<p>→ in plain terms: each extra drafted token is worth α^k, so returns decay geometrically. With α = 0.8 the 10th draft token is worth 0.8¹⁰ ≈ 0.11 tokens.</p>
+<h3>6.4 Wall-time speedup</h3>
+<p>One iteration costs γ draft passes plus one target pass = T(γc + 1), where T is the time of one target pass. Assume scoring γ+1 tokens costs the same as one. Then:</p>
+<pre><code>speedup(α, γ, c) = (1 − α^{γ+1}) / ((1 − α)(γc + 1))
+</code></pre>
+<p>The numerator rewards drafting. The denominator charges γc for it. There is no closed-form optimal γ. Numerically:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>c \ α</th>
+<th>0.6</th>
+<th>0.7</th>
+<th>0.8</th>
+<th>0.9</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.01</td>
+<td>γ=7, 2.30×</td>
+<td>γ=9, 2.97×</td>
+<td>γ=14, 4.23×</td>
+<td>γ=24, 7.49×</td>
+</tr>
+<tr>
+<td>0.05</td>
+<td>γ=4, 1.92×</td>
+<td>γ=6, 2.35×</td>
+<td>γ=8, 3.09×</td>
+<td>γ=13, 4.67×</td>
+</tr>
+<tr>
+<td>0.10</td>
+<td>γ=3, 1.67×</td>
+<td>γ=4, 1.98×</td>
+<td>γ=6, 2.47×</td>
+<td>γ=10, 3.43×</td>
+</tr>
+</tbody>
+</table></div>
+<p>(Reproduced by <code>spec_sim.py</code>.) A useful corollary (Leviathan 3.9): any speedup is possible iff α &gt; c, and γ = 1 already gives ≥ (1+α)/(1+c).</p>
+
+<div class="panel" id="simw">
+  <h4>Interactive: speedup(&alpha;, &gamma;, c)</h4>
+  <div class="sliders">
+    <label>&alpha; (acceptance) <output id="o-a">0.80</output><input id="r-a" type="range" min="0.05" max="0.99" step="0.01" value="0.80"></label>
+    <label>c (draft cost / target cost) <output id="o-c">0.05</output><input id="r-c" type="range" min="0" max="0.3" step="0.005" value="0.05"></label>
+    <label>&gamma; (draft length) <output id="o-g">5</output><input id="r-g" type="range" min="1" max="32" step="1" value="5"></label>
+  </div>
+  <label style="display:block;margin-top:10px;font-size:14px"><input id="r-cb" type="checkbox"> Target is compute-bound (scoring &gamma;+1 tokens costs &gamma;+1 passes; &sect;9, Q13)</label>
+  <div class="readout">
+    <div id="ro-sp"><b>-</b><small>speedup at this &gamma;</small></div>
+    <div><b id="ro-e">-</b><small>expected tokens / iteration</small></div>
+    <div><b id="ro-opt">-</b><small>best &gamma; (1..64) and its speedup</small></div>
+    <div id="ro-be"><b>-</b><small>break-even check (&alpha; &gt; c)</small></div>
+  </div>
+  <svg class="dia" viewBox="0 0 640 210" role="img" aria-label="Speedup versus draft length for the current alpha and c" id="simsvg"></svg>
+  <p class="notes">Dots: speedup at each &gamma;; ring = your &gamma;; filled marker = best &gamma;. Dashed line: 1&times; (no gain). Same formula as <code>spec_sim.py</code> (Theorem 3.8): (1 &minus; &alpha;<sup>&gamma;+1</sup>) / ((1 &minus; &alpha;)(&gamma;c + 1)). The compute-bound toggle replaces the denominator with (&gamma;+1) + &gamma;c, assuming the verify pass scales linearly with positions.</p>
+</div>
+
+<p><strong>Compute cost.</strong> Total FLOPs grow by (1 − α)(γĉ + γ + 1)/(1 − α^{γ+1}), where ĉ is the per-token FLOP ratio. At α = 0.8, γ = 5 that's <strong>1.63× more arithmetic for 3.69× less latency</strong> (Table 1). Speculative decoding <em>spends</em> FLOPs. That's the whole bet, and it's why §9's batch problem exists.</p></section><section id="s7"><h2>7. Why it works</h2><p>Core insight: <strong>verification of k known tokens is parallel; generation isn't; and the maximal coupling of p and q lets you convert a cheap guess into an exact sample with acceptance 1 − TV.</strong> Two independent properties:</p>
+<ul>
+<li><strong>Correctness</strong> comes from the accept/residual pair being the maximal coupling. It holds for any q.</li>
+<li><strong>Speed</strong> comes from the hardware regime: memory-bound target, so γ+1 positions ≈ 1 position. Plus a q that's cheap (small c) and close (small TV).</li>
+</ul>
+<p>Ablations:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Remove / change</th>
+<th>What breaks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Residual resampling (just resample from p on reject)</td>
+<td>Biased: tokens where q &gt; p get over-represented. Mass is double-counted.</td>
+</tr>
+<tr>
+<td>Discarding drafts after first reject</td>
+<td>Later drafts were conditioned on a token you didn't emit, so the distribution is wrong.</td>
+</tr>
+<tr>
+<td>Bonus token</td>
+<td>Still correct, but you lose one free token per fully-accepted iteration (~α^γ fraction).</td>
+</tr>
+<tr>
+<td><code>min(1, p/q)</code> → <code>p ≥ q ? 1 : 0</code></td>
+<td>Lossy and biased toward the draft. This is what "lenience" knobs do.</td>
+</tr>
+<tr>
+<td>Memory-bound regime</td>
+<td>Scoring γ+1 costs ~(γ+1)×, so the speedup can drop below 1.</td>
+</tr>
+<tr>
+<td>Same tokenizer</td>
+<td>p and q are over different supports. Σ min(p,q) is undefined, and you need string-level methods.</td>
+</tr>
+</tbody>
+</table></div></section><section id="s8"><h2>8. Design knobs & alternatives</h2><ul>
+<li><strong>γ (draft length)</strong>: optimal grows with α and shrinks with c (table above). Chen et al. found K = 3 best on XSum nucleus. Total generation-time <em>variance</em> rises with K, which hurts P99. vLLM's MTP docs recommend starting at <code>num_speculative_tokens=1</code>.</li>
+<li><strong>Draft type</strong>:<ul>
+<li><em>Separate small model</em>: Leviathan used drafts ~100× smaller than the target. Chen used a 4B draft deliberately <strong>wide and shallow</strong> (8 layers, d=6144) because depth is serial latency.</li>
+<li>Yan et al. (NAACL 2025): drafter LM quality correlates weakly with speedup; latency (depth) dominates. A shallow-wide drafter gave +41% throughput despite lower acceptance.</li>
+<li><em>Heads on target hidden states</em>: Medusa (independent heads), Hydra (sequentially dependent heads), EAGLE (feature-level autoregression → EAGLE-3 fuses low/mid/high features, "training-time test"), DeepSeek-V3 MTP (trained in at pretraining).</li>
+<li><em>No drafter</em>: n-gram / prompt lookup, Lookahead (Jacobi iteration), suffix decoding. Strong on code and repetition, weak on open text (n-gram ≈ 2.1× on code vs ≈ 1.3× GSM8K in vLLM per Liu et al. 2026).</li>
+<li><em>Block-diffusion drafter</em> (DFlash, 2026): drafts the whole block in one pass, removing the draft's own serial loop.</li>
+</ul>
+</li>
+<li><strong>Chain vs tree</strong>: a token tree (SpecInfer, Medusa, EAGLE-2 dynamic trees, Sequoia DP-optimal trees) verifies many branches in one pass with a tree attention mask. More accepted tokens, more verify FLOPs.</li>
+<li><strong>Verification rule</strong>:<ul>
+<li>Token-wise <code>min(1,p/q)</code> (standard).</li>
+<li><strong>Block verification</strong> (Sun et al.): accept jointly; provably optimal in expected tokens and never worse; +5–8% wall-clock.</li>
+<li>Multi-draft optimal transport (SpecTr and follow-ups).</li>
+<li>Sample-and-match: exact, lower α.</li>
+<li>Lossy rules: Medusa typical acceptance, TRT-LLM relaxed acceptance, Judge Decoding.</li>
+</ul>
+</li>
+<li><strong>Draft sampling</strong>: Leviathan samples drafts from q. vLLM defaults <code>draft_sample_method="greedy"</code> and SGLang uses "target_only" (draft probs = 0). Both treat the draft as a <strong>point mass</strong>. Still exact (q is one-hot, so accept with prob p(x), residual = p with x removed), but acceptance is p(x) rather than min(1, p/q).</li>
+</ul>
+<p>Why the paper version "won": it's exact for <em>any</em> drafter with no retraining, so you could bolt it onto an existing serving stack. Blockwise parallel decoding needed custom heads and was greedy-only. Lossy variants win benchmarks and lose trust.</p></section><section id="s9"><h2>9. Where it breaks</h2><ul>
+<li><strong>Large batch / compute-bound.</strong><ul>
+<li>EAGLE-3 in vLLM on an RTX 3090 (8B): <strong>1.75× at bs=2 → 1.01× at bs=56</strong> (EAGLE-3 paper).</li>
+<li>Meta measured stock vLLM EAGLE going from 1.3× to <strong>0.7×</strong> from bs 2 → 48 (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.08192">2508.08192</a>).</li>
+<li>vLLM's own 2024 blog showed 1.4–1.8× <em>slowdowns</em> at high QPS.</li>
+<li>Liu et al. (MLSys 2026): verification is 42–95% of runtime; EAGLE-3 on GSM8K goes 1.73× → 1.21× from bs 1 → 128.</li>
+</ul>
+</li>
+<li><strong>Temperature.</strong> In real models, acceptance length falls when sampling vs greedy (e.g. T5-XXL EnDe 3.4× at T=0 vs 2.6× at T=1). At T=0 both models' argmaxes often agree. At T=1 the long tails disagree. <em>Subtlety</em>: TV isn't monotone in T. At very high T both distributions flatten toward uniform and TV shrinks again (see §13). The practical drop is in the T ∈ (0, 1] range people use.</li>
+<li><strong>Out-of-domain and multilingual.</strong> Drafters distilled on English chat accept much less on other languages and under-represented tasks. Sandler et al. 2025 call this the "disparate impact" of speculative decoding: users of low-resource languages get less speedup.</li>
+<li><strong>Tokenizer mismatch.</strong> Breaks the shared-support assumption. Exact fixes exist (Intel's SLEM/TLI, ICML 2025, up to 2.8×), but HF's universal assisted generation falls back to sample-and-match, and vLLM's heterogeneous-vocab mode is greedy-only.</li>
+<li><strong>"Lossless" ≠ bitwise.</strong><ul>
+<li>Verification runs the target on k+1 query tokens, a different kernel shape than plain decode. Reductions reorder, logits shift slightly, and near-tie argmaxes flip.</li>
+<li>vLLM docs: lossless "up to the precision limits of hardware numerics" and "does not currently guarantee stable token log probabilities".</li>
+<li>Thinking Machines (2025) traced most LLM nondeterminism to non-batch-invariant kernels; batch-invariant kernels fix it at a speed cost.</li>
+</ul>
+</li>
+<li><strong>Batched implementations getting it wrong.</strong> "Batch Speculative Decoding Done Right" (2025) claims existing batched implementations break output equivalence through the ragged-acceptance problem (per-row position IDs, masks, KV offsets). Fixing alignment cost up to 40% overhead. (Claim from abstract; not independently reproduced here.)</li>
+<li><strong>Lossy acceptance quietly changes the model.</strong> A 2026 study of lossy verification found truncation-style rules (e.g. Medusa typical acceptance) fall below a real truncation-sampling baseline, with the gap growing on hard reasoning (+6.67 pp on AIME). (From abstract/HF page.)</li>
+<li><strong>Timing side channel.</strong> How many tokens arrive per iteration depends on the input, because acceptance depends on content. Wei et al. 2024 fingerprint queries from token-per-iteration and packet patterns; Carlini &amp; Nasr 2024 show topic inference over encrypted traffic from efficiency-induced timing. Mitigations (padding, fixed-size token bundling) give back latency.</li>
+<li><strong>Drafter maintenance.</strong> Hidden-state drafters are tied to one checkpoint. EAGLE-3 drafter training is reported at ~128 H200-hours for an 8B target, and more for larger ones. Every target fine-tune or quantization change means retraining, or acceptance decays.</li>
+</ul>
+<div class="callout miscon"><span class="ttl">Misconceptions</span><ul>
+<li>"It's a free 2–3×." That's at batch 1.</li>
+<li>"It never helps throughput." MagicDec shows it does at long context.</li>
+<li>"A better draft model is always better." Latency dominates.</li>
+<li>"Lossless means same text." It means same distribution.</li>
+</ul></div></section><section id="s10"><h2>10. In the wild</h2><ul>
+<li><strong>vLLM</strong> (<a target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/rejection_sampler.py">rejection_sampler.py</a>):<ul>
+<li>The docstring says it "strictly follows" Leviathan et al.</li>
+<li>Ragged flattened batch: <code>draft_token_ids [num_tokens]</code> + <code>cu_num_draft_tokens</code>, output <code>[batch, max_spec_len+1]</code> padded with −1, <code>MAX_SPEC_LEN=128</code>.</li>
+<li>Greedy rows use a Triton kernel that stops at the first draft ≠ argmax. Random rows accept if <code>draft_prob &gt; 0 and target_prob/draft_prob &gt;= u</code>.</li>
+<li>The residual is sampled with an exponential race <code>argmax(prob / Exp(1))</code>, Gumbel-max-equivalent and needing no renormalization.</li>
+<li>Defaults to argmax drafts. Also offers <code>rejection_sample_method="block"</code>.</li>
+<li>Methods: EAGLE-3, MTP, draft model, n-gram, suffix decoding. Main branch verifies chains, not trees, as of this snapshot.</li>
+</ul>
+</li>
+<li><strong>SGLang</strong>:<ul>
+<li>EAGLE-2/3 with dynamic trees, three knobs <code>--speculative-num-steps / -eagle-topk / -num-draft-tokens</code>, auto-tuned if unset.</li>
+<li>Tree verification kernel walks one coin per depth over siblings (SpecInfer-style sampling without replacement), with top-k/top-p applied by renormalizing the target before verify.</li>
+<li>Lossy thresholds <code>speculative_accept_threshold_{single,acc}</code> default to 1.0 (lossless).</li>
+<li>Llama-3.1-8B, MT-Bench, H100, bs=1: 158 → 373 tok/s with EAGLE-3 (2.4×).</li>
+</ul>
+</li>
+<li><strong>TensorRT-LLM</strong>:<ul>
+<li>Medusa is <strong>greedy-only</strong> there (no typical acceptance).</li>
+<li>DeepSeek-R1 MTP uses strict top-1 prefix matching by default, plus an optional <strong>relaxed acceptance</strong> (draft within target top-10 and δ=0.6 of top-1) applied only to the thinking phase. 2.16× → 2.33× on 8×B200 at bs=1.</li>
+<li>Docs call speculative decoding a technique "at low batch sizes".</li>
+</ul>
+</li>
+<li><strong>HuggingFace transformers</strong>:<ul>
+<li><code>assistant_model=</code> is <strong>batch size 1 only</strong>.</li>
+<li>Uses Leviathan's rule when <code>do_sample=True</code>, plus a heuristic draft-length schedule (+2 on full accept, −1 otherwise).</li>
+<li>Prompt lookup via <code>prompt_lookup_num_tokens</code>.</li>
+<li>Universal assisted generation re-tokenizes drafts through text to support different tokenizers, using match-based acceptance.</li>
+</ul>
+</li>
+<li><strong>llama.cpp</strong>:<ul>
+<li>Default verification is <strong>sample-and-match</strong> (<code>common_sampler_sample_and_accept_n</code>): sample from the full sampler chain (temp/top-k/top-p/grammar) and accept while equal. Exact for any sampler, lower α.</li>
+<li>A newer rejection path takes real draft distributions.</li>
+<li>Many <code>--spec-type</code> options including <code>draft-eagle3</code>, <code>draft-mtp</code>, <code>draft-dflash</code>, n-gram variants.</li>
+</ul>
+</li>
+<li><strong>DeepSeek-V3 MTP</strong>:<ul>
+<li>One MTP module (depth 1) trained with the model.</li>
+<li>2nd-token acceptance <strong>85–90%</strong>, giving <strong>1.8× TPS</strong> (tech report §5.4.3).</li>
+<li>Engines reuse that single module recurrently to draft 3+ tokens (SGLang steps=3; TRT-LLM "MTP Eagle"), so deeper positions accept less than 85–90%.</li>
+<li>SGLang: 1.8× at bs=1, 1.5× at bs=32 on H200 TP8.</li>
+</ul>
+</li>
+<li><strong>Chinchilla 70B</strong> (Chen et al.): 2.0–2.5× on 16 TPU v4, bs=1. HumanEval: 14.1 → 5.73 ms/token.</li>
+</ul></section><section id="s11"><h2>11. Frontier (what's new)</h2><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Year · venue</th>
+<th>Work</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024 · ICML*</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.15077">EAGLE</a></td>
+<td>Draft autoregressively at the <em>feature</em> level (second-to-top layer) with the next token fed in. 2.7–3.5× on LLaMA2-Chat-70B.</td>
+</tr>
+<tr>
+<td>2024 · EMNLP*</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.16858">EAGLE-2</a></td>
+<td>Acceptance is context-dependent. Grow a dynamic tree using the drafter's calibrated confidence. 3.05–4.26×.</td>
+</tr>
+<tr>
+<td>2025 · NeurIPS*</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2503.01840">EAGLE-3</a></td>
+<td>Drop feature regression and predict tokens directly. Fuse low/mid/high features. Train with simulated multi-step drafting ("training-time test"), so it scales with data. Up to 6.5×; ~1.38× at bs=64 in SGLang. De facto production drafter through mid-2026.</td>
+</tr>
+<tr>
+<td>2024 · ICLR 2025*</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.11049">MagicDec</a></td>
+<td>At long context + large batch the bottleneck is KV loading, not weights. A sparse-KV (StreamingLLM-style) drafter stays cheap, so <strong>speedup grows with batch</strong>. Up to 2.51× for Llama-3.1-8B at bs 32–256.</td>
+</tr>
+<tr>
+<td>2024 · ICLR 2025*</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2403.10444">Block verification</a></td>
+<td>Token-by-token verification is suboptimal. Verifying the draft jointly is optimal in expected tokens and never worse. Drop-in, +5–8% wall-clock.</td>
+</tr>
+<tr>
+<td>2025 · ICLR spotlight</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.18234">Multi-draft canonical decomposition</a></td>
+<td>Optimal multi-draft acceptance = importance-sampling selection + single-draft speculative sampling. Closed form for 2 identical drafts.</td>
+</tr>
+<tr>
+<td>2026 · ICLR</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2603.03251">Speculative Speculative Decoding (Saguaro)</a></td>
+<td>While the target verifies, the drafter pre-drafts for each <em>likely verification outcome</em>. If the real outcome is in the set, the next draft is ready instantly. ~30% over optimized speculative baselines, up to 5× over autoregressive.</td>
+</tr>
+<tr>
+<td>2026 · ICML</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.06036">DFlash</a></td>
+<td>A lightweight <strong>block-diffusion</strong> drafter conditioned on target hidden features denoises the whole draft block in one pass, removing the drafter's own serial loop. Verification is standard, so still lossless. &gt;6× and up to 2.5× over EAGLE-3.</td>
+</tr>
+<tr>
+<td>2026 · arXiv</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.12989">DDTree</a>, <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2608.02438">xPress</a></td>
+<td>DFlash samples positions independently, so drafts are individually likely but jointly improbable. DDTree builds best-first trees from its per-position marginals. xPress adds a small causal refiner (a few Jacobi passes): ~30% longer acceptance, ~1.3× throughput over DFlash on Qwen3-8B.</td>
+</tr>
+<tr>
+<td>2026 · MLSys oral</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2601.11580">Performance or Illusion?</a></td>
+<td>First systematic study on production vLLM. Speedups shrink with batch, verification dominates, and per-position acceptance decays (MTP 0.92 → 0.68 → 0.38). An oracle proposer would get 2.75× vs 2.1× actual.</td>
+</tr>
+<tr>
+<td>2026 · ICML</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.09557">SPEED-Bench</a></td>
+<td>Successor to Spec-Bench, with throughput split across concurrencies. Synthetic inputs overestimate real throughput, and optimal γ depends on batch size.</td>
+</tr>
+</tbody>
+</table></div>
+<p>* Venue from the frontier agent's knowledge / a search result, not confirmed on the arXiv page.</p>
+<p><strong>The arc</strong>:</p>
+<ol>
+<li>Separate small drafter (2023).</li>
+<li>Heads on the target's own hidden states (Medusa/Hydra/EAGLE/MTP, 2024).</li>
+<li>Smarter trees (Sequoia, EAGLE-2).</li>
+<li>EAGLE-3 (2025).</li>
+<li>Parallel drafters, mainly block diffusion (2026).</li>
+</ol>
+<p>The serial bottleneck has moved from the target into the drafter, and now the drafter is being parallelized too. In parallel, systems work (MagicDec, Saguaro) is rescuing the large-batch regime, and theory work (block verification, multi-draft OT) is squeezing the verifier.</p></section><section id="s11b"><h2>11b. Open problems</h2><ul>
+<li><strong>Optimal multi-draft verification.</strong><ul>
+<li>The optimal acceptance rule for n drafts is an optimal-transport LP over V^n outcomes.</li>
+<li>Closed form is known only for 2 identical drafts (Khisti et al.).</li>
+<li>Hu et al. 2025 computed the true bound via the dual and showed existing verifiers fall short, with sampling <em>without</em> replacement beating with-replacement.</li>
+<li>Thomas &amp; Pal (Nov 2025) reduce it to a convex problem in ≤ V variables using polymatroid structure.</li>
+<li>Hard because the obvious greedy construction (verify drafts one by one) isn't optimal, and the exact LP is exponential.</li>
+</ul>
+</li>
+<li><strong>Optimal tree shape under real acceptance.</strong><ul>
+<li>Sequoia's DP assumes positional independence; real acceptance depends on context (EAGLE-2's observation).</li>
+<li>EAGLE-2's dynamic tree is a heuristic, not proven optimal.</li>
+<li>Joint optimization of tree shape × verifier × <em>batch-level</em> compute budget is open.</li>
+</ul>
+</li>
+<li><strong>Adaptive draft length at large batch.</strong><ul>
+<li>SpecDec++ frames per-step γ as an MDP with a threshold policy (+7–11%), but that's batch 1.</li>
+<li>At large batch, one row's long draft costs every row compute.</li>
+<li>SPEED-Bench finds optimal γ depends on batch size. There's no principled scheduler.</li>
+</ul>
+</li>
+<li><strong>Fundamental limits.</strong><ul>
+<li>Yin et al. (NeurIPS 2024): expected rejections ≥ Σ TV, and speculative decoding is instance-optimal among unbiased sequential algorithms.</li>
+<li>Pankratov &amp; Alistarh (Dec 2025): accepted tokens per iteration grow only <strong>logarithmically</strong> in verifier parallelism.</li>
+<li>Open: whether parallel drafters (diffusion) change the constants enough to matter at production batch sizes.</li>
+</ul>
+</li>
+<li><strong>Exactness in batched, nondeterministic systems.</strong><ul>
+<li>Distributional exactness assumes the target's logits don't depend on batch composition. They do.</li>
+<li>Open: cheap batch-invariant kernels, and correct ragged-acceptance batching without a 40% tax.</li>
+</ul>
+</li>
+<li><strong>Lossy vs lossless.</strong><ul>
+<li>Judge Decoding (ICLR 2025) argues the standard test rejects <em>good</em> drafts: even human or GPT-4o text gets low acceptance. It reports 9× on 8B/405B with a learned judge.</li>
+<li>Critics (lossy-verification study, 2026) show quality loss grows with task difficulty.</li>
+<li>Unresolved: is "match the target distribution" even the right objective for reasoning models? SpecReason and Speculative Thinking move to step-level, semantics-based acceptance.</li>
+</ul>
+</li>
+<li><strong>Side channels vs speed.</strong> No mitigation found removes input-dependent timing without giving back a meaningful fraction of the speedup.</li>
+</ul></section><section id="s12"><h2>12. Lineage</h2><ul>
+<li><strong>2018</strong>: Blockwise Parallel Decoding (Stern, Shazeer, Uszkoreit). Greedy-only, custom k-head model, up to 3.3× on translation.</li>
+<li><strong>2021–22</strong>: Shallow Aggressive Decoding / aggressive decoding (copy input for editing tasks).</li>
+<li><strong>Nov 2022 / Feb 2023</strong>: Speculative decoding (Leviathan, Kalman, Matias, Google; ICML 2023) and speculative sampling (Chen et al., DeepMind), independent and concurrent. Modified rejection sampling makes it exact for sampling with any drafter.</li>
+<li><strong>2023</strong>: SpecInfer token trees (ASPLOS 2024); SpecTr multi-draft OT (NeurIPS 2023); Online Speculative Decoding and DistillSpec (drafter alignment).</li>
+<li><strong>2024</strong>: Medusa, Hydra, EAGLE, EAGLE-2, Lookahead, Sequoia, LayerSkip (self-speculation), TriForce/MagicDec (long context), block verification, DeepSeek-V3 MTP.</li>
+<li><strong>2025</strong>: EAGLE-3 becomes the production default; multi-draft theory; Judge Decoding; speculation for reasoning (SpecReason).</li>
+<li><strong>2026</strong>: Diffusion drafters (DFlash → DDTree, xPress); Saguaro; systematic production studies (MLSys 2026, SPEED-Bench).</li>
+</ul></section><section id="s13"><h2>13. Hands-on (≤30 min)</h2><p><a target="_blank" rel="noopener" href="spec_sim.py"><code>spec_sim.py</code></a> in this folder (numpy only, runs in ~2 s):</p>
+<pre><code class="language-bash">python spec_sim.py
+</code></pre>
+<p>What it shows, with actual output on seed 0 (V = 8, draft = target logits + Gaussian noise):</p>
+<pre><code>target p   : [0.0436 0.026  0.122  0.0418 0.0116 0.0698 0.4599 0.2253]
+empirical  : [0.0434 0.0264 0.1217 0.0414 0.012  0.0706 0.4584 0.2261]
+max |diff| : 0.0015   (sampling noise ~ 0.0022)
+alpha theory = sum min(p,q) = 0.8256 = 1-TV = 0.8256; measured = 0.8258
+sample-and-match acceptance = sum p*q = 0.2297
+</code></pre>
+<ol>
+<li><strong>Exactness</strong>: 200k speculative samples land on p within sampling noise, even though q is visibly different.</li>
+<li><strong>α = Σ min(p,q) = 1 − TV</strong>: measured acceptance matches theory to 3 decimals.</li>
+<li><strong>Why the residual matters</strong>: sample-and-match would accept 0.23 instead of 0.83, roughly 3.6× fewer accepted drafts with the same draft. That's the cost llama.cpp's default path pays under sampling.</li>
+<li><strong>Temperature isn't monotone</strong>: α = 1.00 at T = 0.01 (argmaxes agree), 0.71 at T = 0.5, then <em>rises</em> to 0.90 at T = 2 as both distributions flatten. Real models in T ∈ (0, 1] show the drop because their tails disagree.</li>
+<li><strong>Speedup table</strong>: Theorem 3.8 maximized over γ, reproducing §6.4.</li>
+</ol>
+<p>Things to try:</p>
+<ul>
+<li>Break the residual by resampling from <code>p</code> instead of <code>norm(max(0, p−q))</code> and watch the empirical distribution drift toward q.</li>
+<li>Make q uniform and confirm it's still exact, just slow (α = Σ min(p, 1/V)).</li>
+<li>Set q one-hot at argmax q (vLLM's default draft) and compare α to the sampled draft.</li>
+</ul></section><section id="s14"><h2>14. Question ladder</h2><div class="ladder-bar"><button class="btn primary" id="revealall" type="button" aria-pressed="false">Reveal all answers</button><span class="notes">Try to answer first, then open.</span></div><h3>Mechanism</h3><details><summary><span class="qn">1.</span><span>What exactly does the target compute in its single verification pass, and why does it return γ+1 distributions rather than γ?</span></summary><div class="ans"><p>It runs a teacher-forced forward over prefix + [x1..xγ]. The output at each position k is p(·|prefix, x1..x_{k−1}), for k = 1..γ+1. The extra one is the distribution after the last draft token, used for the bonus token when all γ are accepted.</p></div></details><details><summary><span class="qn">2.</span><span>On rejection at position i, why are drafts i+1..γ discarded instead of re-checked?</span></summary><div class="ans"><p>They were drafted conditional on x_i, which you just didn't emit. Their q and p were computed for a prefix that no longer exists, so accepting them would sample from the wrong conditional.</p></div></details><details><summary><span class="qn">3.</span><span>What does vLLM do to the KV cache when 2 of 4 drafts are rejected?</span></summary><div class="ans"><p>It decrements <code>num_computed_tokens</code> by the number rejected. The K/V for the rejected positions stay in the paged blocks and are overwritten by the next step. No copy, no free.</p></div></details><details><summary><span class="qn">4.</span><span>With greedy decoding, what do the accept rule and the residual reduce to?</span></summary><div class="ans"><p>p and q become one-hot. min(1, p/q) is 1 if argmax q = argmax p, else 0. The residual is the target's one-hot, so you emit the target's argmax. That is Stern et al.'s greedy match.</p></div></details><h3>Why</h3><details><summary><span class="qn">5.</span><span>Why <code>min(1, p/q)</code> and not <code>p/q</code> capped by some global constant M?</span></summary><div class="ans"><p>Capping by M needs a global bound on p/q (hard to know, often huge), and accepts p/(Mq), far less often. min(1, p/q) is the largest per-token acceptance that still leaves a non-negative correction mass. It achieves the optimal 1 − TV.</p></div></details><details><summary><span class="qn">6.</span><span>Why does the residual's normalizer equal exactly the rejection probability?</span></summary><div class="ans"><p>Both equal "the mass of p not covered by q": P(reject) = 1 − Σmin(p,q) = Σ(p − min(p,q)) = Σmax(0, p − q).</p></div></details><details><summary><span class="qn">7.</span><span>Why did Chen et al. build a wide, shallow 4B drafter instead of using a Chinchilla-optimal 7B?</span></summary><div class="ans"><p>Draft depth is serial latency, and the drafter had to serve on the same 16 TPUs as the target with low communication. A 7B was fastest on 4 TPUs and slower on 16. Low c matters more than raw draft quality (also Yan et al. 2025).</p></div></details><details><summary><span class="qn">8.</span><span>Why do vLLM and SGLang default to <em>argmax</em> drafts, and why is that still exact?</span></summary><div class="ans"><p>It saves storing full draft distributions and is simpler. If q is a point mass at x, accept with min(1, p(x)/1) = p(x). The residual max(0, p − δ_x) is p with x removed, renormalized. The proof still goes through. The cost is acceptance p(x) instead of min(1, p(x)/q(x)).</p></div></details><details><summary><span class="qn">9.</span><span>Why does the optimal γ grow with α?</span></summary><div class="ans"><p>Each extra draft is worth α^k expected tokens and costs c. Higher α means the geometric tail decays slower, so more drafts pay for their cost.</p></div></details><h3>Counterfactual</h3><details><summary><span class="qn">10.</span><span>If you resample from p (not the residual) on rejection, which tokens become over-represented?</span></summary><div class="ans"><p>Tokens with q &gt; p. They get min(p,q) = p via acceptance, plus more via resampling from p, so they're over-represented. Tokens with p &gt; q are under-represented.</p></div></details><details><summary><span class="qn">11.</span><span>What happens to speedup if c = 0 (an n-gram drafter)? Is the speedup then unbounded?</span></summary><div class="ans"><p>Speedup → (1 − α^{γ+1})/(1 − α) ≤ 1/(1 − α). It's bounded by α, not by c. Leviathan's bigram draft for T5-XXL had α ≈ 0.2, giving 1.25×. In practice there's also the hidden cost that verifying γ+1 positions isn't free.</p></div></details><details><summary><span class="qn">12.</span><span>What if draft and target use different tokenizers but you run the standard algorithm anyway on the intersection vocab?</span></summary><div class="ans"><p>p and q aren't over the same events: a token in one maps to several or a partial token in the other. The p/q ratio isn't meaningful and exactness breaks. You need string-level methods (SLEM) or the vocab intersection with care (TLI), or fall back to sample-and-match.</p></div></details><details><summary><span class="qn">13.</span><span>What if decode were compute-bound at batch 1?</span></summary><div class="ans"><p>Scoring γ+1 positions would cost ~(γ+1) target passes. Speedup ≈ E[tokens]/((γ+1) + γc), and since E[tokens] ≤ γ+1 that's &lt; 1. Speculative decoding only helps when there's spare compute.</p></div></details><h3>Adversarial</h3><details><summary><span class="qn">14.</span><span>How could an observer of an encrypted streaming response learn something about the prompt because of speculative decoding?</span></summary><div class="ans"><p>Tokens per iteration (visible as packet sizes or timing in a stream) depend on how predictable the content is to the drafter, which depends on the prompt and response. Patterns can fingerprint queries or topics (Wei et al. 2024; Carlini &amp; Nasr 2024). Defenses: pad or bundle tokens to a fixed cadence.</p></div></details><details><summary><span class="qn">15.</span><span>Construct p, q such that α is near 0 but q is "good" in the sense of having the same argmax as p.</span></summary><div class="ans"><p>Let p = [0.34, 0.33, 0.33] and q = [0.98, 0.01, 0.01]. The argmax matches, but Σmin = 0.34 + 0.01 + 0.01 = 0.36. Under sampling, an overconfident drafter is penalized even when its top token is right.</p></div></details><details><summary><span class="qn">16.</span><span>How could a batched implementation silently produce wrong outputs while every per-row unit test passes?</span></summary><div class="ans"><p>Rows accept different counts, so per-row position IDs, attention masks and KV offsets diverge (ragged tensors). If padding or alignment is wrong, a row attends to another row's stale KV or a wrong position. Single-row tests can't see it. "Batch Speculative Decoding Done Right" reports exactly this class of bug.</p></div></details><h3>Connection</h3><details><summary><span class="qn">17.</span><span>How does speculative decoding relate to branch prediction in CPUs: what's the analog of the misprediction penalty?</span></summary><div class="ans"><p>Draft = predicted path. Verify = commit. Rejection = misprediction: you discard younger speculative work and resume from the correct state. The penalty is the wasted draft passes plus the wasted verify FLOPs on rejected positions. Unlike CPUs, the "architectural state" here is a distribution, so commit uses the residual, not the true value.</p></div></details><details><summary><span class="qn">18.</span><span>How does MagicDec's "KV loading dominates" argument connect to PagedAttention and long-context serving?</span></summary><div class="ans"><p>At long context, KV bytes per sequence dominate weight bytes, so decode stays memory-bound per sequence even at large batch. A drafter with a small or sparse KV cache is cheap relative to the target, which restores the spare-compute condition.</p></div></details><details><summary><span class="qn">19.</span><span>How is the accept/residual construction related to the maximal coupling of two distributions?</span></summary><div class="ans"><p>A maximal coupling of p and q makes X ~ q and Y ~ p equal with probability 1 − TV, the best possible. Speculative sampling is exactly that coupling: emit X when the coupling says X = Y, otherwise sample Y from the leftover.</p></div></details><details><summary><span class="qn">20.</span><span>How does DeepSeek-V3's MTP training objective double as a drafter?</span></summary><div class="ans"><p>MTP modules are trained during pretraining to predict tokens beyond next, conditioned on the main model's hidden state. At inference that's a built-in drafter with no separate model or cache. DeepSeek-V3 reports 85–90% acceptance of the second token.</p></div></details><h3>Open</h3><details><summary><span class="qn">21.</span><span>Is lossless verification the right objective for reasoning models, or should acceptance be semantic?</span></summary><div class="ans"><p>Open. Lossless keeps guarantees, but Judge Decoding shows it rejects many good drafts. Semantic or step-level acceptance (SpecReason) is faster and sometimes more accurate, but quality loss grows on hard tasks for some lossy rules. No consensus.</p></div></details><details><summary><span class="qn">22.</span><span>Can a diffusion drafter's independence across positions be fixed without reintroducing serial cost?</span></summary><div class="ans"><p>Open. xPress adds a small causal refiner with a few Jacobi passes, and DDTree adds trees over marginals. Both recover some joint structure at small serial cost. Whether that closes the gap without new serial depth is unsettled.</p></div></details><details><summary><span class="qn">23.</span><span>What's the right per-row γ policy when compute is shared across a batch of 128?</span></summary><div class="ans"><p>Open. Long drafts for one row spend shared verify compute. SPEED-Bench shows the optimal γ shifts with batch size. Batch-aware γ scheduling (dynamic speculative decoding in vLLM, SGLang auto-tuning) is heuristic today.</p></div></details></section><section id="s15"><h2>15. Go deeper next</h2><ol>
+<li><strong>Maximal coupling and optimal-transport verification</strong>: the theory behind multi-draft (SpecTr → canonical decomposition → global resolution).</li>
+<li><strong>Batch-invariant kernels and LLM nondeterminism</strong>: why logits depend on batch shape, and what it costs to fix.</li>
+<li><strong>Block-diffusion language models</strong>: how DFlash-style drafters denoise a block, and why independence across positions hurts acceptance.</li>
+</ol></section><section id="sources" class="src"><h2>Sources</h2><h3>Papers</h3>
+<ul>
+<li>Leviathan, Kalman, Matias. Fast Inference from Transformers via Speculative Decoding (ICML 2023). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.17192">https://arxiv.org/abs/2211.17192</a></li>
+<li>Chen et al. Accelerating LLM Decoding with Speculative Sampling (DeepMind 2023). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2302.01318">https://arxiv.org/abs/2302.01318</a></li>
+<li>Stern, Shazeer, Uszkoreit. Blockwise Parallel Decoding (NeurIPS 2018). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1811.03115">https://arxiv.org/abs/1811.03115</a></li>
+<li>SpecInfer. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2305.09781">https://arxiv.org/abs/2305.09781</a></li>
+<li>SpecTr. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2310.15141">https://arxiv.org/abs/2310.15141</a></li>
+<li>Medusa. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.10774">https://arxiv.org/abs/2401.10774</a> · Hydra. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.05109">https://arxiv.org/abs/2402.05109</a></li>
+<li>EAGLE. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.15077">https://arxiv.org/abs/2401.15077</a> · EAGLE-2. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.16858">https://arxiv.org/abs/2406.16858</a> · EAGLE-3. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2503.01840">https://arxiv.org/abs/2503.01840</a></li>
+<li>Lookahead Decoding. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.02057">https://arxiv.org/abs/2402.02057</a></li>
+<li>Sequoia. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.12374">https://arxiv.org/abs/2402.12374</a></li>
+<li>TriForce. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2404.11912">https://arxiv.org/abs/2404.11912</a> · MagicDec. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.11049">https://arxiv.org/abs/2408.11049</a></li>
+<li>LayerSkip. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2404.16710">https://arxiv.org/abs/2404.16710</a></li>
+<li>Block Verification. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2403.10444">https://arxiv.org/abs/2403.10444</a></li>
+<li>Multi-Draft Canonical Decomposition. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.18234">https://arxiv.org/abs/2410.18234</a></li>
+<li>Towards Optimal Multi-draft SD. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2502.18779">https://arxiv.org/abs/2502.18779</a></li>
+<li>Global Resolution (multi-draft). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2511.15898">https://arxiv.org/abs/2511.15898</a></li>
+<li>DeepSeek-V3 Technical Report. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2412.19437">https://arxiv.org/abs/2412.19437</a></li>
+<li>DFlash. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.06036">https://arxiv.org/abs/2602.06036</a> · DDTree. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.12989">https://arxiv.org/abs/2604.12989</a> · xPress. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2608.02438">https://arxiv.org/abs/2608.02438</a></li>
+<li>DiffuSpec. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.02358">https://arxiv.org/abs/2510.02358</a> · DART. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2601.19278">https://arxiv.org/abs/2601.19278</a></li>
+<li>Speculative Speculative Decoding (Saguaro). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2603.03251">https://arxiv.org/abs/2603.03251</a></li>
+<li>SpecReason. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2504.07891">https://arxiv.org/abs/2504.07891</a> · Speculative Thinking. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2504.12329">https://arxiv.org/abs/2504.12329</a></li>
+<li>Spec-Bench. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.07851">https://arxiv.org/abs/2401.07851</a> · SPEED-Bench. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.09557">https://arxiv.org/abs/2604.09557</a></li>
+<li>Speculative Decoding: Performance or Illusion? (MLSys 2026). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2601.11580">https://arxiv.org/abs/2601.11580</a></li>
+<li>Decoding Speculative Decoding (NAACL 2025). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.01528">https://arxiv.org/abs/2402.01528</a></li>
+<li>Batch Speculative Decoding Done Right. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.22876">https://arxiv.org/abs/2510.22876</a></li>
+<li>The Disparate Impacts of Speculative Decoding. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.02128">https://arxiv.org/abs/2510.02128</a></li>
+<li>Lossless SD for Heterogeneous Vocabularies (ICML 2025). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2502.05202">https://arxiv.org/abs/2502.05202</a></li>
+<li>Judge Decoding (ICLR 2025). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2501.19309">https://arxiv.org/abs/2501.19309</a></li>
+<li>Yin et al., theoretical limits (NeurIPS 2024). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.00841">https://arxiv.org/abs/2411.00841</a></li>
+<li>Pankratov &amp; Alistarh, SD speed-of-light. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.11718">https://arxiv.org/abs/2512.11718</a></li>
+<li>SpecDec++. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.19715">https://arxiv.org/abs/2405.19715</a></li>
+<li>Online Speculative Decoding. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2310.07177">https://arxiv.org/abs/2310.07177</a> · DistillSpec. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2310.08461">https://arxiv.org/abs/2310.08461</a></li>
+<li>When Speculation Spills Secrets. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.01076">https://arxiv.org/abs/2411.01076</a></li>
+<li>Remote Timing Attacks on Efficient LM Inference. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.17175">https://arxiv.org/abs/2410.17175</a></li>
+<li>Meta production speculative decoding. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.08192">https://arxiv.org/abs/2508.08192</a></li>
+<li>Revisiting Lossy Verification (2026, abstract only). <a target="_blank" rel="noopener" href="https://huggingface.co/papers/2607.26627">https://huggingface.co/papers/2607.26627</a></li>
+</ul>
+<h3>Code / docs</h3>
+<ul>
+<li>vLLM speculative decoding docs. <a target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/features/speculative_decoding/">https://docs.vllm.ai/en/latest/features/speculative_decoding/</a></li>
+<li>vLLM rejection sampler. <a target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/rejection_sampler.py">https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/rejection_sampler.py</a></li>
+<li>vLLM v1 scheduler. <a target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py</a></li>
+<li>SGLang speculative decoding. <a target="_blank" rel="noopener" href="https://docs.sglang.io/advanced_features/speculative_decoding.html">https://docs.sglang.io/advanced_features/speculative_decoding.html</a></li>
+<li>SGLang DeepSeek-V3. <a target="_blank" rel="noopener" href="https://docs.sglang.io/basic_usage/deepseek_v3.html">https://docs.sglang.io/basic_usage/deepseek_v3.html</a></li>
+<li>TensorRT-LLM speculative decoding. <a target="_blank" rel="noopener" href="https://nvidia.github.io/TensorRT-LLM/advanced/speculative-decoding.html">https://nvidia.github.io/TensorRT-LLM/advanced/speculative-decoding.html</a></li>
+<li>TensorRT-LLM DeepSeek-R1 MTP blog. <a target="_blank" rel="noopener" href="https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog02_DeepSeek_R1_MTP_Implementation_and_Optimization.md">https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog02_DeepSeek_R1_MTP_Implementation_and_Optimization.md</a></li>
+<li>TensorRT-LLM guided + speculative decoding. <a target="_blank" rel="noopener" href="https://nvidia.github.io/TensorRT-LLM/1.2.0/blogs/tech_blog/blog12_Combining_Guided_Decoding_and_Speculative_Decoding.html">https://nvidia.github.io/TensorRT-LLM/1.2.0/blogs/tech_blog/blog12_Combining_Guided_Decoding_and_Speculative_Decoding.html</a></li>
+<li>HF candidate_generator.py. <a target="_blank" rel="noopener" href="https://github.com/huggingface/transformers/blob/main/src/transformers/generation/candidate_generator.py">https://github.com/huggingface/transformers/blob/main/src/transformers/generation/candidate_generator.py</a></li>
+<li>llama.cpp speculative docs. <a target="_blank" rel="noopener" href="https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md">https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md</a></li>
+<li>llama.cpp sampling.cpp. <a target="_blank" rel="noopener" href="https://github.com/ggml-org/llama.cpp/blob/master/common/sampling.cpp">https://github.com/ggml-org/llama.cpp/blob/master/common/sampling.cpp</a></li>
+<li>Medusa reference utils. <a target="_blank" rel="noopener" href="https://github.com/FasterDecoding/Medusa/blob/main/medusa/model/utils.py">https://github.com/FasterDecoding/Medusa/blob/main/medusa/model/utils.py</a></li>
+<li>MagicDec code. <a target="_blank" rel="noopener" href="https://github.com/Infini-AI-Lab/MagicDec">https://github.com/Infini-AI-Lab/MagicDec</a></li>
+</ul>
+<h3>Articles</h3>
+<ul>
+<li>vLLM blog, speculative decoding (Oct 2024). <a target="_blank" rel="noopener" href="https://vllm.ai/blog/2024-10-17-spec-decode">https://vllm.ai/blog/2024-10-17-spec-decode</a></li>
+<li>HF assisted generation. <a target="_blank" rel="noopener" href="https://huggingface.co/blog/assisted-generation">https://huggingface.co/blog/assisted-generation</a></li>
+<li>HF universal assisted generation. <a target="_blank" rel="noopener" href="https://huggingface.co/blog/universal_assisted_generation">https://huggingface.co/blog/universal_assisted_generation</a></li>
+<li>LMSYS EAGLE-3 on Vertex. <a target="_blank" rel="noopener" href="https://lmsys.org/blog/2025-12-01-eagle3-vertex/">https://lmsys.org/blog/2025-12-01-eagle3-vertex/</a></li>
+<li>Together AI, MagicDec blog. <a target="_blank" rel="noopener" href="https://together.ai/blog/speculative-decoding-for-high-throughput-long-context-inference">https://together.ai/blog/speculative-decoding-for-high-throughput-long-context-inference</a></li>
+<li>Google Research, Looking back at speculative decoding. <a target="_blank" rel="noopener" href="https://research.google/blog/looking-back-at-speculative-decoding/">https://research.google/blog/looking-back-at-speculative-decoding/</a></li>
+<li>Thinking Machines, Defeating Nondeterminism in LLM Inference (URL inferred from title, not fetched). <a target="_blank" rel="noopener" href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/</a></li>
+</ul>
+<h3>Unverified flags</h3>
+<ul>
+<li>Some venues (marked *) and 2026 papers summarized from abstracts.</li>
+<li>Leviathan's Sec 3.3 says c &lt; 0.05, but Table 4 lists c = 0.11: an internal inconsistency in the paper.</li>
+<li>"α = 1 − TV" is our identification (D_LK = ½‖p−q‖₁).</li>
+</ul></section>
+<footer>Generated companion to <code>README.md</code> in this folder. Content, numbers and links match the README. Unverified flags are listed under Sources.</footer>
+</main></div>
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+/* copy buttons */
+$$('main pre').forEach(pre=>{const b=document.createElement('button');b.className='copy';b.type='button';b.textContent='Copy';b.setAttribute('aria-label','Copy code');
+ b.onclick=async()=>{const t=pre.querySelector('code')?pre.querySelector('code').innerText:pre.innerText;try{await navigator.clipboard.writeText(t);b.textContent='Copied'}catch(e){const r=document.createRange();r.selectNodeContents(pre.querySelector('code')||pre);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected'}setTimeout(()=>b.textContent='Copy',1500)};
+ pre.appendChild(b)});
+/* mobile toc clone */
+const mt=$('#mtoc');if(mt){mt.innerHTML=$('nav.toc .links').innerHTML;mt.addEventListener('click',e=>{if(e.target.tagName==='A')$('.topbar details').open=false})}
+/* scroll spy */
+const links=$$('nav.toc a, #mtoc a');const secs=$$('main section[id]');
+const byId=id=>links.filter(a=>a.getAttribute('href')==='#'+id);
+const cur={id:null};
+function setActive(id){if(cur.id===id)return;cur.id=id;links.forEach(a=>a.classList.remove('active'));byId(id).forEach(a=>{a.classList.add('active');a.setAttribute('aria-current','true')});const ml=$('#mcur');const a=byId(id)[0];if(ml&&a)ml.textContent=a.textContent;const sa=$('nav.toc a.active');if(sa)sa.scrollIntoView({block:'nearest'})}
+function spy(){let best=secs[0];for(const s of secs){if(s.getBoundingClientRect().top<=120)best=s}if(innerHeight+scrollY>=document.body.scrollHeight-4)best=secs[secs.length-1];setActive(best.id)}
+addEventListener('scroll',spy,{passive:true});spy();
+/* stepper */
+const STEPS=["Start: prefix <code>\"The cat sat on the\"</code>. We want the next tokens from the target p, but only want to pay for one target pass.", "Draft: the cheap model q samples three tokens serially: <code>mat</code>, <code>and</code>, <code>purred</code>, each conditioned on the previous draft token.", "Verify: ONE target forward over prefix + the three drafts returns p at every position (p1..p4, the fourth is for the bonus token).", "Position 1: <code>mat</code> has q=0.50, p=0.60. Accept probability min(1, 0.60/0.50) = 1.00, so it is accepted regardless of r = 0.71.", "Position 2: <code>and</code> has q=0.40, p=0.10. Accept probability min(1, 0.10/0.40) = 0.25, but r = 0.83 &gt; 0.25: <b>reject</b>.", "After the rejection, <code>purred</code> is discarded: it was drafted conditional on <code>and</code>, which was not emitted. Replacement comes from norm(max(0, p2 &minus; q2)) = [0, 0.667, 0.333, 0] over {and, ., ,, while}; <code>and</code> cannot be chosen again.", "Result: sample <code>.</code> from the residual and emit <code>mat .</code>: two tokens for one target pass plus three cheap draft passes. If all three had been accepted, a bonus token from p4 would be added too. The engine rolls the KV cache back by pointer arithmetic."];let st=0;const N=STEPS.length;
+function renderStep(){ $$('#stepper svg [data-show]').forEach(g=>{const show=+g.dataset.show<=st;g.classList.toggle('hid',!show);const hl=(g.dataset.hl||'').split(',').filter(Boolean).map(Number);g.classList.toggle('hl',hl.includes(st));});
+ $('#stepcap').innerHTML=STEPS[st];$('#stepcount').textContent='STEP '+(st+1)+' / '+N;$('#stepback').disabled=st===0;$('#stepnext').disabled=st===N-1}
+$('#stepback').onclick=()=>{if(st>0){st--;renderStep()}};$('#stepnext').onclick=()=>{if(st<N-1){st++;renderStep()}};$('#stepreset').onclick=()=>{st=0;renderStep()};
+$('#stepper').addEventListener('keydown',e=>{if(e.key==='ArrowRight'){$('#stepnext').click()}if(e.key==='ArrowLeft'){$('#stepback').click()}});
+renderStep();
+/* sim widget */
+const R=id=>document.getElementById(id);
+const sp=(a,g,c,cb)=>{const e=(1-Math.pow(a,g+1))/(1-a);return e/(cb?(g+1)+g*c:(g*c+1))};
+function sim(){const a=+R('r-a').value,c=+R('r-c').value,g=+R('r-g').value,cb=R('r-cb').checked;
+ R('o-a').textContent=a.toFixed(2);R('o-c').textContent=c.toFixed(3).replace(/0$/,'');R('o-g').textContent=g;
+ const s=sp(a,g,c,cb);const e=(1-Math.pow(a,g+1))/(1-a);let bg=1,bs=0;for(let k=1;k<=64;k++){const v=sp(a,k,c,cb);if(v>bs){bs=v;bg=k}}
+ const r1=R('ro-sp');r1.querySelector('b').textContent=s.toFixed(2)+'x';r1.className=s>=1?'good':'badv';
+ R('ro-e').textContent=e.toFixed(2);R('ro-opt').textContent='g='+bg+', '+bs.toFixed(2)+'x';
+ const be=R('ro-be');if(cb){be.querySelector('b').textContent=bs>1?'speeds up':'slower than plain';be.className=bs>1?'good':'badv'}else{be.querySelector('b').textContent=a>c?'yes':'no';be.className=a>c?'good':'badv'}
+ const W=640,H=210,L=40,B=26,T=14,Rm=10,mx=Math.max(1.2,...Array.from({length:32},(_,i)=>sp(a,i+1,c,cb)))*1.08;
+ const X=k=>L+(k-1)/31*(W-L-Rm),Y=v=>H-B-(v/mx)*(H-B-T);
+ let h='<line x1="'+L+'" y1="'+(H-B)+'" x2="'+(W-Rm)+'" y2="'+(H-B)+'" stroke="var(--line)"/><line x1="'+L+'" y1="'+T+'" x2="'+L+'" y2="'+(H-B)+'" stroke="var(--line)"/>';
+ h+='<line x1="'+L+'" x2="'+(W-Rm)+'" y1="'+Y(1)+'" y2="'+Y(1)+'" stroke="var(--bad)" stroke-dasharray="5 4"/><text class="lbl" x="'+(L+4)+'" y="'+(Y(1)-4)+'">1x</text>';
+ let pts=[];for(let k=1;k<=32;k++)pts.push(X(k).toFixed(1)+','+Y(sp(a,k,c,cb)).toFixed(1));
+ h+='<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="'+pts.join(' ')+'"/>';
+ for(let k=1;k<=32;k++)h+='<circle cx="'+X(k)+'" cy="'+Y(sp(a,k,c,cb))+'" r="2.5" fill="var(--accent)"/>';
+ h+='<circle cx="'+X(g)+'" cy="'+Y(s)+'" r="7" fill="none" stroke="var(--ink)" stroke-width="2"/>';
+ if(bg<=32)h+='<circle cx="'+X(bg)+'" cy="'+Y(bs)+'" r="5" fill="var(--ok)"/>';
+ [1,8,16,24,32].forEach(k=>h+='<text class="lbl" text-anchor="middle" x="'+X(k)+'" y="'+(H-8)+'">'+k+'</text>');
+ h+='<text class="lbl" x="'+(W-Rm)+'" y="'+(H-8)+'" text-anchor="end">draft length g</text><text class="lbl" x="4" y="'+(T+4)+'">'+mx.toFixed(1)+'x</text>';
+ R('simsvg').innerHTML=h}
+['r-a','r-c','r-g','r-cb'].forEach(i=>R(i).addEventListener('input',sim));sim();
+/* ladder reveal all */
+const tg=R('revealall');if(tg){let open=false;tg.onclick=()=>{open=!open;$$('#s14 details').forEach(d=>d.open=open);tg.textContent=open?'Hide all answers':'Reveal all answers';tg.setAttribute('aria-pressed',open)}}
+})();
+</script></body></html>

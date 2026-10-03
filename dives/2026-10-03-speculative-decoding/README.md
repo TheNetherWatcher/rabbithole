@@ -13,6 +13,89 @@
 - **Total variation distance** TV(p,q) = ½ Σ|p(x) − q(x)|: the largest gap between the probabilities p and q assign to any event.
 - **Teacher forcing / scoring**: given a known sequence, one forward pass returns the model's next-token distribution at *every* position at once (same thing as a prefill).
 
+## 1b. Real-world context (where, how, why)
+
+### What it is
+
+Speculative decoding is an inference-time trick for autoregressive language models. A cheap "drafter" (a small model, extra heads on the big model, or just a lookup into the prompt) proposes several next tokens. The big "target" model then scores all of them in a single forward pass and keeps the longest prefix it agrees with, using a rule that keeps the output distribution exactly the same as the target's own. You get more than one token per target pass without changing what the model says. ([Google Research](https://research.google/blog/looking-back-at-speculative-decoding/))
+
+### Why it exists / why it's used
+
+- **The pain**: LLM inference is usually memory-bound, so "ample computational resources" sit idle during decoding, and some tokens are easy to generate. Google's authors built it on those two observations. ([Google Research](https://research.google/blog/looking-back-at-speculative-decoding/))
+- **What people did before**: distillation, quantization, or smaller models (all change the output), or Stern et al.'s greedy-only blockwise parallel decoding with custom heads. Speculative decoding is the first approach that is exact for sampling and needs no retraining of the target (§12).
+- **What it buys**: Google reports ~3× speed on an 11B T5-XXL with a 60M T5-small drafter, with an identical output distribution, and notes that faster results on the same hardware means fewer machines for the same traffic. ([Google Research](https://research.google/blog/looking-back-at-speculative-decoding/))
+- **Cost of not having it**: at low batch you pay full weight-reading time for every single token, with the compute units mostly idle.
+
+### Where it's used
+
+Only systems I saw documented in the sources below.
+
+| System | Role |
+|---|---|
+| **Google Search AI Overviews** | Speculative decoding is deployed so AI Overviews generate faster "while maintaining the same quality of responses". ([Google Research](https://research.google/blog/looking-back-at-speculative-decoding/)) |
+| **vLLM** | Serving engine. Supports EAGLE, MTP, draft model, PARD, MLP speculator, n-gram, suffix decoding. ([docs](https://docs.vllm.ai/en/latest/features/speculative_decoding/)) |
+| **SGLang** | Serving engine. EAGLE-2/3 and MTP-style drafting with tree verification. Used for EAGLE-3 on Google Vertex AI (Llama 4 Scout), reported 2-3× decoding speedup. ([LMSYS](https://lmsys.org/blog/2025-12-01-eagle3-vertex/)) |
+| **TensorRT-LLM** | NVIDIA's engine. Draft-target, NGram, Medusa, ReDrafter, EAGLE, Lookahead. Its docs frame it as a way to cut latency "where the GPU is underutilized due to small batch sizes". ([docs](https://nvidia.github.io/TensorRT-LLM/advanced/speculative-decoding.html)) |
+| **Hugging Face transformers** | `assistant_model=` in `generate()` ("assisted generation"). Initially batch size 1 only. ([HF blog](https://huggingface.co/blog/assisted-generation)) |
+| **llama.cpp** | Local inference. `--spec-type` accepts draft-simple, draft-eagle3, draft-dflash, draft-mtp, and several n-gram modes. ([docs](https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md)) |
+| **DeepSeek-V3 / R1 serving** | Multi-token-prediction module used as the drafter. In TensorRT-LLM, MTP=3 gave 2.16× at batch 1 on 8×B200 (2.33× with relaxed acceptance). ([TRT-LLM blog](https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog02_DeepSeek_R1_MTP_Implementation_and_Optimization.md)) |
+
+### How it's used
+
+A practitioner touches one config object: the method (draft model, EAGLE-3, MTP, n-gram) and the draft length. vLLM, draft-model method, from the official docs:
+
+```bash
+vllm serve <target-model> \
+  --speculative-config '{
+    "method": "draft_model",
+    "model": "<draft-model>",
+    "num_speculative_tokens": 5
+  }'
+```
+
+SGLang with an EAGLE-3 drafter (command from the SGLang docs):
+
+```bash
+python3 -m sglang.launch_server \
+    --model meta-llama/Meta-Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 4 \
+    --speculative-num-draft-tokens 16
+```
+
+Hugging Face transformers (from the HF blog):
+
+```python
+outputs = model.generate(**inputs, assistant_model=assistant)
+```
+
+llama.cpp: `llama-server -m Qwen3-4B.gguf -md Qwen3-4B-eagle3.gguf --spec-type draft-eagle3`. TensorRT-LLM MTP: `speculative_config: {decoding_type: MTP, num_nextn_predict_layers: 3}`.
+
+**Typical parameters** (from the docs above, not a universal rule):
+
+- draft length 3 is the default for llama.cpp (`--spec-draft-n-max`), SGLang's DeepSeek recipe (`num-steps 3`, `topk 1`, `num-draft-tokens 4`), and TRT-LLM's MTP example (3 predict layers).
+- vLLM's docs example uses 5 for a draft model and 3 in the cross-vocabulary example.
+- Integration pattern: pick a drafter that matches the target checkpoint (EAGLE-3/MTP heads are trained per target), turn it on in the server launch config, then benchmark at your real concurrency. See §8 for how to tune γ.
+
+### When to use it / when NOT to
+
+| Use it | Skip it |
+|---|---|
+| Latency-sensitive serving at low batch / low QPS (interactive chat, agents, single-user local inference). | High-QPS, compute-bound serving. vLLM's 2024 blog measured 1.4-1.8× **slowdowns** at high QPS, versus up to 1.5× (general) and 2.8× (summarization) at low QPS. |
+| Input-grounded tasks (summarization, translation, speech recognition, code editing) where the output copies the input. HF: "optimal for input-grounded tasks". vLLM measured up to 2.8× on summarization at low QPS. ([vLLM blog](https://vllm.ai/blog/2024-10-17-spec-decode)) | Open-ended high-temperature sampling with a weak drafter: low acceptance (HF: sampling reduces the latency gain vs greedy). |
+| A trained drafter exists for your exact target (EAGLE-3 head, MTP module). | No drafter for your checkpoint and you can't train one, or the draft model uses a different tokenizer (HF: assistant must share the tokenizer). |
+
+Signs you picked wrong: throughput per GPU falls when you turn it on under production load, or the measured acceptance length is close to 1. Decision rule vs the alternative (plain decoding, optionally with larger batch): speculative decoding trades spare FLOPs for latency, so it wins only while there are spare FLOPs. The speedup also depends on the task, as TensorRT-LLM's docs note.
+
+### Who should care
+
+- **Inference / infra engineers**: choosing the engine flags and drafter, and tuning draft length against batch size and QPS.
+- **ML engineers who serve their own fine-tunes**: a drafter tied to the old checkpoint loses acceptance after you fine-tune (see §9).
+- **Backend / product engineers** with a latency SLO on streaming responses: this is the lever that lowers time per token without changing model quality.
+- **Security engineers**: token-arrival timing leaks information (§9).
+
 ## 2. The one-liner — and what it hides
 
 > "A small model guesses a few tokens, the big model checks them in one pass, so you get 2–3× faster decoding with identical output."
@@ -527,6 +610,7 @@ Things to try:
 - HF universal assisted generation. https://huggingface.co/blog/universal_assisted_generation
 - LMSYS EAGLE-3 on Vertex. https://lmsys.org/blog/2025-12-01-eagle3-vertex/
 - Together AI, MagicDec blog. https://together.ai/blog/speculative-decoding-for-high-throughput-long-context-inference
+- Google Research, Looking back at speculative decoding. https://research.google/blog/looking-back-at-speculative-decoding/
 - Thinking Machines, Defeating Nondeterminism in LLM Inference (URL inferred from title, not fetched). https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
 
 **Unverified flags**
