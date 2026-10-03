@@ -158,6 +158,20 @@ details.q .ans{padding:2px 16px 14px 36px;font-size:15.5px;border-top:1px dashed
 footer{color:var(--muted);font-size:13.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
 .v{font-size:.78em;font-weight:700;color:var(--good);background:var(--good-soft);padding:0 .35em;border-radius:4px;white-space:nowrap}
 .kk{font-size:.78em;font-weight:700;color:var(--warn);background:var(--warn-soft);padding:0 .35em;border-radius:4px;white-space:nowrap}
+
+.plain-first{margin:26px 0 8px;background:linear-gradient(135deg,var(--accent-soft),var(--surface));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:18px;padding:6px 22px 20px;font-size:17.5px;line-height:1.7}
+.plain-first>summary{cursor:pointer;list-style:none;padding:12px 0 4px;font-size:clamp(20px,3.6vw,26px);font-weight:700;letter-spacing:-.01em}
+.plain-first>summary::-webkit-details-marker{display:none}
+.plain-first>summary::before{content:"\25BE";color:var(--accent);margin-right:.5em;display:inline-block;transition:transform .15s}
+.plain-first:not([open])>summary::before{transform:rotate(-90deg)}
+.plain-first .n{color:var(--accent);margin-right:.35em}
+.plain-first h3{margin:20px 0 4px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.plain-first p{max-width:68ch}
+.plain-first .bridge{margin:20px 0 0;font-weight:700;color:var(--accent)}
+.deepdive{margin:44px 0 6px;padding:18px 0 0;border-top:4px solid var(--accent);text-align:left}
+.deepdive b{display:block;font-size:clamp(22px,4vw,32px);letter-spacing:-.01em}
+.deepdive span{color:var(--muted);font-size:15px}
+.deepdive+section{border-top:0;margin-top:10px}
 @media print{.topbar,nav.toc,.toc-m,.copy,.stepper{display:none}details.q .ans{display:block}}
 </style>
 </head>
@@ -180,7 +194,7 @@ footer{color:var(--muted);font-size:13.5px;margin-top:40px;border-top:1px solid 
       <li>A naive swap gains little (1.06x / 1.10x measured); real gains need batching, registered resources, task-work control and a redesigned architecture.</li>
       <li>It is a second syscall interface that seccomp cannot see into, which is why Google disabled it on ChromeOS and its production servers.</li>
     </ul>
-    <p class="tag-note">Verification tags: <span class="v">V</span> read in primary source during research, <span class="kk">K</span> from memory/secondary, unverified. Flagged where it matters.</p>
+    <p class="tag-note">Verification tags: <span class="v">V</span> read in primary source during research, <span class="kk">K</span> from memory/secondary, unverified. Flagged where it matters. Follow-up pass: PostgreSQL default, Google kCTF, libuv and Alibaba figures re-checked; QEMU, Glommio, Seastar, Windows IoRing and section 11 not re-verified; code not compiled.</p>
   </div>
   <div class="strip" aria-label="Key numbers">
     <div class="stat"><b>608K &rarr; 1.7M</b><span>4K random-read IOPS: aio vs io_uring (polling); 1.2M without polling. Authors' own caveat: not apples to apples.</span></div>
@@ -194,16 +208,15 @@ footer{color:var(--muted);font-size:13.5px;margin-top:40px;border-top:1px solid 
   </div>
 </header>
 
-<!-- 1 -->
-<section id="s1" data-title="Bare-minimum context"><h2><span class="n">1</span>Bare-minimum context</h2>
-<ul class="measure">
-<li>Syscall = user&rarr;kernel mode switch. Cost = entry/exit + mitigations (post-Spectre/Meltdown), not the work itself. [paper &sect;1]</li>
-<li>Readiness vs completion: epoll says "fd <em>can</em> be read"; you still do the <code>read</code>. A completion API says "your read <em>is done</em>, here are the bytes".</li>
-<li>Buffered I/O goes through the page cache; <code>O_DIRECT</code> bypasses it. Linux aio only did true async for <code>O_DIRECT</code>.</li>
-<li>SPSC ring buffer: single-producer/single-consumer queue with <code>head</code> (consumer) and <code>tail</code> (producer) indexes; lock-free with proper memory ordering.</li>
-<li>Acquire/release: producer <em>releases</em> (publishes) tail after writing the entry; consumer <em>acquires</em> tail before reading the entry. Entry visible iff tail visible.</li>
-<li>Little's law: in-flight ops = throughput &times; latency. NVMe needs deep queues to hit rated IOPS.</li>
-</ul></section>
+<section id="s0b" data-title="Plain-English first" style="border-top:0;padding-top:0;margin-top:0"><details class="plain-first" open><summary><span class="n">0b</span>Plain-English first (no jargon)</summary>
+<h3>Explain it simply</h3>
+<p>Picture a busy cook who needs things from a helpful pantry assistant. The old way: the cook walks over, asks for one thing, waits, walks back, then repeats for every single item. Most of the time goes into the walking back and forth, not the fetching. io_uring replaces that with two trays on a shared counter: an "orders" tray the cook drops notes into, and a "done" tray the assistant drops results into. The cook stacks up several notes, rings the bell once, and goes back to cooking.</p>
+<p>When the bell rings, the assistant first does whatever is within arm's reach right away. Anything that has to wait (a parcel that has not arrived yet, a book in the basement) gets handled without the assistant standing around: either "I'll tap you when it shows up" or "a helper will go fetch it". Results land in the done tray, each with the number from the original note so the cook can match them up. The point: fewer interruptions and many errands in flight at once.</p>
+<h3>Everyday example</h3>
+<p>Sam is cooking dinner and writes three notes: (1) "read me the first page of the recipe card", (2) "tell me when the grocery parcel arrives", (3) "bring the big cookbook from the basement". Sam numbers them 1, 2, 3, drops them in the orders tray, and rings the bell once.</p>
+<p>The assistant grabs the recipe card from the shelf right there and puts the page in the done tray before Sam has even looked up. For the parcel, nothing has arrived, so the assistant says "I'll flag it when the doorbell goes" and does not wait at the door. The basement book is far away, so a helper is sent. Later Sam glances at the done tray: slip 1 is there already, then slip 3 when the helper returns, then slip 2 when the parcel finally arrives. Sam matches each slip to its note by number. One bell, three errands, no waiting around, and results can come back in any order.</p>
+<p class="bridge">Now the same thing, technically.</p>
+</details></section>
 
 <!-- 1b -->
 <section id="s1b" data-title="Real-world context"><h2><span class="n">1b</span>Real-world context (where, how, why)</h2>
@@ -222,20 +235,21 @@ footer{color:var(--muted);font-size:13.5px;margin-top:40px;border-top:1px solid 
 <h3>Where it's used</h3>
 <p class="measure">Verified in the backfill pass; each card is one system and the role io_uring plays there.</p>
 <div class="cards">
- <div class="sys"><span class="tag">Database</span><h3>PostgreSQL 18</h3><p><code>io_method = io_uring</code> selects it for the new async I/O subsystem (alternatives <code>worker</code>, <code>sync</code>); needs a build with <code>--with-liburing</code> / <code>-Dliburing</code>. Docs list <code>worker</code> as default. <span class="v">V</span> <a href="https://www.postgresql.org/docs/current/runtime-config-resource.html" target="_blank" rel="noopener">docs</a></p><p style="color:var(--muted)">The PG18 release announcement page, as fetched, says <code>sync</code> is the default; docs and announcement disagree, so check your version's docs. It claims "up to 3x" in some scenarios for AIO overall, not io_uring specifically. <span class="v">V</span> <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">announcement</a></p></div>
- <div class="sys"><span class="tag">Virtualization</span><h3>QEMU</h3><p>Block-layer AIO engine since QEMU 5.0, <code>-drive aio=io_uring</code> (others: <code>threads</code>, <code>native</code>); uses READV/WRITEV/FSYNC ops. <span class="v">V</span> <a href="https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com" target="_blank" rel="noopener">patch series</a></p></div>
+ <div class="sys"><span class="tag">Database</span><h3>PostgreSQL 18</h3><p><code>io_method = io_uring</code> selects it for the new async I/O subsystem (alternatives <code>worker</code>, <code>sync</code>); needs a build with <code>--with-liburing</code> / <code>-Dliburing</code>. <strong>Default is <code>worker</code></strong>: the PG 18 docs say "The default is <code>worker</code>". <span class="v">V</span> <a href="https://www.postgresql.org/docs/18/runtime-config-resource.html" target="_blank" rel="noopener">PG 18 docs</a>, fetched in this pass.</p><p style="color:var(--muted)">The release-announcement page, as fetched earlier, appeared to say <code>sync</code>; the versioned docs are the authoritative source. The announcement claims "up to 3x" in some scenarios for AIO overall, not io_uring specifically. <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">announcement</a></p></div>
+ <div class="sys"><span class="tag">Virtualization</span><h3>QEMU</h3><p>Block-layer AIO engine since QEMU 5.0, <code>-drive aio=io_uring</code> (others: <code>threads</code>, <code>native</code>); uses READV/WRITEV/FSYNC ops. <span class="kk">not independently re-verified</span> originally from the <a href="https://patchew.org/QEMU/20191025160444.31632-1-stefanha@redhat.com" target="_blank" rel="noopener">2019 patch series</a></p></div>
  <div class="sys"><span class="tag">Database</span><h3>TigerBeetle</h3><p>Single thread alternates <code>replica.tick()</code> and <code>io.run_for_ns()</code>; every I/O is async, submitted through io_uring on Linux. <span class="v">V</span> <a href="https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/" target="_blank" rel="noopener">blog</a>, <a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig" target="_blank" rel="noopener">linux.zig</a></p></div>
- <div class="sys"><span class="tag">Runtime</span><h3>libuv (Node.js)</h3><p>v1.45.0 handed some file ops (read/write/fsync/fdatasync/stat family) to io_uring, "8x throughput" in the commit message, falling back to the thread pool. Opt-in via <code>UV_LOOP_USE_IO_URING_SQPOLL</code>; from v1.49.0 the default reverted to the thread pool. <span class="v">V</span> <a href="https://www.phoronix.com/news/libuv-io-uring" target="_blank" rel="noopener">Phoronix</a>, <a href="https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt" target="_blank" rel="noopener">libuv docs</a></p></div>
- <div class="sys"><span class="tag">Storage engine</span><h3>RocksDB</h3><p>Opt-in: <code>PosixFileSystem</code> async read via io_uring (<code>ReadAsync</code>/<code>Poll</code>) used by MultiGet and iterators; if not enabled, <code>ReadAsync</code> returns NotSupported. <span class="v">V</span> <a href="https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86" target="_blank" rel="noopener">commit</a> (the 2022 <a href="https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html" target="_blank" rel="noopener">blog</a> itself does not mention io_uring)</p></div>
- <div class="sys"><span class="tag">Async runtime</span><h3>Glommio (Datadog)</h3><p>Rust thread-per-core runtime built on io_uring with no helper threads; needs Linux 5.8+ and &ge;512 KiB locked memory. <span class="v">V</span> <a href="https://github.com/DataDog/glommio" target="_blank" rel="noopener">GitHub</a></p></div>
+ <div class="sys"><span class="tag">Runtime</span><h3>libuv (Node.js)</h3><p>v1.45.0 handed some file ops (read/write/fsync/fdatasync/stat family) to io_uring, "8x throughput" in the commit message, falling back to the thread pool. Opt-in via <code>UV_LOOP_USE_IO_URING_SQPOLL</code>; from v1.49.0 the default reverted to the thread pool. <span class="v">V</span> <a href="https://docs.libuv.org/en/v1.x/_sources/fs.rst.txt" target="_blank" rel="noopener">libuv docs</a> (re-read in this pass: 1.45.0, 1.49.0 and the SQPOLL option confirmed). The "8x" figure is from the commit message via <a href="https://www.phoronix.com/news/libuv-io-uring" target="_blank" rel="noopener">Phoronix</a>, not re-verified.</p></div>
+ <div class="sys"><span class="tag">Storage engine</span><h3>RocksDB</h3><p>Opt-in: <code>PosixFileSystem</code> async read via io_uring (<code>ReadAsync</code>/<code>Poll</code>) used by MultiGet and iterators; if not enabled, <code>ReadAsync</code> returns NotSupported. <span class="kk">unverified (single secondary source)</span> <a href="https://git.nextgraph.org/NextGraph/rocksdb/commit/8465cccde2ea7e5e76b0826a307a927a682dfc86" target="_blank" rel="noopener">mirrored commit</a> (the 2022 <a href="https://rocksdb.org/blog/2022/10/07/asynchronous-io-in-rocksdb.html" target="_blank" rel="noopener">blog</a> itself does not mention io_uring)</p></div>
+ <div class="sys"><span class="tag">Async runtime</span><h3>Glommio (Datadog)</h3><p>Rust thread-per-core runtime built on io_uring with no helper threads; needs Linux 5.8+ and &ge;512 KiB locked memory. <span class="kk">not independently re-verified</span> <a href="https://github.com/DataDog/glommio" target="_blank" rel="noopener">GitHub</a></p></div>
  <div class="sys"><span class="tag">Edge / network</span><h3>Cloudflare</h3><p>Not a "we run it" claim: they dissected the io-wq worker pool because socket I/O is their core workload, and recommend <code>IORING_REGISTER_IOWQ_MAX_WORKERS</code> (5.15) over lowering <code>RLIMIT_NPROC</code>. <span class="v">V</span> <a href="https://blog.cloudflare.com/missing-manuals-io_uring-worker-pool/" target="_blank" rel="noopener">blog</a></p></div>
- <div class="sys counter"><span class="tag">Counter-adopters</span><h3>Google (ChromeOS, servers, Android)</h3><p>Disabled it on ChromeOS and production servers and blocks it for Android apps via seccomp-bpf (2023). <span class="v">V</span> <a href="https://www.phoronix.com/news/Google-Restricting-IO_uring" target="_blank" rel="noopener">Phoronix</a>; see <a href="#s9">section 9</a>.</p></div>
+ <div class="sys counter"><span class="tag">Counter-adopters</span><h3>Google (ChromeOS, servers, Android)</h3><p>Disabled it on ChromeOS and production servers and blocks it for Android apps via seccomp-bpf (2023); 60% of the past year's submissions exploited io_uring. <span class="v">V</span> <a href="https://security.googleblog.com/2023/06/learnings-from-kctf-vrps-42-linux.html" target="_blank" rel="noopener">Google Security Blog</a>, read directly; see <a href="#s9">section 9</a>.</p></div>
 </div>
 
 <h3>How it's used</h3>
 <p class="measure">Practitioners call <strong>liburing</strong> (the helper library "to setup and teardown io_uring instances" with a simplified interface) rather than raw syscalls; liburing is not tied to a kernel release but features need matching kernels. <span class="v">V</span> <a href="https://github.com/axboe/liburing" target="_blank" rel="noopener">liburing README</a>. Core call sequence: <code>io_uring_queue_init</code> &rarr; <code>io_uring_get_sqe</code> &rarr; <code>io_uring_prep_*</code> &rarr; <code>io_uring_submit</code> (or <code>io_uring_submit_and_wait</code>) &rarr; <code>io_uring_wait_cqe</code> &rarr; <code>io_uring_cqe_seen</code>. <span class="v">V</span> liburing wiki</p>
 <p class="measure">Typical parameters: entries = power of two (e.g. 256); recommended networking flags <code>COOP_TASKRUN</code> (5.19+) and <code>SINGLE_ISSUER</code> + <code>DEFER_TASKRUN</code> (6.0/6.1+); <code>SQPOLL</code> only if a spare core is acceptable; multishot accept/recv with provided buffers (<code>IOSQE_BUFFER_SELECT</code>, watch <code>IORING_CQE_F_MORE</code>). <span class="v">V</span> liburing wiki, <a href="https://man7.org/linux/man-pages/man2/io_uring_setup.2.html" target="_blank" rel="noopener">io_uring_setup(2)</a></p>
-<div class="pre-wrap"><pre><code>// Illustrative; written for this dive from the verified call sequence, not compiled.
+<div class="pre-wrap"><pre><code>// Illustrative, not compiled: written from the documented call sequence. A compile check was attempted
+// but no Linux/liburing toolchain was available (macOS host, Docker daemon down).
 struct io_uring ring;
 struct io_uring_params p = {0};
 p.flags = IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_DEFER_TASKRUN;  // kernel &gt;= 6.1
@@ -257,10 +271,10 @@ io_uring_cqe_seen(&amp;ring, cqe);</code></pre></div>
 <div class="use"><h3>Use it</h3><ul>
 <li>Many small ops can be batched.</li><li>File and network I/O share one loop.</li><li>You want deep queue depth from few threads (NVMe).</li><li>You can redesign the loop and require a recent kernel.</li></ul><p style="font-size:13.5px;color:var(--muted);margin:8px 0 0">Search-level summaries and the liburing wiki agree on this shape. <span class="v">V</span></p></div>
 <div class="skip"><h3>Skip it</h3><ul>
-<li>Plain network server and you won't restructure around completions: stay on epoll (Alibaba Cloud's comparison reports about 10% at 1000 connections <span class="v">V</span> <a href="https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544" target="_blank" rel="noopener">snippet only, not read in full</a>), or libaio for O_DIRECT.</li>
+<li>Plain network server and you won't restructure around completions: stay on epoll (Alibaba Cloud's comparison reports io_uring throughput about 10% higher at 1000 connections, with CPU mitigations enabled <span class="v">V</span> <a href="https://www.alibabacloud.com/blog/io-uring-vs--epoll-which-is-better-in-network-programming_599544" target="_blank" rel="noopener">read in this pass</a>; one vendor benchmark, no raw numbers), or libaio for O_DIRECT.</li>
 <li>You need old-kernel portability.</li>
 <li>Workload is untrusted/sandboxed (Google's stance, <a href="#s9">section 9</a>).</li>
-<li>You want cross-OS portability (Windows IoRing is a similar but separate API <span class="v">V</span> <a href="https://windows-internals.com/ioring-vs-io_uring-a-comparison-of-windows-and-linux-implementations/" target="_blank" rel="noopener">windows-internals.com</a>).</li></ul></div>
+<li>You want cross-OS portability (Windows IoRing is a similar but separate API <span class="kk">not independently re-verified</span> <a href="https://windows-internals.com/ioring-vs-io_uring-a-comparison-of-windows-and-linux-implementations/" target="_blank" rel="noopener">windows-internals.com</a>).</li></ul></div>
 </div>
 <div class="callout warn"><b>Signs you picked wrong</b>Gains of 1.06x-1.10x after a drop-in swap (<a href="#s2">section 2</a>), <code>iou-wrk-*</code> thread pile-ups, or code full of kernel-version fallbacks.</div>
 
@@ -272,6 +286,19 @@ io_uring_cqe_seen(&amp;ring, cqe);</code></pre></div>
 <li><strong>Security/platform engineers</strong>: whether to allow it in containers; syscall-based monitoring is blind to SQE opcodes (<a href="#s9">section 9</a>).</li>
 </ul>
 </section>
+
+<div class="deepdive" role="separator"><b>Technical deep dive</b><span>Everything below uses jargon (defined on first use). The plain-English story above is the same one the trace in section 5 replays with real data.</span></div>
+
+<!-- 1 -->
+<section id="s1" data-title="Bare-minimum context"><h2><span class="n">1</span>Bare-minimum context</h2>
+<ul class="measure">
+<li>Syscall = user&rarr;kernel mode switch. Cost = entry/exit + mitigations (post-Spectre/Meltdown), not the work itself. [paper &sect;1]</li>
+<li>Readiness vs completion: epoll says "fd <em>can</em> be read"; you still do the <code>read</code>. A completion API says "your read <em>is done</em>, here are the bytes".</li>
+<li>Buffered I/O goes through the page cache; <code>O_DIRECT</code> bypasses it. Linux aio only did true async for <code>O_DIRECT</code>.</li>
+<li>SPSC ring buffer: single-producer/single-consumer queue with <code>head</code> (consumer) and <code>tail</code> (producer) indexes; lock-free with proper memory ordering.</li>
+<li>Acquire/release: producer <em>releases</em> (publishes) tail after writing the entry; consumer <em>acquires</em> tail before reading the entry. Entry visible iff tail visible.</li>
+<li>Little's law: in-flight ops = throughput &times; latency. NVMe needs deep queues to hit rated IOPS.</li>
+</ul></section>
 
 <!-- 2 -->
 <section id="s2" data-title="The one-liner"><h2><span class="n">2</span>The one-liner, and what it hides</h2>
@@ -497,8 +524,8 @@ app after tail store:
 <p class="measure"><strong>Knobs:</strong> SQ depth; CQ size; batch size B; SQPOLL (core vs latency); IOPOLL (poll NVMe CQ; needs O_DIRECT; reaps via GETEVENTS or SQPOLL thread); COOP vs DEFER_TASKRUN; registered files/bufs; <code>IOWQ_MAX_WORKERS</code>; passthrough; multishot + buffer rings.</p>
 <p><strong>Alternatives:</strong></p>
 <ul class="measure">
-<li><strong>epoll + threads</strong>: simple, portable; no file I/O. Network gain of io_uring over tuned epoll &asymp; ~10% @1000 conns (Alibaba blog), single-digit&ndash;20% typical <span class="kk">K</span>, big only with ZC/large batches.</li>
-<li><strong>libaio</strong>: O_DIRECT only; competitive for tuned Seastar/Scylla (Scylla engineers reported no big win <span class="kk">K, unverified</span>).</li>
+<li><strong>epoll + threads</strong>: simple, portable; no file I/O. Network gain of io_uring over tuned epoll &asymp; ~10% @1000 conns (Alibaba blog, read in this pass; single vendor benchmark), single-digit&ndash;20% typical <span class="kk">K</span>, big only with ZC/large batches.</li>
+<li><strong>libaio</strong>: O_DIRECT only; competitive for tuned Seastar/Scylla (Scylla engineers reported no big win <span class="kk">K, unverified</span>; Seastar/Scylla details not re-verified).</li>
 <li><strong>SPDK</strong>: userspace NVMe polling; "io_uring within ~10% of SPDK but ~2&times; the cores" (SYSTOR 2022, outside the 2y window) <span class="v">V</span> via agent.</li>
 <li><strong>Windows IoRing</strong>: "almost identical" design, far fewer opcodes. <strong>IOCP</strong>: completion-based but a syscall per submit. <strong>kqueue</strong> (BSD/macOS): readiness only. TigerBeetle/Qt wrap them behind one API.</li>
 </ul></section>
@@ -507,7 +534,7 @@ app after tail store:
 <section id="s9" data-title="Where it breaks"><h2><span class="n">9</span>Where it breaks</h2>
 <h3>Security (the big one)</h3>
 <ul class="measure">
-<li>Google kCTF/VRP post (14 Jun 2023): "60% of the submissions exploited the io_uring component" (of 42 Linux kernel exploit submissions), "~1 million USD for io_uring alone". Disabled on ChromeOS, production servers; Android seccomp-blocks it for apps. Stance: safe only for trusted components. <span class="v">V</span></li>
+<li>Google kCTF/VRP post (14 Jun 2023): "60% of the submissions exploited the io_uring component" (of 42 Linux kernel exploit submissions), "~1 million USD for io_uring alone". Disabled on ChromeOS, production servers; Android seccomp-blocks it for apps. Stance: safe only for trusted components. <span class="v">V</span> <a href="https://security.googleblog.com/2023/06/learnings-from-kctf-vrps-42-linux.html" target="_blank" rel="noopener">read directly in this pass</a></li>
 <li>Bug classes = object-lifetime between ring-owned resources and user-visible mappings/fds, plus new opcodes reusing old fields:
 <ul>
 <li><strong>CVE-2021-41073</strong>: <code>PROVIDE_BUFFERS</code> puts a kernel <code>io_buffer*</code> in <code>req-&gt;rw.addr</code>; <code>loop_rw_iter</code> treats it as a user ptr; later <code>io_put_kbuf</code> frees attacker-adjacent memory (type confusion). 5.10&ndash;5.14.6.</li>
@@ -537,18 +564,19 @@ app after tail store:
 <!-- 10 -->
 <section id="s10" data-title="In the wild"><h2><span class="n">10</span>In the wild</h2>
 <div class="cards">
-<div class="sys"><h3>RocksDB</h3><p>io_uring on read paths only (MultiGet, iterator prefetch), thread-local rings, SINGLE_ISSUER|DEFER_TASKRUN; ~24% over pread on raw disk (blog summary). Not writes/compaction.</p></div>
+<div class="sys"><h3>RocksDB</h3><p>io_uring on read paths only (MultiGet, iterator prefetch), thread-local rings, SINGLE_ISSUER|DEFER_TASKRUN; ~24% over pread on raw disk (<span class="kk">unverified (single secondary source)</span>; the 2022 RocksDB blog does not mention io_uring; the opt-in claim is likewise unverified). Not writes/compaction.</p></div>
 <div class="sys"><h3>TigerBeetle</h3><p>Single thread alternating <code>tick()</code> and <code>io.run_for_ns()</code>; all I/O via io_uring (kqueue/IOCP behind abstraction); a mid-2026 newsletter reports +8% from re-entering the kernel after each completion callback to pipeline IO and CPU (secondary).</p></div>
-<div class="sys"><h3>Seastar / Scylla</h3><p>io_uring reactor backend exists; long-default linux-aio+epoll <span class="kk">K</span>.</p></div>
+<div class="sys"><h3>Seastar / Scylla</h3><p>io_uring reactor backend exists; long-default linux-aio+epoll <span class="kk">K</span> (not independently re-verified).</p></div>
 <div class="sys"><h3>libuv / Node</h3><p>io_uring for file ops only; network stays epoll; ref issue #1947 (+38% seq read, tighter variance in thread); later restricted for security <span class="kk">K</span>.</p></div>
-<div class="sys"><h3>QEMU</h3><p>1.2M (no poll) / 1.7M (poll) 4K IOPS vs Linux AIO cliff ~608K (FOSDEM 2020); 2025 series makes io_uring the event loop (<code>aio_add_sqe</code>).</p></div>
-<div class="sys"><h3>PostgreSQL 18</h3><p><code>io_method=io_uring</code> (default <code>worker</code>) <span class="kk">K</span>; guidelines from the Jasny paper &rarr; +14%.</p></div>
-<div class="sys"><h3>Glommio / tokio-uring / nginx</h3><p>Glommio (thread-per-core, io_uring-native), tokio-uring (stale since 0.5.0, May 2024), nginx (not merged).</p></div>
+<div class="sys"><h3>QEMU</h3><p><em>(not independently re-verified)</em> 1.2M (no poll) / 1.7M (poll) 4K IOPS vs Linux AIO cliff ~608K (FOSDEM 2020); 2025 series makes io_uring the event loop (<code>aio_add_sqe</code>).</p></div>
+<div class="sys"><h3>PostgreSQL 18</h3><p><code>io_method=io_uring</code> (default <code>worker</code>, per the PG 18 docs <span class="v">V</span>); guidelines from the Jasny paper &rarr; +14%.</p></div>
+<div class="sys"><h3>Glommio / tokio-uring / nginx</h3><p>Glommio (thread-per-core, io_uring-native; not independently re-verified), tokio-uring (stale since 0.5.0, May 2024), nginx (not merged).</p></div>
 <div class="sys"><h3>10M IOPS/core</h3><p>Axboe, Ryzen 5950X, 2&times; Optane P5800X, 512B polled random reads, fixed files/bufs: a per-IO software overhead microbenchmark, not app throughput. <span class="v">V</span> Phoronix</p></div>
 </div></section>
 
 <!-- 11 -->
 <section id="s11" data-title="Frontier"><h2><span class="n">11</span>Frontier</h2>
+<div class="callout warn measure"><b>Verification status</b>Not independently re-verified in the follow-up pass: treat figures, versions and merge status below as the original research's claims.</div>
 <ol class="measure">
 <li><strong>High-Performance DBMSs with io_uring: When and How to Use It</strong> &mdash; Jasny, El-Hindi, Ziegler, Leis, Binnig. PVLDB 19(9):2317&ndash;2330 (2026), <a href="https://arxiv.org/abs/2512.04859" target="_blank" rel="noopener">arXiv 2512.04859</a>. <span class="v">V</span> numbers from PDF. Setup: EPYC 9654P, 8&times; PCIe5 Kioxia CM7-R, ConnectX-7 400G, Linux 6.15.
 <ul>
@@ -594,7 +622,7 @@ app after tail store:
 <!-- 13 -->
 <section id="s13" data-title="Hands-on"><h2><span class="n">13</span>Hands-on (&le;30 min)</h2>
 <p class="measure">See the syscall count collapse and the inline/punt split. Needs Linux &ge;5.19, <code>liburing-dev</code>, <code>strace</code>.</p>
-<div class="pre-wrap"><pre><code>// cc -O2 t.c -luring -o t
+<div class="pre-wrap"><pre><code>// Not compiled/run by the author (no Linux/liburing available when checked). cc -O2 t.c -luring -o t
 #include &lt;liburing.h&gt;
 #include &lt;fcntl.h&gt;
 #include &lt;stdio.h&gt;
@@ -676,7 +704,7 @@ int main(int argc, char **argv) {
 <li>RocksDB async IO blog (2022-10-07); TigerBeetle abstraction blog + 2026-06-17 newsletter; libuv #1947; QEMU FOSDEM 2020; Alibaba io_uring vs epoll</li>
 <li>u1f383 pbuf vulnerabilities &mdash; <a href="https://u1f383.github.io/linux/2025/03/02/a-series-of-io_uring-pbuf-vulnerabilities.html" target="_blank" rel="noopener">https://u1f383.github.io/linux/2025/03/02/a-series-of-io_uring-pbuf-vulnerabilities.html</a></li></ul>
 <h3>Real-world context (1b) sources</h3><ul>
-<li>PostgreSQL docs, resource settings (<code>io_method</code>) &mdash; <a href="https://www.postgresql.org/docs/current/runtime-config-resource.html" target="_blank" rel="noopener">https://www.postgresql.org/docs/current/runtime-config-resource.html</a>; PG18 release announcement &mdash; <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">https://www.postgresql.org/about/news/postgresql-18-released-3142/</a></li>
+<li>PostgreSQL docs, resource settings (<code>io_method</code>) &mdash; <a href="https://www.postgresql.org/docs/18/runtime-config-resource.html" target="_blank" rel="noopener">https://www.postgresql.org/docs/18/runtime-config-resource.html</a> (default <code>worker</code>); PG18 release announcement &mdash; <a href="https://www.postgresql.org/about/news/postgresql-18-released-3142/" target="_blank" rel="noopener">https://www.postgresql.org/about/news/postgresql-18-released-3142/</a></li>
 <li>liburing README &mdash; <a href="https://github.com/axboe/liburing" target="_blank" rel="noopener">https://github.com/axboe/liburing</a>; wiki "io_uring and networking in 2023" &mdash; <a href="https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023" target="_blank" rel="noopener">https://github.com/axboe/liburing/wiki/io_uring-and-networking-in-2023</a></li>
 <li>man7 io_uring(7) &mdash; <a href="https://man7.org/linux/man-pages/man7/io_uring.7.html" target="_blank" rel="noopener">https://man7.org/linux/man-pages/man7/io_uring.7.html</a>; io_uring_setup(2) &mdash; <a href="https://man7.org/linux/man-pages/man2/io_uring_setup.2.html" target="_blank" rel="noopener">https://man7.org/linux/man-pages/man2/io_uring_setup.2.html</a></li>
 <li>TigerBeetle, "A Programmer-Friendly I/O Abstraction Over io_uring and kqueue" &mdash; <a href="https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/" target="_blank" rel="noopener">https://tigerbeetle.com/blog/2022-11-23-a-friendly-abstraction-over-iouring-and-kqueue/</a>; linux.zig &mdash; <a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig" target="_blank" rel="noopener">https://github.com/tigerbeetle/tigerbeetle/blob/main/src/io/linux.zig</a></li>
