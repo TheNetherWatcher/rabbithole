@@ -51,6 +51,14 @@ Primary output is **chat markdown**. Structure:
 ### 0. Topic card
 `Domain · Topic · Depth (hard|research)`
 
+### 0b. Plain-English first (no jargon)
+Mandatory, and it comes BEFORE any technical content. Written for a smart non-engineer:
+- **Explain it simply** — 1–2 short paragraphs, zero unexplained jargon, built on an everyday analogy (restaurant, post office, library…). Say what problem it solves and what it does in human terms.
+- **Everyday example** — one tiny concrete scenario with made-up but realistic specifics, walked through start to finish in plain words (no code, no symbols). This is the same story the technical trace in section 5 later replays with real data, so pick it to map cleanly.
+- **Bridge line** — one sentence: "Now the same thing, technically." Everything below this point may use jargon (defined on first use).
+
+Order of the whole dive is therefore: plain-English → example → real-world context (1b) → technical (everything after).
+
 ### 1. Bare-minimum context
 At most ~6 bullets: the prerequisites the reader needs to follow along, each one line. Not a tutorial — just enough to not get lost. Link a source for each if they want more.
 
@@ -134,6 +142,7 @@ Every dive ships a polished HTML page alongside the README: `dives/YYYY-MM-DD-<s
 
 Requirements:
 - **Self-contained single file**: inline CSS + JS, no build step. No external design kits; system fonts or one Google Font max. Must work offline.
+- **Reading order**: plain-English explainer and everyday example first (visually distinct, open by default, friendly tone), then real-world context, then a clear "Technical deep dive" divider before the rest.
 - **Complete**: contains every section of the dive, including 1b real-world context, frontier, open problems, question ladder, sources. Content must match the README (same facts, same links).
 - **Layout**: sticky sidebar / top table of contents with scroll-spy, topic card header (domain · topic · depth · date), a "TL;DR + why it matters" hero block, readable measure (~70ch), responsive down to phone width, light + dark via `prefers-color-scheme`.
 - **Informative at a glance**: a "Where it's used" card grid (system → role), a "How it's used" code block with copy button, a pros/cons or "use it / skip it" two-column box, a key-numbers strip (latencies, sizes, params), callouts for misconceptions and gotchas.
@@ -152,7 +161,15 @@ Publish with the Artifact tool and give the link in chat with one line.
 2. Append a row to `history.md`:
    `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) · [html](dives/YYYY-MM-DD-<slug>/index.html) | — |`
    (last column = blog link, filled by `/rabbithole blog`).
-3. `git add` the new files + `history.md`, commit `dive: <topic>`, `git push`.
+3. **Guard before pushing**: run `git remote get-url origin`; it must be `https://github.com/TheNetherWatcher/rabbithole.git` (or the ssh equivalent), and `history.md` must exist in the cwd. If not, stop and tell the user — never push dives to another repo.
+4. `git add` the new dive folder (README.md, index.html, code) + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
+
+## Skill sync (when `SKILL.md` itself changes)
+
+`SKILL.md` lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/SKILL.md`. After any edit to it:
+1. Run `.claude/skills/rabbithole/sync.sh` (copies the file to the claude-skills repo and prints `git status` there).
+2. Commit it in both repos separately (`skill: <change>` here, `update rabbithole skill` there; no attribution lines), then push both.
+Never edit the claude-skills copy directly.
 
 ## Blog mode (`/rabbithole blog [slug]`)
 
