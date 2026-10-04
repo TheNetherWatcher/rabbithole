@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nanite cluster LOD — rabbithole dive</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1d1f23;--mut:#5f6670;--card:#fff;--line:#dcdfe4;--acc:#2457d6;--acc2:#e8eefc;--warn:#fff4e0;--warnb:#e0a030;--bad:#fdeaea;--badb:#d04a4a;--ok:#e8f6ec;--okb:#2e9a55;--code:#f1f3f6;--friend:#fff9e6;--friendb:#f0c14b}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e6e8ec;--mut:#9aa1ac;--card:#1a1c21;--line:#2c3038;--acc:#7da2ff;--acc2:#1b2540;--warn:#2d2410;--warnb:#c08a28;--bad:#2e1818;--badb:#c05555;--ok:#14281c;--okb:#3fb06a;--code:#20232a;--friend:#2a2410;--friendb:#b8902c}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--acc)}
+.layout{display:flex;max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:flex-start;height:100vh;overflow:auto;width:250px;flex:none;padding:20px 14px;border-right:1px solid var(--line);font-size:13.5px}
+nav b{display:block;margin-bottom:8px;color:var(--mut);text-transform:uppercase;font-size:11px;letter-spacing:.08em}
+nav a{display:block;padding:3px 8px;border-left:2px solid transparent;color:var(--mut);text-decoration:none}
+nav a.active{color:var(--acc);border-left-color:var(--acc);font-weight:600}
+nav .sep{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+main{flex:1;min-width:0;padding:24px 28px 80px;max-width:calc(70ch + 56px)}
+@media (max-width:860px){.layout{display:block}nav{position:static;height:auto;width:auto;border:0;border-bottom:1px solid var(--line)}nav a{display:inline-block}main{padding:16px}}
+header.card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chip{background:var(--acc2);color:var(--acc);border-radius:99px;padding:2px 10px;font-size:12.5px;font-weight:600}
+h1{font-size:26px;line-height:1.25;margin:4px 0 8px}
+h2{font-size:21px;margin:38px 0 8px;padding-top:6px;border-top:1px solid var(--line)}
+h3{font-size:16.5px;margin:20px 0 4px}
+.tldr{background:var(--acc2);border-radius:10px;padding:12px 16px;margin:12px 0}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.strip div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.strip b{display:block;font-size:20px;color:var(--acc)}
+.strip span{font-size:12.5px;color:var(--mut)}
+.friendly{background:var(--friend);border:1px solid var(--friendb);border-radius:12px;padding:6px 20px 14px;margin:14px 0}
+.friendly h2{border:0;margin-top:14px}
+.divider{margin:44px 0 6px;padding:10px 14px;border-radius:8px;background:var(--fg);color:var(--bg);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:13px}
+.callout{border-left:4px solid;border-radius:6px;padding:8px 14px;margin:14px 0}
+.callout.warn{background:var(--warn);border-color:var(--warnb)}
+.callout.bad{background:var(--bad);border-color:var(--badb)}
+.callout.ok{background:var(--ok);border-color:var(--okb)}
+.callout.info{background:var(--acc2);border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0}
+.grid div{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;font-size:14px}
+.grid b{display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+@media (max-width:700px){.two{grid-template-columns:1fr}}
+.two>div{border-radius:10px;padding:8px 14px;border:1px solid}
+.two .use{background:var(--ok);border-color:var(--okb)}.two .skip{background:var(--bad);border-color:var(--badb)}
+pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto;line-height:1.5;margin:0}
+.codewrap{position:relative;margin:12px 0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer}
+.eq{margin:10px 0 2px;padding:10px 14px;background:var(--code);border-radius:8px;font-family:ui-monospace,Menlo,monospace;font-size:14px;overflow:auto}
+.plain{margin:2px 0 14px;color:var(--mut);font-size:14.5px}
+.plain::before{content:"→ in plain terms: ";font-weight:600}
+button,select,input{font:inherit}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:5px 14px;cursor:pointer}
+.btn:hover,.btn:focus-visible{border-color:var(--acc);outline:2px solid transparent}
+.btn:focus-visible{outline:2px solid var(--acc)}
+.stepper{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px;margin:14px 0}
+.stepper svg{width:100%;height:auto;display:block}
+.stepper .ctl{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.stepper .cap{margin-top:6px;font-size:14.5px;min-height:3.2em}
+svg text{fill:var(--fg);font-family:system-ui,sans-serif;font-size:12px}
+svg .dim{fill:var(--mut)}
+svg .box{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+svg .hot{fill:var(--acc2);stroke:var(--acc);stroke-width:2}
+svg .arrow{stroke:var(--mut);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.sl{display:grid;grid-template-columns:140px 1fr 90px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.sl input{width:100%}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0}
+td,th{border:1px solid var(--line);padding:5px 8px;text-align:right}th:first-child,td:first-child{text-align:left}
+details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:8px 0;padding:6px 12px}
+summary{cursor:pointer;font-weight:600}
+.qgroup{margin:20px 0 4px;font-weight:700;color:var(--acc)}
+ol.refs li,ul.refs li{margin:3px 0;font-size:14.5px;overflow-wrap:anywhere}
+.tag{font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:99px;margin-left:4px}
+.tag.v{background:var(--ok);color:var(--okb)}.tag.s{background:var(--code);color:var(--mut)}.tag.c{background:var(--warn);color:var(--warnb)}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="Table of contents">
+<b>Contents</b>
+<a href="#top">Overview</a>
+<a href="#plain">Plain English</a>
+<a href="#context">Real-world context</a>
+<div class="sep">Technical deep dive</div>
+<a href="#prereq">1 Prerequisites</a>
+<a href="#onelinr">2 One-liner</a>
+<a href="#problem">3 The problem</a>
+<a href="#model">4 Mental model</a>
+<a href="#mech">5 Mechanism traced</a>
+<a href="#math">6 The math</a>
+<a href="#why">7 Why it works</a>
+<a href="#knobs">8 Knobs &amp; alternatives</a>
+<a href="#breaks">9 Where it breaks</a>
+<a href="#wild">10 In the wild</a>
+<a href="#frontier">11 Frontier</a>
+<a href="#open">11b Open problems</a>
+<a href="#lineage">12 Lineage</a>
+<a href="#hands">13 Hands-on</a>
+<a href="#ladder">14 Question ladder</a>
+<a href="#next">15 Go deeper</a>
+<a href="#sources">Sources</a>
+</nav>
+<main id="top">
+<header class="card">
+<div class="chips"><span class="chip">Computer science</span><span class="chip">Graphics/GPU</span><span class="chip">hard</span><span class="chip">2026-10-04</span></div>
+<h1>Nanite-style virtualized geometry: cluster DAG, crack-free LOD, micro-triangle rasterization</h1>
+<div class="tldr"><b>TL;DR.</b> Chop a mesh into 128-triangle clusters, build a DAG of ever-coarser clusters whose group borders are <em>locked</em> so neighbours always meet exactly, and let the GPU pick the cut where projected error ≈ 1 pixel. Triangle count then tracks <em>screen pixels</em>, not scene size. <b>Why it matters:</b> film-quality assets in real time with no LOD authoring, no popping, and no per-object CPU draw calls — at the price of overdraw, masked-material, animation and portability problems.</div>
+<div class="strip" aria-label="Key numbers">
+<div><b>128</b><span>triangles per cluster</span></div>
+<div><b>≈1 px</b><span>target projected error</span></div>
+<div><b>14.4 B</b><span>avg per input triangle on disk <i>(Epic)</i></span></div>
+<div><b>7.6×</b><span>smaller than 4-LOD static mesh <i>(Epic example)</i></span></div>
+<div><b>64 bit</b><span>visibility-buffer word</span></div>
+<div><b>≈2T</b><span>total DAG triangles for T source</span></div>
+</div>
+<p class="plain" style="margin:0;font-size:13.5px;color:var(--mut)" ><b>Source quality:</b> Karis' SIGGRAPH 2021 slides were too large to fetch, so mechanism claims come from secondary write-ups. <span class="tag v">verified</span> = I fetched a primary page; <span class="tag c">conflict</span> = sources disagree; <span class="tag s">secondary</span> = from write-ups only.</p>
+</header>
+
+<section class="friendly" id="plain">
+<h2 style="margin-top:12px">Plain English first</h2>
+<h3>Explain it simply</h3>
+<p>Think of a map app. Zoomed out, a city is a grey blob; zoomed in, you see every house. The app does not keep one giant picture and shrink it. It keeps the city cut into small tiles, and for every tile it keeps cruder versions too. You only load the tiles you can see, at just the sharpness your screen can show. Nanite does this for 3D models. A statue with a million tiny triangles is chopped into patches of 128 triangles. Each patch has coarser stand-ins. Every frame the GPU asks, per patch: "if I used the coarse version, would anyone notice?" If not, it uses the coarse one. The key trick: neighbouring patches always agree on the exact points along their shared edges, so a coarse patch next to a fine patch fits like a jigsaw piece, with no gaps.</p>
+<h3>Everyday example</h3>
+<p>A game has a stone dragon statue made of about 1,000,000 triangles. Stand 2 metres away: the statue fills the screen, so you need nearly all the detail; the game draws the fine patches facing you and skips the back of the statue. Walk 200 metres away: the statue is a 30-pixel smudge, so each patch is swapped for its coarsest stand-in — a few hundred triangles in total — and nobody can tell. Walk back slowly: patches in the middle get sharper one at a time, and no seam ever opens because the borders between patches never moved.</p>
+<p><b>Now the same thing, technically.</b></p>
+</section>
+
+<section id="context">
+<h2>Real-world context</h2>
+<h3>What it is</h3>
+<p>A rendering pipeline (Unreal Engine 5's Nanite, plus open clones) that stores each mesh as a hierarchy of triangle clusters at many detail levels, picks the right cut through that hierarchy on the GPU every frame so error stays ≲1 pixel, and rasterizes the result with a mix of hardware and compute-shader rasterization.</p>
+<h3>Why it exists</h3>
+<p>Classic LOD has three costs: tools/artists author LOD chains per asset; objects pop at switches; the CPU submits a draw call per object, capping scene complexity. Million-triangle scans and sculpts were unusable. Nanite makes triangle count scale with pixels on screen and moves culling, LOD and draw building to the GPU.</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div><b>Unreal Engine 5</b>Nanite, the original. <a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-virtualized-geometry-in-unreal-engine">docs</a></div>
+<div><b>Fortnite</b>Epic's blog: building meshes in Chapter 4+. <span class="tag s">secondary</span></div>
+<div><b>The Matrix Awakens (2021)</b>Epic tech demo, city-scale geometry.</div>
+<div><b>Black Myth: Wukong, Hellblade II</b>Reported shipped users. <span class="tag s">community lists</span></div>
+<div><b>meshoptimizer</b>Meshlet build, border-locking simplify, cluster partitioning that clones build on.</div>
+<div><b>Bevy virtual geometry</b>Meshlet DAG + two-pass culling; hardware raster only at time of post. <span class="tag s">secondary</span></div>
+<div><b>NVIDIA RTX Mega Geometry</b>Cluster acceleration structures for ray tracing (Feb 2025). <span class="tag v">verified</span></div>
+<div><b>Unity virtualmesh</b>Official reference package, not production-ready. <span class="tag s">secondary</span></div>
+</div>
+<h3>How it's used</h3>
+<p>In Unreal: tick <b>Enable Nanite Support</b> on a Static Mesh; global <code>r.Nanite 0/1</code>; streaming pool <code>r.Nanite.Streaming.StreamingPoolSize</code>; buffer cvars <code>r.Nanite.MaxCandidateClusters</code> (12 B each) and <code>r.Nanite.MaxVisibleClusters</code> (16 B each) <span class="tag v">verified</span>. In your own engine, meshoptimizer does the build side (signatures from memory of the public header; check your version):</p>
+<div class="codewrap"><button class="copy" type="button" aria-label="Copy code">Copy</button><pre>// 1. cluster a mesh into &lt;=128-tri meshlets
+size_t maxm = meshopt_buildMeshletsBound(index_count, 128, 128);
+std::vector&lt;meshopt_Meshlet&gt; ml(maxm);
+std::vector&lt;unsigned&gt; mv(maxm * 128);
+std::vector&lt;unsigned char&gt; mt(maxm * 128 * 3);
+size_t n = meshopt_buildMeshlets(ml.data(), mv.data(), mt.data(),
+    indices, index_count, &amp;pos[0].x, vcount, sizeof(Vec3),
+    /*max_vertices*/128, /*max_triangles*/128, /*cone_weight*/0.f);
+
+// 2. simplify a merged group with its border locked
+float err = 0;
+size_t out = meshopt_simplify(dst, group_idx, group_idx_count,
+    &amp;pos[0].x, vcount, sizeof(Vec3),
+    group_idx_count / 2, /*target_error*/1e9f,
+    meshopt_SimplifyLockBorder | meshopt_SimplifySparse, &amp;err);
+// err is relative to mesh extent; scale with meshopt_simplifyScale()</pre></div>
+<h3>Use it / skip it</h3>
+<div class="two">
+<div class="use"><b>Use it</b><ul><li>Opaque, mostly static, high-poly geometry (scans, sculpts, CAD, rock/architecture kits)</li><li>Many instances of heavy assets</li><li>You want zero LOD authoring and no popping</li></ul></div>
+<div class="skip"><b>Skip it</b><ul><li>Translucency; forward/mobile renderers</li><li>Small low-poly meshes (one blog-grade test: classic LOD wins under ~2M tris/mesh)</li><li>Heavily masked foliage, big WPO animation (§9)</li></ul></div>
+</div>
+<h3>Who should care</h3>
+<p>Engine and graphics programmers; technical artists choosing import settings; 3D-vision people building Gaussian-splat LOD, which is borrowing the same DAG idea (§11).</p>
+</section>
+
+<div class="divider" id="deep">Technical deep dive</div>
+
+<section id="prereq"><h2>1 · Bare-minimum context</h2>
+<ul>
+<li><b>Rasterization</b>: GPU turns triangles into pixels; shades pixels in 2×2 quads.</li>
+<li><b>LOD</b>: cheaper mesh versions at distance; classic = a few per object.</li>
+<li><b>Meshlet / cluster</b>: small fixed-size triangle batch (128 here).</li>
+<li><b>Quadric error metric</b>: Garland &amp; Heckbert's edge-collapse cost <a target="_blank" rel="noopener" href="https://publications.ri.cmu.edu/surface-simplification-using-quadric-error-metrics">(CMU)</a>.</li>
+<li><b>Visibility buffer</b>: store "which triangle" per pixel, shade later once.</li>
+<li><b>HZB</b>: mip pyramid of farthest depth, for conservative occlusion tests.</li>
+</ul></section>
+
+<section id="onelinr"><h2>2 · The one-liner — and what it hides</h2>
+<p><i>"Nanite renders unlimited triangles by streaming and LOD-ing 128-triangle clusters at pixel scale."</i> It hides:</p>
+<ol><li>How independently simplified neighbours meet <b>without cracks</b>.</li><li>How the GPU picks a <b>consistent cut with no neighbour communication</b>.</li><li>Why a <b>DAG</b>, not a tree, and why borders alternate.</li><li>Why a <b>software rasterizer</b> beats hardware for tiny triangles.</li><li>What it <b>costs</b>: overdraw, masks, animation, ray tracing, streaming.</li></ol></section>
+
+<section id="problem"><h2>3 · The problem</h2>
+<ul>
+<li>Source asset: 1M–1B triangles. Screen: 1080p = 2.07M pixels. Needed detail ≲ 1 triangle/pixel → ≲ 2M visible triangles ≈ 16k clusters, <em>independent of source size</em>.</li>
+<li>Discrete LOD: popping, per-asset authoring, per-object draw calls and CPU culling.</li>
+<li>Hardware raster shades 2×2 quads: a one-pixel triangle still costs ≥4 lanes → ≥75% wasted.</li>
+<li>Constraint: LOD decisions must be local (per cluster, parallel) yet globally watertight.</li>
+</ul>
+<svg viewBox="0 0 520 110" role="img" aria-label="Quad overshading: a one-pixel triangle shades a 2 by 2 quad, three of four lanes wasted" style="width:100%;max-width:520px">
+<defs><marker id="ah0" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0L6,3L0,6z" fill="currentColor"/></marker></defs>
+<rect x="20" y="20" width="60" height="60" class="box"/><line x1="50" y1="20" x2="50" y2="80" stroke="var(--line)"/><line x1="20" y1="50" x2="80" y2="50" stroke="var(--line)"/>
+<rect x="20" y="20" width="30" height="30" class="hot"/>
+<text x="95" y="45">one pixel actually covered</text><text x="95" y="62" class="dim">3 helper lanes still run → ≥75% waste</text>
+<text x="330" y="45">Nanite: small triangles go to a</text><text x="330" y="62">compute rasterizer with no quads</text>
+</svg>
+</section>
+
+<section id="model"><h2>4 · Mental model</h2>
+<p>A zoomable map in tiles with <b>pinned borders</b>: fine and coarse tiles share the same border points, so any mix interlocks.</p>
+<div class="callout warn"><b>Where the analogy breaks.</b> Pins make tile borders un-simplifiable: a border stays dense forever unless the <em>next</em> level draws its tile borders elsewhere. So the map is re-tiled at every zoom level with different cuts — that's why it's a DAG, not a tree.</div>
+<svg viewBox="0 0 560 150" role="img" aria-label="Group borders alternate: level 0 borders fall inside level 1 groups" style="width:100%;max-width:560px">
+<rect x="20" y="20" width="520" height="30" class="box"/>
+<g class="dim"><text x="22" y="14">level L: groups (| = locked borders)</text></g>
+<line x1="150" y1="20" x2="150" y2="50" stroke="var(--acc)" stroke-width="3"/><line x1="280" y1="20" x2="280" y2="50" stroke="var(--acc)" stroke-width="3"/><line x1="410" y1="20" x2="410" y2="50" stroke="var(--acc)" stroke-width="3"/>
+<rect x="20" y="95" width="520" height="30" class="box"/>
+<g class="dim"><text x="22" y="89">level L+1: re-grouped, old borders now inside groups</text></g>
+<line x1="85" y1="95" x2="85" y2="125" stroke="var(--acc)" stroke-width="3"/><line x1="215" y1="95" x2="215" y2="125" stroke="var(--acc)" stroke-width="3"/><line x1="345" y1="95" x2="345" y2="125" stroke="var(--acc)" stroke-width="3"/><line x1="475" y1="95" x2="475" y2="125" stroke="var(--acc)" stroke-width="3"/>
+<path d="M150 52 L150 93" stroke="var(--mut)" stroke-dasharray="3 3"/><path d="M280 52 L280 93" stroke="var(--mut)" stroke-dasharray="3 3"/><path d="M410 52 L410 93" stroke="var(--mut)" stroke-dasharray="3 3"/>
+</svg>
+</section>
+
+<section id="mech"><h2>5 · The mechanism, traced</h2>
+<h3>Offline build (per mesh)</h3>
+<pre>level 0: T triangles → graph-partition on shared edges → clusters of ≤128 tris
+repeat:
+  group    : merge 8–32 adjacent clusters                    [secondary: UE constants]
+  lock     : edges shared with a DIFFERENT group → both vertices locked
+  simplify : QEM collapse inside the group to ~50% triangles (borders untouched)
+  record   : group error  = max(raw error, max child error)     # monotone
+             group bounds = hull(children bounds, own bounds)   # nested
+  split    : re-cluster simplified group into new ≤128-tri clusters ("parents")
+  next level re-partitions the NEW clusters → old borders now interior
+until one root cluster remains</pre>
+<p>Each cluster ends up with (self error, self bounds) and (parent error, parent bounds); all clusters in a group share the same pair.</p>
+<h3>Runtime, one cluster</h3>
+<p>Cluster X: error 0.8 cm, parent error 1.9 cm, 1080p, 60° FOV. Step through as the camera moves from 25 m to 12 m.</p>
+<div class="stepper" id="stepper">
+<svg viewBox="0 0 560 180" role="img" aria-label="Step-through of selecting one cluster" id="stsvg">
+<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0L6,3L0,6z" fill="var(--mut)"/></marker></defs>
+<rect id="bx1" x="10" y="20" width="120" height="50" class="box"/><text x="22" y="40">cluster X</text><text x="22" y="56" class="dim">e=0.8 cm</text>
+<rect id="bx2" x="10" y="100" width="120" height="50" class="box"/><text x="22" y="120">parent group</text><text x="22" y="136" class="dim">e=1.9 cm</text>
+<path d="M70 98 L70 72" class="arrow"/>
+<rect id="bx3" x="170" y="20" width="150" height="50" class="box"/><text x="180" y="40">proj(X)</text><text id="pX" x="180" y="56" class="dim">—</text>
+<rect id="bx4" x="170" y="100" width="150" height="50" class="box"/><text x="180" y="120">proj(parent)</text><text id="pP" x="180" y="136" class="dim">—</text>
+<path d="M132 45 L168 45" class="arrow"/><path d="M132 125 L168 125" class="arrow"/>
+<rect id="bx5" x="360" y="55" width="190" height="60" class="box"/><text x="372" y="78">test: self ≤ τ &lt; parent</text><text id="res" x="372" y="98" class="dim">τ = 1 px</text>
+<path d="M322 45 L358 75" class="arrow"/><path d="M322 125 L358 95" class="arrow"/>
+</svg>
+<div class="ctl"><button class="btn" id="stb" type="button">◀ Back</button><button class="btn" id="stn" type="button">Next ▶</button><b id="stl">STEP 1 / 6</b></div>
+<div class="cap" id="stc" aria-live="polite"></div>
+</div>
+<p>Then the survivor passes frustum + HZB occlusion; big triangles go to the hardware rasterizer, tiny ones to a compute rasterizer, both writing a 64-bit value to the visibility buffer by atomic max (depth in high bits). A later pass reads (clusterID, triangleID), fetches the triangle, interpolates, shades once per pixel with materials binned by tile. GPU traversal: persistent threads pull BVH nodes from a lock-free queue; "not small enough" nodes push children back <span class="tag s">secondary</span>.</p>
+<div class="callout warn"><b>Conflict.</b> Visibility buffer: sources agree on 64 bits/pixel, ~30-bit depth, 7-bit in-cluster triangle ID (128 = 2<sup>7</sup>), cluster ID in the rest. One says 27-bit cluster ID; another a 25-bit ID in a 32-bit word plus a 32-bit depth word. I could not confirm against the slides. <span class="tag c">conflict</span></div>
+</section>
+
+<section id="math"><h2>6 · The math</h2>
+<h3>QEM collapse cost</h3>
+<p>Plane p=(a,b,c,d), a²+b²+c²=1; point v=(x,y,z,1). Squared distance (pᵀv)² = vᵀ(ppᵀ)v. Per-vertex Q = Σ ppᵀ (4×4 symmetric). Collapsing 1,2 → v̄ costs</p>
+<div class="eq">Δ(v̄) = v̄ᵀ (Q₁ + Q₂) v̄ ,  v̄ solves [q11 q12 q13 q14; q12 q22 q23 q24; q13 q23 q33 q34; 0 0 0 1] v̄ = (0,0,0,1)ᵀ</div>
+<p class="plain">each vertex remembers "how far from my old surface planes may I drift"; adding matrices adds errors without storing planes, so a collapse is O(1) after setup.</p>
+<h3>Screen-space error</h3>
+<p>Image-plane half-height at distance d is d·tan(φ/2) world units = H/2 px, so:</p>
+<div class="eq">proj(e,d) = e · H / ( 2 · d · tan(φ/2) ),  d = max(‖cam − c‖ − r, ε)</div>
+<p class="plain">error shrinks with distance and grows with resolution; using the nearest point of the bounding sphere makes it conservative (never optimistic).</p>
+<h3>Selection rule</h3>
+<div class="eq">draw c ⇔ proj(e_self, d_self) ≤ τ &lt; proj(e_parent, d_parent),  τ ≈ 1 px</div>
+<p class="plain">"I'm fine enough, and my coarser parent isn't." Exactly one cluster per leaf-to-root path satisfies this.</p>
+<h3>Why monotone?</h3>
+<p>If e_parent ≥ e_self and bounds_parent ⊇ bounds_self, then d_parent ≤ d_self, so proj is non-decreasing going up any path → one τ-crossing per path; siblings share the parent's numbers → all agree. No neighbour talk.</p>
+<h3>Size accounting</h3>
+<div class="eq">Σ triangles = T(1 + ½ + ¼ + …) = 2T ; levels ≈ log₂(T/128) ; T = 10⁹ → ≈ 23</div>
+<p class="plain">the whole DAG costs only about twice the original mesh. Epic: 14.4 B per input triangle; 1.5M-tri example 19.64 MB vs 148.95 MB for a 4-LOD static mesh <span class="tag v">verified</span>.</p>
+
+<h3>Interactive: which LOD gets chosen?</h3>
+<p>Illustrative model (not Nanite's real numbers): a 1M-triangle object where each coarser level halves triangles and doubles world error from e₀ = 0.05 cm.</p>
+<div class="stepper" style="padding:14px">
+<div class="sl"><label for="sd">Distance</label><input id="sd" type="range" min="1" max="500" value="25"><output id="sdo"></output></div>
+<div class="sl"><label for="sh">Screen height</label><input id="sh" type="range" min="480" max="2160" step="120" value="1080"><output id="sho"></output></div>
+<div class="sl"><label for="st">τ (pixels)</label><input id="st" type="range" min="0.25" max="4" step="0.25" value="1"><output id="sto"></output></div>
+<table id="lt"><thead><tr><th>Level</th><th>Triangles</th><th>World error</th><th>Projected</th><th></th></tr></thead><tbody></tbody></table>
+<div id="lres" class="callout info" aria-live="polite"></div>
+</div>
+</section>
+
+<section id="why"><h2>7 · Why it works</h2>
+<ul>
+<li><b>Watertight:</b> locked border vertices are identical at every level; a fine group beside a coarse one shares exact vertices. No stitching, no skirts.</li>
+<li><b>Local decision:</b> monotone error + nested bounds + group-shared numbers → per-cluster parallel choice, no sync.</li>
+<li><b>Constant work per pixel:</b> ≈1 triangle/pixel regardless of source size.</li>
+<li><b>Two-pass occlusion culling</b> <span class="tag s">secondary</span>: pass 1 draws clusters visible last frame vs last frame's HZB; build new HZB from that depth; pass 2 re-tests what pass 1 culled against the new HZB and draws the wrongly culled. Conservative-correct, no CPU readback.</li>
+<li><b>Software raster:</b> one wave per cluster, 64-bit atomic write to the visibility buffer, no quad waste; reported up to ~3× hardware for pixel-sized triangles <span class="tag s">secondary</span>.</li>
+</ul>
+<h3>Ablations</h3>
+<table><thead><tr><th>Remove…</th><th>What breaks</th></tr></thead><tbody>
+<tr><td>border locking</td><td style="text-align:left">cracks between groups</td></tr>
+<tr><td>alternating borders</td><td style="text-align:left">border triangles never simplify; root cluster never reaches 1 (border verts are 30–50% of verts at level 1 <span class="tag v">verified</span>)</td></tr>
+<tr><td>monotone error / nested bounds</td><td style="text-align:left">overlaps or holes; my toy: 50 / 3000 random views broken</td></tr>
+<tr><td>DAG (use tree)</td><td style="text-align:left">same borders at every level</td></tr>
+</tbody></table></section>
+
+<section id="knobs"><h2>8 · Design knobs &amp; alternatives</h2>
+<ul>
+<li><b>Cluster size</b> 128 (7-bit triangle ID, wave multiple). meshoptimizer user report: 256v/128t beat 64v/64t because rasterization cost dominated <span class="tag v">verified</span>.</li>
+<li><b>Group size</b> 8–32 clusters <span class="tag s">secondary</span>: bigger = better simplification, more streaming coupling.</li>
+<li><b>τ</b> ≈ 1 px: bigger = faster, shimmers more; visual stability leans on temporal AA.</li>
+<li><b>Position precision</b> 2<sup>P</sup> grid, ≤21 bits/axis: size vs stairstepping <span class="tag s">secondary</span>.</li>
+<li><b>Streaming pages</b> 128 KB (32 KB root) <span class="tag s">secondary</span>.</li>
+<li><b>Alternatives:</b> discrete LOD; view-dependent progressive meshes (not parallel per cluster); Quick-VDR clustered progressive meshes (2004); mesh shaders without a DAG; voxels/impostors for aggregates.</li>
+</ul></section>
+
+<section id="breaks"><h2>9 · Where it breaks</h2>
+<div class="callout bad"><b>Overdraw / thin geometry.</b> Layered or holey meshes lose few triangles to simplification and need many depth layers before occlusion bites; one article claims up to 2× worse than expected (80.lv, blog-grade).</div>
+<div class="callout bad"><b>Aggregates</b> (leaves, grass, hair): disconnected parts do not collapse into a plane. Epic's answer in the UE 5.8 docs: Assemblies, Voxels, Skinning <span class="tag v">verified</span>.</div>
+<div class="callout warn"><b>WPO / animation.</b> Static cluster bounds; displaced vertices can be wrongly culled (needs max-WPO-distance); animation invalidates cached virtual-shadow-map pages. <span class="tag s">secondary</span></div>
+<div class="callout warn"><b>Masked materials</b> need extra raster bins and per-pixel alpha test in the raster loop.</div>
+<div class="callout warn"><b>No translucency; deferred-only</b> → no forward VR, no mobile out of the box. <span class="tag s">secondary</span></div>
+<div class="callout warn"><b>Ray tracing:</b> clusters don't map to hardware BLAS directly; cluster acceleration structures (RTX Mega Geometry, 2025) are the hardware response <span class="tag v">verified</span>.</div>
+<div class="callout warn"><b>Streaming:</b> undersized pool thrashes; pop-in under fast cameras; SSD effectively required. <b>Subpixel shimmer</b> relies on TSR/TAA.</div>
+<div class="callout info"><b>Misconceptions.</b> "Free LODs": cost moves to material shading, shadows, memory. "Always faster": measured results mixed — one forum test: Nanite ~1.5 ms slower than an overdraw-optimized LOD scene; another: RTX 3090 55–58 FPS vs 47–49 <span class="tag s">secondary</span>.</div>
+</section>
+
+<section id="wild"><h2>10 · In the wild</h2>
+<ul>
+<li><b>UE5</b> quantizes and bit-packs everything; material binning in compute (UE 5.4, GDC 2024 "Nanite GPU Driven Materials" — slides not fetched, details from Scthe's notes) <span class="tag s">secondary</span>.</li>
+<li><b>Bevy</b>: meshopt+METIS DAG, two-pass culling; hardware raster only at time of post → worse micro-triangle perf <span class="tag s">secondary</span>.</li>
+<li><b>meshoptimizer</b> discussion #750: root counts 5–19 meshlets on Bunny/Dragon/Cliff, never 1 without tricks, because disjoint triangles stop further simplification <span class="tag v">verified</span>.</li>
+</ul></section>
+
+<section id="frontier"><h2>11 · Frontier (what's new)</h2>
+<table><thead><tr><th>Work</th><th>Year · venue</th><th>One-line contribution</th></tr></thead><tbody>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.21749">CuRast</a> <span class="tag v">verified</span></td><td>2026 · arXiv</td><td style="text-align:left">CUDA software rasterizer, 3-stage by triangle size; 2–5× (unique) / up to 12× (instanced) over Vulkan on 100M+-triangle meshes; Vulkan still ~10× faster for low-poly.</td></tr>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.06523">Virtualized 3D Gaussians</a> <span class="tag v">verified</span></td><td>2025 · arXiv</td><td style="text-align:left">Nanite-style cluster hierarchy for Gaussian splats; offline hierarchy, online cluster selection, billions of Gaussians.</td></tr>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.23158">LODGE</a> <span class="tag v">verified</span></td><td>2025 · NeurIPS</td><td style="text-align:left">Hierarchical LOD for large-scale splatting; chunked dynamic loading; seams hidden by <em>opacity blending</em>, since splats have no shared borders to lock.</td></tr>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/nvidia-rtx-mega-geometry-now-available-with-new-vulkan-samples/">RTX Mega Geometry</a> <span class="tag v">verified</span></td><td>2025 · NVIDIA</td><td style="text-align:left">Cluster and partitioned acceleration structures (<code>VK_NV_cluster_acceleration_structure</code>) + open cluster/LOD builders for ray tracing.</td></tr>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-foliage">Nanite Foliage</a> <span class="tag v">verified</span></td><td>UE 5.8 docs</td><td style="text-align:left">Assemblies, Voxels, Skinning. Doc example: 41M-tri tree; disk 3.5 GB → 29 MB; streaming 36 MB → 2.7 MB per tree in view.</td></tr>
+<tr><td style="text-align:left"><a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3675383">DGF</a> <span class="tag s">not verified</span></td><td>2024 · HPG</td><td style="text-align:left">AMD's dense hardware-friendly lossy meshlet format, 128-byte blocks, readable by RT hardware. (ACM returned 403.)</td></tr>
+</tbody></table>
+<p class="plain" style="--x:0">Also reported by one agent and not verified: GPU work-graph procedural generation (HPG 2024), Eurographics 2025 mesh-shader resurfacing. A "UE 5.7 / 200 trillion polygons" claim was unsupported and dropped.</p>
+</section>
+
+<section id="open"><h2>11b · Open problems</h2>
+<ul>
+<li><b>Aggregate LOD:</b> no accepted coarser <em>representation</em> that preserves coverage, colour and shading; voxels are Epic's first production answer, still new.</li>
+<li><b>Deforming geometry:</b> bounds/DAG assume rigid shapes; skinned Nanite is experimental (5.5+) <span class="tag s">secondary</span>. Hard because error bounds must hold for every pose.</li>
+<li><b>Ray tracing:</b> per-frame cluster BVH builds at ~1 px LOD; LOD consistency between primary and secondary rays.</li>
+<li><b>Portability:</b> 64-bit image atomics and persistent threads limit it to desktop-class GPUs; WebGPU/mobile ports are partial <span class="tag s">secondary</span>.</li>
+<li><b>Perceptual error:</b> QEM attribute weights are heuristic.</li>
+<li><b>Splats vs meshes:</b> no locked borders in 3DGS; blending hides seams; principled analogue unsettled.</li>
+</ul></section>
+
+<section id="lineage"><h2>12 · Lineage</h2>
+<p>Progressive meshes / view-dependent simplification (Hoppe, 1996–97) → Quadric error metrics (Garland &amp; Heckbert, SIGGRAPH 1997) → clustered hierarchy of progressive meshes, Quick-VDR (Yoon et al., 2004) <span class="tag s">secondary</span> → meshlets + mesh shaders (~2018) → <b>Nanite</b> (Karis, SIGGRAPH Advances 2021) → open clones (meshoptimizer, Bevy) → GPU-driven materials (GDC 2024) → cluster ray tracing (2025) → Gaussian-splat cluster LOD (2025). Cignoni et al.'s "Batched Multi-Triangulation" (2005) is a frequently cited precursor I did not retrieve.</p></section>
+
+<section id="hands"><h2>13 · Hands-on (≤30 min)</h2>
+<p><code>cluster_dag_1d.py</code> (same folder): a 1-D polyline stands in for the mesh; clusters of 8 segments, groups of 4, group simplified to half with endpoints locked, offsets alternate by level, monotone error + nested bounds. It picks cuts for random cameras and checks the selected clusters tile the curve exactly.</p>
+<div class="codewrap"><button class="copy" type="button" aria-label="Copy code">Copy</button><pre>$ python3 cluster_dag_1d.py
+DAG: 511 clusters, root err 60.817
+monotone err + nested bounds : tiling failures 0 / 3000
+ablate monotone rules        : tiling failures 50 / 3000
+cut cam=-500 tau=0.5 : 256 clusters, per level {0: 256}
+cut cam=-500 tau=4   : 128 clusters, per level {0: 8, 1: 116, 2: 4}
+cut cam=-500 tau=20  :  16 clusters, per level {4: 16}</pre></div>
+<p>Try: set <code>off = 0</code> always (never move borders) and watch the root error/cluster counts; or break only the bounds hull to see which half of the ablation does the damage. <b>Caveat:</b> 1-D toy, error measured vertically; it shows the consistency argument, not Nanite's quality or speed.</p></section>
+
+<section id="ladder"><h2>14 · Question ladder</h2>
+<button class="btn" id="revall" type="button">Reveal all</button>
+<div id="qs"></div>
+</section>
+
+<section id="next"><h2>15 · Go deeper next</h2>
+<ol><li>Mesh shaders + work graphs: how GPUs self-schedule geometry.</li><li>Virtual shadow maps: why Nanite and VSM are co-designed.</li><li>3D Gaussian splatting level-of-detail and streaming.</li></ol></section>
+
+<section id="sources"><h2>Sources</h2>
+<h3>Papers / talks</h3><ul class="refs">
+<li><a target="_blank" rel="noopener" href="https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf">Karis, A Deep Dive into Nanite Virtualized Geometry, SIGGRAPH 2021</a> (not fetched, too large)</li>
+<li><a target="_blank" rel="noopener" href="https://publications.ri.cmu.edu/surface-simplification-using-quadric-error-metrics">Garland &amp; Heckbert 1997</a></li>
+<li><a target="_blank" rel="noopener" href="https://gamma.cs.unc.edu/QVDR/QVDR-vis.pdf">Yoon et al., Quick-VDR</a></li>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.21749">CuRast</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.06523">Virtualized 3D Gaussians</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.23158">LODGE</a> · <a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3675383">DGF (unverified)</a></li>
+<li><a target="_blank" rel="noopener" href="https://media.gdcvault.com/gdc2024/Slides/GDC+slide+presentations/Nanite+GPU+Driven+Materials.pdf">GDC 2024 Nanite GPU-Driven Materials</a> (not fetched)</li></ul>
+<h3>Docs / code</h3><ul class="refs">
+<li><a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-technical-details">Epic: Nanite technical details</a></li>
+<li><a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-foliage">Epic: Nanite foliage</a> · <a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-virtualized-geometry-in-unreal-engine">Epic: Nanite overview</a></li>
+<li><a target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/nvidia-rtx-mega-geometry-now-available-with-new-vulkan-samples/">NVIDIA RTX Mega Geometry</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/zeux/meshoptimizer">meshoptimizer</a> · <a target="_blank" rel="noopener" href="https://github.com/zeux/meshoptimizer/discussions/750">discussion #750</a></li>
+<li><a target="_blank" rel="noopener" href="https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/">Bevy virtual geometry</a></li></ul>
+<h3>Articles (secondary, quality varies)</h3><ul class="refs">
+<li><a target="_blank" rel="noopener" href="https://www.elopezr.com/a-macro-view-of-nanite/">A Macro View of Nanite</a></li>
+<li><a target="_blank" rel="noopener" href="https://jglrxavpok.github.io/2024/04/02/recreating-nanite-runtime-lod-selection.html">Recreating Nanite: runtime LOD selection</a></li>
+<li><a target="_blank" rel="noopener" href="https://traceyang.com/en/2026/06/11/nanite-end-to-end-pipeline-walkthrough-qa/">Nanite end-to-end walkthrough</a></li>
+<li><a target="_blank" rel="noopener" href="https://trickybitsblog.github.io/2024/04/20/nanite.html">Nanite deep dive</a> · <a target="_blank" rel="noopener" href="https://www.sctheblog.com/blog/nanite-materials-notes/">Scthe: Nanite materials notes</a></li>
+<li><a target="_blank" rel="noopener" href="https://courses.grainger.illinois.edu/CS418/sp2023/text/nanite.html">Illinois CS418 notes</a> · <a target="_blank" rel="noopener" href="https://80.lv/articles/discussing-the-possibilities-and-drawbacks-of-unreal-engine-5-s-nanite">80.lv</a> · <a target="_blank" rel="noopener" href="https://crdg.jp/studio-tech-1/en/2025/05/29/3338/">CRDG test</a></li></ul>
+</section>
+</main>
+</div>
+
+<script>
+// --- step-through
+(function(){
+  var steps=[
+    ["25 m away","Cluster X (e = 0.8 cm) with parent (e = 1.9 cm). We will evaluate proj(e,d) = e·H/(2·d·tan(φ/2)) for both. H = 1080, φ = 60°.","—","—","τ = 1 px",0],
+    ["Project X","proj(X) = 0.8·1080 / (2·2500·0.577) ≈ 0.30 px. Fine enough for τ = 1 px.","0.30 px","—","self ≤ τ ✔",1],
+    ["Project parent","proj(parent) = 1.9·1080 / (2·2500·0.577) ≈ 0.71 px ≤ 1 px: the parent is also fine enough.","0.30 px","0.71 px","parent ≤ τ ✔",2],
+    ["Decision at 25 m","Because parent ≤ τ, a coarser cluster is drawn and X is skipped (condition self ≤ τ &lt; parent fails).","0.30 px","0.71 px","X skipped",3],
+    ["Camera → 12 m","d = 1200: proj(X) = 864/1385 ≈ 0.62 px; proj(parent) = 2052/1385 ≈ 1.48 px.","0.62 px","1.48 px","parent &gt; τ ✘",2],
+    ["Decision at 12 m","self 0.62 ≤ 1 &lt; 1.48 = parent → X is drawn. Siblings share the same parent numbers, so they flip together; shared locked borders mean no crack.","0.62 px","1.48 px","X drawn ✔",4]
+  ];
+  var i=0,$=function(id){return document.getElementById(id)};
+  function show(){
+    var s=steps[i];
+    $("stl").textContent="STEP "+(i+1)+" / "+steps.length;
+    $("stc").innerHTML="<b>"+s[0]+".</b> "+s[1];
+    $("pX").textContent=s[2];$("pP").textContent=s[3];$("res").textContent=s[4];
+    ["bx1","bx2","bx3","bx4","bx5"].forEach(function(b){$(b).setAttribute("class","box")});
+    var hot={0:["bx1","bx2"],1:["bx1","bx3"],2:["bx2","bx4"],3:["bx5"],4:["bx5","bx1"]}[s[5]];
+    hot.forEach(function(b){$(b).setAttribute("class","hot")});
+    $("stb").disabled=i===0;$("stn").disabled=i===steps.length-1;
+  }
+  $("stb").onclick=function(){if(i>0){i--;show()}};
+  $("stn").onclick=function(){if(i<steps.length-1){i++;show()}};
+  show();
+})();
+
+// --- LOD calculator (illustrative)
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function upd(){
+    var d=+$("sd").value,H=+$("sh").value,t=+$("st").value;
+    $("sdo").textContent=d+" m";$("sho").textContent=H+" px";$("sto").textContent=t+" px";
+    var rows="",chosen=-1,L=0,tri=1e6,e0=0.05,K=H/(2*Math.tan(Math.PI/6));
+    for(L=0;L<=12;L++){
+      var tr=Math.round(tri/Math.pow(2,L)),e=e0*Math.pow(2,L),p=e*K/(d*100);
+      var pe=e0*Math.pow(2,L+1)*K/(d*100);
+      var ok=p<=t&&(L===12||pe>t);
+      if(ok&&chosen<0)chosen=L;
+      rows+="<tr"+(ok?' style="background:var(--acc2);font-weight:600"':"")+"><td>L"+L+"</td><td>"+tr.toLocaleString()+"</td><td>"+e.toFixed(2)+" cm</td><td>"+p.toFixed(3)+" px</td><td>"+(ok?"◀ drawn":"")+"</td></tr>";
+    }
+    document.querySelector("#lt tbody").innerHTML=rows;
+    var tr2=chosen<0?1e6:Math.round(1e6/Math.pow(2,chosen));
+    $("lres").innerHTML=chosen<0?"All levels too coarse; L0 (1,000,000 tris) is used.":"Level <b>L"+chosen+"</b> → about <b>"+tr2.toLocaleString()+"</b> triangles for this object (≈ "+(1e6/tr2).toFixed(0)+"× fewer).";
+  }
+  ["sd","sh","st"].forEach(function(id){$(id).addEventListener("input",upd)});
+  upd();
+})();
+
+// --- copy buttons
+document.querySelectorAll(".copy").forEach(function(b){
+  b.addEventListener("click",function(){
+    var t=b.parentNode.querySelector("pre").innerText;
+    function ok(){b.textContent="Copied";setTimeout(function(){b.textContent="Copy"},1200)}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,function(){})}
+  });
+});
+
+// --- question ladder
+(function(){
+  var Q=[
+  ["Mechanism",[
+   ["What do two adjacent groups at different LOD levels have in common along their border, and why does that prevent cracks?","They share identical vertex positions on the shared edges (locked during both groups' simplification), so geometry meets exactly whatever each side's density."],
+   ["Walk one cluster through the selection test when the camera moves from 25 m to 12 m.","At 25 m: self 0.30 px, parent 0.71 px, both ≤ τ = 1, so a coarser cluster is chosen and X is skipped. At 12 m: self 0.62 px, parent 1.48 px &gt; 1 → self ≤ τ &lt; parent, X is drawn."],
+   ["What exactly happens in pass 2 of two-pass occlusion culling, and why is pass 1 needed?","Pass 1 culls with last frame's HZB (stale), draws survivors and builds a fresh HZB from that depth; pass 2 re-tests the clusters pass 1 culled against the new HZB and draws those now visible. Pass 1 gives a good depth pyramid cheaply without a CPU readback."],
+   ["How does a 64-bit atomic max implement visibility and depth test at once?","Depth is in the high bits so max (reverse-Z) keeps the nearest sample; the low bits carry the IDs, so the surviving value <i>is</i> the visible triangle."],
+   ["Why must every cluster in a group share the same parent error and bounds?","If siblings disagreed, one could be drawn fine while a neighbour in the same group is coarse; their shared interior vertices are not locked, so cracks or overlaps appear. Shared numbers make the group switch atomically."]]],
+  ["Why",[
+   ["Why 128 triangles per cluster?","Wave-size multiples (32/64) and the 7-bit triangle ID in the visibility buffer; small enough for fine culling, large enough to amortize per-cluster overhead."],
+   ["Why a DAG and not a tree?","In a tree each group's borders would be the same at every level and never simplify; a DAG lets level k+1 re-group clusters so old borders land inside new groups."],
+   ["Why is a software rasterizer faster for tiny triangles on 'slower silicon'?","Hardware shades 2×2 quads with per-triangle setup; a 1-pixel triangle wastes ≥75% of lanes. Compute rasterizes a cluster per wave with tiny loops and atomic writes, no helper lanes."],
+   ["Why use the nearest point of the bounding sphere rather than its centre?","The error bound must hold for the nearest point of the cluster volume; the centre under-estimates projected error for big clusters."]]],
+  ["Counterfactual",[
+   ["What if you did not lock group borders and stitched afterwards?","Stitching needs per-pair logic for all LOD combinations plus runtime neighbour checks; locking trades simplification quality (dense borders) for zero runtime coordination."],
+   ["What if parent error could be smaller than a child's?","Parent could be selected together with its child, or neither selected: overlaps and holes (toy ablation: 50/3000 random views broken)."],
+   ["What if cluster size doubled to 256?","Fewer clusters and less culling overhead but coarser culling granularity and more overdraw waste; ID bit budget changes. meshoptimizer's 256v/128t result hints larger vertex budgets simplify better."]]],
+  ["Adversarial",[
+   ["Build a mesh that makes the cut huge at any distance.","Dense layered or disconnected sheets (foliage cards, hair): simplification cannot remove triangles without changing coverage, so projected error stays small and the cut stays fine."],
+   ["How does a wind shader make a leaf disappear at the screen edge?","Culling uses original bounds; WPO moves vertices outside them; the cluster is culled while visible. Max WPO distance expands bounds."],
+   ["Which streaming pattern thrashes the page pool?","A fast camera sweep through high-detail areas needing more distinct pages than the pool holds: evict/reload loop."]]],
+  ["Connection",[
+   ["How does this relate to mip-mapping and virtual textures?","Same idea: ~1 texel/triangle per pixel, streamed on demand with feedback about what's needed; geometry's extra difficulty is staying watertight."],
+   ["How is a 3DGS LOD hierarchy the same / different?","Same hierarchical selection by projected footprint; but splats have no shared borders, so seams are hidden by opacity blending (LODGE) rather than locked vertices."]]],
+  ["Open",[
+   ["How would you LOD a tree canopy preserving average colour, silhouette and shadows?","Open: needs a coverage-preserving aggregate representation (voxels, impostors, learned) plus a shadow-consistent proxy; Epic's voxels are one answer."],
+   ["Can a forward renderer use a visibility-buffer pipeline without a deferred G-buffer?","Open / partly: visibility-buffer forward variants exist in research and some engines, but Nanite as shipped requires deferred; the mobile gap remains."]]]
+  ];
+  var h="",n=0;
+  Q.forEach(function(g){h+='<div class="qgroup">'+g[0]+'</div>';g[1].forEach(function(q){n++;h+="<details><summary>"+n+". "+q[0]+"</summary><p>"+q[1]+"</p></details>"})});
+  document.getElementById("qs").innerHTML=h;
+  var open=false,btn=document.getElementById("revall");
+  btn.onclick=function(){open=!open;document.querySelectorAll("#qs details").forEach(function(d){d.open=open});btn.textContent=open?"Hide all":"Reveal all"};
+})();
+
+// --- scroll spy
+(function(){
+  var links=[].slice.call(document.querySelectorAll("nav a"));
+  var map={};links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a});
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute("href").slice(1))}).filter(Boolean);
+  if(!("IntersectionObserver" in window))return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.remove("active")});var a=map[e.target.id];if(a)a.classList.add("active")}});
+  },{rootMargin:"-10% 0px -80% 0px"});
+  secs.forEach(function(s){io.observe(s)});
+})();
+</script>
+</body>
+</html>
