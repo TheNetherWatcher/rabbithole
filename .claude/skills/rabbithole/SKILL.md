@@ -175,14 +175,6 @@ Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverabl
 3. **Guard before pushing**: run `git remote get-url origin`; it must be `https://github.com/TheNetherWatcher/rabbithole.git` (or the ssh equivalent), and `history.md` must exist in the cwd. If not, stop and tell the user — never push dives to another repo.
 4. `git add` the new dive folder (README.md, index.html, code) + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
 
-## Running inside Codex CLI
-
-This skill also runs natively in Codex. Install once with `.claude/skills/rabbithole/scripts/install-codex.sh` (symlinks this folder into `~/.codex/skills/`), then from the repo root run `codex --search` and invoke `$rabbithole` with the same arguments. Differences when the host is Codex:
-- `model:` frontmatter and `research_model` are ignored; Codex uses its own model.
-- No subagents: run the Step 2 angles yourself one after another with web search (or shell out to `scripts/codex-research.sh` per angle in parallel), keeping notes per angle before writing.
-- No `mcp__claude-in-chrome__*`: verify the HTML in Step 4 with a headless browser if one is available (e.g. `npx playwright screenshot`), otherwise by checking the file parses and every section/link is present; say which check ran.
-- Steps 3–5 (writing, saving, history, guarded commit + push) are unchanged.
-
 ## Skill sync (when the skill itself changes)
 
 The skill (`SKILL.md`, `config.json`, `scripts/`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit to it:
