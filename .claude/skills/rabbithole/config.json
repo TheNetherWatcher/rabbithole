@@ -1,6 +1,8 @@
 {
   "subject": "cs",
   "research_model": "haiku",
+  "engine": "claude",
+  "codex_model": "",
   "subjects": {
     "cs": {
       "label": "Computer science",

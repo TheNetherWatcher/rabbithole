@@ -27,6 +27,8 @@ All files live in the current working directory (the repo root): `history.md` is
 - `subject` — default subject key when no `subject:` token is given (`cs` out of the box).
 - `subjects.<key>` — `label` + `domains` list for each preset subject.
 - `research_model` — model for the Step 2 research subagents (`haiku` by default; `sonnet`/`opus` for a harder topic). The skill itself runs on Haiku via the `model:` frontmatter, since the job is research + presentation, not novel reasoning. A `model:<name>` token in the invocation overrides `research_model` for that run.
+- `engine` — who runs the Step 2 research: `claude` (subagents, default) or `codex` (Codex CLI, see below). An `engine:<name>` token overrides it for that run.
+- `codex_model` — model passed to `codex exec -m` when `engine` is `codex`; empty = Codex's own default from `~/.codex/config.toml`.
 
 Resolve the subject once per run: `subject:` token > `config.json` `subject`. If the subject is free-form (not a preset key), derive 10–15 mechanism-rich domains for it yourself before Step 1 and use those. The rest of the skill is subject-agnostic: "system", "implementation", "in the wild" mean the real-world practice of that subject (labs, instruments, clinical protocols, markets, proofs…), not software, unless the subject is CS.
 
@@ -52,6 +54,16 @@ Do not explain from memory alone. Research first, thoroughly.
 - Frontier agent (angle 3) runs in BOTH modes and must return ≥3–5 recent papers/advancements (last ~2 years) with links, or explicitly report that the topic is settled and where active work moved to.
 - In research mode, weight angle 3 heaviest and add a 5th agent for "open problems & active debates" (position papers, workshop discussions, conflicting results).
 - Fetch primary sources (arXiv abs/pdf, RFCs, specs, source code) over secondary summaries whenever possible.
+
+### Codex engine (`engine: codex`)
+
+Same angles, same rules, but each one runs as a separate `codex --search exec` (live web search, read-only sandbox) instead of a subagent:
+1. Make a scratch dir (session scratchpad if available, else `mktemp -d`). For each angle write `<angle>.prompt.md`: the topic, depth, subject, the angle's brief from the list above, and "Return dense notes with source URLs for every claim. Do not write files."
+2. Run all angles in parallel from ONE Bash call, with a long timeout (each takes 1–5 min):
+   `for a in foundations impl frontier breakage; do .claude/skills/rabbithole/scripts/codex-research.sh "$d/$a.prompt.md" "$d/$a.md" "<codex_model>" & done; wait`
+   (research mode: add `debates` for the 5th angle.)
+3. Read every `<angle>.md`. If one failed (non-zero exit / missing file; check `<angle>.md.log`), rerun that angle once, then fall back to a `claude` subagent for it.
+4. Codex notes are research input, not truth: apply the same cross-checking rule below before using any claim.
 - Cross-check any number, date, or paper claim against ≥2 sources or a primary source. If unverified, say so.
 - Never cite a paper, benchmark, or API you didn't see in research results.
 
