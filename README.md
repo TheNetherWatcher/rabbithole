@@ -24,7 +24,9 @@ Defaults (subject, research model) live in `.claude/skills/rabbithole/config.jso
 
 ## Codex
 
+Separate Codex port in `.agents/skills/rabbithole/` — Codex picks it up automatically from this repo, no install. Same dive format and history.
+
 ```
-.claude/skills/rabbithole/scripts/install-codex.sh   # once: link skill into ~/.codex/skills
-codex --search                                       # then: $rabbithole [args]
+codex --search        # web search is required
+$rabbithole [args]    # same args as above
 ```
