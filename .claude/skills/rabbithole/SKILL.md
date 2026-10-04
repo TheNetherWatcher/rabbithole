@@ -1,5 +1,6 @@
 ---
 name: rabbithole
+model: haiku
 description: Deep, web-researched dive into ONE random non-trivial topic in a configurable subject (default CS — ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...; also math, physics, biology, medicine, economics, or any free-form subject) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a polished interactive HTML page per dive. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS" (or any subject), "rabbit hole", or asks to blog a past dive.
 ---
 
@@ -25,6 +26,7 @@ All files live in the current working directory (the repo root): `history.md` is
 `config.json` (next to this file) holds defaults:
 - `subject` — default subject key when no `subject:` token is given (`cs` out of the box).
 - `subjects.<key>` — `label` + `domains` list for each preset subject.
+- `research_model` — model for the Step 2 research subagents (`haiku` by default; `sonnet`/`opus` for a harder topic). The skill itself runs on Haiku via the `model:` frontmatter, since the job is research + presentation, not novel reasoning. A `model:<name>` token in the invocation overrides `research_model` for that run.
 
 Resolve the subject once per run: `subject:` token > `config.json` `subject`. If the subject is free-form (not a preset key), derive 10–15 mechanism-rich domains for it yourself before Step 1 and use those. The rest of the skill is subject-agnostic: "system", "implementation", "in the wild" mean the real-world practice of that subject (labs, instruments, clinical protocols, markets, proofs…), not software, unless the subject is CS.
 
@@ -42,7 +44,7 @@ Resolve the subject once per run: `subject:` token > `config.json` `subject`. If
 
 Do not explain from memory alone. Research first, thoroughly.
 
-- Fan out: launch 3–4 parallel `general-purpose` subagents (one message), each with a distinct angle, each told to return dense notes with source URLs:
+- Fan out: launch 3–4 parallel `general-purpose` subagents (one message) with `model` set to the resolved `research_model` (default `"haiku"`), each with a distinct angle, each told to return dense notes with source URLs:
   1. **Foundations** — original paper(s), canonical explanation, the actual algorithm/spec/math.
   2. **Implementation reality** — how real systems do it (source code, engineering blogs, docs, RFCs, kernel/compiler source), and where they deviate from the paper. Also return the adoption context for section 1b: which real products/systems use it, why they adopted it, how practitioners call/configure it (API, flags, sample usage), and when people choose alternatives.
   3. **Frontier** — new papers (arXiv, conference proceedings: NeurIPS/ICML/ICLR/USENIX Security/CCS/S&P/OSDI/SOSP/SIGMOD/VLDB/PLDI etc.), recent advancements, benchmarks, what changed in the last 1–2 years. Use WebSearch `extended` mode here.
