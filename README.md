@@ -1,6 +1,6 @@
 # rabbithole
 
-One CS topic at a time, all the way down — mechanism, math, design reasoning, failure modes, and the latest research.
+One topic at a time (CS by default, any subject on request), all the way down — mechanism, math, design reasoning, failure modes, and the latest research.
 
 - `dives/` — full deep dives (one folder per topic), generated via the `/rabbithole` Claude Code skill
 - `blog/` — blog posts written from dives
@@ -14,4 +14,18 @@ One CS topic at a time, all the way down — mechanism, math, design reasoning, 
 /rabbithole <topic>      # pick the topic
 /rabbithole blog [slug]  # turn a dive into a blog post
 /rabbithole history      # list past dives
+
+/rabbithole subject:physics          # random topic from another subject
+/rabbithole subject:"music theory"   # any free-form subject
+/rabbithole engine:codex             # research angles via Codex CLI
+/rabbithole model:sonnet             # heavier research subagents for this run
+```
+
+Defaults (subject, research model, engine, codex model) live in `.claude/skills/rabbithole/config.json`. The skill runs on Haiku; research subagents default to Haiku too.
+
+## Codex
+
+```
+.claude/skills/rabbithole/scripts/install-codex.sh   # once: link skill into ~/.codex/skills
+codex --search                                       # then: $rabbithole [args]
 ```
