@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoE routing and load balancing</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5f6368;--card:#fff;--line:#e3e0d8;--acc:#b4410a;--acc2:#0b6e6e;--soft:#fff3e6;--code:#f3f1ec;--warn:#fff0f0;--wl:#c0392b}
+@media (prefers-color-scheme:dark){:root{--bg:#141414;--fg:#e8e6e1;--mut:#a0a0a0;--card:#1d1d1d;--line:#333;--acc:#ff9a5c;--acc2:#52c7c7;--soft:#2a2118;--code:#222;--warn:#2b1a1a;--wl:#ff7b6b}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--acc2)}
+.wrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:32px;max-width:1180px;margin:0 auto;padding:0 20px}
+nav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:24px 0;font-size:14px}
+nav a{display:block;padding:4px 10px;color:var(--mut);text-decoration:none;border-left:2px solid var(--line)}
+nav a.on{color:var(--acc);border-left-color:var(--acc);font-weight:600}
+main{max-width:76ch;padding:24px 0 80px}
+h1{font-size:2rem;line-height:1.2;margin:.2em 0}
+h2{margin-top:2.4em;font-size:1.45rem;border-bottom:1px solid var(--line);padding-bottom:.25em}
+h3{margin-top:1.6em}
+.card-top{color:var(--mut);font-size:14px}
+.chip{display:inline-block;background:var(--soft);border:1px solid var(--line);border-radius:99px;padding:1px 10px;margin:2px 4px 2px 0;font-size:13px}
+.hero{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:16px 0}
+.plain{background:var(--soft);border:2px solid var(--acc);border-radius:12px;padding:6px 22px 16px;margin:20px 0}
+.divider{margin:48px 0 0;padding:14px;text-align:center;background:var(--acc);color:#fff;border-radius:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:18px 0}
+.strip div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.strip b{display:block;font-size:1.3rem;color:var(--acc)}
+.strip span{font-size:12px;color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.grid div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+.grid b{display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two>div{border:1px solid var(--line);border-radius:10px;padding:4px 14px;background:var(--card)}
+.use{border-top:4px solid var(--acc2)}.skip{border-top:4px solid var(--wl)}
+.call{border-left:4px solid var(--wl);background:var(--warn);padding:8px 14px;border-radius:6px;margin:14px 0}
+.note{border-left:4px solid var(--acc2);background:var(--card);padding:8px 14px;border-radius:6px;margin:14px 0;border:1px solid var(--line);border-left-width:4px}
+pre,code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;position:relative;border:1px solid var(--line)}
+code{background:var(--code);padding:1px 4px;border-radius:4px}pre code{padding:0;background:none}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;cursor:pointer;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+.eq{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0;overflow-x:auto}
+.plainterms{color:var(--acc2);font-style:italic}
+details{border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:6px 0;background:var(--card)}
+summary{cursor:pointer;font-weight:500}
+button.b{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:14px;margin-right:6px}
+button.b:disabled{opacity:.4;cursor:default}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+svg text{fill:var(--fg);font:12px system-ui}
+.bar{fill:var(--acc2)}.bar.hot{fill:var(--wl)}.mean{stroke:var(--acc);stroke-dasharray:4 3}
+@media (max-width:860px){.wrap{display:block;padding:0 16px}nav{display:none}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav id="toc" aria-label="Contents"></nav>
+<main>
+
+<p class="card-top">Computer science · ML/AI · MoE routing &amp; load balancing · hard · 2026-10-04</p>
+<h1>MoE routing and load balancing: from aux-loss to aux-loss-free</h1>
+<div class="hero">
+<b>TL;DR.</b> A Mixture-of-Experts layer sends each token to k of N expert FFNs. Left alone, the router collapses onto a few experts. The classic cure adds a balancing loss that fights the language-model loss. DeepSeek's cure (Wang et al. 2024, used in DeepSeek-V3) adds a per-expert <em>bias</em> that only affects which experts are <em>selected</em>, never how much their output counts. No extra gradient, much better balance.
+<div class="strip" aria-label="Key numbers">
+<div><b>256+1</b><span>V3 routed + shared experts</span></div>
+<div><b>top-8</b><span>experts per token (V3)</span></div>
+<div><b>0.001</b><span>bias update speed γ (14.3T tokens, then 0.0)</span></div>
+<div><b>0.72 → 0.04</b><span>MaxVio, 1B model (Wang et al.)</span></div>
+<div><b>1e-4</b><span>V3 sequence-wise α</span></div>
+</div>
+</div>
+
+<section id="plain" class="plain">
+<h2 style="margin-top:.6em">Plain English first</h2>
+<p><b>Explain it simply.</b> Picture a hospital with 256 specialist doctors and a triage nurse at the door. Each patient (a word in a sentence) sees the nurse for a second, who sends them to the 8 most relevant doctors. Only those 8 work, so the hospital can employ a huge staff without every patient costing 256 consultations. That is a Mixture-of-Experts language model: huge total knowledge, small cost per word.</p>
+<p>The catch: the nurse learns from outcomes. Doctors who see more patients get better, so the nurse sends them even more, and the rest never improve. Soon 5 doctors do everything. And the busiest doctor's queue sets how long everyone waits. Keeping queues even is <b>load balancing</b>.</p>
+<p>The classic fix <em>punishes the nurse</em> with a fairness penalty, which fights the real goal: the nurse stops picking the best doctor just to look fair. The newer fix puts a <em>sticky note on each doctor's door</em>: "busy, -0.001" or "idle, +0.001". The nurse still decides by merit; the notes tilt close calls toward idle doctors, and never change how much a doctor's opinion counts.</p>
+<p><b>Everyday example.</b> 1,000 patients, each needs 2 doctors: 2,000 consultations, fair share 500 each among 4 doctors. A gets 820, B 430, C 300, D 450. After the shift A's note goes down a notch, B/C/D up a notch. Repeat for 400 shifts and everyone sits near 500. Nobody was fined.</p>
+<p><b>Now the same thing, technically.</b></p>
+</section>
+
+<section id="context">
+<h2>Real-world context</h2>
+<p><b>What it is.</b> A sparsely-activated FFN: N experts, a per-token router picks k. Compute per token ≈ k experts; capacity ≈ N experts.</p>
+<p><b>Why it exists.</b> Dense scaling cost grows with every parameter. Sparse gating decouples capacity from FLOPs. Shazeer 2017 reached 137B params with up to 4096 experts; GShard 2020 hit 600B+ on 2048 TPUv3 in 4 days. Without balancing, learned routers collapse and waste the extra parameters.</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div><b>Mixtral 8x7B</b>8 experts, top-2, ~47B total / ~13B active</div>
+<div><b>DeepSeek-V3/R1</b>1 shared + 256 routed, top-8, node-limited M=4, 671B/37B. Loss-free bias.</div>
+<div><b>OLMoE (AI2)</b>64 experts, top-8, 7B/1B active, dropless, fully open</div>
+<div><b>Qwen MoE</b>Qwen1.5-MoE: 60 routed + 4 shared, top-4. Qwen3-30B-A3B: 128 experts, top-8. Global-batch LBL paper.</div>
+<div><b>DBRX</b>16 experts, top-4, 132B/36B</div>
+<div><b>Grok-1</b>8 experts, top-2, 314B</div>
+<div><b>Switch / ST-MoE</b>top-1, origin of aux loss and router z-loss</div>
+<div><b>Llama 4</b>shared + routed experts; details from secondary sources, unverified here</div>
+</div>
+<h3>How it's used</h3>
+<pre><button class="copy" type="button">Copy</button><code># Megatron-Core style flags (reported values; check your version's docs)
+--num-experts 8 --moe-router-topk 2 \
+--moe-router-load-balancing-type aux_loss --moe-aux-loss-coeff 1e-2 \
+--moe-grouped-gemm --expert-model-parallel-size 4
+
+# the router, minimal (token-choice, Mixtral-like)
+logits = h @ W_gate                          # [T, N]
+w, idx = torch.topk(logits, k, dim=-1)       # select
+w = torch.softmax(w, dim=-1)                 # gate over k winners only
+out = sum(w[:, j:j+1] * experts[idx[:, j]](h) ...)   # grouped GEMM in practice</code></pre>
+<div class="two">
+<div class="use"><h3>Use MoE when</h3><ul><li>High-concurrency serving or big training budgets: FLOPs are the bill</li><li>You have VRAM and fast interconnect for all N experts</li></ul></div>
+<div class="skip"><h3>Skip when</h3><ul><li>Low traffic or single-GPU (all experts must still fit in memory)</li><li>Strict latency variance, weak all-to-all bandwidth</li><li>Signs you chose wrong: GPU util under ~50%, wide p50/p99 gap, one GPU pegged</li></ul></div>
+</div>
+<p><b>Who should care.</b> ML engineers pretraining MoEs; infra/serving engineers (stragglers, batch-dependent routing); security engineers (cross-batch leaks).</p>
+</section>
+
+<div class="divider">Technical deep dive</div>
+
+<section id="prereq">
+<h2>Bare-minimum context</h2>
+<ul>
+<li>Transformer block = attention + FFN; MoE swaps the FFN for N experts plus a router (<a href="https://arxiv.org/abs/1701.06538" target="_blank" rel="noopener">Shazeer 2017</a>).</li>
+<li>Router = linear map from token state to N logits; top-k pick experts; output is the gate-weighted sum.</li>
+<li>Total params ≠ active params: FLOPs scale with k, memory with N.</li>
+<li>Expert parallelism (EP): experts sharded across GPUs; all-to-all dispatch/combine; the slowest GPU gates each layer.</li>
+<li>Top-k selection is non-differentiable; gradient reaches the router only via chosen experts' gate values.</li>
+<li>Capacity factor CF: per-expert cap <code>CF·T/N</code>; overflow tokens are dropped via residual (<a href="https://arxiv.org/abs/2101.03961" target="_blank" rel="noopener">Switch</a>).</li>
+</ul>
+</section>
+
+<section id="onel">
+<h2>The one-liner and what it hides</h2>
+<p><em>"A router sends each token to its top-k experts, and a balancing loss keeps experts evenly used."</em> It hides:</p>
+<ol>
+<li>Balance has several scopes (sequence, batch, corpus) with different quality costs.</li>
+<li>The aux loss is a second objective whose gradient lands on the same router weights as the LM loss.</li>
+<li>Selection and weighting need not use the same score. That is the trick of loss-free balancing.</li>
+<li>Collapse is a feedback loop, not an init bug.</li>
+<li>At inference nobody balances for you: routing depends on who shares your batch.</li>
+</ol>
+</section>
+
+<section id="problem">
+<h2>The problem</h2>
+<ul>
+<li>Layer time is gated by the <em>max</em> expert load under EP. My toy run below: mean 500, max ≈ 3.5× mean (MaxVio ≈ 2.5) → ~3.5× the balanced time.</li>
+<li>Capacity caps (Switch CF 1.0–2.0; ST-MoE 1.25 train / 2.0 eval) turn imbalance into dropped tokens or padding FLOPs.</li>
+<li>Starved experts get little gradient, so extra parameters are dead weight.</li>
+</ul>
+</section>
+
+<section id="mental">
+<h2>Mental model</h2>
+<p>Triage nurse plus doctors. <b>Where it breaks:</b> tokens aren't interchangeable. "Similar tokens go to similar experts" is what specialization <em>is</em>, and also what makes load skewed when data is skewed. Perfect balance and perfect specialization conflict.</p>
+</section>
+
+<section id="trace">
+<h2>The mechanism, traced</h2>
+<p>DeepSeek-V3-style (sigmoid affinities), 4 experts, k=2. Step through one token, then one batch update.</p>
+<svg id="tsvg" viewBox="0 0 640 230" role="img" aria-label="Step-through of routing one token" width="100%"></svg>
+<p id="tcap" aria-live="polite" class="note"></p>
+<p><button class="b" id="tb" type="button">Back</button><button class="b" id="tn" type="button">Next</button> <span id="tstep"></span></p>
+<pre><button class="copy" type="button">Copy</button><code>affinity s_i = sigmoid(logit) = [0.769, 0.599, 0.426, 0.711]
+bias b_i (running state)  = [-0.20, +0.05, +0.12, 0.00]   # expert 0 has been hot
+selection score s_i + b_i = [0.569, 0.649, 0.546, 0.711]
+top-2 of selection score  -> experts {3, 1}   (unbiased top-2 would be {0, 3})
+gates from UNBIASED s     = {e1: 0.599, e3: 0.711} -> normalised {0.457, 0.543}
+y = x + 0.457*E1(x) + 0.543*E3(x) (+ shared expert)
+
+batch loads [820,430,300,450], mean 500
+e_i = mean - load_i = [-320,+70,+200,+50]
+b_i += 0.001 * sign(e_i)  -> [-0.201,+0.051,+0.121,+0.001]</code></pre>
+<p>No gradient touched anything: the bias is controller state, not a parameter.</p>
+</section>
+
+<section id="math">
+<h2>The math</h2>
+<h3>Switch/GShard aux loss</h3>
+<div class="eq"><code>L_aux = α · N · Σ_i f_i · P_i</code>, with <code>f_i = (1/T) Σ_x 1[argmax p(x)=i]</code> (hard fraction), <code>P_i = (1/T) Σ_x p_i(x)</code> (soft mass). N experts, T tokens, α=1e-2 in Switch.</div>
+<p>Uniform routing gives <code>f_i=P_i=1/N</code> so <code>L=αN·N·(1/N²)=α</code>, the minimum for fixed ΣP=1. Why a product? <code>f_i</code> is non-differentiable (argmax); the product lets gradient flow through <code>P_i</code> weighted by true load: <code>∂L/∂p_i(x)=αN·f_i/T</code>.</p>
+<p class="plainterms">→ in plain terms: the penalty pushes router probability down on experts in proportion to how overloaded they are.</p>
+<h3>Router z-loss (ST-MoE)</h3>
+<div class="eq"><code>L_z = (1/B) Σ_x (log Σ_j e^{x_j})²</code>, c_z = 1e-3</div>
+<p class="plainterms">→ in plain terms: keep router logits small so softmax stays numerically sane.</p>
+<h3>Loss-free balancing (Wang et al. 2024; DeepSeek-V3)</h3>
+<div class="eq">selection: <code>s_i + b_i ∈ TopK(·)</code> · gate from unbiased <code>s_i</code> · update <code>b_i ← b_i + u·sign(c̄ − c_i)</code></div>
+<p><code>c_i</code> = tokens routed to expert i this batch; <code>c̄</code> = mean. Wang: u=0.001. V3: γ=0.001 for the first 14.3T tokens, then 0.0 for the last 500B.</p>
+<p class="plainterms">→ in plain terms: an integral-style controller on load. <code>sign</code> not proportional: step size is independent of violation size, so one wild expert doesn't make the bias overshoot. Cost: a limit cycle of amplitude ≈ u (see widget).</p>
+<p><b>Why no interference.</b> <code>b</code> has no autograd path into W. The aux loss instead adds <code>αN f_i ∂P_i/∂W</code> to the same weights the LM loss trains: α small → collapse; α large → logits pulled to uniform regardless of input. V3 keeps a sequence-wise loss with α=0.0001 "just to avoid extreme imbalance within any single sequence".</p>
+</section>
+
+<section id="widget">
+<h2>Try it: the bias controller</h2>
+<p>This widget is a JavaScript port of <code>loss_free_demo.py</code> (16 experts, top-2, frozen skewed router, 1000 tokens/step, 150 steps, own random seed), so its numbers differ from the numpy table below but show the same shape. Move the slider to change u.</p>
+<p><label for="u">Update speed u: <b id="uv">0.001</b></label><br>
+<input id="u" type="range" min="0" max="4" step="1" value="1" style="width:100%" aria-valuetext="0.001"></p>
+<svg id="wsvg" viewBox="0 0 640 200" role="img" aria-label="Expert loads after training with chosen u" width="100%"></svg>
+<p id="wcap" class="note" aria-live="polite"></p>
+<table><tr><th>u</th><th>MaxVio step 0</th><th>step 100</th><th>mean last 100</th></tr>
+<tr><td>0.0</td><td>2.523</td><td>2.580</td><td>2.568</td></tr>
+<tr><td>0.001</td><td>2.523</td><td>1.217</td><td>0.084</td></tr>
+<tr><td>0.01</td><td>2.523</td><td>0.098</td><td>0.158</td></tr>
+<tr><td>0.05</td><td>2.523</td><td>0.512</td><td>0.492</td></tr></table>
+<p>Table = real numpy output. u too small: slow; u too big: jitter forever. Wang et al. report the same shape (0.001 best, 0.01 fluctuates). Caveat: toy, router frozen, no LM loss; it shows the controller, not model quality.</p>
+</section>
+
+<section id="why">
+<h2>Why it works</h2>
+<p>Balance is a constraint on <em>selection frequency</em>, which an additive offset can steer without altering the learned <em>scoring</em>. Ablations:</p>
+<ul>
+<li>No bias → skew persists (demo: MaxVio ≈ 2.57 at u=0).</li>
+<li>Gate from the biased score → bias leaks into outputs and the model must learn around it.</li>
+<li>Drop node-limit M=4 → balance fine, cross-node all-to-all grows.</li>
+<li>Big-α aux loss → balance but worse perplexity. Wang: Loss-Controlled MaxVio 0.72 / 0.52 vs Loss-Free 0.04 / 0.04 at 1B / 3B.</li>
+</ul>
+</section>
+
+<section id="knobs">
+<h2>Design knobs and alternatives</h2>
+<table>
+<tr><th>Knob</th><th>Trade-off</th></tr>
+<tr><td>k / N granularity</td><td>more, smaller experts → more combinations and specialization, more all-to-all</td></tr>
+<tr><td>Shared experts</td><td>absorb common knowledge so routed ones specialise</td></tr>
+<tr><td>CF vs dropless</td><td>CF needs tuning and drops tokens; Megablocks block-sparse GEMM is dropless</td></tr>
+<tr><td>α, γ</td><td>see math; V3 anneals γ to 0</td></tr>
+<tr><td>Balance scope</td><td>sequence vs micro-batch vs global-batch (Qwen)</td></tr>
+<tr><td>Expert Choice</td><td>perfect balance, no drops; variable experts/token; couples tokens across a batch (leak, below)</td></tr>
+<tr><td>Sinkhorn / OT</td><td>exact balancing, extra compute (Megatron option)</td></tr>
+<tr><td>ReLU / Dirichlet routing</td><td>differentiable, dynamic k; frontier</td></tr>
+</table>
+</section>
+
+<section id="breaks">
+<h2>Where it breaks</h2>
+<ul>
+<li><b>Collapse loop:</b> popular expert → more gradient → better → more popular.</li>
+<li><b>Aux-loss dilemma:</b> small α collapses, large α erases specialization.</li>
+<li><b>Micro-batch bug</b> (Qiu et al. 2025): per-micro-batch LBL over 1–4 sequences forces within-sequence uniformity; a code-only sequence is punished for using code experts. Global-batch LBL fixes it.</li>
+<li><b>Stragglers:</b> EP all-to-all is a synchronous barrier; one hot GPU stalls all.</li>
+<li><b>Inference:</b> no controller at serve time; routing depends on batch composition.</li>
+</ul>
+<div class="call"><b>Security.</b> Hayes–Shumailov–Yona 2024 (<a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Buffer Overflow in MoE</a>): cross-batch dependence via capacity lets co-batched queries alter a victim's output. Yona–Shumailov–Hayes–Carlini 2024 (<a href="https://arxiv.org/abs/2410.22884" target="_blank" rel="noopener">Stealing User Prompts</a>): Expert-Choice routing plus CUDA <code>topk</code> tie-breaking recovers a victim prompt at ~100 queries/token, shown on a two-layer Mixtral.</div>
+<div class="call"><b>Misconception.</b> "Experts specialise in domains." Wang–Hayou–Nalisnick 2026 argue routing reflects hidden-space geometry; Mixtral's analysis found mostly syntactic/token-level specialization.</div>
+<p><b>Excluded as unverified:</b> an 85% speedup from dropping 12% of tokens; a 79.2% all-to-all latency share; specific sequence-vs-batch validation-loss numbers from secondary summaries.</p>
+</section>
+
+<section id="wild">
+<h2>In the wild</h2>
+<ul>
+<li><b>DeepSeek-V3:</b> γ=0.001 then 0.0; sigmoid + normalise; node-limited M=4; α=1e-4 safety net.</li>
+<li><b>Mixtral / Megatron default:</b> Switch-style aux loss ~1e-2, softmax over top-k logits.</li>
+<li><b>Megablocks:</b> experts as one block-sparse matmul; imbalance costs no FLOPs, no drops.</li>
+<li><b>vLLM / SGLang:</b> <code>moe_align_block_size</code> sorts token-expert pairs and pads to block multiples before grouped GEMM.</li>
+<li><b>OLMoE:</b> dropless token-choice, early routing saturation, low co-activation.</li>
+</ul>
+</section>
+
+<section id="frontier">
+<h2>Frontier</h2>
+<table>
+<tr><th>Paper</th><th>Year · venue</th><th>Contribution</th></tr>
+<tr><td><a href="https://arxiv.org/abs/2408.15664" target="_blank" rel="noopener">Auxiliary-Loss-Free Load Balancing</a> (Wang et al.)</td><td>Aug 2024</td><td>Bias balancing; 1B ppl 9.56→9.50, MaxVio 0.72→0.04; 3B 7.97→7.92, 0.52→0.04 (200B tokens)</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener">DeepSeek-V3 Technical Report</a></td><td>Dec 2024</td><td>The method at 671B scale</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2412.14711" target="_blank" rel="noopener">ReMoE</a> (Wang, Zhu, Chen)</td><td>Dec 2024 · ICLR 2025</td><td>ReLU gates replace TopK+softmax; fully differentiable, dynamic activation</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2501.11873" target="_blank" rel="noopener">Demons in the Detail</a> (Qiu et al.)</td><td>Jan 2025 · ACL 2025</td><td>Global-batch LBL; up to 42.8B params / 400B tokens, better ppl and specialization</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2409.02060" target="_blank" rel="noopener">OLMoE</a></td><td>Sep 2024 · ICLR 2025</td><td>Open 7B/1B-active MoE, dropless routing study</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2402.07871" target="_blank" rel="noopener">Fine-Grained MoE scaling laws</a></td><td>Feb 2024</td><td>Granularity as a scaling variable</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2604.09780" target="_blank" rel="noopener">Myth of Expert Specialization</a></td><td>Apr 2026</td><td>Routing reflects representation geometry</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2506.14038" target="_blank" rel="noopener">Similarity-Preserving Routers</a></td><td>Jun 2025</td><td>Keeps similar tokens together; reported 36% faster convergence</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2512.13996" target="_blank" rel="noopener">DTop-p MoE</a></td><td>Dec 2025</td><td>PI controller sets layerwise top-p under a global sparsity budget</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2603.18297" target="_blank" rel="noopener">Path-Constrained MoE</a></td><td>Mar 2026</td><td>Shared routers across layers; no aux loss</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2602.09001" target="_blank" rel="noopener">DirMoE</a></td><td>Feb 2026 · ICLR 2026</td><td>Dirichlet-based differentiable routing</td></tr>
+</table>
+<p class="note">I fetched abstracts for the first rows (Wang, V3 formulas, ReMoE, Qiu, Hayes, Yona). The later 2025–2026 rows come from the frontier agent's report; treat them and their numbers as lower confidence.</p>
+</section>
+
+<section id="open">
+<h2>Open problems</h2>
+<ul>
+<li><b>Balance vs specialization Pareto:</b> no agreed frontier. Batch-wise loosening helps, loss-free matches or beats aux loss, yet strict balance still wanted for EP.</li>
+<li><b>Training/serving mismatch:</b> the controller exists only in training; at serve, batch makeup decides load. Decoupling routing from batch composition is unsolved (and is the security issue).</li>
+<li><b>Router learnability:</b> top-k selection is non-differentiable; ReLU/Dirichlet/OT trade stability for gradient. No sample-complexity theory.</li>
+<li><b>Optimal granularity</b> beyond small scale.</li>
+<li><b>Why obvious fixes fail:</b> bigger α kills specialization; per-sequence balance forces uniformity on non-uniform data; expert-choice balances but breaks batch independence.</li>
+</ul>
+</section>
+
+<section id="lineage">
+<h2>Lineage</h2>
+<p>Jacobs et al. 1991 mixtures of experts → Shazeer 2017 noisy top-k + importance/load CV² → GShard 2020 (top-2, capacity) → Switch 2021 (<code>αNΣfP</code>) → ST-MoE 2022 (z-loss) → Expert Choice 2022 → DeepSeekMoE 2024 (fine-grained + shared) → Loss-Free Balancing / DeepSeek-V3 2024 → global-batch LBL and differentiable routers 2025–26.</p>
+</section>
+
+<section id="hands">
+<h2>Hands-on (≤30 min)</h2>
+<p>Run <code>loss_free_demo.py</code> (numpy only) in this folder.</p>
+<pre><button class="copy" type="button">Copy</button><code>python3 loss_free_demo.py
+u=0.0    MaxVio step0=2.523  step100=2.580  mean(last100)=2.568  |b|max=0.000
+u=0.001  MaxVio step0=2.523  step100=1.217  mean(last100)=0.084  |b|max=0.293
+u=0.01   MaxVio step0=2.523  step100=0.098  mean(last100)=0.158  |b|max=0.360
+u=0.05   MaxVio step0=2.523  step100=0.512  mean(last100)=0.492  |b|max=0.500</code></pre>
+<p>Try: add a "quality grows with load" term to see collapse feedback; swap <code>sign</code> for a proportional update.</p>
+</section>
+
+<section id="ladder">
+<h2>Question ladder</h2>
+<p><button class="b" id="reveal" type="button">Reveal all</button></p>
+<div id="ladderbody"></div>
+</section>
+
+<section id="next">
+<h2>Go deeper next</h2>
+<ol><li>Expert-parallel inference: all-to-all, expert replication, EPLB-style placement.</li><li>Megablocks and grouped-GEMM kernels.</li><li>Differentiable routing (ReMoE, soft MoE, Sinkhorn/OT).</li></ol>
+</section>
+
+<section id="sources">
+<h2>Sources</h2>
+<p><b>Papers:</b>
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1701.06538">Shazeer 2017</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2006.16668">GShard</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2101.03961">Switch</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2202.08906">ST-MoE</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.06066">DeepSeekMoE</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.15664">Wang loss-free</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2412.19437">DeepSeek-V3</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2412.14711">ReMoE</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2501.11873">Demons in the Detail</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2409.02060">OLMoE</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.05526">Buffer Overflow in MoE</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.22884">Stealing User Prompts</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.07871">Fine-grained scaling</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.09780">Myth of Expert Specialization</a> ·
+<a target="_blank" rel="noopener" href="https://people.eecs.berkeley.edu/~matei/papers/2023/mlsys_megablocks.pdf">Megablocks</a> ·
+<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2201.05596">DeepSpeed-MoE</a></p>
+<p><b>Code/docs:</b> HF Transformers <code>modeling_mixtral.py</code> · vLLM fused_moe docs · Megatron-Core MoE docs · OLMo-core router.</p>
+<p><b>Verification:</b> loss-free formulas and V3 numbers (γ, α, expert counts, M, Wang tables) checked against arXiv HTML. A research subagent said γ≈0.01 for Wang; the paper says u=0.001, which I used.</p>
+</section>
+
+</main>
+</div>
+
+<script>
+// TOC + scrollspy
+(function(){
+  var secs=[].slice.call(document.querySelectorAll('main section'));
+  var nav=document.getElementById('toc');
+  secs.forEach(function(s){var h=s.querySelector('h2');if(!h)return;var a=document.createElement('a');a.href='#'+s.id;a.textContent=h.textContent;nav.appendChild(a);});
+  var links=[].slice.call(nav.querySelectorAll('a'));
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
+  secs.forEach(function(s){io.observe(s);});
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){var t=b.parentNode.querySelector('code').innerText;try{navigator.clipboard.writeText(t);b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1200);}catch(e){}});});
+})();
+
+// Trace step-through
+(function(){
+  var svg=document.getElementById('tsvg'),cap=document.getElementById('tcap'),st=document.getElementById('tstep');
+  var s=[0.769,0.599,0.426,0.711],b=[-0.20,0.05,0.12,0.0];
+  var steps=[
+    {t:'Router logits [1.2, 0.4, -0.3, 0.9] pass through sigmoid to give affinities s_i.',show:'s'},
+    {t:'Add running bias b_i = [-0.20, +0.05, +0.12, 0.00] (expert 0 has been hot). Selection score s_i + b_i = [0.569, 0.649, 0.546, 0.711].',show:'sb'},
+    {t:'Top-2 of the selection score: experts 3 and 1. Without the bias it would have been experts 0 and 3.',show:'pick'},
+    {t:'Gate values come from the UNBIASED affinities: 0.599 and 0.711, normalised to 0.457 and 0.543. Output = 0.457·E1(x) + 0.543·E3(x) (+ shared).',show:'gate'},
+    {t:'After the batch, loads [820, 430, 300, 450] vs mean 500. b += 0.001·sign(mean − load): expert 0 goes down, 1–3 go up. No gradients involved.',show:'upd'}
+  ];
+  var i=0;
+  function draw(){
+    var sh=steps[i].show,h='';
+    var names=['E0','E1','E2','E3'],pick=[false,true,false,true];
+    for(var k=0;k<4;k++){
+      var x=40+k*150,sc=s[k],sel=s[k]+b[k];
+      var showB=(sh!=='s'),isPick=(sh==='pick'||sh==='gate'||sh==='upd')&&pick[k];
+      h+='<rect x="'+x+'" y="'+(170-sc*130)+'" width="50" height="'+(sc*130)+'" fill="var(--acc2)" opacity=".85"/>';
+      h+='<text x="'+x+'" y="188">'+names[k]+'  s='+sc.toFixed(3)+'</text>';
+      if(showB){h+='<rect x="'+(x+56)+'" y="'+(170-sel*130)+'" width="50" height="'+(sel*130)+'" fill="'+(isPick?'var(--acc)':'var(--line)')+'"/>';h+='<text x="'+(x+56)+'" y="'+(164-sel*130)+'">s+b='+sel.toFixed(3)+'</text>';}
+      if(sh==='gate'&&pick[k]){h+='<text x="'+x+'" y="'+(160-sc*130)+'" style="font-weight:700">gate '+(k===1?'0.457':'0.543')+'</text>';}
+    }
+    if(sh==='upd'){h+='<text x="40" y="215">b → [-0.201, +0.051, +0.121, +0.001]</text>';}
+    h+='<text x="40" y="14">bars: teal = raw affinity s, orange = selected by s+b</text>';
+    svg.innerHTML=h;cap.textContent=steps[i].t;st.textContent='Step '+(i+1)+' / '+steps.length;
+    document.getElementById('tb').disabled=i===0;document.getElementById('tn').disabled=i===steps.length-1;
+  }
+  document.getElementById('tb').onclick=function(){if(i>0){i--;draw();}};
+  document.getElementById('tn').onclick=function(){if(i<steps.length-1){i++;draw();}};
+  draw();
+})();
+
+// Slider widget: JS port of loss_free_demo.py (own PRNG, so numbers differ slightly from numpy table)
+(function(){
+  var us=[0,0.001,0.01,0.05,0.2];
+  function rng(seed){var a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function gauss(r){var u=1-r(),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  function run(u){
+    var N=16,k=2,T=1000,d=16,steps=150,r=rng(7);
+    var W=[];for(var i=0;i<d;i++){W.push([]);for(var j=0;j<N;j++)W[i].push(gauss(r)/Math.sqrt(d));}
+    var skew=[];for(var j=0;j<N;j++)skew.push(gauss(r)*0.8);
+    var b=new Array(N).fill(0),load;
+    for(var t=0;t<steps;t++){
+      load=new Array(N).fill(0);
+      for(var n=0;n<T;n++){
+        var x=[];for(var i=0;i<d;i++)x.push(gauss(r));
+        var sc=[];for(var j=0;j<N;j++){var z=skew[j];for(var i=0;i<d;i++)z+=x[i]*W[i][j];sc.push({j:j,v:1/(1+Math.exp(-z))+b[j]});}
+        sc.sort(function(a,c){return c.v-a.v;});
+        for(var q=0;q<k;q++)load[sc[q].j]++;
+      }
+      var mean=T*k/N;
+      for(var j=0;j<N;j++){b[j]+=u*Math.sign(mean-load[j]);}
+    }
+    return load;
+  }
+  var svg=document.getElementById('wsvg'),cap=document.getElementById('wcap'),sl=document.getElementById('u'),uv=document.getElementById('uv');
+  function draw(){
+    var u=us[+sl.value];uv.textContent=u;sl.setAttribute('aria-valuetext',String(u));
+    var load=run(u),mean=125,mx=Math.max.apply(null,load),h='';
+    var sc=150/Math.max(mx,mean*1.2);
+    load.forEach(function(l,j){var x=20+j*38,hh=l*sc;h+='<rect class="bar'+(l>mean*1.3?' hot':'')+'" x="'+x+'" y="'+(170-hh)+'" width="28" height="'+hh+'"/><text x="'+x+'" y="188">E'+j+'</text>';});
+    h+='<line class="mean" x1="10" x2="630" y1="'+(170-mean*sc)+'" y2="'+(170-mean*sc)+'"/><text x="520" y="'+(164-mean*sc)+'">fair share '+mean+'</text>';
+    svg.innerHTML=h;
+    var mv=(mx-mean)/mean;
+    cap.textContent='u='+u+': after 150 steps (JS port, 1000 tokens/step), max load '+mx+' vs fair share '+mean+' → MaxVio ≈ '+mv.toFixed(2)+(u===0?' (no balancing).':u>=0.05?' (too fast: biases overshoot every step).':'.');
+  }
+  sl.addEventListener('input',draw);draw();
+})();
+
+// Question ladder
+(function(){
+  var Q=[
+  ['Mechanism',[
+   ['Why does top-k + softmax-over-k give the router gradient only through chosen experts?','Unselected experts have gate 0 after masking; their logits do not affect output. Selection itself is discrete.'],
+   ['In V3, which score multiplies the expert output, biased or raw?','Raw sigmoid affinity (normalised over the selected set). Bias only affects selection.'],
+   ['What do f_i and P_i represent, and why is only P_i differentiable?','f = hard fraction of tokens whose argmax is i (non-differentiable); P = mean router prob (differentiable). Gradient is αN·f_i on the P path.'],
+   ['What does capacity CF·T/N do at overflow?','Excess tokens skip the expert via the residual (dropped).'],
+   ['What is MaxVio?','(max load − mean load) / mean load; 0 = perfect.']]],
+  ['Why',[
+   ['Why sign in the bias update?','Bounded step, no overshoot from outlier loads, simple; cost is jitter of order u.'],
+   ['Why anneal γ to 0 at the end (V3)?','Freezes biases so late training is not perturbed by controller jitter. This rationale is my inference; the paper only reports the schedule.'],
+   ['Why does aux loss hurt quality at large α?','Its gradient pulls router logits toward uniform regardless of token content, fighting the LM gradient.'],
+   ['Why does micro-batch balancing hurt specialization?','It forces each tiny batch of 1–4 sequences to use all experts even if all tokens are code.'],
+   ['Why do shared experts help?','Common knowledge lives in always-on experts so routed ones need not duplicate it.']]],
+  ['Counterfactual',[
+   ['If gating used s_i + b_i, what changes?','Bias enters the output, so a controller meant to be neutral perturbs predictions and couples to gradients.'],
+   ['If load were measured per sequence instead of per batch?','Stricter, close to the micro-batch problem; V3 only keeps a tiny α for that.'],
+   ['What if N doubles at fixed active FLOPs?','More combinations and usually better quality (granularity scaling), but more all-to-all and memory.']]],
+  ['Adversarial',[
+   ['How can an attacker in your batch change your output when capacity limits exist?','Flood an expert so your tokens overflow and are dropped or rerouted (Hayes 2024).'],
+   ['Why does expert-choice leak?','Experts choose across the whole batch, coupling tokens of different users; CUDA topk tie-breaking makes it exploitable (Yona 2024).'],
+   ['How could you game a bias controller?','Speculative: skew traffic so biases drift; matters only if bias is shared across users in serving. Not shown in the literature I verified.']]],
+  ['Connection',[
+   ['How is the bias controller like a PI loop or TCP congestion control?','Feedback on error; step size trades speed against oscillation.'],
+   ['How does Megablocks change the cost of imbalance?','Dropless block-sparse GEMM: no drops or padding FLOPs, though cross-GPU stragglers remain.']]],
+  ['Open',[
+   ['Is there a balance/specialization Pareto frontier?','Unsettled; evidence both ways.'],
+   ['Can routing be made independent of batch composition at inference?','Open.']]]
+  ];
+  var body=document.getElementById('ladderbody'),h='';
+  Q.forEach(function(g){h+='<h3>'+g[0]+'</h3>';g[1].forEach(function(q){h+='<details><summary>'+q[0]+'</summary><p>'+q[1]+'</p></details>';});});
+  body.innerHTML=h;
+  var open=false,btn=document.getElementById('reveal');
+  btn.onclick=function(){open=!open;body.querySelectorAll('details').forEach(function(d){d.open=open;});btn.textContent=open?'Hide all':'Reveal all';};
+})();
+</script>
+</body>
+</html>
