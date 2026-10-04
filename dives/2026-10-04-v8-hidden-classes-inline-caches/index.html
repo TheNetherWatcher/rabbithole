@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>V8 hidden classes + inline caches</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1c1c1e;--mut:#5f6368;--ac:#0b6bcb;--bd:#dedbd2;--card:#fff;--code:#f2f0ea;--ok:#e8f5e9;--no:#fdecea;--warn:#fff6dc;--plain:#eef6ff}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--fg:#e8e8ea;--mut:#9aa0a6;--ac:#6cb2ff;--bd:#2c3038;--card:#1b1e24;--code:#20242b;--ok:#17301c;--no:#341a18;--warn:#352d12;--plain:#12263b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
+.layout{display:flex;max-width:1200px;margin:0 auto}
+nav{position:sticky;top:0;align-self:flex-start;height:100vh;overflow:auto;width:270px;padding:20px 12px;border-right:1px solid var(--bd);font-size:13px}
+nav a{display:block;padding:4px 8px;color:var(--mut);text-decoration:none;border-left:2px solid transparent}
+nav a.on{color:var(--ac);border-left-color:var(--ac);font-weight:600}
+main{flex:1;min-width:0;padding:24px 28px 80px;max-width:calc(70ch + 56px)}
+header.hero{border-bottom:1px solid var(--bd);margin-bottom:20px;padding-bottom:16px}
+.badges span{display:inline-block;background:var(--code);border-radius:99px;padding:2px 10px;margin:0 6px 6px 0;font-size:12px;color:var(--mut)}
+h1{margin:.2em 0} h2{margin-top:2em;border-bottom:1px solid var(--bd);padding-bottom:4px}
+code,pre{background:var(--code);border-radius:6px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+code{padding:1px 5px} pre{padding:12px;overflow:auto;position:relative} pre code{padding:0;background:none}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto} td,th{border:1px solid var(--bd);padding:6px 8px;text-align:left}
+section.plain{background:var(--plain);border-radius:12px;padding:4px 20px 12px;margin:20px 0}
+.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:14px 0}
+.key div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px} .key b{display:block;font-size:18px} .key span{font-size:12px;color:var(--mut)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:12px 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px} .card b{display:block} .card span{font-size:13px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px} .use{background:var(--ok)} .skip{background:var(--no)} .use,.skip{border-radius:10px;padding:2px 14px}
+.callout{background:var(--warn);border-left:4px solid #e0a800;padding:8px 12px;border-radius:6px;margin:12px 0}
+.divider{display:flex;align-items:center;gap:12px;margin:48px 0 0;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:13px}
+.divider:before,.divider:after{content:'';flex:1;border-top:2px solid var(--ac)}
+details{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;margin:4px 0 12px} summary{cursor:pointer;color:var(--ac)}
+.btn{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:6px 14px;cursor:pointer;font:inherit;font-size:14px} .btn:focus-visible{outline:3px solid #f90}
+.btn:disabled{opacity:.4;cursor:default}
+.copy{position:absolute;top:6px;right:6px;font-size:11px;padding:2px 8px}
+.stepper,.sim{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:12px 0}
+svg{width:100%;height:auto} .cell{fill:var(--code);stroke:var(--bd)} .cell.hl{fill:#ffd54f55;stroke:#e0a800} .t,.s,.t2{fill:var(--fg);font:12px ui-monospace,monospace;text-anchor:middle} .s{fill:var(--mut);font-size:10px} .t2{text-anchor:start;font-size:13px}
+.slot{fill:none;stroke:var(--ac);stroke-width:2;stroke-dasharray:5 3} .slot.hit{stroke:#2e9e4f} .slot.bad{stroke:#d33}
+@media (prefers-reduced-motion:no-preference){.slot{animation:dash 1.2s linear infinite}} @keyframes dash{to{stroke-dashoffset:-16}}
+.ctl{display:flex;gap:12px;align-items:center} .ctl.wrap{flex-wrap:wrap}
+.bar{height:10px;background:var(--code);border-radius:6px;margin:10px 0} #bar{height:100%;background:var(--ac);border-radius:6px;transition:width .3s}
+.simout{display:flex;gap:18px;flex-wrap:wrap}
+@media (max-width:860px){nav{display:none} main{padding:16px} .twocol{grid-template-columns:1fr}}
+</style></head><body>
+<div class='layout'>
+<nav aria-label='Table of contents'><a href='#0b-plain-english-first' data-id='0b-plain-english-first'>0b. Plain English first</a><a href='#1-bare-minimum-context' data-id='1-bare-minimum-context'>1. Bare-minimum context</a><a href='#1b-real-world-context' data-id='1b-real-world-context'>1b. Real-world context</a><a href='#2-the-one-liner-and-what-it-hides' data-id='2-the-one-liner-and-what-it-hides'>2. The one-liner, and what it hides</a><a href='#3-the-problem' data-id='3-the-problem'>3. The problem</a><a href='#4-mental-model' data-id='4-mental-model'>4. Mental model</a><a href='#5-the-mechanism-traced' data-id='5-the-mechanism-traced'>5. The mechanism, traced</a><a href='#6-the-math' data-id='6-the-math'>6. The math</a><a href='#7-why-it-works' data-id='7-why-it-works'>7. Why it works</a><a href='#8-design-knobs-alternatives' data-id='8-design-knobs-alternatives'>8. Design knobs &amp; alternatives</a><a href='#9-where-it-breaks' data-id='9-where-it-breaks'>9. Where it breaks</a><a href='#10-in-the-wild' data-id='10-in-the-wild'>10. In the wild</a><a href='#11-frontier' data-id='11-frontier'>11. Frontier</a><a href='#11b-open-problems' data-id='11b-open-problems'>11b. Open problems</a><a href='#12-lineage' data-id='12-lineage'>12. Lineage</a><a href='#13-hands-on-30-min' data-id='13-hands-on-30-min'>13. Hands-on (≤30 min)</a><a href='#14-question-ladder' data-id='14-question-ladder'>14. Question ladder</a><a href='#15-go-deeper-next' data-id='15-go-deeper-next'>15. Go deeper next</a><a href='#sources' data-id='sources'>Sources</a></nav>
+<main>
+<header class='hero'>
+<div class='badges'><span>Computer science</span><span>Browsers/web internals</span><span>hard</span><span>2026-10-04</span></div>
+<h1>V8 hidden classes + inline caches</h1>
+<p><b>TL;DR.</b> Every JS object points to a shared Map describing its layout; each <code>o.x</code> site memoizes (Map → offset); optimizing tiers bet on that memo and deoptimize when it breaks. <b>Why it matters:</b> it is the reason JS is fast, the reason shape-stable code is fast, and the reason JIT bugs are the richest browser-exploit surface.</p>
+<div class='key'><div><b>~1 ns</b><span>mono load (my run)</span></div><div><b>4</b><span>poly map limit</span></div><div><b>4096 / 1024</b><span>stub cache primary / secondary</span></div><div><b>21</b><span>elements kinds</span></div><div><b>10x / 10x</b><span>Maglev vs Sparkplug / TurboFan compile</span></div></div>
+</header>
+<section id='0b-plain-english-first' class='plain'><h2>0b. Plain English first</h2><p><strong>Explain it simply.</strong> JavaScript lets you make an object like <code>{x: 1, y: 2}</code> and add or remove fields whenever you like. That freedom is a problem for speed: to read <code>p.x</code>, a naive engine must search the object for a field called <code>"x"</code> every single time, like flipping through a stack of papers looking for the one labelled "x".</p>
+<p>V8 (the engine in Chrome and Node.js) cheats with two tricks. First, every object carries a small tag that says "I'm laid out like <em>this</em>" (the <strong>hidden class</strong>, V8 calls it a <strong>Map</strong>). All objects built the same way share one tag. Second, each place in your code that reads <code>p.x</code> keeps a sticky note (the <strong>inline cache</strong>): "last time, objects with tag #7 had <code>x</code> in the first slot." Next time, the engine glances at the object's tag; if it says #7, it grabs the first slot without searching. If the tag is different, it falls back to searching and updates its note. The faster tiers of the engine go further: they <em>bet</em> the note will stay true, compile code that assumes it, and bail out to slow code if the bet loses.</p>
+<p><strong>Everyday example.</strong> A waiter in a restaurant gets order slips. Slips from the tablet app are all printed in the same layout: table number in the top-left. After a few of them the waiter stops reading the header and just looks top-left. One day a handwritten slip shows up with the table number elsewhere. The waiter notices the layout is different (tag mismatch), stops, reads the slip properly, and mentally files "layouts A and B exist". If slips arrive in dozens of random layouts, the waiter gives up and reads every slip carefully. A very eager waiter (the optimizing compiler) might even pre-write the table number onto a ticket without looking, betting the layout holds; if the bet loses, the ticket is torn up and the waiter starts again.</p>
+<p><strong>Now the same thing, technically.</strong></p></section><div class='divider'><span>Technical deep dive</span></div><section id='1-bare-minimum-context' class=''><h2>1. Bare-minimum context</h2><ul>
+<li>JS objects are dynamic string→value maps semantically; engines must make that fast anyway.</li>
+<li>Prototype chain: a property miss on the object continues up the <code>[[Prototype]]</code> chain.</li>
+<li>V8 tiers: Ignition (interpreter) → Sparkplug (baseline) → Maglev (mid) → TurboFan (top). <a href="https://v8.dev/blog/maglev">v8.dev/blog/maglev</a></li>
+<li>Smi = small integer stored inline in a tagged word (low tag bit 0); heap objects are tagged pointers. With pointer compression a tagged value is 32 bits.</li>
+<li>Feedback vector: per-function array on the heap where each op site (property load, call, <code>+</code>) records what it saw.</li>
+<li>JIT <em>speculation</em>: compile for observed types, guard with cheap checks, deoptimize on guard failure.</li>
+</ul></section><section id='1b-real-world-context' class=''><h2>1b. Real-world context</h2><p><strong>What it is.</strong> A <em>Map</em> is V8's hidden class: an immutable-ish descriptor of an object's layout (which named properties, in what order, at which offsets, with which representations) plus its prototype and elements kind. An <em>inline cache</em> (IC) is a per-site memo keyed on Map that turns "find property <code>x</code>" into "compare Map, load at fixed offset".</p>
+<p><strong>Why it exists.</strong> Origin: the Self language (Ungar/Smith, 1980s) invented <em>maps</em> to make prototype-based objects as compact as class-based ones; Hölzle, Chambers, Ungar's <em>polymorphic inline caches</em> (ECOOP '91) extended single-entry ICs to several entries per site (median 11% speedup on their Self programs, 27% with type feedback for recompilation, ~2× fewer non-inlined sends) (<a href="https://bibliography.selflanguage.org/pics.html">Self bibliography</a>). Without it, every <code>o.x</code> is a hash probe or linear scan: slow and memory-hungry (property names stored per object).</p>
+<p><strong>Where it's used.</strong>
+- <strong>Chrome / Chromium</strong>: every web page's JS runs on V8.
+- <strong>Node.js, Deno</strong>: server-side JS on V8; Node's performance advice is basically "keep shapes stable".
+- <strong>Electron apps</strong> (VS Code, Slack): V8 inside.
+- <strong>Cloudflare Workers (workerd)</strong>: V8 isolates.
+- <strong>SpiderMonkey</strong> (Firefox): same idea, called <em>Shapes</em>, ICs expressed in <em>CacheIR</em>. <strong>JavaScriptCore</strong> (Safari): <em>Structures</em> + polymorphic ICs, tiers LLInt → Baseline → DFG → FTL. (<a href="https://webkit.org/blog/10308/speculation-in-javascriptcore/">Speculation in JSC</a>)</p>
+<p><strong>How it's used.</strong> Nothing to call: it's automatic. What you touch are inspection flags and coding habits.</p>
+<pre><code class="language-bash">node --allow-natives-syntax --trace-opt --trace-deopt --trace-ic app.js
+</code></pre>
+<pre><code class="language-js">// d8 / node --allow-natives-syntax
+%HasFastProperties(o)   // false =&gt; dictionary mode
+%HaveSameMap(a, b)      // do two objects share a Map?
+%DebugPrint(o)          // dumps Map, descriptors, elements kind
+</code></pre>
+<p>Habits: initialize all fields in the constructor in the same order; do not <code>delete</code> (set <code>undefined</code>/use <code>Map</code>); keep arrays homogeneous and packed; keep hot call sites ≤4 shapes.</p>
+<p><strong>When to use / not.</strong> You don't opt in; you decide whether to <em>design for</em> it. Worth caring on hot paths (parsers, ECS loops, serializers, framework internals). Not worth contorting cold code. Sign you picked wrong: <code>--trace-deopt</code> spam, <code>%HasFastProperties</code> false on hot objects, a profile full of <code>LoadIC_Megamorphic</code>.</p>
+<p><strong>Who should care.</strong> Node/backend engineers on hot paths, framework/library authors, perf engineers, and <strong>security engineers</strong> (the JIT's shape assumptions are the single richest browser-exploit surface).</p>
+<div class='cards'>
+<div class='card'><b>Chrome</b><span>all web JS runs on V8</span></div>
+<div class='card'><b>Node.js / Deno</b><span>server JS; shape stability is the perf advice</span></div>
+<div class='card'><b>Electron</b><span>VS Code, Slack: V8 inside</span></div>
+<div class='card'><b>Cloudflare workerd</b><span>V8 isolates at the edge</span></div>
+<div class='card'><b>SpiderMonkey</b><span>Shapes + CacheIR ICs</span></div>
+<div class='card'><b>JavaScriptCore</b><span>Structures + PICs; DFG/FTL speculate</span></div>
+</div>
+<div class='twocol'>
+<div class='use'><h4>Design for it when</h4><ul><li>hot loops, parsers, serializers</li><li>library / framework internals</li><li>objects created millions of times</li></ul></div>
+<div class='skip'><h4>Don't contort code when</h4><ul><li>cold paths, startup-once code</li><li>profile shows no deopt / megamorphic cost</li><li>readability would suffer for no measured gain</li></ul></div>
+</div>
+<div class='callout'><b>Misconception:</b> hidden classes are not per-constructor. They are per <i>transition path</i>: <code>{x,y}</code> and <code>{y,x}</code> differ.</div>
+</section><section id='2-the-one-liner-and-what-it-hides' class=''><h2>2. The one-liner, and what it hides</h2><p><em>"V8 gives objects hidden classes so property access is a fixed-offset load."</em></p>
+<p>It hides:
+1. Maps form a <strong>transition tree</strong> keyed by property <em>name and order</em>; <code>{x,y}</code> and <code>{y,x}</code> get different Maps.
+2. The IC is a <strong>monotonic state machine</strong> (uninit → mono → poly ≤4 → mega) with a process-wide <strong>stub cache</strong> fallback.
+3. Optimizing tiers don't just <em>use</em> the IC: they <strong>bet</strong> on it (CheckMaps + dependencies) and need <strong>deoptimization</strong>.
+4. Field <em>representation</em> (Smi/Double/HeapObject/Tagged) is part of the shape and can change in place.
+5. Every guard the compiler removes is a <strong>security assumption</strong>: a modelling bug turns into type confusion.</p></section><section id='3-the-problem' class=''><h2>3. The problem</h2><p>Semantically <code>o.x</code> is: walk the object's property table (hash map or sorted array), compare strings (interned, so pointer compares), if missing climb the prototype chain. That's tens of ns with several dependent loads, per access, and every object repeats its key names. Self measured a "Cartesian point" at 10 machine words without maps vs 3 with. A JS app does billions of accesses; V8 needs ~1 load.</p></section><section id='4-mental-model' class=''><h2>4. Mental model</h2><p>Map = <strong>struct definition</strong> discovered at runtime. Object = struct instance (<code>map*</code>, <code>properties*</code>, <code>elements*</code>, then in-object fields). IC = <strong>JIT-style <code>switch (map)</code></strong> at each site.</p>
+<p>Where it breaks: C structs are fixed; Maps are discovered <em>dynamically</em> and can <strong>mutate</strong> (field generalization, deprecation → "lazy migration") and be <strong>abandoned</strong> (dictionary mode). And the "switch" can be baked into machine code, which makes invalidation a first-class problem.</p></section><section id='5-the-mechanism-traced' class=''><h2>5. The mechanism, traced</h2><p>Code:</p>
+<pre><code class="language-js">function getX(o) { return o.x; }
+getX({x: 1, y: 2});
+</code></pre>
+<p><strong>Object creation.</strong> Literal <code>{x:1,y:2}</code> starts from a root Map M0 (empty, with in-object slack) and follows transitions: <code>M0 --x--&gt; M1 --y--&gt; M2</code>. M2's DescriptorArray (shared with M1/M0 through ownership rules): <code>[x: field, in-object #0, Smi] [y: field, in-object #1, Smi]</code>.</p>
+<p><strong>Layout (pointer compression, 4-byte tagged):</strong></p>
+<pre><code>offset  0   map        -&gt; M2
+offset  4   properties -&gt; empty_fixed_array   (out-of-object overflow)
+offset  8   elements   -&gt; empty_fixed_array
+offset 12   x          Smi(1)   (encoded 0b10)
+offset 16   y          Smi(2)
+</code></pre>
+<p>(Without compression, words are 8 bytes and <code>x</code> sits at offset 24.) This is my derivation from the JSObject layout; check with <code>%DebugPrint</code>.</p>
+<p><strong>Ignition + IC, first call.</strong> Bytecode <code>LdaNamedProperty a0, [name x], [slot 3]</code> consults <code>feedback_vector[3]</code>: UNINITIALIZED → runtime <code>LoadIC::Load</code> does the real lookup in M2's descriptors, finds <code>x</code> at in-object index 0, builds a <strong>handler</strong> and stores <code>(weak M2, handler)</code> in the slot. The handler is typically a Smi bit-packed with <code>KindBits | IsInobjectBits | IsDoubleBits | FieldIndexBits</code> (<a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h">handler-configuration.h</a>).</p>
+<p><strong>Second call (monomorphic hit).</strong> Slot holds M2: load <code>o.map</code>, compare, decode handler, load field at <code>index*word</code>. No lookup.</p>
+<p><strong>Hot → optimized (Maglev/TurboFan).</strong> The compiler reads slot 3 during graph building: monomorphic M2 + field handler ⇒ emit</p>
+<pre><code>CheckMaps  o, {M2}           ; deopt if o.map != M2
+v = LoadField o, offset=12   ; Smi
+</code></pre>
+<p>roughly:</p>
+<pre><code class="language-asm">cmp  dword [rax + 0], M2_compressed
+jne  deopt_entry
+mov  r10d, [rax + 12]
+</code></pre>
+<p>(Illustrative sketch, not literal V8 output.) The compiler also <em>registers a dependency</em> of this code on M2 (the Map's <code>dependent_code</code> list): if M2 later becomes deprecated or its stability assumptions break, the code is invalidated.</p>
+<p><strong>The bet loses.</strong> Call <code>getX({y: 1, x: 2})</code>: Map M3 (<code>M0 --y--&gt; --x--&gt;</code>). <code>CheckMaps</code> fails ⇒ <strong>eager deopt</strong>: the deoptimizer uses the translation table to rebuild an Ignition frame from registers/stack, and execution resumes in the interpreter at the bytecode offset. The IC slot misses, sees a second Map, becomes <strong>polymorphic</strong> <code>[(M2,h1),(M3,h2)]</code>. The next optimization emits a 2-way <code>CheckMaps</code>.</p>
+<p><strong>Elements path (parallel).</strong> <code>arr[i]</code> ICs key on the Map's <code>elements_kind</code> (part of bit_field2). Pushing <code>1.5</code> onto a <code>PACKED_SMI_ELEMENTS</code> array transitions its Map to <code>PACKED_DOUBLE_ELEMENTS</code> and rewrites the backing store; code that assumed Smi elements guards on the Map and deopts.</p>
+<h3>IC state machine</h3>
+<pre><code>UNINIT --first Map--&gt; MONO --2nd Map--&gt; POLY(2..4) --5th Map--&gt; MEGA
+          (never goes back)                          \-&gt; global stub cache probe
+</code></pre>
+<h3>Step-through: <code>getX({x:1,y:2})</code></h3>
+<div class='stepper' id='trace'>
+<div class='stage'>
+<svg viewBox='0 0 560 170' role='img' aria-label='object layout and IC slot'>
+<g id='obj'>
+<rect x='10' y='20' width='110' height='34' class='cell' id='c-map'/><text x='65' y='42' class='t'>map → M2</text>
+<rect x='120' y='20' width='110' height='34' class='cell'/><text x='175' y='42' class='t'>properties</text>
+<rect x='230' y='20' width='110' height='34' class='cell'/><text x='285' y='42' class='t'>elements</text>
+<rect x='340' y='20' width='100' height='34' class='cell' id='c-x'/><text x='390' y='42' class='t'>x = Smi(1)</text>
+<rect x='440' y='20' width='100' height='34' class='cell'/><text x='490' y='42' class='t'>y = Smi(2)</text>
+<text x='65' y='72' class='s'>+0</text><text x='175' y='72' class='s'>+4</text><text x='285' y='72' class='s'>+8</text><text x='390' y='72' class='s'>+12</text><text x='490' y='72' class='s'>+16</text>
+</g>
+<rect x='10' y='95' width='540' height='60' class='slot' id='slot'/>
+<text x='20' y='115' class='s'>feedback_vector[3]</text>
+<text x='20' y='140' class='t2' id='slotText'>UNINITIALIZED</text>
+</svg>
+</div>
+<p class='stepmsg' id='stepmsg'></p>
+<div class='ctl'><button class='btn' id='back'>Back</button><span id='stepno'>STEP 1 / 6</span><button class='btn' id='next'>Next</button></div>
+</div>
+
+<h3>Interactive: one call site, many shapes</h3>
+<div class='sim' id='sim'>
+<p>Send objects of different shapes into the same <code>o.x</code> site. IC state is monotonic: it never goes back.</p>
+<div class='ctl wrap' id='shapeBtns'></div>
+<div class='simout'>
+<div>State: <b id='simState'>UNINITIALIZED</b></div>
+<div>Maps seen: <b id='simMaps'>0</b></div>
+<div>Measured ns/call (Node 24.12, my run): <b id='simNs'>n/a</b></div>
+</div>
+<div class='bar'><div id='bar'></div></div>
+<button class='btn' id='simReset'>Reset</button>
+</div>
+</section><section id='6-the-math' class=''><h2>6. The math</h2><p>There is no deep math; there are two useful cost models and one structural count.</p>
+<p><strong>(a) Speculation break-even.</strong> Let <code>t_f</code> = cost of guarded fast path, <code>t_s</code> = cost of generic path, <code>p</code> = probability the guard fails per execution, <code>C_d</code> = amortized cost of one deopt + re-tier. Expected cost per execution when speculating:</p>
+<p><code>E = (1 − p)·t_f + p·(t_s + C_d)</code>  ≈  <code>t_f + p·(t_s − t_f + C_d)</code></p>
+<p>Speculation beats always-generic when <code>E &lt; t_s</code>, i.e. <code>p &lt; (t_s − t_f) / (t_s − t_f + C_d)</code>.
+→ in plain terms: a bet is worth it only if it loses <em>rarely enough</em> relative to how expensive losing is. Deopt costs microseconds-ish (my estimate, unmeasured), a fast load costs ~1 ns, so <code>p</code> must be tiny (≲1e-4 to 1e-3). That is why V8 waits for stable feedback and caps retries.</p>
+<p>Using my measured numbers below (<code>t_f ≈ 1.0 ns</code>, <code>t_s ≈ 4.9 ns</code>), the generic path itself is only ~4–5× slower, which is the <em>cap</em> on the benefit of the whole machinery for this micro-case.</p>
+<p><strong>(b) IC lookup cost by state.</strong> <code>T_mono = t_cmp + t_load</code>; <code>T_poly(k) ≈ k·t_cmp (linear) + t_load</code>, k ≤ 4; <code>T_mega = t_hash + 1–2 probes of a global table + handler call</code>. Why 4? Linear scan cost grows with k while hit rate gains saturate; the constant <code>kMaxPolymorphicMapCount = 4</code> is an engineering cutoff, not derived. (Verified as constant in V8 source per research notes; I did not re-open the source myself.)</p>
+<p><strong>(c) Shape explosion.</strong> n properties added in all possible orders ⇒ up to n! root-to-leaf paths and <code>Σ n!/(n−k)!</code> Maps. Deterministic construction order collapses this to n+1 Maps per "class". → in plain terms: this is why order consistency matters.</p>
+<p><strong>Stub cache sizing</strong> (primary/secondary two-level hashed on (Map, name)): in <code>stub-cache.h</code> at main I fetched <code>kPrimaryTableBits = 12</code> (4096 entries) and <code>kSecondaryTableBits = 10</code> (1024). One of the research agents claimed 11/9; the primary source says 12/10, so treat 11/9 as wrong. Sizes have changed across versions.</p></section><section id='7-why-it-works' class=''><h2>7. Why it works</h2><p>Core insight: <strong>programs are far more regular than the language permits.</strong> Real call sites see 1 shape &gt;90% of the time (the Self/PIC measurements and decades of JS engine telemetry back this; I did not find a single canonical V8 number, so treat the figure as folklore with support). Ablations:
+- <strong>No Maps</strong> → per-object name tables, hash lookups (slow, memory-heavy).
+- <strong>Maps but no ICs</strong> → still need a lookup keyed on Map: slow path forever.
+- <strong>ICs but no speculation (Ignition/Sparkplug)</strong> → one compare + load but no inlining, no escape analysis, no field type knowledge.
+- <strong>Speculation but no deopt</strong> → unsound: any surprise miscomputes. Deopt is the <em>safety net that makes aggressive guards legal</em>.
+- <strong>Speculation but a bug in dependency/guard elimination</strong> → type confusion (§9).</p></section><section id='8-design-knobs-alternatives' class=''><h2>8. Design knobs &amp; alternatives</h2><table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Poly limit (4)</td>
+<td>smaller → earlier megamorphic; larger → slower poly checks</td>
+</tr>
+<tr>
+<td>In-object slack tracking</td>
+<td>over-allocate for constructors (research notes: +8 slots, counter 7), shrink after a few allocations</td>
+</tr>
+<tr>
+<td>Dictionary mode</td>
+<td>when delete/huge property counts: stop using Maps, use hash table; ICs can't specialize</td>
+</tr>
+<tr>
+<td>Elements kinds (21)</td>
+<td>specialize arrays: Smi/Double/Tagged × packed/holey; transitions only <em>generalize</em></td>
+</tr>
+<tr>
+<td>Tier thresholds</td>
+<td>trade warm-up vs peak; Maglev at mid tier</td>
+</tr>
+<tr>
+<td>Const field tracking</td>
+<td>immutable fields can be embedded as constants in optimized code, invalidated on write</td>
+</tr>
+</tbody>
+</table>
+<p>Alternatives: <strong>SpiderMonkey</strong> CacheIR (ICs expressed as small IR that is both interpreted and compiled; reported 25–30% of compiled code is IC stubs, via Bernstein's CacheIR paper), <strong>JSC</strong> Structure + repatching ICs with DFG/FTL speculation, <em><em>classic </em>class-based</em> languages where shape is static and no guards are needed.</p></section><section id='9-where-it-breaks' class=''><h2>9. Where it breaks</h2><p><strong>Performance:</strong>
+- <strong>Megamorphic cliff.</strong> My measurement (Node v24.12, one machine): mono 0.99 ns, 4-shape 4.06 ns, 8-shape 4.90 ns, 64-shape 4.80 ns per call (loop includes <code>i % len</code> and an array load). Cliff is mono→poly; mega adds little on top <em>here</em> because the stub cache hits.
+- <strong><code>delete</code></strong> → dictionary mode; <code>%HasFastProperties</code> false.
+- <strong>Elements kind generalization is one-way</strong>; a single <code>NaN</code>/<code>-0</code> makes a Smi array double; a hole makes it holey "forever" (<a href="https://v8.dev/blog/elements-kinds">elements-kinds</a>). The famous "6×" in that post is about an out-of-bounds read bug, not holes.
+- <strong>Deopt loops</strong>: repeated deopts lead V8 to stop reoptimizing (a research agent said "~30"; I could not verify the number, treat as unverified).</p>
+<p><strong>Security (the big one).</strong> The compiler removes <code>CheckMaps</code> when it <em>proves</em> the Map can't have changed between two points. The proof depends on a precise <strong>side-effect model</strong>. Wrong model ⇒ wrong Map assumption ⇒ type confusion ⇒ <code>addrof</code>/<code>fakeobj</code> ⇒ arbitrary R/W.
+- <strong>CVE-2020-6418</strong>: <code>NodeProperties::InferReceiverMapsUnsafe</code> special-cased <code>kJSCreate</code> and <em>forgot to mark the result unreliable</em>, though <code>JSCreate</code> can run user code (e.g. a <code>Proxy</code> as 3rd arg to <code>Reflect.construct</code>). Inlined <code>Array.pop</code>; the side effect changed elements kind Smi→Double mid-function; the optimized code kept treating a double backing store as tagged. (<a href="https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html">Project Zero RCA</a>)
+- <strong>CVE-2020-16009</strong>: <code>Map::CanBeDeprecated()</code> wrongly said Maps with only Double/Tagged fields can't be deprecated (pointer compression, no unboxed doubles) so no code dependency was installed; the Map got deprecated anyway; in-place generalization Double→Tagged then led to Double/Tagged confusion. (<a href="https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html">Project Zero RCA</a>)
+- <strong>CVE-2025-2135</strong>: <code>InferMapsUnsafe()</code> handling of <code>TransitionElementsKindOrCheckMap</code> lacked an aliasing check, returning <code>kReliableMaps</code> when two IR nodes referred to the same runtime object ⇒ object-array vs double-array confusion; exploited within the V8 sandbox. (<a href="https://www.zellic.io/blog/pwning-v8ctf/">Zellic</a>)
+- <strong>CVE-2022-1134</strong> ("Super IC"): confusion between <code>lookup_start_object</code> and <code>receiver</code> in the super-property IC. (<a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/">GitHub Blog</a>) (read by the research agent, not re-fetched by me)</p>
+<p>Pattern: <em>an optimizer reasoning about Maps/elements kinds across an effect chain is a soundness proof written in C++</em>. The <strong>V8 sandbox</strong> (pointer-compression cage + indirection tables) limits what a corrupted heap can reach but doesn't fix the logic bugs (<a href="https://v8.dev/blog/sandbox">v8.dev/blog/sandbox</a>).</p>
+<p><strong>Misconceptions.</strong> "Hidden classes are per-constructor" (no: per transition path). "Polymorphic is always bad" (≤4 is OK). "<code>delete</code> is slow because it's slow" (it flips the object to a different <em>representation</em>, hurting every later access). "Sandbox = JIT bugs harmless" (no, only contains them).</p>
+<p>I dropped several CVE claims from the research notes that I could not confirm (an ID in the CVE-2026 range with a GitHub-repo-only source; unverified root causes for CVE-2022-1096 and CVE-2023-3079).</p></section><section id='10-in-the-wild' class=''><h2>10. In the wild</h2><ul>
+<li><strong>Node/Chrome</strong>: tiers Ignition → Sparkplug → Maglev (Chrome M117) → TurboFan. Maglev compiles "roughly 10× slower than Sparkplug, 10× faster than TurboFan"; −10% energy on Speedometer, −3.5% on JetStream (<a href="https://v8.dev/blog/maglev">v8.dev/blog/maglev</a>). (A research agent said "20×"; primary source says 10×.)</li>
+<li><strong>Turboshaft</strong>: CFG IR replacing Sea of Nodes in TurboFan's backend, "compile time got divided by 2" (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes">blog</a>).</li>
+<li><strong>React cliff</strong>: a real-world shape/representation performance cliff documented by V8 (<a href="https://v8.dev/blog/react-cliff">v8.dev/blog/react-cliff</a>).</li>
+<li><strong>Deviations from textbook PICs</strong>: V8's ICs live in a heap-allocated feedback vector (not patched machine code), handlers are Smi-encoded data, plus a global stub cache for megamorphic sites; textbook PICs patch call-site code in place.</li>
+</ul></section><section id='11-frontier' class=''><h2>11. Frontier</h2><p>Settled core, active periphery: the <em>idea</em> is 35 years old; recent work is on keeping the speculation sound and cheap.</p>
+<ul>
+<li><strong>Mutable heap numbers</strong> (V8 blog, 2025-02-25): script-context slots own a mutable HeapNumber/Int32, avoiding allocation per update; ~2.5× on <code>async-fs</code>, ~1.6% JetStream2. Verified. https://v8.dev/blog/mutable-heap-number</li>
+<li><strong>Leaving the Sea of Nodes</strong> (V8 blog, 2025-03-25): CFG IR migration, 2× compile time. Verified (date from research notes). https://v8.dev/blog/leaving-the-sea-of-nodes</li>
+<li><strong>CVE-2025-2135 writeup</strong> (Zellic, 2025): aliasing bug in map inference found via V8CTF. Verified. https://www.zellic.io/blog/pwning-v8ctf/</li>
+<li><strong>Translation Validation for JIT Compiler in V8 (TurboTV)</strong> (ICSE 2024): SMT-based validation of TurboFan optimizations, finds range-analysis bugs. https://kihongheo.kaist.ac.kr/publications/icse24.pdf (reported by research agent; not opened)</li>
+<li><strong>OptFuzz</strong> (USENIX Security 2024): optimization-path-guided fuzzing; 36 new bugs across V8/JSC/SpiderMonkey/Hermes (per agent). https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf (not opened)</li>
+<li><strong>DUMPLING</strong> (NDSS 2025): fine-grained differential fuzzing comparing engine state; 8 new V8 bugs (per agent). https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf (not opened)</li>
+<li>Agent also listed <em>CoSSJIT</em> (OOPSLA 2025), <em>Understanding and Finding JIT Compiler Performance Bugs</em> (arXiv 2603.06551) and a Dec 2025 data-centric fuzzing paper (arXiv 2512.18102); I did not verify these, so they're only pointers.</li>
+</ul></section><section id='11b-open-problems' class=''><h2>11b. Open problems</h2><ul>
+<li><strong>Sound speculation.</strong> No production-scale proof that "effect-chain Map inference" is correct; bugs recur (2020 → 2025 in the same function family). Obvious fix (always keep CheckMaps) loses much of the benefit. Approaches: translation validation (TurboTV), differential fuzzing, verified-speculation work (POPL'21, Vitek et al.).</li>
+<li><strong>Containment vs correctness.</strong> V8 sandbox treats logic bugs as inevitable; open question whether containment gets strong enough to make JIT bugs non-critical.</li>
+<li><strong>Warm-up.</strong> Feedback must be re-learned on every page load; caching/snapshotting profiles risks stale or attacker-influenced feedback.</li>
+<li><strong>Side channels.</strong> IC state/tier changes create data-dependent timing; reported to undermine constant-time JS (JIT-Leaks, IEEE S&amp;P 2020; DeJITLeak, ESEC/FSE 2022: from research notes, unopened).</li>
+<li><strong>Representation invariants</strong> across Map deprecation (CVE-2020-16009 class) have no decidable, general checker.</li>
+</ul></section><section id='12-lineage' class=''><h2>12. Lineage</h2><p>Smalltalk-80 inline caching (Deutsch &amp; Schiffman 1984) → <strong>Self maps</strong> (Chambers/Ungar/Lee 1989) → <strong>PICs</strong> (Hölzle/Chambers/Ungar, ECOOP '91) → V8 hidden classes (2008, Crankshaft) → Ignition+TurboFan (2017) → Sparkplug (2021) → Maglev (2023) → Turboshaft / sandbox / mutable heap numbers (2024–25). Deutsch–Schiffman is from memory; unchecked here.</p></section><section id='13-hands-on-30-min' class=''><h2>13. Hands-on (≤30 min)</h2><p><a href="ic_demo.js"><code>ic_demo.js</code></a>: <code>node --allow-natives-syntax ic_demo.js</code>. Shows Map sharing, delete→dictionary mode, elements kinds, and mono/poly/mega timing. My run (Node v24.12.0, same machine, one run, no pinning, so noisy):</p>
+<pre><code>a,b share Map? true        a,c share Map? false
+fast before delete: true   fast after delete : false   fast after x=undefined: true
+monomorphic (1 shape)      0.99 ns/call
+polymorphic (4 shapes)     4.06 ns/call
+megamorphic (8 shapes)     4.90 ns/call
+megamorphic (64 shapes)    4.80 ns/call
+</code></pre>
+<p>Then: add <code>--trace-deopt --trace-opt</code>, and <code>%DebugPrint(arr)</code> after each push to watch the elements kind change.</p></section><section id='14-question-ladder' class=''><h2>14. Question ladder</h2><p><button id='revealAll' class='btn'>Reveal all answers</button></p><p><strong>Mechanism</strong>
+1. What exactly is in a JSObject's first three words?</p>
+<details><summary>Answer</summary>Map pointer, properties (overflow backing store), elements. In-object fields follow; with pointer compression each is 4 bytes, so the first field is at offset 12.</details>
+<ol>
+<li>What does a monomorphic LoadIC slot contain after the first miss?</li>
+</ol>
+<details><summary>Answer</summary>A weak reference to the Map plus a handler (typically a Smi encoding kind, in-object flag, double flag and field index).</details>
+<ol>
+<li>What happens on <code>getX({y:1,x:2})</code> after <code>getX</code> was optimized for <code>{x,y}</code>?</li>
+</ol>
+<details><summary>Answer</summary>CheckMaps fails → eager deopt → frame rebuilt for Ignition → IC becomes polymorphic → later reopt with 2-way check.</details>
+<ol>
+<li>How does <code>push(1.5)</code> on a Smi array change things?</li>
+</ol>
+<details><summary>Answer</summary>Map changes to PACKED_DOUBLE_ELEMENTS and the backing store is rewritten as unboxed doubles; one-way.</details>
+<ol>
+<li>Where does a megamorphic site look?</li>
+</ol>
+<details><summary>Answer</summary>Global two-level stub cache keyed on (Map, name); miss → runtime lookup.</details>
+
+<p><strong>Why</strong>
+6. Why do <code>{x,y}</code> and <code>{y,x}</code> have different Maps?</p>
+<details><summary>Answer</summary>Transitions are labeled by property name in insertion order; offsets depend on order.</details>
+<ol>
+<li>Why cap polymorphism at 4?</li>
+</ol>
+<details><summary>Answer</summary>Linear checks cost more per entry while hit-rate gains saturate; beyond that a hashed global lookup is cheaper. It's an engineering constant.</details>
+<ol>
+<li>Why is deoptimization necessary rather than a luxury?</li>
+</ol>
+<details><summary>Answer</summary>Guards can fail; without a way back to a generic tier the optimized code would need to be correct for all inputs, defeating speculation.</details>
+<ol>
+<li>Why does <code>delete</code> hurt later reads?</li>
+</ol>
+<details><summary>Answer</summary>Object flips to dictionary mode: no stable Map to key on, ICs can't specialize.</details>
+
+<p><strong>Counterfactual</strong>
+10. What if V8 never removed redundant CheckMaps?</p>
+<details><summary>Answer</summary>The CVE-2020-6418 class mostly disappears but every property access pays a compare, losing a chunk of optimized-code speed.</details>
+<ol>
+<li>What if the IC cap were 1?</li>
+</ol>
+<details><summary>Answer</summary>Any two-shape site would go megamorphic; the common "optional field" pattern would hit the stub cache constantly.</details>
+<ol>
+<li>What if elements kinds could transition back?</li>
+</ol>
+<details><summary>Answer</summary>Optimized code would need more dependencies and deopts; flip-flopping arrays would thrash. One-way keeps the lattice finite and monotone.</details>
+
+<p><strong>Adversarial</strong>
+13. How does an attacker turn a missing side-effect model into <code>addrof</code>?</p>
+<details><summary>Answer</summary>Use user-controllable code (Proxy, valueOf) at the unmodeled effect to change the Map/elements kind; optimized code still reads with old layout, so a double array's words are read as tagged pointers (leak) or a crafted double is read as a pointer (fake object).</details>
+<ol>
+<li>Can an attacker influence what the IC caches?</li>
+</ol>
+<details><summary>Answer</summary>Yes: they control which shapes reach a site, so they steer the feedback and thus which speculation the compiler makes (JIT-spray-like "feedback grooming").</details>
+<ol>
+<li>Why doesn't the V8 sandbox end this class?</li>
+</ol>
+<details><summary>Answer</summary>It bounds what corrupted pointers can reach, not the corruption itself; in-sandbox arbitrary R/W remains, and escapes target the boundary.</details>
+
+<p><strong>Connection</strong>
+16. How is this like a CPU branch predictor + pipeline flush?</p>
+<details><summary>Answer</summary>Guard = predicted branch, deopt = flush; both bet on regularity and trade rare large penalty for common cheap path.</details>
+<ol>
+<li>How do Shapes in SpiderMonkey differ?</li>
+</ol>
+<details><summary>Answer</summary>Same idea; ICs are expressed as CacheIR so the same IR can be interpreted or compiled.</details>
+<ol>
+<li>How does this relate to Spectre-style attacks?</li>
+</ol>
+<details><summary>Answer</summary>Both are speculation: one in hardware, one in software. Software speculation's guards are architecturally visible bugs; hardware's are microarchitectural leaks.</details>
+
+<p><strong>Open</strong>
+19. Can speculative JIT optimizations be formally verified at production scale?</p>
+<details><summary>Answer</summary>Unsettled; translation validation finds bugs but does not yet gate production releases.</details>
+<ol>
+<li>Can feedback be persisted safely across loads?</li>
+</ol>
+<details><summary>Answer</summary>Unsettled; trades warm-up for staleness and attacker-influenceable state.</details></section><section id='15-go-deeper-next' class=''><h2>15. Go deeper next</h2><ol>
+<li><strong>V8 sandbox &amp; code pointer tables</strong>: how containment of JIT bugs is engineered.</li>
+<li><strong>Sea of Nodes → Turboshaft</strong>: IR design tradeoffs.</li>
+<li><strong>SpiderMonkey CacheIR</strong>: ICs as an IR shared by interpreter and compiler.</li>
+</ol></section><section id='sources' class=''><h2>Sources</h2><p><strong>Papers</strong>
+- Hölzle, Chambers, Ungar. PICs, ECOOP '91: https://bibliography.selflanguage.org/pics.html
+- TurboTV, ICSE 2024: https://kihongheo.kaist.ac.kr/publications/icse24.pdf
+- OptFuzz, USENIX Sec 2024: https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf
+- DUMPLING, NDSS 2025: https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf
+- CacheIR: https://bernsteinbear.com/assets/img/cacheir.pdf
+- Verified speculation, POPL'21: https://janvitek.org/pubs/popl21.pdf</p>
+<p><strong>Code/docs</strong>
+- https://v8.dev/docs/hidden-classes · https://v8.dev/blog/fast-properties · https://v8.dev/blog/elements-kinds · https://v8.dev/blog/slack-tracking
+- https://v8.dev/blog/maglev · https://v8.dev/blog/sparkplug · https://v8.dev/blog/leaving-the-sea-of-nodes · https://v8.dev/blog/mutable-heap-number · https://v8.dev/blog/sandbox · https://v8.dev/blog/react-cliff
+- stub-cache.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/stub-cache.h
+- handler-configuration.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h
+- map.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/objects/map.h
+- JSC speculation: https://webkit.org/blog/10308/speculation-in-javascriptcore/</p>
+<p><strong>Articles / writeups</strong>
+- Project Zero CVE-2020-6418: https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html
+- Project Zero CVE-2020-16009: https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html
+- Zellic CVE-2025-2135: https://www.zellic.io/blog/pwning-v8ctf/
+- GitHub Blog Super IC: https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/
+- mrale.ph monomorphism: https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html
+- Bynens, shapes and ICs: https://mathiasbynens.be/notes/shapes-ics</p>
+<p><em>Verification notes: items marked "not opened"/"per agent" come from research subagent notes I did not re-fetch. Fetched and checked by me: stub-cache.h constants, Maglev blog numbers, Sea-of-Nodes 2× claim, elements-kinds post, mutable-heap-number post, Project Zero RCAs for CVE-2020-6418/16009, Zellic CVE-2025-2135.</em></p></section>
+</main></div>
+<script>
+// scroll spy
+const links=[...document.querySelectorAll('nav a')];
+const secs=links.map(a=>document.getElementById(a.dataset.id));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.dataset.id===e.target.id));}})},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+// copy buttons
+document.querySelectorAll('pre').forEach(p=>{const b=document.createElement('button');b.className='btn copy';b.textContent='Copy';b.onclick=()=>{try{navigator.clipboard.writeText(p.innerText.replace(/^Copy\n?/,''));b.textContent='Copied'}catch(e){b.textContent='n/a'};setTimeout(()=>b.textContent='Copy',1200)};p.appendChild(b)});
+// reveal all
+const ra=document.getElementById('revealAll');
+if(ra){let open=false;ra.onclick=()=>{open=!open;document.querySelectorAll('#'+ra.closest('section').id+' details').forEach(d=>d.open=open);ra.textContent=open?'Hide all answers':'Reveal all answers'}}
+// trace stepper
+const steps=[
+ ['Object exists. Map M2 (via M0 →x→ M1 →y→ M2). In-object x at +12 (pointer compression).','UNINITIALIZED',''],
+ ['Ignition runs LdaNamedProperty; slot is UNINITIALIZED, so it calls the runtime LoadIC::Load.','UNINITIALIZED → miss','bad'],
+ ['Runtime looks up x in M2 descriptors: in-object, index 0, Smi. Builds a Smi-encoded handler.','MONO: (M2, handler{inobject, idx 0})','hit'],
+ ['Next call: compare o.map to M2 → equal → decode handler → load at +12. No lookup.','MONO hit','hit'],
+ ['Hot: Maglev/TurboFan emit CheckMaps(M2) + LoadField(+12) and register a dependency on M2.','optimized: cmp map,M2 ; jne deopt ; mov [o+12]','hit'],
+ ['getX({y:1,x:2}) has Map M3. CheckMaps fails → eager deopt → Ignition frame rebuilt → IC goes POLY [(M2,h1),(M3,h2)].','POLY after deopt','bad']];
+let si=0;
+const slot=document.getElementById('slot'),st=document.getElementById('slotText'),sm=document.getElementById('stepmsg'),sn=document.getElementById('stepno'),cx=document.getElementById('c-x');
+function showStep(){const [m,t,c]=steps[si];sm.textContent=m;st.textContent=t;slot.setAttribute('class','slot '+c);cx.setAttribute('class',si>=3&&si<5?'cell hl':'cell');sn.textContent='STEP '+(si+1)+' / '+steps.length;document.getElementById('back').disabled=si===0;document.getElementById('next').disabled=si===steps.length-1}
+document.getElementById('back').onclick=()=>{si=Math.max(0,si-1);showStep()};
+document.getElementById('next').onclick=()=>{si=Math.min(steps.length-1,si+1);showStep()};
+showStep();
+// IC sim
+const seen=new Set();const sb=document.getElementById('shapeBtns');
+'ABCDEFGH'.split('').forEach(k=>{const b=document.createElement('button');b.className='btn';b.textContent='shape '+k;b.onclick=()=>{seen.add(k);upd()};sb.appendChild(b)});
+function upd(){const n=seen.size;let s='UNINITIALIZED',ns='n/a';if(n===1){s='MONOMORPHIC';ns='~1.0'}else if(n>=2&&n<=4){s='POLYMORPHIC';ns='~4.1 (at 4 shapes)'}else if(n>4){s='MEGAMORPHIC (stub cache)';ns='~4.9'}
+document.getElementById('simState').textContent=s;document.getElementById('simMaps').textContent=n;document.getElementById('simNs').textContent=ns;document.getElementById('bar').style.width=Math.min(100,n*12.5)+'%'}
+document.getElementById('simReset').onclick=()=>{seen.clear();upd()};
+</script></body></html>
