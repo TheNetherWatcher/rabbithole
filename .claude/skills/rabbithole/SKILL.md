@@ -177,8 +177,8 @@ Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverabl
 
 ## Skill sync (when the skill itself changes)
 
-The skill (`SKILL.md`, `config.json`, `scripts/`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit to it:
-1. Run `.claude/skills/rabbithole/sync.sh` (mirrors the folder, minus `sync.sh`, into the claude-skills repo and prints `git status` there).
+The skill (`SKILL.md`, `config.json`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. A Codex port lives in `.agents/skills/rabbithole/SKILL.md` (mirrored to `claude-skills/rabbithole-codex/`): dive format, HTML spec, history and commit rules must match it, so port any such change there too. After any edit:
+1. Run `.claude/skills/rabbithole/sync.sh` (mirrors this folder, minus `sync.sh`, plus the Codex port into the claude-skills repo and prints `git status` there).
 2. Commit it in both repos separately (`skill: <change>` here, `update rabbithole skill` there; no attribution lines), then push both.
 Never edit the claude-skills copy directly.
 
