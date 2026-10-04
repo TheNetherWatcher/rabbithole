@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XOR, Binary Fuse &amp; Ribbon Filters — Rabbithole</title>
+<style>
+:root{
+  --bg:#fbfaf7;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;--accent:#b4411f;--accent2:#1f6f8b;
+  --ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;--code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--panel:#1c1b17;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;--accent:#ff8a5c;--accent2:#6cc4e0;
+  --ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;--code:#23211b;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent2)}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:0 32px;padding:0 16px}
+nav.toc{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:24px 8px 24px 0;font-size:14px}
+nav.toc h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:0 0 8px}
+nav.toc a{display:block;padding:3px 8px;border-left:2px solid var(--line);color:var(--mute);text-decoration:none}
+nav.toc a.on{color:var(--ink);border-left-color:var(--accent);font-weight:600}
+nav.toc .div{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+main{min-width:0;max-width:78ch;padding:24px 0 80px}
+header.card{padding:8px 0 16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-size:clamp(26px,5vw,38px);line-height:1.15;margin:.2em 0 .3em}
+h2{font-size:24px;margin:2.2em 0 .5em;scroll-margin-top:16px;border-top:1px solid var(--line);padding-top:1em}
+h3{font-size:18px;margin:1.6em 0 .3em}
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+.hero b.k{color:var(--accent)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.num{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.num .v{font-size:22px;font-weight:700;color:var(--accent)}
+.num .l{font-size:12px;color:var(--mute);line-height:1.3}
+.plain{background:var(--plain);border:1px solid var(--plainline);border-radius:14px;padding:6px 20px 14px;margin:18px 0}
+.plain h2{border:0;margin-top:.6em;padding-top:0}
+.bridge{font-weight:600;border-left:4px solid var(--accent);padding-left:12px;margin:18px 0}
+.divider{margin:48px 0 0;padding:14px 0;border-top:3px solid var(--accent);border-bottom:1px solid var(--line);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-size:14px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer}
+.eq{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--panel);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover,button.btn:focus-visible{border-color:var(--accent);outline:2px solid transparent}
+button.btn:disabled{opacity:.4;cursor:default}
+.widget{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0}
+.s-box{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+.s-box.hl{fill:var(--hl);stroke:var(--accent)}
+.s-txt{fill:var(--ink);font:13px ui-monospace,monospace}
+.s-lab{fill:var(--mute);font:12px system-ui}
+.s-edge{stroke:var(--mute);stroke-width:1.5;opacity:.45}
+.s-edge.on{stroke:var(--accent);opacity:1;stroke-width:2.5}
+.s-edge.dead{stroke-dasharray:3 4;opacity:.25}
+.s-key{fill:var(--panel);stroke:var(--accent2);stroke-width:2}
+.s-key.dead{stroke:var(--mute);opacity:.5}
+.s-key.hl{fill:var(--hl);stroke:var(--accent)}
+@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}nav.toc{display:none}}
+main,.widget,.hero{overflow-wrap:anywhere}
+.toplink{display:none}
+@media(max-width:900px){.toplink{display:block;font-size:14px;margin:8px 0}}
+.mini{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Table of contents">
+  <h2>Contents</h2>
+  <div class="div">Plain English</div>
+  <a href="#plain">Explain it simply</a>
+  <div class="div">Context</div>
+  <a href="#ctx">1 · Minimum context</a>
+  <a href="#world">1b · Real-world context</a>
+  <div class="div">Technical deep dive</div>
+  <a href="#onel">2 · The one-liner</a>
+  <a href="#problem">3 · The problem</a>
+  <a href="#model">4 · Mental model</a>
+  <a href="#mech">5 · Mechanism, traced</a>
+  <a href="#math">6 · The math</a>
+  <a href="#why">7 · Why it works</a>
+  <a href="#knobs">8 · Knobs &amp; alternatives</a>
+  <a href="#breaks">9 · Where it breaks</a>
+  <a href="#wild">10 · In the wild</a>
+  <a href="#frontier">11 · Frontier</a>
+  <a href="#open">11b · Open problems</a>
+  <a href="#lineage">12 · Lineage</a>
+  <a href="#hands">13 · Hands-on</a>
+  <a href="#ladder">14 · Question ladder</a>
+  <a href="#next">15 · Go deeper</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<main>
+<header class="card">
+  <div class="chips">
+    <span class="chip">Computer science</span><span class="chip">Algorithms / data structures</span>
+    <span class="chip">Depth: hard</span><span class="chip">2026-10-04</span>
+  </div>
+  <h1>Static approximate-membership filters: XOR / binary fuse (peeling) vs Ribbon (banded elimination)</h1>
+  <div class="hero">
+    <p><b class="k">TL;DR.</b> For a set that never changes, don't <em>insert</em> keys into a Bloom filter — <em>solve</em> for a table where the XOR of three cells equals each key's fingerprint. A greedy "peel the key that owns a private cell" order solves it almost always when there are ≥ ~1.22 cells per key; windows of consecutive segments (binary fuse) push that to ~1.13, and Ribbon's banded GF(2) elimination reaches &lt;10% overhead with a tunable dial.</p>
+    <p><b class="k">Why it matters.</b> LSM-tree filters sit in RAM for hours; 3 bits/key saved on 10 billion keys is ~3.75&nbsp;GB. RocksDB and Firefox's CRLite use this family in production.</p>
+  </div>
+  <div class="strip">
+    <div class="num"><div class="v">1.44×</div><div class="l">Bloom bits vs info-theoretic minimum</div></div>
+    <div class="num"><div class="v">1.23×</div><div class="l">XOR filter (within 23%)</div></div>
+    <div class="num"><div class="v">1.13× / 1.08×</div><div class="l">binary fuse 3-wise / 4-wise</div></div>
+    <div class="num"><div class="v">&lt;10%</div><div class="l">Ribbon overhead (paper abstract); &lt;1% experimental</div></div>
+    <div class="num"><div class="v">0.8185</div><div class="l">3-hypergraph peeling threshold (1/0.8185 = 1.2218)</div></div>
+    <div class="num"><div class="v">2<sup>-8</sup></div><div class="l">FPR of an 8-bit fingerprint (≈ 9 bits/key)</div></div>
+  </div>
+  <p class="mini">Demos: <a href="peel_demo.py">peel_demo.py</a>, <a href="fuse_ribbon_demo.py">fuse_ribbon_demo.py</a> · Markdown version: <a href="README.md">README.md</a></p>
+</header>
+
+<section id="plain" class="plain" aria-labelledby="plain-h">
+  <h2 id="plain-h">Plain English first</h2>
+  <h3>Explain it simply</h3>
+  <p>A bouncer has a guest list of a million names — too big to carry. Instead the bouncer carries a small <strong>cheat-sheet board</strong> of numbered slots. For a visitor, the bouncer turns the name into three slot numbers, adds up (XORs) the three numbers on the board, and compares the total with a short "secret code" derived from the name. Match → in. Everyone on the list <em>always</em> matches. A stranger matches only by luck — with an 8-bit code, 1 in 256.</p>
+  <p>The clever part is filling the board. For every guest we need "slot a + slot b + slot c = my code" at once. Trick: find a guest who owns one slot <em>alone</em>, set them aside on a stack, repeat. Once everyone is on the stack, fill the board in reverse: the last guest set aside gets their lonely slot adjusted so their sum works. It works almost every time with only ~1.23 slots per guest. Ribbon filters solve the same puzzle as a school-style system of equations where each equation touches only a short nearby stretch of slots, so a single pass solves it — with as little as ~5–10% spare room.</p>
+  <h3>Everyday example</h3>
+  <p>Three guests and a board of six slots in three pairs (A0 A1 | B0 B1 | C0 C1). Ana → A0, B0, C0, code 5. Ben → A0, B1, C1, code 3. Cy → A1, B0, C1, code 6. Slot C0 is touched only by Ana; A1 only by Cy; after those two are set aside, A0 only by Ben. Set aside Ana, Cy, Ben. Fill backwards: Ben first (A0 = 3), then Cy (A1 = 6), then Ana (C0 is set so the sum is 5, which is 6). Board: A0=3, A1=6, B0=0, B1=0, C0=6, C1=0. Check Ana: 3+0+6 → 5 ✓. A stranger hashing to A1, B1, C0 sums to 0 and is turned away unless their own code is 0.</p>
+  <p class="bridge">Now the same thing, technically.</p>
+</section>
+
+<div class="divider" aria-hidden="true">Real-world context</div>
+
+<section id="ctx">
+  <h2>1 · Bare-minimum context</h2>
+  <ul>
+    <li><b>AMQ filter</b>: "is x in S?" with no false negatives and false-positive rate ε. Minimum ≈ log₂(1/ε) bits/key (Carter et al. 1978; Pagh–Pagh–Rao 2005).</li>
+    <li><b>Bloom filter</b>: k hash positions in a bit array; ≈ 1.44·log₂(1/ε) bits/key.</li>
+    <li><b>Fingerprint</b>: f-bit hash of the key; chance a stranger collides = 2<sup>-f</sup>.</li>
+    <li><b>GF(2) linear algebra</b>: XOR is addition mod 2; XOR-equation systems yield to Gaussian elimination.</li>
+    <li><b>Random hypergraph</b>: each key = an edge over 3 slots. <em>Peeling</em> repeatedly removes degree-1 vertices; what is left is the <em>2-core</em>.</li>
+    <li><b>Static</b>: the whole key set is known up front; no later inserts/deletes.</li>
+  </ul>
+</section>
+
+<section id="world">
+  <h2>1b · Real-world context</h2>
+  <h3>What it is</h3>
+  <p>A way to store an immutable set so "might x be in it?" costs ~3 memory reads and ~9 bits per key at a 0.4% false-positive rate. Instead of inserting keys, you <em>solve</em> for a table whose cell XORs equal key fingerprints.</p>
+  <h3>Why it exists</h3>
+  <p>Bloom filters guard disk and network lookups but waste 44% over the information minimum and need scattered probes. If the set never changes, the table can be computed rather than grown: 23% overhead (XOR 2019), 13%/8% (binary fuse 2022), &lt;10% with a dial (Ribbon 2021), &lt;1% in experimental variants. Filters in an LSM tree live in RAM for hours, so each saved bit is multiplied by lifetime.</p>
+  <h3>Where it's used</h3>
+  <div class="grid">
+    <div class="gc"><b>RocksDB</b>Ribbon for compaction output, Bloom for flushes (<code>NewRibbonFilterPolicy</code>). Blog: ~30% memory saved (≈7 vs 10 bits/key), ~4.4× build CPU (140 vs 32 ns/key), ~20% query CPU, break-even ≈ 1 h of filter lifetime.</div>
+    <div class="gc"><b>Firefox CRLite</b>Revocation checking moved from Bloom cascades to "Clubcard", a partitioned two-level cascade of Ribbon filters; ~300&nbsp;kB/day (4&nbsp;MB snapshot every 45 days + deltas).</div>
+    <div class="gc"><b>xor_singleheader (C)</b>Reference xor + binary fuse 8/16/32-bit filters; serialize/mmap.</div>
+    <div class="gc"><b>xorfilter (Go), xorf (Rust)</b>Same families, <code>PopulateBinaryFuse8</code> etc.</div>
+    <div class="gc"><b>Analytics / networking / bioinformatics</b>Named consumers of peeling-based filters in the ZOR abstract.</div>
+    <div class="gc"><b>Not adopted (as far as I found)</b>ClickHouse, DuckDB and Parquet use (split-block) Bloom filters; I found no xor/fuse there.</div>
+  </div>
+  <h3>How it's used</h3>
+<pre><button class="copy" type="button">Copy</button><code>#include "binaryfusefilter.h"            // FastFilter/xor_singleheader
+binary_fuse8_t f;
+binary_fuse8_allocate(n, &amp;f);            // ~1.13*n bytes
+binary_fuse8_populate(keys, n, &amp;f);      // uint64_t keys[n]; false after 100 failed seeds
+bool maybe = binary_fuse8_contain(x, &amp;f);// 3 loads + XOR + compare; FPR ~ 1/256
+binary_fuse8_free(&amp;f);
+
+// RocksDB (C++): Ribbon with Bloom-equivalent 10 bits/key; Bloom for flush
+table_options.filter_policy.reset(rocksdb::NewRibbonFilterPolicy(10.0));
+// bloom_before_level (since 6.24): Bloom on levels below the given one</code></pre>
+  <p>Typical: 8-bit fingerprints (ε≈0.39%, ≈9 bits/key) or 16-bit (≈1.5·10⁻⁵, ≈18 bits/key); keys pre-hashed to 64 bits.</p>
+  <div class="two">
+    <div class="use"><b>Use it when</b><ul><li>Set built once, queried many times (SSTables, immutable segments, blocklists, k-mer sets)</li><li>RAM per key matters</li><li>Binary fuse for speed; Ribbon for tunable/smaller space</li></ul></div>
+    <div class="skip"><b>Skip it when</b><ul><li>You need inserts/deletes (Bloom, cuckoo, quotient)</li><li>The build must stream or memory is tight (peeling holds all hashes)</li><li>Filter lifetime is short (RocksDB keeps Bloom for L0)</li></ul></div>
+  </div>
+  <h3>Who should care</h3>
+  <p>Storage/DB engineers (LSM filters), infra (blocklists, certificate revocation), search and genomics engineers (membership over huge immutable sets), anyone paying RAM per key.</p>
+</section>
+
+<div class="divider">Technical deep dive</div>
+
+<section id="onel">
+  <h2>2 · The one-liner — and what it hides</h2>
+  <p><em>"XOR filters are Bloom filters that are smaller and faster because you precompute a table where three cells XOR to the fingerprint."</em> It hides:</p>
+  <ol>
+    <li><b>Why the table can always be computed</b> — only if the 3-uniform hypergraph is peelable: a phase transition at ≥ 1.22 slots/key, not a heuristic.</li>
+    <li><b>Why the FPR is exactly 2<sup>-f</sup></b> (and when it isn't).</li>
+    <li><b>How binary fuse beats the threshold</b> (1.22 → 1.13/1.08) with windows of consecutive segments — spatial coupling.</li>
+    <li><b>That Ribbon drops hypergraphs entirely</b>: banded linear algebra, a different space/time trade.</li>
+    <li><b>What breaks</b>: duplicates, build retries, adversarial keys, memory spike, 64-bit hash assumption, no updates.</li>
+  </ol>
+</section>
+
+<section id="problem">
+  <h2>3 · The problem</h2>
+  <p>Bloom at ε=1%: ≈9.6 bits/key at optimal k, ~7 probes into a large bit array (cache misses). The minimum is log₂(100) ≈ 6.64 bits/key. At ε=2⁻⁸: Bloom ≈ 11.5 bits vs 8 minimum. On a 10-billion-key LSM, 3 bits/key = 3.75&nbsp;GB of RAM. Static sets don't need incremental insertability, and that requirement is what costs Bloom its 44%.</p>
+</section>
+
+<section id="model">
+  <h2>4 · Mental model</h2>
+  <p>A <strong>bulletin board of sticky notes</strong>. Each guest has three notes; the notes must XOR to the guest's code. Filling the board = solving every guest's equation at once. Peeling = repeatedly set aside a guest who owns a private note, then fill in reverse so that private note absorbs the slack.</p>
+  <div class="callout mis"><b>Where the analogy breaks.</b> The board has only ~1.23 slots per guest while each guest touches 3, so slots are heavily shared. Solvability is not a local guarantee; it is a global property of the random hypergraph (no dense core below ~82% load).</div>
+</section>
+
+<section id="mech">
+  <h2>5 · The mechanism, traced</h2>
+  <p>3-bit fingerprints, six slots. Positions (one per block): Ana → A0 B0 C0, fp 5 · Ben → A0 B1 C1, fp 3 · Cy → A1 B0 C1, fp 6. Step through:</p>
+  <div class="widget" id="trace" aria-label="Step-through of the traced example">
+    <svg viewBox="0 0 520 250" role="img" aria-label="Hypergraph of three keys over six slots"></svg>
+    <div class="stepbar">
+      <button class="btn" id="tb" type="button">← Back</button>
+      <button class="btn" id="tn" type="button">Next →</button>
+      <span class="mini" id="tc">Step 0 / 8</span>
+      <div class="info" id="ti" aria-live="polite"></div>
+    </div>
+  </div>
+  <pre><button class="copy" type="button">Copy</button><code>peel stack (top first): Ben/A0, Cy/A1, Ana/C0      (all 3 peeled → 2-core empty → success)
+assign in reverse:  A0 = 3^B1^C1 = 3 ;  A1 = 6^B0^C1 = 6 ;  C0 = 5^A0^B0 = 5^3^0 = 6
+board: A0=3 A1=6 | B0=0 B1=0 | C0=6 C1=0     query y→(A1,B1,C0): 6^0^6 = 0 ≠ fp(y)=4 → reject</code></pre>
+  <p><b>Why reverse order works.</b> The vertex a key was peeled through was touched by no other <em>unpeeled</em> key at that moment. In reverse, anything assigned later was peeled earlier and writes only its own private vertex, so it never disturbs a key assigned before it. Each cell is written at most once.</p>
+  <h3>Binary fuse query, as shipped</h3>
+<pre><button class="copy" type="button">Copy</button><code>hash = murmur64(key + seed);   f = (uint8_t)(hash ^ (hash &gt;&gt; 32));
+h0 = mulhi(hash, SegmentCountLength);                       // uniform over first SegmentCount segments
+h1 = (h0 + SegmentLength)   ^ ((hash &gt;&gt; 18) &amp; SegmentLengthMask); // next segment, random in-segment offset
+h2 = (h0 + 2*SegmentLength) ^ ( hash        &amp; SegmentLengthMask); // segment after that
+return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
+  <p>Segment length: power of two, <code>2^floor(ln n / ln 3.33 + 2.25)</code> (arity 3). Array size factor: <code>max(1.125, 0.875 + 0.25·ln(10⁶)/ln n)</code>. Build retries up to <code>XOR_MAX_ITERATIONS = 100</code> seeds; hashes are first sorted into segment-order buckets for locality; the current C code detects and drops duplicates when a round fails (source: FastFilter/xor_singleheader).</p>
+  <h3>Ribbon, traced</h3>
+  <p>Each key becomes (start <i>s</i>, w-bit coefficient word <i>c</i> with bit 0 set, r-bit fingerprint <i>b</i>). Insert: if pivot row <i>s</i> is empty, store it. Otherwise XOR with the stored equation, shift out leading zeros (<i>c</i> ← <i>c</i>≫<i>j</i>, <i>s</i> ← <i>s</i>+<i>j</i>) and continue. <i>c</i>=0 with <i>b</i>=0: redundant. <i>c</i>=0 with <i>b</i>≠0: inconsistent → new seed. Back-substitute bottom-up: Z[i] = b<sub>i</sub> ⊕ ⨁<sub>j&gt;0, c<sub>i</sub>[j]=1</sub> Z[i+j]. Query XORs the Z rows picked by <i>c</i>'s set bits — all inside one w-row window (64 rows × 8 bits = 64 B ≈ one cache line), versus three random cache lines for XOR.</p>
+</section>
+
+<section id="math">
+  <h2>6 · The math</h2>
+  <h3>(a) Information bound</h3>
+  <p>A filter accepts a set A ⊇ S with |A| ≈ n + εu. Each stored state covers C(n+εu, n) of the C(u, n) possible key sets, so states needed ≈ (1/ε)<sup>n</sup>.</p>
+  <div class="eq">bits ≥ n · log₂(1/ε)<small>→ in plain terms: each key pays for forgetting everything except an ε-sized neighbourhood.</small></div>
+  <h3>(b) Why Bloom wastes 44%</h3>
+  <p>Optimal Bloom has half its bits set; each bit carries &lt;1 bit of information.</p>
+  <div class="eq">m / n = log₂e · log₂(1/ε) ≈ 1.44 · log₂(1/ε)<small>→ in plain terms: a Bloom bit array is only 50% informative, and you pay for the rest.</small></div>
+  <h3>(c) Why FPR = 2<sup>-f</sup></h3>
+  <p>For y ∉ S the three cells hold values set from other keys' independent random fingerprints, so their XOR is uniform on f bits and independent of fp(y).</p>
+  <div class="eq">Pr[ B[h₀]⊕B[h₁]⊕B[h₂] = fp(y) ] = 2<sup>-f</sup> ; bits/key = f · (slots/key) = 1.23f | ≈1.13f | ≈1.08f<small>→ in plain terms: space = fingerprint width × slot overhead; the overhead is the whole game.</small></div>
+  <h3>(d) The peeling threshold</h3>
+  <p>m slots, n keys, c = n/m. Each slot has Poisson(3c) incident edges. Let q = probability an edge, seen from one endpoint, survives (is not removed via its other two endpoints). An endpoint keeps the edge alive iff it has ≥1 other surviving edge: probability 1 − e<sup>−3cq</sup>. Both other endpoints must do so:</p>
+  <div class="eq">q = (1 − e<sup>−3cq</sup>)²  ⇒  c(q) = −ln(1−√q) / (3q)<small>→ in plain terms: q=0 (everything peels) is always a solution; a nonzero solution (a 2-core) first appears at the minimum of c(q).</small></div>
+  <p>Numerically (my run): <b>c* = 0.8185 for k=3 ⇒ 1/c* = 1.2218</b> slots/key (≈1.23 with slack); k=4: 0.7723 ⇒ 1.295; k=5: 0.7018 ⇒ 1.425. Arity 2 (graphs) has its core at c=0.5 ⇒ 2.0.</p>
+  <div class="callout flag">Orientability (every key gets its own cell) kicks in later, ≈0.918 ⇒ 1.089 for k=3 — quoted from literature, not re-derived here. Orientable ≠ peelable: a solution exists but greedy peeling can't find it; Gaussian elimination can (Ribbon uses a band to make that cheap).</div>
+  <h3>(e) Fuse windows</h3>
+  <p>Keys pick a start segment <i>s</i> and use segments <i>s, s+1, s+2</i>. End segments have lower degree, so peeling starts there and a wave moves inward — the spatial-coupling / threshold-saturation effect Walzer proved can lift the peeling threshold toward the orientability threshold (arXiv:2001.10500). Result: factor 1.125 (arity 3) or 1.075 (arity 4) at large n, rising for small n (formula above).</p>
+  <h3>(f) Ribbon</h3>
+  <div class="eq">⟨h(x), Z⟩ = b(x) over GF(2), h(x) = 0<sup>s</sup> · c · 0<sup>m−s−w</sup><small>→ in plain terms: each equation lives in a width-w band, so sorting by start makes the matrix a diagonal "ribbon" and elimination runs in near-linear time.</small></div>
+  <p>Dietzfelbinger–Walzer (arXiv:1907.04750): with m = n/(1−ε) columns and one random block of length w = O(log n / ε) per row, the matrix has full row rank whp and elimination costs O(n/ε²). Ribbon uses w=64; the paper reports &lt;10% overhead at modest CPU cost and &lt;1% for an experimental load-balanced variant; BuRR (SEA 2022) reaches "well below 1%" by <em>bumping</em> the few rows that don't fit into a fallback structure.</p>
+</section>
+
+<section id="why">
+  <h2>7 · Why it works</h2>
+  <p>Core insight: <strong>a sparse random constraint system with ~1.22 variables per equation is solved by a trivial greedy order</strong>, and a solved table plus a random fingerprint gives exactly 2<sup>-f</sup> FPR with one XOR. Ablations:</p>
+  <ul>
+    <li><b>Arity 2 instead of 3</b> → peels only below load 0.5 (2.0 slots/key).</li>
+    <li><b>No seed retry</b> → near threshold (82% success at 1.23, n=20000 in my demo) becomes a hard error.</li>
+    <li><b>Non-random fingerprints</b> → FPR no longer 2<sup>-f</sup>; queries correlated with the fingerprint function get through.</li>
+    <li><b>No windows</b> → back to 1.22.</li>
+    <li><b>Ribbon without the band</b> → dense elimination, O(n³).</li>
+  </ul>
+</section>
+
+<section id="knobs">
+  <h2>8 · Design knobs &amp; alternatives</h2>
+  <table>
+    <tr><th>Knob</th><th>Effect</th></tr>
+    <tr><td>fingerprint bits f</td><td>FPR 2<sup>-f</sup>; bits/key = f × factor</td></tr>
+    <tr><td>arity 3 vs 4 (fuse)</td><td>1.125 vs 1.075 factor; 4 loads instead of 3</td></tr>
+    <tr><td>segment length</td><td>locality vs peeling success; power of two from an empirical formula</td></tr>
+    <tr><td>Ribbon width w, solution bits r</td><td>space overhead vs CPU</td></tr>
+    <tr><td>Ribbon standard / homogeneous / balanced / BuRR</td><td>speed ↔ space ↔ never-fails ↔ &lt;1%</td></tr>
+    <tr><td>Bloom/Ribbon hybrid (RocksDB)</td><td>Bloom where lifetime is short</td></tr>
+  </table>
+  <p>Alternatives: Bloom / blocked Bloom (streaming insert), cuckoo / quotient / vector-quotient (delete, resize), prefix filter, Aleph / InfiniFilter (growing sets). Static filters won where the set is immutable and RAM matters.</p>
+</section>
+
+<section id="breaks">
+  <h2>9 · Where it breaks</h2>
+  <ul>
+    <li><b>Construction can fail.</b> Retry with a new seed (≤100 in the C library). Near the threshold failures are common: my demo 82% at 1.23, n=20000.</li>
+    <li><b>Duplicates.</b> Two identical edges form a 2-core. The current C binary-fuse code detects and removes them after a failing round; other ports may just error. Deduplicate.</li>
+    <li><b>Adversarial keys.</b> Known seed + chosen keys ⇒ a forced 2-core. Use a secret random seed. Queries are not adversarially robust either: a found false positive stays one.</li>
+    <li><b>Build memory.</b> Peeling holds all hashes + counters (≈24 B/key transient per implementation notes — unverified exactly).</li>
+    <li><b>Limits.</b> C <code>size</code> is <code>uint32_t</code>; assumes 64-bit hashes; 8-bit fingerprints cap ε at 2<sup>-8</sup>.</li>
+    <li><b>Small n.</b> The size factor rises sharply below ~10⁵; xor/fuse can lose to Bloom at large ε or tiny n.</li>
+    <li><b>No updates.</b> Any change ⇒ rebuild; dynamic filters pay a provable Ω(n)-bit penalty (Kuszmaul–Walzer, STOC 2024).</li>
+  </ul>
+  <div class="callout mis"><b>Misconceptions.</b> "XOR always beats Bloom" — not at large ε or tiny n. "Static is useless" — most big filters live in immutable files. "Ribbon is slow" — about +20% query CPU in RocksDB's own numbers; the cost is construction.</div>
+</section>
+
+<section id="wild">
+  <h2>10 · In the wild</h2>
+  <ul>
+    <li><b>RocksDB</b>: hybrid by level; <code>bloom_equivalent_bits_per_key</code> keeps Bloom's FPR while spending ~30% less; one full filter per SST file.</li>
+    <li><b>Firefox CRLite / Clubcard</b>: Ribbon in a two-level cascade; filters are rebuilt on a schedule, so static fits.</li>
+    <li><b>xor_singleheader</b>: 8/16/32-bit variants, flat array + seed + segment parameters (mmap-able), pre-hashed <code>uint64</code> keys.</li>
+    <li><b>Deviations from the paper</b>: fuse sorts hashes into segment buckets before peeling, uses <code>mulhi</code> instead of <code>%</code>, and XOR-offsets inside segments instead of independent hashes.</li>
+  </ul>
+</section>
+
+<section id="frontier">
+  <h2>11 · Frontier (what's new)</h2>
+  <p class="mini">Verified against arXiv/abstract pages unless flagged.</p>
+  <table>
+    <tr><th>Year · venue</th><th>Paper</th><th>Contribution</th></tr>
+    <tr><td>2026 · arXiv</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.03525">ZOR filters</a> (Limasset)</td><td>Deterministic peeling: abandon &lt;1% of keys into a side structure instead of restarting; within 1% of the info bound; fuse-like queries; prototype builds slower.</td></tr>
+    <tr><td>2025 · FOCS</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.18129">Fingerprint Filters Are Optimal</a> (Kuszmaul, Liang, Zhou)</td><td>Dynamic filters need ≥ n·log ε⁻¹ + n·log e − o(n) bits: fingerprinting is tight.</td></tr>
+    <tr><td>2024 · STOC</td><td><a target="_blank" rel="noopener" href="https://doi.org/10.1145/3618260.3649649">Space Lower Bounds for Dynamic Filters…</a> (Kuszmaul, Walzer)</td><td>Dynamic filters: n·log ε⁻¹ + Ω(n) bits — a provable gap to static.</td></tr>
+    <tr><td>2025 · SODA</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.10002">Tight Bounds and Phase Transitions for Incremental and Dynamic Retrieval</a></td><td>Optimal space for incremental/dynamic retrieval; a phase transition as value size approaches log n.</td></tr>
+    <tr><td>2024 · SIGMOD</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.15380">Grafite</a> (Costa, Ferragina, Vinciguerra)</td><td>Range filter: O(1) query, FPR ≤ ℓ/2<sup>B−2</sup> for any data and query workload.</td></tr>
+    <tr><td>2025 · SIGMOD</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.05625">Memento filter</a> (Eslami, Dayan)</td><td>Dynamic range filter; doubles WiredTiger range-query throughput when 50% of queries are empty.</td></tr>
+    <tr><td>2024 · VLDB*</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2404.04703">Aleph filter</a> (Dayan, Bercea, Pagh)</td><td>Expandable filter with constant-time ops; memory-vs-FPR on par with static filters given a growth estimate. (*venue from search results.)</td></tr>
+    <tr><td>2020 · arXiv</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2001.10500">Peeling close to the orientability threshold</a> (Walzer)</td><td>Spatial coupling — the theory behind fuse windows.</td></tr>
+    <tr><td>2022 · SEA</td><td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2109.01892">BuRR / Ribbon retrieval</a> (Dillinger et al.)</td><td>Space overhead well below 1% with bumping.</td></tr>
+  </table>
+  <div class="callout flag">Not opened by me, so unverified: Diva (VLDB 2025), Zeno filter (SIGMOD 2026), parallel BuRR construction (arXiv:2411.12365).</div>
+</section>
+
+<section id="open">
+  <h2>11b · Open problems</h2>
+  <ul>
+    <li><b>Fast build near the bound.</b> Ribbon/ZOR reach ~1% overhead but pay in build time (RocksDB: ~4.4× Bloom's build CPU); fuse is fast but ≥8% over. Nobody has both at every scale.</li>
+    <li><b>Deterministic, restart-free build</b> with no side structure (ZOR still needs one).</li>
+    <li><b>Adversarial robustness.</b> Static fuse/Ribbon give no guarantee against adaptive query adversaries; robust Bloom constructions (Naor–Yogev) cost extra.</li>
+    <li><b>Range filters with worst-case guarantees</b> at static-filter space (Grafite closes much; correlated/adaptive workloads remain contested).</li>
+    <li><b>External-memory, SIMD, GPU peeling.</b> Peeling is sequential and cache-hostile; I found no mature GPU xor/fuse builder.</li>
+    <li><b>Learned filters.</b> Gains depend on the query distribution; robustness and drift unresolved.</li>
+  </ul>
+</section>
+
+<section id="lineage">
+  <h2>12 · Lineage</h2>
+  <p>Bloom 1970 → Carter et al. 1978 (fingerprint filters, bound) → Bloomier filters (Chazelle et al. 2004) → Dietzfelbinger–Pagh 2008 (succinct retrieval/AMQ) → Botelho–Pagh–Ziviani 2013 (peeling for perfect hashing) → <b>XOR filters</b> (Graf–Lemire 2019/20) → Dietzfelbinger–Walzer 2019 (banded elimination) → <b>Ribbon</b> (Dillinger–Walzer 2021) / BuRR 2022 → Walzer 2020 (spatial coupling) → <b>binary fuse</b> (Graf–Lemire 2022) → ZOR (2026).</p>
+</section>
+
+<section id="hands">
+  <h2>13 · Hands-on</h2>
+  <p>Simulator (runs in your browser): slide the slots-per-key factor and see how often peeling succeeds, for plain XOR (3 blocks) and fuse-style windows (segment length 1024).</p>
+  <div class="widget" id="sim">
+    <div class="ctl">
+      <label>factor <b id="fv">1.19</b>
+        <input id="fs" type="range" min="1.05" max="1.40" step="0.01" value="1.19" aria-label="slots per key"></label>
+      <label>n keys
+        <select id="ns"><option>10000</option><option>20000</option><option selected>50000</option></select></label>
+      <button class="btn" id="run" type="button">Run 20 trials</button>
+      <button class="btn" id="sweep" type="button">Sweep curve</button>
+    </div>
+    <p style="margin:10px 0 4px">XOR (3 blocks): <b id="rx">–</b></p><div class="bar"><i id="bx"></i></div>
+    <p style="margin:10px 0 4px">Fuse-style windows: <b id="rf">–</b></p><div class="bar"><i id="bf"></i></div>
+    <svg id="curve" viewBox="0 0 520 190" role="img" aria-label="Peel success vs factor" style="margin-top:10px"></svg>
+    <p class="mini">Dashed line = theory 1.2218. Fuse windows peel below it only once n is large: with segment length 1024 they succeed at 1.19 for n=50000 but need ~1.23 at n=20000 (Python check, 8 trials each). That is why real size factors grow for small n.</p>
+  </div>
+  <p>Or run the scripts locally (pure Python; my results):</p>
+<pre><button class="copy" type="button">Copy</button><code>python3 peel_demo.py
+python3 fuse_ribbon_demo.py
+
+factor 1.10/1.18/1.21 -&gt; peel success 0%;  1.23 -&gt; 82%;  1.25 -&gt; 100%     (theory 1.2218)
+xor8: 24633 slots, 9.853 bits/key, FPR 0.4155% (theory 0.391%)
+fuse-style windows (L=2048, n=100000): 1.106 -&gt; 0%, 1.147 -&gt; 0%, 1.188 -&gt; 100%, 1.229 -&gt; 100%
+Ribbon w=64 r=8, n=20000: m/n 1.02 -&gt; 0/10, 1.05 -&gt; 7/10, 1.10 -&gt; 10/10; 8.80 bits/key, FPR 0.378%</code></pre>
+  <p>Try: arity 2 (threshold jumps to ~2.0×); Ribbon width 16 (needed slack grows).</p>
+</section>
+
+<section id="ladder">
+  <h2>14 · Question ladder</h2>
+  <p><button class="btn" id="revealall" type="button">Reveal all answers</button></p>
+  <h3>Mechanism</h3>
+  <details><summary>1. In the trace, why is it safe to assign Ana's C0 after Ben's A0 and Cy's A1?</summary><p>C0 was touched by no other unpeeled key when Ana was peeled, so no later-assigned key writes it; her other cells (A0, B0) are final by then.</p></details>
+  <details><summary>2. Why does each cell get written at most once?</summary><p>Each key is assigned only the one cell it was peeled through; a cell is peeled through only one key (degree 1 at that time).</p></details>
+  <details><summary>3. In a Ribbon insert, what does <code>c &amp; -c</code> compute and why shift?</summary><p>It isolates the lowest set bit; its index is the trailing-zero count j. The reduced equation starts at row i+j, so shift right by j to realign bit 0 with that pivot.</p></details>
+  <details><summary>4. In <code>binary_fuse8_contain</code>, why XOR the in-segment offset instead of adding it?</summary><p>XOR with a mask &lt; SegmentLength permutes positions inside the segment-aligned block and stays in-segment; adding could cross into the next segment and break the window structure.</p></details>
+  <h3>Why</h3>
+  <details><summary>5. Why 3 hash positions, not 2 or 4?</summary><p>Arity 2 peels only below load 0.5 (2.0 slots/key); arity 4 needs 1.295 slots/key without windows and costs another read. Arity 3 minimises slots/key for plain peeling.</p></details>
+  <details><summary>6. Why is FPR exactly 2<sup>-f</sup>, and what must hold?</summary><p>The three-cell XOR is uniform on f bits and independent of fp(y) because cells come from other keys' independent random fingerprints. The fingerprint hash must act like a random function independent of positions.</p></details>
+  <details><summary>7. Why does a windowed hypergraph peel at lower density?</summary><p>End segments have lower degree, seeding peeling; neighbours then drop to degree 1 in a wave (spatial coupling / threshold saturation).</p></details>
+  <details><summary>8. Why is Ribbon's query more cache-friendly than XOR's?</summary><p>A window of w consecutive rows ≈ one cache line, versus 3 random lines.</p></details>
+  <h3>Counterfactual</h3>
+  <details><summary>9. All keys share one fingerprint? Non-random fingerprints?</summary><p>Shared: every stranger with that fingerprint is a false positive (FPR 100% for them). Non-random: queries correlated with the function are accepted systematically. Solvability is unaffected either way.</p></details>
+  <details><summary>10. Plain XOR with 1.20n slots, n=10⁶?</summary><p>Load 0.833 &gt; 0.8185: a Θ(n) 2-core remains whp, so essentially every seed fails.</p></details>
+  <details><summary>11. Ribbon width 1024 instead of 64?</summary><p>Needs less slack, but elimination costs more per key and a query window spans ~16 cache lines.</p></details>
+  <details><summary>12. A duplicate key?</summary><p>Two identical edges share the same 3 slots; peeling can't drop them below degree 2, so every seed fails — unless duplicates are detected and removed (current C binary-fuse code does this after a failing round).</p></details>
+  <h3>Adversarial</h3>
+  <details><summary>13. Force a build failure knowing the seed?</summary><p>Choose keys that all hash into the same few slots (more than ~0.82 per slot) ⇒ guaranteed 2-core. Needs the seed or a weak hash.</p></details>
+  <details><summary>14. How could an attacker find false-positive queries?</summary><p>With the filter or seed known, test candidates offline (~2<sup>f</sup> tries each). With a secret seed each probe succeeds with probability 2<sup>-f</sup>, and a found false positive stays one forever (filter is not adaptive).</p></details>
+  <details><summary>15. Make build-time hash flooding harmless?</summary><p>Per-build secret random 64-bit seed with a strong mixer; reject-and-retry.</p></details>
+  <h3>Connection</h3>
+  <details><summary>16. Peeling vs LDPC decoding / erasure codes?</summary><p>Both are peeling on sparse random (hyper)graphs; the 0.818 threshold is the same kind of object as the erasure-decoding threshold of LDPC codes, and spatial coupling is the same fix.</p></details>
+  <details><summary>17. Relation to cuckoo hashing's orientability threshold?</summary><p>Orientable = every key can get its own cell (≈0.918 for k=3); peelable is a stricter, greedy-solvable subset.</p></details>
+  <details><summary>18. Minimal perfect hashing?</summary><p>BDZ builds MPHFs via peeling; RecSplit/ShockHash use seed search / cuckoo-style tables to reach ≈1.44–1.5 bits/key.</p></details>
+  <h3>Open</h3>
+  <details><summary>19. Fast, restart-free build below 1% overhead without a side structure?</summary><p>Open; ZOR trades determinism for a side structure; spatial coupling and parallelism are active directions.</p></details>
+  <details><summary>20. An adversarially robust static filter near 1.1× the bound?</summary><p>Open.</p></details>
+  <details><summary>21. Do learned filters beat fuse/Ribbon on realistic non-stationary workloads?</summary><p>Open; depends on drift and adversarial queries.</p></details>
+</section>
+
+<section id="next">
+  <h2>15 · Go deeper next</h2>
+  <ol><li>Minimal perfect hashing (BDZ → RecSplit → ShockHash → ConsensusRecSplit).</li><li>Spatial coupling and threshold saturation (LDPC ↔ hash tables).</li><li>Adaptive / robust filters (telescoping adaptive filter, Naor–Yogev model).</li></ol>
+</section>
+
+<section id="sources">
+  <h2>Sources</h2>
+  <h3>Papers</h3>
+  <ul>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1912.08258">Graf &amp; Lemire, Xor Filters (JEA 2020)</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2201.01174">Graf &amp; Lemire, Binary Fuse Filters (JEA 2022)</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2103.02515">Dillinger &amp; Walzer, Ribbon filter</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2109.01892">Dillinger, Hübschle-Schneider, Sanders, Walzer, Fast Succinct Retrieval and AMQ using Ribbon (SEA 2022)</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1907.04750">Dietzfelbinger &amp; Walzer, Efficient Gauss Elimination… (ESA 2019)</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2001.10500">Walzer, Peeling Close to the Orientability Threshold</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.03525">Limasset, ZOR filters</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.18129">Kuszmaul, Liang, Zhou, Fingerprint Filters Are Optimal</a></li>
+    <li><a target="_blank" rel="noopener" href="https://doi.org/10.1145/3618260.3649649">Kuszmaul &amp; Walzer, Space Lower Bounds for Dynamic Filters and Value-Dynamic Retrieval</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2410.10002">Kuszmaul et al., Tight Bounds and Phase Transitions for Incremental and Dynamic Retrieval</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.15380">Costa, Ferragina, Vinciguerra, Grafite</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.05625">Eslami &amp; Dayan, Memento Filter</a></li>
+    <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2404.04703">Dayan, Bercea, Pagh, Aleph Filter</a></li>
+  </ul>
+  <h3>Code / docs / articles</h3>
+  <ul>
+    <li><a target="_blank" rel="noopener" href="https://github.com/FastFilter/xor_singleheader">FastFilter/xor_singleheader (binaryfusefilter.h)</a></li>
+    <li><a target="_blank" rel="noopener" href="https://rocksdb.org/blog/2021/12/29/ribbon-filter.html">RocksDB blog: Ribbon filter</a></li>
+    <li><a target="_blank" rel="noopener" href="https://hacks.mozilla.org/2025/08/crlite-fast-private-and-comprehensive-certificate-revocation-checking-in-firefox/">Mozilla Hacks: CRLite in Firefox</a></li>
+  </ul>
+  <div class="callout flag"><b>Verification notes.</b> Abstract numbers, the C source, the RocksDB blog and the CRLite post were read from primary pages. Build memory ≈24 B/key, RocksDB format-version needs, Diva/Zeno/parallel-BuRR claims and Aleph's VLDB venue came only from search-agent notes and are flagged. The 0.918 orientability threshold is quoted from literature, not re-derived.</div>
+</section>
+</main>
+</div>
+
+<script>
+(function(){
+  // copy buttons
+  document.querySelectorAll('pre .copy').forEach(function(b){
+    b.addEventListener('click',function(){
+      var t=b.parentElement.querySelector('code').innerText;
+      try{navigator.clipboard.writeText(t);b.textContent='Copied'}catch(e){b.textContent='Select + copy'}
+      setTimeout(function(){b.textContent='Copy'},1200);
+    });
+  });
+  // scroll-spy
+  var links=[].slice.call(document.querySelectorAll('nav.toc a'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=[].slice.call(document.querySelectorAll('main section[id]'));
+  function spy(){
+    var cur=secs[0];
+    secs.forEach(function(s){if(s.getBoundingClientRect().top<120)cur=s});
+    links.forEach(function(a){a.classList.remove('on')});
+    if(cur&&map[cur.id])map[cur.id].classList.add('on');
+  }
+  window.addEventListener('scroll',spy,{passive:true});spy();
+  // reveal all
+  var ra=document.getElementById('revealall'),open=false;
+  ra.addEventListener('click',function(){
+    open=!open;
+    document.querySelectorAll('#ladder details').forEach(function(d){d.open=open});
+    ra.textContent=open?'Hide all answers':'Reveal all answers';
+  });
+
+  // ---------- step-through trace ----------
+  var NS='http://www.w3.org/2000/svg';
+  var slots=['A0','A1','B0','B1','C0','C1'];
+  var sx={A0:50,A1:120,B0:210,B1:280,C0:370,C1:440};
+  var keys=[{n:'Ana',fp:5,s:['A0','B0','C0'],x:100},{n:'Ben',fp:3,s:['A0','B1','C1'],x:260},{n:'Cy',fp:6,s:['A1','B0','C1'],x:420}];
+  var steps=[
+    {t:'Start. Each key is an edge over three slots. Degrees: A0=2 A1=1 B0=2 B1=1 C0=1 C1=2. Board all zero.',peeled:[],vals:{},hl:[],hk:null},
+    {t:'Peel: C0 has degree 1 (only Ana). Push (Ana via C0). A0 and B0 lose a neighbour.',peeled:['Ana'],vals:{},hl:['C0'],hk:'Ana'},
+    {t:'Peel: A1 has degree 1 (only Cy). Push (Cy via A1). B0→0, C1→1.',peeled:['Ana','Cy'],vals:{},hl:['A1'],hk:'Cy'},
+    {t:'Peel: A0 now only touches Ben. Push (Ben via A0). All 3 keys peeled → 2-core is empty.',peeled:['Ana','Cy','Ben'],vals:{},hl:['A0'],hk:'Ben'},
+    {t:'Assign in reverse. Ben: A0 = 3 ^ B1 ^ C1 = 3 ^ 0 ^ 0 = 3.',peeled:['Ana','Cy','Ben'],vals:{A0:3},hl:['A0'],hk:'Ben'},
+    {t:'Cy: A1 = 6 ^ B0 ^ C1 = 6.',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6},hl:['A1'],hk:'Cy'},
+    {t:'Ana: C0 = 5 ^ A0 ^ B0 = 5 ^ 3 ^ 0 = 6. Check Ana: 3^0^6 = 5 ✓.',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6,C0:6},hl:['C0'],hk:'Ana'},
+    {t:'Query stranger y → (A1,B1,C0): 6^0^6 = 0 ≠ fp(y)=4 → reject. (If fp(y) were 0 → false positive, 1 in 8 here.)',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6,C0:6},hl:['A1','B1','C0'],hk:null}
+  ];
+  var cur=0,svg=document.querySelector('#trace svg');
+  function el(n,a,txt){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e}
+  function draw(){
+    var st=steps[cur];svg.innerHTML='';
+    keys.forEach(function(k){
+      var dead=st.peeled.indexOf(k.n)>=0&&cur<4;
+      k.s.forEach(function(s){
+        var on=(st.hk===k.n);
+        svg.appendChild(el('line',{x1:k.x,y1:185,x2:sx[s]+25,y2:90,'class':'s-edge'+(on?' on':'')+(dead?' dead':'')}));
+      });
+    });
+    slots.forEach(function(s){
+      var hl=st.hl.indexOf(s)>=0;
+      svg.appendChild(el('rect',{x:sx[s],y:50,width:50,height:40,rx:6,'class':'s-box'+(hl?' hl':'')}));
+      svg.appendChild(el('text',{x:sx[s]+25,y:44,'text-anchor':'middle','class':'s-lab'},s));
+      svg.appendChild(el('text',{x:sx[s]+25,y:76,'text-anchor':'middle','class':'s-txt'},st.vals[s]!=null?st.vals[s]:'0'));
+    });
+    keys.forEach(function(k){
+      var dead=st.peeled.indexOf(k.n)>=0&&cur<4;
+      svg.appendChild(el('rect',{x:k.x-40,y:185,width:80,height:46,rx:23,'class':'s-key'+(dead?' dead':'')+(st.hk===k.n?' hl':'')}));
+      svg.appendChild(el('text',{x:k.x,y:205,'text-anchor':'middle','class':'s-txt'},k.n));
+      svg.appendChild(el('text',{x:k.x,y:221,'text-anchor':'middle','class':'s-lab'},'fp='+k.fp));
+    });
+    document.getElementById('ti').textContent=st.t;
+    document.getElementById('tc').textContent='Step '+cur+' / '+(steps.length-1);
+    document.getElementById('tb').disabled=cur===0;
+    document.getElementById('tn').disabled=cur===steps.length-1;
+  }
+  document.getElementById('tb').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('tn').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+
+  // ---------- peeling simulator ----------
+  function rnd(n){return Math.floor(Math.random()*n)}
+  function peel(edges,nv){
+    var cnt=new Int32Array(nv),xr=[],i,j;
+    var inc=new Array(nv);for(i=0;i<nv;i++)inc[i]=[];
+    for(i=0;i<edges.length;i++){var e=edges[i];for(j=0;j<3;j++){cnt[e[j]]++;inc[e[j]].push(i)}}
+    var dead=new Uint8Array(edges.length),stack=[],done=0;
+    for(i=0;i<nv;i++)if(cnt[i]===1)stack.push(i);
+    while(stack.length){
+      var v=stack.pop();if(cnt[v]!==1)continue;
+      var ei=-1;for(j=0;j<inc[v].length;j++)if(!dead[inc[v][j]]){ei=inc[v][j];break}
+      if(ei<0)continue;dead[ei]=1;done++;
+      var ed=edges[ei];for(j=0;j<3;j++){cnt[ed[j]]--;if(cnt[ed[j]]===1)stack.push(ed[j])}
+    }
+    return done===edges.length;
+  }
+  function xorTrial(n,f){
+    var b=Math.max(1,Math.floor(f*n/3)),E=[];
+    for(var i=0;i<n;i++)E.push([rnd(b),b+rnd(b),2*b+rnd(b)]);
+    return peel(E,3*b);
+  }
+  function fuseTrial(n,f){
+    var L=1024,nseg=Math.max(1,Math.round(f*n/L)-2),E=[];
+    for(var i=0;i<n;i++){var s=rnd(nseg);E.push([s*L+rnd(L),(s+1)*L+rnd(L),(s+2)*L+rnd(L)])}
+    return peel(E,(nseg+2)*L);
+  }
+  function rate(fn,n,f,t){var ok=0;for(var i=0;i<t;i++)ok+=fn(n,f)?1:0;return ok/t}
+  var fs=document.getElementById('fs'),fv=document.getElementById('fv'),ns=document.getElementById('ns');
+  fs.addEventListener('input',function(){fv.textContent=(+fs.value).toFixed(2)});
+  function show(id,bid,r){document.getElementById(id).textContent=Math.round(r*100)+'%';document.getElementById(bid).style.width=Math.round(r*100)+'%'}
+  document.getElementById('run').onclick=function(){
+    var n=+ns.value,f=+fs.value;
+    show('rx','bx',rate(xorTrial,n,f,20));show('rf','bf',rate(fuseTrial,n,f,20));
+  };
+  document.getElementById('sweep').onclick=function(){
+    var n=+ns.value,fsx=[],px=[],pf=[],f;
+    for(f=1.05;f<=1.401;f+=0.025){fsx.push(f);px.push(rate(xorTrial,n,f,8));pf.push(rate(fuseTrial,n,f,8))}
+    var c=document.getElementById('curve');c.innerHTML='';
+    function X(f){return 40+(f-1.05)/0.35*460}function Y(r){return 160-r*140}
+    c.appendChild(el('line',{x1:40,y1:160,x2:500,y2:160,stroke:'currentColor','stroke-opacity':.4}));
+    c.appendChild(el('line',{x1:40,y1:20,x2:40,y2:160,stroke:'currentColor','stroke-opacity':.4}));
+    c.appendChild(el('line',{x1:X(1.2218),y1:20,x2:X(1.2218),y2:160,stroke:'#b4411f','stroke-dasharray':'4 4'}));
+    c.appendChild(el('text',{x:X(1.2218)+4,y:30,'class':'s-lab'},'1.2218'));
+    [1.05,1.15,1.25,1.35].forEach(function(t){c.appendChild(el('text',{x:X(t),y:178,'text-anchor':'middle','class':'s-lab'},t.toFixed(2)))});
+    function line(arr,col){var p='';arr.forEach(function(r,i){p+=(i?'L':'M')+X(fsx[i]).toFixed(1)+' '+Y(r).toFixed(1)});
+      c.appendChild(el('path',{d:p,fill:'none',stroke:col,'stroke-width':2.5}))}
+    line(px,'#1f6f8b');line(pf,'#2f7d4f');
+    c.appendChild(el('text',{x:50,y:34,fill:'#1f6f8b','class':'s-lab'},'XOR (blue)'));
+    c.appendChild(el('text',{x:50,y:50,fill:'#2f7d4f','class':'s-lab'},'fuse windows (green)'));
+  };
+})();
+</script>
+</body>
+</html>
