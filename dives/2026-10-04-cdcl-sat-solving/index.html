@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CDCL SAT Solving — Rabbithole</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mute:#6b6b70;--card:#fff;--line:#e3e0d8;--acc:#b4410f;--acc2:#0f6b8a;--code:#f2efe8;--ok:#1a7f4b;--warn:#a15c00;--plainbg:#fff6e5;--plainline:#f0d9a8}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--fg:#e8e6e1;--mute:#9a9aa2;--card:#1c1c1f;--line:#2e2e33;--acc:#ff8a4c;--acc2:#5cc0e0;--code:#222226;--ok:#4cc38a;--warn:#e0a040;--plainbg:#241f14;--plainline:#4a3d1c}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:13.5px}
+nav h3{margin:0 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+nav a{display:block;padding:5px 8px;color:var(--mute);text-decoration:none;border-left:2px solid transparent;border-radius:0 4px 4px 0}
+nav a:hover{color:var(--fg)}
+nav a.on{color:var(--acc);border-left-color:var(--acc);background:color-mix(in srgb,var(--acc) 8%,transparent);font-weight:600}
+main{padding:28px 28px 80px;max-width:calc(70ch + 56px);min-width:0;overflow-wrap:break-word}
+.hero{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:22px}
+.card{font-size:12.5px;color:var(--mute);letter-spacing:.02em;margin-bottom:6px}
+.card b{color:var(--acc)}
+h1{margin:.1em 0 .3em;font-size:1.9rem;line-height:1.2}
+.tldr{margin:.4em 0 1em}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}
+.nums b{display:block;font-size:1.25rem;color:var(--acc2)}
+.nums span{font-size:12px;color:var(--mute)}
+h2{font-size:1.4rem;margin:2.2em 0 .6em;padding-top:.4em;border-top:1px solid var(--line)}
+h3{margin-top:1.6em}
+section{scroll-margin-top:12px}
+section.plain{background:var(--plainbg);border:1px solid var(--plainline);border-radius:14px;padding:4px 22px 14px;margin:0 0 10px}
+section.plain h2{border:0;margin-top:.7em}
+.divider{margin:42px 0 6px;text-align:center;position:relative;color:var(--acc);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:12.5px}
+.divider:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px dashed var(--line)}
+.divider span{position:relative;background:var(--bg);padding:0 14px}
+pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.2px}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:14px;border-radius:10px;overflow:auto;position:relative;line-height:1.5;border:1px solid var(--line)}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border:1px solid var(--line);background:var(--card);color:var(--mute);border-radius:6px;cursor:pointer}
+table{border-collapse:collapse;display:block;overflow-x:auto;font-size:14px;margin:1em 0}
+th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top;text-align:left}
+th{background:var(--code)}
+a{color:var(--acc2)}
+details.q{margin:.3em 0 1em;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+details.q summary{cursor:pointer;padding:6px 12px;color:var(--acc);font-size:14px}
+details.q div{padding:2px 14px 12px}
+.toolbar{display:flex;gap:8px;margin:.5em 0 1em}
+button{font:inherit;font-size:13.5px;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:6px 12px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--acc)}button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.widget{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0 20px}
+.widget h4{margin:0 0 8px}
+.trail{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;margin:10px 0}
+.lit{padding:3px 9px;border-radius:999px;font:600 13px ui-monospace,monospace;border:1px solid var(--line);background:var(--code)}
+.lit.dec{background:var(--acc);color:#fff;border-color:var(--acc)}
+.lit.imp{border-color:var(--acc2);color:var(--acc2)}
+.lit.bad{background:#b3261e;color:#fff;border-color:#b3261e}
+.lit small{opacity:.7;font-weight:400;margin-left:3px}
+.msg{min-height:3.4em;font-size:14.5px}
+.msg b{color:var(--acc)}
+.learnt{font:600 14px ui-monospace,monospace;color:var(--ok)}
+svg text{fill:var(--fg);font:12px system-ui}
+@media (max-width:860px){.layout{display:block}nav{position:static;height:auto;max-height:none;border:0;border-bottom:1px solid var(--line);padding:12px 16px}nav .links{display:none}nav.open .links{display:block}main{padding:18px 16px 60px}}
+@media (min-width:861px){#navbtn{display:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav id="nav"><h3>Contents</h3><button id="navbtn" aria-expanded="false">Show sections</button><div class="links"><a href="#0b-plain-english-first">0b. Plain English first</a>
+<a href="#1-bare-minimum-context">1. Bare-minimum context</a>
+<a href="#1b-real-world-context">1b. Real-world context</a>
+<a href="#2-the-one-liner-and-what-it-hides">2. The one-liner — and what it hides</a>
+<a href="#3-the-problem">3. The problem</a>
+<a href="#4-mental-model">4. Mental model</a>
+<a href="#5-the-mechanism-traced">5. The mechanism, traced</a>
+<a href="#6-the-math">6. The math</a>
+<a href="#7-why-it-works">7. Why it works</a>
+<a href="#8-design-knobs-alternatives">8. Design knobs &amp; alternatives</a>
+<a href="#9-where-it-breaks">9. Where it breaks</a>
+<a href="#10-in-the-wild">10. In the wild</a>
+<a href="#11-frontier-whats-new">11. Frontier (what&#x27;s new)</a>
+<a href="#11b-open-problems">11b. Open problems</a>
+<a href="#12-lineage">12. Lineage</a>
+<a href="#13-hands-on-30-min">13. Hands-on (≤30 min)</a>
+<a href="#14-question-ladder">14. Question ladder</a>
+<a href="#15-go-deeper-next">15. Go deeper next</a>
+<a href="#sources">Sources</a></div></nav>
+<main>
+<header class="hero">
+<div class="card">Computer science · <b>Formal methods</b> · CDCL SAT solving · hard depth · 2026-10-04</div>
+<h1>CDCL SAT solving: learn from every conflict</h1>
+<p class="tldr"><b>TL;DR.</b> A CDCL solver turns each contradiction into a new, provably implied clause (via 1-UIP resolution), jumps back to the decision that mattered, and keeps the clause. Add two watched literals, VSIDS and restarts and you get the engine behind hardware verification, SMT solvers, package resolvers and computer-assisted math proofs. Its power is exactly resolution's power, which is why pigeonhole formulas still kill it.</p>
+<div class="nums">
+<div><b>1996</b><span>GRASP: clause learning + backjumping</span></div>
+<div><b>2001</b><span>Chaff: 2 watched literals, VSIDS</span></div>
+<div><b>~2.66M</b><span>conflicts for pigeonhole n=10 (CaDiCaL, measured)</span></div>
+<div><b>~200 TB</b><span>Pythagorean-triples DRAT proof (68 GB compressed)</span></div>
+<div><b>160</b><span>Schur number five (AAAI 2018)</span></div>
+<div><b>3 of 3</b><span>Kissat main-track golds, SAT Comp. 2024</span></div>
+</div>
+</header>
+<div class="toolbar"><button id="revealAll">Reveal all answers</button><button id="hideAll">Hide all answers</button></div>
+
+<section class="plain" id="0b-plain-english-first" data-sec><h2 id="0b-plain-english-first">0b. Plain English first</h2>
+<p><strong>Explain it simply.</strong> Imagine you must seat 200 wedding guests. Rules: "Ann won't sit with Bob", "Cal sits with Dee <em>or</em> Eve", and thousands more. You try a seating, hit a clash, and undo your last choice. A naive planner undoes only the last choice and, an hour later, makes the <em>same underlying mistake</em> again in a slightly different arrangement. A CDCL solver is a planner that, at each clash, stops and asks: <em>which of my choices actually caused this?</em> It writes that down as a new rule ("never seat Ann at table 1 <strong>and</strong> Cal at table 4"), jumps back to the choice that mattered (skipping innocent ones), and carries the new rule forever. Rules pile up; mistakes are never repeated in disguise.</p>
+<p><strong>Everyday example.</strong> Three guests: Ann, Bob, Cal. Rules: if Cal sits at the head table, so does Dee; if Dee is there, Eve and Fay must be too; but Eve and Fay can't sit together if Bob is at the head table. You seat Ann (fine), Bob (fine), then Cal. Dee, Eve, Fay all get forced, and Eve/Fay clash. The <em>real</em> culprit is "Dee at head table" combined with "Bob at head table", not Cal specifically, because Cal only mattered by forcing Dee. So the new rule is "not (Bob at head AND Dee at head)". You undo back to Bob's choice, Dee is now forbidden, and Cal is automatically forbidden too (Cal would force Dee). One clash taught you two things.</p>
+<p><strong>Now the same thing, technically.</strong></p>
+<hr />
+</section>
+<section id="1-bare-minimum-context" data-sec><h2 id="1-bare-minimum-context">1. Bare-minimum context</h2>
+<ul>
+<li><strong>SAT</strong>: given a boolean formula in CNF (AND of clauses, each an OR of literals), find a true/false assignment satisfying all clauses, or prove none exists. NP-complete.</li>
+<li><strong>Unit propagation (BCP)</strong>: if a clause has all literals false except one unassigned, that one must be true. Repeat to fixpoint.</li>
+<li><strong>DPLL</strong>: pick a variable, branch true/false, propagate, backtrack on conflict (1962).</li>
+<li><strong>Resolution</strong>: from <code>(A ∨ x)</code> and <code>(B ∨ ¬x)</code> derive <code>(A ∨ B)</code>. Sound, and refutation-complete.</li>
+<li><strong>Decision level</strong>: number of decisions on the trail up to a literal; propagated literals inherit the level of the decision that triggered them.</li>
+<li><strong>DIMACS CNF</strong>: <code>p cnf nvars nclauses</code>, then one clause per line, ints, terminated by <code>0</code>.</li>
+</ul>
+</section>
+<section id="1b-real-world-context" data-sec><h2 id="1b-real-world-context">1b. Real-world context</h2>
+<p><strong>What it is.</strong> CDCL (conflict-driven clause learning) is DPLL plus: analyze each conflict into a new implied clause, jump back non-chronologically, and keep the learned clause. Add cheap data structures (two watched literals), an adaptive branching heuristic (VSIDS), and restarts, and you get the engine in nearly every modern SAT solver.</p>
+<p><strong>Why it exists.</strong> Plain DPLL on industrial formulas (millions of clauses) thrashes: it re-derives the same contradiction under every permutation of irrelevant decisions. GRASP (Marques-Silva &amp; Sakallah, 1996/1999) introduced conflict analysis + learning + non-chronological backtracking; Chaff (Moskewicz et al., DAC 2001) made it fast with two-watched-literals and VSIDS, giving 1-2 orders of magnitude over predecessors; MiniSat (Eén &amp; Sörensson, SAT 2003) made it small and hackable.</p>
+<p><strong>Where it's used</strong> (each verified in research unless marked):
+- <strong>Hardware verification</strong>: bounded model checking and IC3/PDR in chip design flows reduce to repeated SAT calls (SAT BMC beat BDD model checking on an Alpha memory-subsystem study, CAV 2001 era).
+- <strong>SMT solvers</strong>: Z3, CVC5, Yices use a CDCL core in the DPLL(T) architecture; theory solvers (arithmetic, bit-vectors, arrays) plug into CDCL via lemmas.
+- <strong>Package managers</strong>: libsolv (DNF, Zypper, Conda/Mamba) is CDCL with watched literals; PubGrub (Dart pub, Poetry, uv via pubgrub-rs) is a CDCL-flavoured algorithm over version ranges, notable for human-readable failure explanations. Cargo's resolver is <em>not</em> full SAT.
+- <strong>Mathematics</strong>: Boolean Pythagorean triples (Heule-Kullmann-Marek 2016: {1..7824} 2-colorable, 7825 not; ~200 TB proof, cube-and-conquer) and Schur number five = 160 (Heule, AAAI 2018; ~2 PB proof).
+- <strong>Cryptanalysis</strong>: algebraic attacks on small stream ciphers (Bivium/Trivium/Grain-style) encoded to CNF, often with XOR/Gauss extensions.
+- <strong>Competitions as a driver</strong>: Kissat won all three main-track gold medals (SAT, UNSAT, SAT+UNSAT) at SAT Competition 2024.</p>
+<p><strong>How it's used.</strong></p>
+<pre><code class="language-python">from pysat.solvers import Cadical153
+s = Cadical153(bootstrap_with=[[-1, 2], [-2, 3], [1, -3, 4]])   # DIMACS-style int literals
+print(s.solve())                  # True
+print(s.get_model())              # e.g. [-1, -2, -3, 4]
+print(s.solve(assumptions=[1, -4]))   # incremental: solve under assumptions -&gt; False
+print(s.get_core())               # subset of assumptions responsible (UNSAT core)
+</code></pre>
+<p>CLI: <code>kissat input.cnf</code> or <code>cadical input.cnf proof.drat</code> (CaDiCaL logs a DRAT proof for UNSAT; check with <code>drat-trim input.cnf proof.drat</code>). Typical integration: encode problem to CNF (Tseitin transform for circuits, cardinality encodings for "at most k"), call solver, decode model; use assumptions for incremental queries.</p>
+<p><strong>When to use / not.</strong> Use for finite, boolean-encodable constraint problems where structure is rich (verification, planning, configuration, scheduling feasibility). Use <strong>SMT</strong> if you need arithmetic/arrays/strings natively; <strong>CP-SAT / MaxSAT / MIP</strong> if you need optimization; <strong>ASP</strong> for all-models/negation-as-failure modelling. Warning signs you picked wrong: parity/XOR-heavy or counting/pigeonhole-style constraints (see §9), or purely numeric/continuous structure.</p>
+<p><strong>Who should care.</strong> Verification/EDA engineers, build-and-dependency tooling authors, security researchers (symbolic execution backends), anyone calling Z3.</p>
+</section>
+<div class="divider" id="deep"><span>Technical deep dive below</span></div><section id="2-the-one-liner-and-what-it-hides" data-sec><h2 id="2-the-one-liner-and-what-it-hides">2. The one-liner — and what it hides</h2>
+<p>"CDCL = DPLL + learn a clause from each conflict." Hidden:
+1. <em>Which</em> clause? (1-UIP over the implication graph, not just "negate the decisions")
+2. Why is the learned clause <strong>implied</strong> (not a guess)?
+3. Why does learning cost so little in practice? (watched literals)
+4. How does it choose variables with no look-ahead? (VSIDS bumping from conflicts)
+5. Why restart if restarting "throws work away"? (it keeps clauses, scores, saved phases)
+6. What does it <em>prove</em> when it answers UNSAT, and can you trust it? (resolution proof; DRAT)</p>
+</section>
+<section id="3-the-problem" data-sec><h2 id="3-the-problem">3. The problem</h2>
+<p>DPLL's chronological backtracking undoes the most recent decision even when it's irrelevant to the conflict, so the same unsatisfiable sub-structure is rediscovered exponentially often. Real-world instances have 10^5–10^7 variables with strong structure; pre-1996 solvers handled ~hundreds of variables of hard combinatorial instances. CDCL moved practical frontier to millions of variables on structured instances (not on random or crafted-hard ones).</p>
+</section>
+<section id="4-mental-model" data-sec><h2 id="4-mental-model">4. Mental model</h2>
+<p>A detective's case board. Each decision is a hypothesis; propagation is deductions that follow. A conflict is a contradiction. Conflict analysis traces <em>why</em> back to a minimal set of hypotheses, then writes "these can't all be true" on the board permanently.</p>
+<p>Where it breaks: a detective's note is a <em>specific</em> conclusion; a learned clause is a <strong>resolution derivation</strong>, and the whole run is a (possibly enormous) resolution proof. CDCL is bounded by what resolution can say. Short non-resolution arguments (counting, parity, pigeonhole) are invisible to it.</p>
+</section>
+<section id="5-the-mechanism-traced" data-sec><h2 id="5-the-mechanism-traced">5. The mechanism, traced</h2><div class="widget" id="stepper"></div>
+<p>Verified run of <a href="cdcl.py"><code>cdcl.py</code></a> on</p>
+<pre><code>C1 (¬3 ∨ 4)   C2 (¬4 ∨ 5)   C3 (¬4 ∨ 6)   C4 (¬5 ∨ ¬6 ∨ ¬2)   C5 (1 ∨ 2 ∨ 3 ∨ 7)
+</code></pre>
+<pre><code>L1: decide +1
+L2: decide +2
+L3: decide +3
+  L3: propagate +4 because [-3, 4]
+  L3: propagate +5 because [-4, 5]
+  L3: propagate +6 because [-4, 6]
+CONFLICT [-5, -6, -2] @L3 -&gt; learn [-2, -4], backjump to L2
+  L2: assert -4 from learnt clause
+  L2: propagate -3 because [-3, 4]
+L3: decide +5
+  L3: propagate -6 because [-5, -6, -2]
+L4: decide +7
+result: SAT
+</code></pre>
+<p>Implication graph at the conflict (level 3 only; levels 1,2 are fixed):</p>
+<pre><code>x3 (decision) ──C1──▶ x4 ──C2──▶ x5 ──┐
+                       └──C3──▶ x6 ──┼──▶ ⊥  (C4 also uses x2 from level 2)
+                                x2@L2 ┘
+</code></pre>
+<p><strong>1-UIP derivation</strong> (backward over the trail, resolving away level-3 literals until exactly one remains):
+1. Start: conflict clause <code>(¬5 ∨ ¬6 ∨ ¬2)</code>. Level-3 literals: ¬5, ¬6 (two). ¬2 is level 2.
+2. Last-assigned level-3 literal on trail is <code>x6</code>; reason <code>C3 = (¬4 ∨ 6)</code>. Resolve on 6: <code>(¬5 ∨ ¬2 ∨ ¬4)</code>. Level-3 literals: ¬5, ¬4.
+3. Next is <code>x5</code>; reason <code>C2 = (¬4 ∨ 5)</code>. Resolve on 5: <code>(¬2 ∨ ¬4)</code>. One level-3 literal left (¬4). <strong>Stop.</strong>
+4. Learned: <code>(¬2 ∨ ¬4)</code>. <strong>x4 is the UIP</strong>: every path from decision x3 to ⊥ goes through x4. The decision x3 is a <em>later</em> UIP; 1-UIP picks the one nearest the conflict.
+5. Backjump level = highest level among the <em>other</em> literals = level(x2) = 2. Undo levels 3. Now <code>¬2</code> is false, so the clause is unit and asserts <code>¬4</code>. Immediately C1 then forces <code>¬3</code>: we learned x3 is impossible without ever trying a different branch under it.</p>
+<p>The clause is also <strong>RUP</strong> (reverse unit propagation): assume <code>2, 4</code>, propagate <code>5</code> (C2), <code>6</code> (C3), then C4 is falsified. That check is exactly what DRAT checkers run.</p>
+</section>
+<section id="6-the-math" data-sec><h2 id="6-the-math">6. The math</h2>
+<p><strong>Resolution soundness.</strong> If σ satisfies <code>(A ∨ x)</code> and <code>(B ∨ ¬x)</code>, then either x or ¬x is false under σ, so A or B holds: σ satisfies <code>(A ∨ B)</code>. → in plain terms: the resolvent never rules out a real solution.</p>
+<p><strong>Why every learned clause is implied.</strong> Conflict analysis only ever applies resolution to clauses in the formula or previously learned. By induction the learned clause is a resolvent of implied clauses, hence implied by F. Learning is <em>sound by construction</em>; keeping or deleting it changes only speed, never correctness (deleting loses information but not truth).</p>
+<p><strong>Asserting property.</strong> At the end of 1-UIP, exactly one literal ℓ is at the conflict level d, others at levels &lt; d. Let b = max level of the others (0 if the clause is unit). Backjump to b: all others stay false, ℓ's variable is unassigned, so the clause is unit → ℓ forced. → in plain terms: the new clause immediately steers the search away from the exact dead end.</p>
+<p><strong>VSIDS / EVSIDS.</strong> Score s(v), bump amount Δ. On each conflict: s(v) += Δ for variables seen in analysis; then <em>either</em> multiply every score by ρ&lt;1 (original), <em>or</em> leave scores and grow Δ ← Δ/ρ (MiniSat's trick; <code>var_decay</code> default 0.95 in MiniSat). Ordering is identical because only ratios matter, but the second is O(1) instead of O(n). Scores are rescaled by 1e-100 when they overflow. → in plain terms: variables that keep showing up in recent conflicts are where the trouble is, so branch there first.</p>
+<p><strong>Restarts.</strong> Luby sequence (u_i): 1,1,2,1,1,2,4,1,1,2,1,1,2,4,8,… scaled by a unit (e.g. 100 conflicts). It is within a log factor of the optimal universal restart schedule for Las Vegas algorithms of unknown runtime distribution (Luby–Sinclair–Zuckerman 1993). Note: one research agent printed the sequence incorrectly (with a "3"); the form above is the correct one. Modern solvers (Glucose, CaDiCaL, Kissat) instead use <em>dynamic</em> restarts that compare a fast and a slow exponential moving average of learned-clause LBD and restart when the fast one exceeds the slow one by a margin (Biere &amp; Fröhlich, SAT 2015). Exact smoothing constants and margins are solver-specific and I did not verify them against primary source; don't quote them.</p>
+<p><strong>LBD (glue).</strong> LBD(C) = number of distinct decision levels among C's literals. Low LBD ⇒ clause links few decision groups ⇒ more reusable. Glucose (Audemard &amp; Simon, 2009) keeps LBD ≤ 2 forever and periodically deletes about half of the rest, worst LBD first.</p>
+<p><strong>Proof-complexity bounds</strong> (why CDCL stalls):
+- Pigeonhole PHP(n+1→n): every resolution refutation has size 2^Ω(n) (Haken 1985).
+- Tseitin formulas on a graph G: resolution size 2^Ω(tw(G)) in general terms; expanders have linear treewidth, so exponential.
+- CDCL is polynomially equivalent to general resolution <em>with restarts and suitable nondeterministic decisions/learning</em> (Pipatsrisawat &amp; Darwiche, 2011; Atserias, Fichte &amp; Thurley, 2011). Without restarts it is known only to simulate a restricted (regular-like) fragment. Caveat: the equivalence assumes an adversarially chosen decision policy, so it does <strong>not</strong> say real heuristics find the short proofs.</p>
+<p>→ in plain terms: if resolution has no short proof, no CDCL run ever will; and even when it does, nobody can prove VSIDS finds it.</p>
+</section>
+<section id="7-why-it-works" data-sec><h2 id="7-why-it-works">7. Why it works</h2>
+<ul>
+<li><strong>Learning</strong> turns each failure into a permanent pruning rule. Every learned clause cuts off an entire family of assignments (all those containing the culprit combination).</li>
+<li><strong>Non-chronological backjump</strong> skips decision levels irrelevant to the conflict.</li>
+<li><strong>1-UIP</strong> makes the learned clause <em>asserting immediately</em> and typically short.</li>
+<li><strong>Two watched literals</strong> make propagation cost proportional to <em>relevant</em> clauses and make backtracking free.</li>
+<li><strong>VSIDS</strong> builds focus on the "hard core" using only conflict feedback; <strong>phase saving</strong> + <strong>restarts</strong> keep that focus after throwing away the trail.</li>
+</ul>
+<p>Ablation: remove learning → back to DPLL, exponential repeats. Remove restarts → heavy-tailed runtimes, stuck on bad early decisions (and the resolution-simulation theorem weakens). Remove watched literals → propagation dominates, backtracking cost O(n). Remove clause deletion → memory and propagation slow down (learned DB grows without bound). Remove minimization → clauses 30%-ish longer on average (reported in implementation notes; figure not independently verified).</p>
+</section>
+<section id="8-design-knobs-alternatives" data-sec><h2 id="8-design-knobs-alternatives">8. Design knobs &amp; alternatives</h2>
+<table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Options</th>
+<th>Tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Branching</td>
+<td>VSIDS/EVSIDS, VMTF (move-to-front queue), CHB, LRB (bandit, Liang et al. 2016)</td>
+<td>VMTF is cheap and strong when restarting often; VSIDS better in long "stable" runs</td>
+</tr>
+<tr>
+<td>Restarts</td>
+<td>Luby, geometric, glucose-style EMA</td>
+<td>Aggressive restarts help UNSAT; fewer help SAT</td>
+</tr>
+<tr>
+<td>Mode switching</td>
+<td>Kissat/CaDiCaL alternate <em>focused</em> (VMTF, many restarts) and <em>stable</em> (VSIDS-like, few restarts, target phases)</td>
+<td>Gets both SAT and UNSAT strengths</td>
+</tr>
+<tr>
+<td>Clause DB</td>
+<td>LBD tiers, activity, size cap</td>
+<td>Memory vs. reuse</td>
+</tr>
+<tr>
+<td>Minimization</td>
+<td>local, recursive (MiniSat), binary-implication-based</td>
+<td>Shorter clauses, small CPU cost</td>
+</tr>
+<tr>
+<td>Inprocessing</td>
+<td>bounded variable elimination, subsumption, vivification, probing</td>
+<td>Big wins but complicates proofs and incrementality</td>
+</tr>
+<tr>
+<td>Backtracking</td>
+<td>non-chronological (default), chronological (Nadel-Ryvchin 2018 and since), graph-based (2026 paper below)</td>
+<td>Chrono saves re-propagation on huge trails</td>
+</tr>
+</tbody>
+</table>
+<p>Alternatives: DPLL(T)/SMT (theories), local search (ProbSAT, great on random SAT, cannot prove UNSAT), cube-and-conquer (lookahead splits + CDCL leaves), BDDs (memory blow-up), cutting-planes/pseudo-Boolean solvers (stronger proof system; RoundingSat), XOR-aware solvers (CryptoMiniSat).</p>
+</section>
+<section id="9-where-it-breaks" data-sec><h2 id="9-where-it-breaks">9. Where it breaks</h2>
+<ul>
+<li><strong>Pigeonhole/counting.</strong> I measured CaDiCaL 1.5.3 (via PySAT, 2026-10-04 run, laptop) on PHP(n+1→n): n=5: 137 conflicts; 6: 994; 7: 6,383; 8: 37,288; 9: 319,668; 10: 2,657,952 (26.9 s). Each extra hole multiplies conflicts by about 7–8. A human proves it in one sentence.</li>
+<li><strong>Parity/XOR chains, Tseitin on expanders</strong>: exponential in resolution; need Gaussian elimination (CryptoMiniSat, newer XOR work).</li>
+<li><strong>Random 3-SAT near ratio ~4.27</strong>: hard for everyone; phase-transition behavior.</li>
+<li><strong>Preprocessing can lose proof power</strong> (variable elimination, blocked-clause elimination remove clauses; proof reconstruction can be exponentially larger).</li>
+<li><strong>Bugs</strong>: solvers <em>have</em> returned wrong answers; fuzzing (Brummayer-Lonsing-Biere 2010) finds them. SAT competitions disqualify solvers for invalid models or wrong UNSAT; certified UNSAT proofs became mandatory in the main track years ago (check the current rules, I did not verify the exact year).</li>
+<li><strong>Misconceptions</strong>: (a) "Clever data structures are the secret": real wins come from learning + propagation + heuristics together. (b) "Learned clauses are heuristics": they're proven consequences. (c) "Industrial instances are easy because of community structure": correlation is documented (Ansótegui et al., Newsham et al.), mechanism is unproven. (d) "Preprocessing is always safe for proof size."</li>
+</ul>
+</section>
+<section id="10-in-the-wild" data-sec><h2 id="10-in-the-wild">10. In the wild</h2>
+<ul>
+<li><strong>MiniSat</strong>: ~2k LOC; <code>propagate()</code> walks watch lists, <code>analyze()</code> does 1-UIP + recursive minimization, <code>cancelUntil()</code> backjumps, <code>pickBranchLit()</code> pops a heap by activity; <code>var_decay</code>=0.95, <code>clause_decay</code>=0.999, Luby restarts by default.</li>
+<li><strong>Blocking literals</strong>: each watch entry stores <code>(clause ref, blocker)</code>; if the blocker is already true the clause is not even loaded (cache win). Deviation from the textbook two-watch story.</li>
+<li><strong>Glucose</strong>: LBD-based deletion and dynamic restarts. <strong>CaDiCaL</strong> (Biere): fully incremental with inprocessing; CaDiCaL 2.0 (CAV 2024) adds backtrackable inprocessing, user propagator, FRAT/LRAT/VeriPB proof output. <strong>Kissat</strong>: C reimplementation, no incremental interface, compact clause headers, aggressive inprocessing; 2022 and 2024 SAT Competition winner lineage.</li>
+<li><strong>Z3 / CVC5 / Yices</strong>: CDCL(T): theory propagators and lemmas feed the same trail.</li>
+<li><strong>Cube-and-conquer</strong> for the Pythagorean triples and Schur-5 results; proofs verified by formally verified checkers.</li>
+</ul>
+</section>
+<section id="11-frontier-whats-new" data-sec><h2 id="11-frontier-whats-new">11. Frontier (what's new)</h2>
+<p><em>Verified by me this session (page fetched):</em>
+1. <strong>Generalizing CDCL with Graph Backtracking</strong>, Coutelier, Hader, Kovács, SAT 2026, arXiv 2605.28220: use implication-graph structure to decide exactly which assignments to undo, generalizing chronological and non-chronological backtracking; fewer re-propagations. https://arxiv.org/abs/2605.28220
+2. <strong>Lazy Reimplication in Chronological Backtracking</strong>, Coutelier, Fleury, Kovács, SAT 2024: re-imply literals on demand rather than eagerly; works in CaDiCaL and Glucose. https://arxiv.org/abs/2501.07457
+3. <strong>Understanding CDCL Solvers via Scalability Studies and Proofdoors</strong>, Zhang, Xia, Li, Li, Vardi, Ganesh, arXiv 2605.15506 (May 2026, revised Aug 2026): analysis of 76,000+ BMC instances; "proofdoor" (interpolant-sequence parameter) explains scaling where classical parameters don't. https://arxiv.org/abs/2605.15506
+4. <strong>SAT Competition 2024</strong>: Kissat took all three main-track golds. https://cca.informatik.uni-freiburg.de/sat24medals/
+5. <strong>CaDiCaL 2.0</strong>, Biere, Faller, Fazekas, Fleury, Froleyks, Pollitt, CAV 2024 (per research notes; paper link: https://link.springer.com/content/pdf/10.1007/978-3-031-65627-9_7.pdf, not opened by me).</p>
+<p><em>Reported by research agent, </em><em>not independently verified</em><em> (treat as leads):</em>
+- Extending CDCL to disjunctions of parity equations (arXiv 2605.15002, SAT 2026 per agent).
+- Learning to Rank Initial Branching Order of SAT Solvers (arXiv 2603.07176); One-shot SAT guidance with GNNs (arXiv 2505.16053); Neural approaches to SAT: design choices &amp; interpretability (arXiv 2504.01173).
+- AlphaMapleSAT: MCTS cube-and-conquer (arXiv 2401.13770, 2024).
+- Practically feasible proof logging for pseudo-Boolean optimization (CP 2025, VeriPB/CakePB); Streaming LRAT certificates into Lean (arXiv 2607.00815).
+- SAT Competition 2025: agent reports MallobSat (parallel track) and AE-Kissat-MAB as winners; not checked.</p>
+<p><strong>Themes</strong>: cheaper backtracking, learned/ML branching (still not displacing VSIDS/VMTF in top solvers as far as I could verify), stronger proof logging (DRAT → LRAT/FRAT → VeriPB, plus formally verified checkers), XOR/Gauss reasoning, parallel cube-and-conquer, LLM-assisted modeling.</p>
+</section>
+<section id="11b-open-problems" data-sec><h2 id="11b-open-problems">11b. Open problems</h2>
+<ol>
+<li><strong>Why does CDCL work on industrial instances?</strong> No theorem links instance structure to short proofs <em>and</em> to the heuristic finding them. Proposed correlates: modularity/community structure (Ansótegui et al.), hierarchical community structure metrics, backdoors/proofdoors. These explain correlation, not mechanism.</li>
+<li><strong>Does CDCL (as actually run, with deterministic heuristics) p-simulate resolution?</strong> The known simulation needs adversarial decisions and many restarts; the realistic case is open.</li>
+<li><strong>Proof complexity of inprocessing</strong>: how much extra power do elimination/vivification/BVA add, and when is it lost on proof reconstruction?</li>
+<li><strong>Beyond resolution in practice</strong>: extended resolution (DRAT/RAT lets you add definitions) and cutting planes are provably stronger; no CDCL-style system automatically finds such proofs on pigeonhole-like families at scale.</li>
+<li><strong>Theory of restarts and clause deletion</strong>: both are empirically essential, theoretically thin.</li>
+<li><strong>Verified solvers at competition speed</strong>: verified CDCL cores exist (Isabelle/IsaSAT line by Fleury, Blanchette, Lammich; Dafny work); the research notes claim "2x slower", which I could not verify. Proof checkers (cake_lpr, verified LRAT checking) cover trust more cheaply.</li>
+</ol>
+</section>
+<section id="12-lineage" data-sec><h2 id="12-lineage">12. Lineage</h2>
+<p>DPLL (Davis-Putnam 1960; Davis-Logemann-Loveland 1962) → GRASP (Marques-Silva &amp; Sakallah 1996; IEEE TC 1999) → SATO, Chaff (2001: 2WL, VSIDS) → MiniSat (2003/2005: minimization, small codebase) → Glucose (2009: LBD) → Lingeling/CaDiCaL/Kissat (inprocessing, mode switching, 2010s–) → graph backtracking, ML-guided branching, verified proofs (now).</p>
+</section>
+<section id="13-hands-on-30-min" data-sec><h2 id="13-hands-on-30-min">13. Hands-on (≤30 min)</h2><div class="widget" id="phpchart"></div>
+<ol>
+<li><code>python3 cdcl.py</code>: prints the traced run above and fuzzes 2000 random formulas against brute force (0 mismatches when I ran it). Modify the formula so the UIP is the decision (e.g. drop C1/C3 structure) and watch the learned clause change.</li>
+<li><code>python3 php_blowup.py</code> (needs <code>pip install python-sat</code>): reproduces the conflict blow-up table in §9. Predict n=11 before running (≈ ×8 → ~20M conflicts, several minutes).</li>
+<li>Proof check: use <code>cadical input.cnf proof.drat</code> then <code>drat-trim input.cnf proof.drat</code> on any small UNSAT CNF; try deleting a line from the proof and see the checker reject it.</li>
+</ol>
+</section>
+<section id="14-question-ladder" data-sec><h2 id="14-question-ladder">14. Question ladder</h2>
+<p><strong>Mechanism</strong>
+1. In the traced run, why is <code>¬2</code> kept in the learned clause but <code>¬3</code>, <code>¬5</code>, <code>¬6</code> are not?</p>
+<details class="q"><summary>Answer</summary><div>Level-3 literals are resolved away until only the UIP (¬4) remains at the conflict level. ¬2 is at a lower level so is never resolved; it stays as the "context" that made C4 dangerous.</div></details>
+<ol start="2">
+<li>How does a solver pick the backjump level?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Highest decision level among the learned clause's literals other than the asserting one (0 if unit). Ensures the clause becomes unit after the jump.</div></details>
+<ol start="3">
+<li>Walk one propagation with two watched literals when a watched literal becomes false.</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Visit that literal's watch list. For each clause: if the other watch is true (or blocker true) skip; else look for a non-false replacement literal and move the watch; if none, the other watch is forced true (unit) or the clause is conflicting if it's false.</div></details>
+<ol start="4">
+<li>What exactly does EVSIDS do instead of decaying all scores?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Grows the bump increment by 1/ρ each conflict; relative order identical; rescale when floats overflow.</div></details>
+<ol start="5">
+<li>What is checked by RUP?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Assume the negation of the clause, unit-propagate on the formula (plus earlier proof lines); a conflict means the clause is implied.</div></details>
+
+<p><strong>Why</strong>
+6. Why 1-UIP rather than learning the decision-only clause?</p>
+<details class="q"><summary>Answer</summary><div>Decision-only clauses are long and rarely reusable; 1-UIP clauses are asserting, typically shorter, and abstract away irrelevant intermediate propagations.</div></details>
+<ol start="7">
+<li>Why does backtracking cost nothing with two watched literals?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>The invariant only constrains watches relative to *current* assignments; unassigning variables can only make more literals non-false, so the invariant still holds with no updates.</div></details>
+<ol start="8">
+<li>Why can deleting learned clauses never make the solver wrong?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>They're implied by F; removing them removes only redundant constraints (completeness still holds provided termination is preserved, e.g. don't delete clauses that are reasons of current assignments and keep growth of the kept set).</div></details>
+<ol start="9">
+<li>Why do restarts help when the trail is thrown away?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Heavy-tailed runtimes: bad early decisions trap the search; learned clauses, scores, and saved phases persist so restarting costs little and escapes the trap.</div></details>
+<ol start="10">
+<li>Why is Luby sequence a sensible default with unknown runtime distribution?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>It is within a logarithmic factor of the optimal universal schedule (Luby-Sinclair-Zuckerman).</div></details>
+
+<p><strong>Counterfactual</strong>
+11. What if you learn the clause from the first-decision cut (all decisions)?</p>
+<details class="q"><summary>Answer</summary><div>Still sound, but longer clauses, weaker pruning; backjump is often just one level.</div></details>
+<ol start="12">
+<li>What if VSIDS were static (scores fixed at start)?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Loses dynamic focus on the current hard core; research notes and the literature treat static heuristics as clearly inferior on industrial instances.</div></details>
+<ol start="13">
+<li>What if restarts are allowed only after exponentially growing intervals?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>That's geometric restarts: fine, but less adaptive than Luby/glucose; theory-wise the resolution-simulation proof needs enough restarts.</div></details>
+
+<p><strong>Adversarial</strong>
+14. Construct a family CDCL provably can't solve fast.</p>
+<details class="q"><summary>Answer</summary><div>Pigeonhole or Tseitin-on-expander formulas: resolution lower bounds apply to every CDCL run.</div></details>
+<ol start="15">
+<li>How would you make a solver answer UNSAT wrongly?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Bug in analysis/inprocessing (e.g. unsound elimination); this is why DRAT/LRAT proofs and independent checkers exist.</div></details>
+<ol start="16">
+<li>How can preprocessing hurt a proof?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Variable/blocked-clause elimination removes clauses that short proofs need; reconstructing in resolution can blow up.</div></details>
+
+<p><strong>Connection</strong>
+17. How does CDCL relate to SMT?</p>
+<details class="q"><summary>Answer</summary><div>CDCL(T): theory solvers detect theory conflicts, return lemma clauses; the SAT core learns/backjumps on them like any clause.</div></details>
+<ol start="18">
+<li>How is PubGrub like CDCL?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Learns "incompatibilities" from conflicts, backjumps, and keeps them; derivation tree gives readable error messages; domain is version ranges not booleans.</div></details>
+<ol start="19">
+<li>Relationship between conflict analysis and resolution proofs?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Each learned clause is a resolution derivation; the entire UNSAT run is a DAG of such derivations ending in the empty clause.</div></details>
+
+<p><strong>Open</strong>
+20. Can any practical solver find short extended-resolution proofs for pigeonhole-like formulas automatically?</p>
+<details class="q"><summary>Answer</summary><div>Open in practice; BVA-style preprocessing recovers some structure, but no general method.</div></details>
+<ol start="21">
+<li>Is there a theorem explaining VSIDS on structured instances?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>No; only empirical correlations with community structure and decay-rate analyses.</div></details>
+<ol start="22">
+<li>Can ML-based branching beat VSIDS/VMTF in a competition-grade solver?</li>
+</ol>
+<details class="q"><summary>Answer</summary><div>Unsettled. Reported results are promising on benchmark slices; I did not verify that any top competition solver ships a learned heuristic.</div></details>
+
+</section>
+<section id="15-go-deeper-next" data-sec><h2 id="15-go-deeper-next">15. Go deeper next</h2>
+<ol>
+<li><strong>Proof systems for solvers</strong>: DRAT, LRAT, FRAT, VeriPB and verified checkers (cake_lpr).</li>
+<li><strong>Cube-and-conquer</strong> and how the Pythagorean/Schur results were split and certified.</li>
+<li><strong>DPLL(T) / SMT lemma learning</strong>: how theory conflicts enter the CDCL trail.</li>
+</ol>
+</section>
+<section id="sources" data-sec><h2 id="sources">Sources</h2>
+<p><strong>Papers / handbook</strong>
+- Marques-Silva &amp; Sakallah, GRASP, IEEE Trans. Computers 1999: https://eprints.soton.ac.uk/262032/1/jpms-tcomp99.pdf
+- Moskewicz et al., Chaff, DAC 2001: https://ieee-ceda.org/media/chaff-engineering-efficient-sat-solver
+- Eén &amp; Sörensson, An Extensible SAT-solver, SAT 2003: http://minisat.se/Papers.html
+- Biere &amp; Fröhlich, Evaluating CDCL Variable Scoring Schemes, SAT 2015: https://cca.informatik.uni-freiburg.de/papers/BiereFroehlich-SAT15.pdf
+- Pipatsrisawat &amp; Darwiche, On the Power of Clause-Learning SAT Solvers as Resolution Engines (AIJ 2011): http://reasoning.cs.ucla.edu/fetch.php?id=109&amp;type=pdf
+- Liang et al., Learning Rate Based Branching, 2016: https://www.ac.tuwien.ac.at/files/pub/Liang2016.pdf
+- Brummayer, Lonsing, Biere, Fuzzing/delta-debugging SMT &amp; SAT, SAT 2010: https://cca.informatik.uni-freiburg.de/papers/BrummayerLonsingBiere-SAT10.pdf
+- Biere et al., CaDiCaL 2.0, CAV 2024: https://link.springer.com/content/pdf/10.1007/978-3-031-65627-9_7.pdf
+- Heule, Schur Number Five, AAAI 2018: https://www.cs.utexas.edu/~marijn/Schur/
+- Heule, Kullmann, Marek, Boolean Pythagorean Triples: https://arxiv.org/abs/1605.00723 (verified: ~200 TB uncompressed DRAT proof, 68 GB compressed certificate, 800 cores)
+- Fleury et al., A Verified SAT Solver with Watched Literals: https://people.mpi-inf.mpg.de/~mfleury/sat_twl.pdf</p>
+<p><strong>Frontier (verified by fetch)</strong>: arXiv 2605.28220; arXiv 2501.07457; arXiv 2605.15506; https://cca.informatik.uni-freiburg.de/sat24medals/</p>
+<p><strong>Code/docs</strong>: MiniSat https://github.com/niklasso/minisat · Kissat (official) https://github.com/arminbiere/kissat · CaDiCaL https://github.com/arminbiere/cadical · PySAT https://github.com/pysathq/pysat · libsolv/PubGrub overview https://research.swtch.com/version-sat · Aalto CDCL notes https://users.aalto.fi/~tjunttil/2020-DP-AUT/notes-sat/cdcl.html</p>
+<p><strong>Articles/other</strong>: SAT competition slides https://satcompetition.github.io/2024/downloads/satcomp24slides.pdf</p>
+<p><strong>Unverified / corrections log</strong>
+- Research agent said Schur-5 was 2023; primary page says AAAI 2018.
+- Research agent's Handbook ch.4 link actually pointed to the preprocessing chapter: not cited.
+- Research agent's "1-UIP gives highest backjump level" is wrong; not used.
+- Restart EMA constants and Kissat header byte sizes: unverified, omitted.
+- Claims of "verified solvers 2× slower", "30% fewer literals from minimization", SAT 2025 winners: unverified.</p></section>
+</main>
+</div>
+<script>
+// ---------- copy buttons ----------
+document.querySelectorAll('pre').forEach(p=>{const b=document.createElement('button');b.className='copy';b.textContent='copy';b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(p.innerText.replace(/^copy\n?/,'')).then(()=>{b.textContent='copied';setTimeout(()=>b.textContent='copy',1200)})};p.appendChild(b)});
+// ---------- reveal all ----------
+document.getElementById('revealAll').onclick=()=>document.querySelectorAll('details.q').forEach(d=>d.open=true);
+document.getElementById('hideAll').onclick=()=>document.querySelectorAll('details.q').forEach(d=>d.open=false);
+// ---------- mobile nav ----------
+const nb=document.getElementById('navbtn'),nv=document.getElementById('nav');nb.onclick=()=>{const o=nv.classList.toggle('open');nb.setAttribute('aria-expanded',o)};
+// ---------- scroll spy ----------
+const links=[...document.querySelectorAll('nav a')];const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('on'));const a=map.get(e.target.id);a&&a.classList.add('on')}})},{rootMargin:'-10% 0px -80% 0px'});
+document.querySelectorAll('section[data-sec]').forEach(s=>io.observe(s));
+// ---------- step-through of the traced example ----------
+(function(){
+const el=document.getElementById('stepper');if(!el)return;
+const S=[
+{t:[],m:'Formula: <b>C1</b> (¬3∨4) · <b>C2</b> (¬4∨5) · <b>C3</b> (¬4∨6) · <b>C4</b> (¬5∨¬6∨¬2) · <b>C5</b> (1∨2∨3∨7). Empty trail.'},
+{t:[['+1','dec',1]],m:'Decide <b>x1=T</b> at level 1. Nothing is forced.'},
+{t:[['+1','dec',1],['+2','dec',2]],m:'Decide <b>x2=T</b> at level 2. Still nothing forced.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3]],m:'Decide <b>x3=T</b> at level 3.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3]],m:'C1 (¬3∨4): ¬3 is false, so <b>x4=T</b> is forced (reason C1).'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','imp',3],['+6','imp',3]],m:'C2 forces <b>x5=T</b>, C3 forces <b>x6=T</b>.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','bad',3],['+6','bad',3]],m:'<b>Conflict:</b> C4 (¬5∨¬6∨¬2) has all three literals false.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','bad',3],['+6','bad',3]],learn:'(¬5 ∨ ¬6 ∨ ¬2)  →  resolve on 6 with C3  →  (¬5 ∨ ¬2 ∨ ¬4)  →  resolve on 5 with C2  →  (¬2 ∨ ¬4)',m:'<b>1-UIP analysis.</b> Resolve away level-3 literals from the newest backward until one remains. That literal (¬4) is the UIP: every path from decision x3 to the conflict passes through x4.'},
+{t:[['+1','dec',1],['+2','dec',2],['-4','imp',2]],learn:'learned: (¬2 ∨ ¬4)',m:'<b>Backjump to level 2</b> (highest level among the other literals, x2). The clause is now unit and asserts <b>x4=F</b>.'},
+{t:[['+1','dec',1],['+2','dec',2],['-4','imp',2],['-3','imp',2]],learn:'learned: (¬2 ∨ ¬4)',m:'C1 (¬3∨4) with x4=F forces <b>x3=F</b>. One conflict ruled out x3=T without ever trying it again.'}];
+let i=0;
+function r(){const s=S[i];el.innerHTML='<h4>Step-through: the traced conflict <span style="color:var(--mute);font-weight:400">('+(i+1)+'/'+S.length+')</span></h4><div class="trail" aria-label="assignment trail">'+(s.t.length?s.t.map(x=>'<span class="lit '+x[1]+'">'+x[0].replace('-','¬x').replace('+','x')+'<small>L'+x[2]+'</small></span>').join(''):'<span style="color:var(--mute)">trail empty</span>')+'</div>'+(s.learn?'<div class="learnt">'+s.learn+'</div>':'')+'<p class="msg">'+s.m+'</p><button id="bk">← Back</button> <button id="nx">Next →</button> <button id="rs">Reset</button>';
+document.getElementById('bk').onclick=()=>{i=Math.max(0,i-1);r()};document.getElementById('nx').onclick=()=>{i=Math.min(S.length-1,i+1);r()};document.getElementById('rs').onclick=()=>{i=0;r()}}
+r();})();
+// ---------- pigeonhole chart (measured data) ----------
+(function(){
+const el=document.getElementById('phpchart');if(!el)return;
+const D=[[5,137],[6,994],[7,6383],[8,37288],[9,319668],[10,2657952]];
+const W=520,H=210,pl=48,pb=34,max=Math.log10(3e6),min=Math.log10(100);
+const x=n=>pl+(n-5)/5*(W-pl-20),y=v=>H-pb-(Math.log10(v)-min)/(max-min)*(H-pb-14);
+let g='';[1e2,1e3,1e4,1e5,1e6].forEach(v=>{g+=`<line x1="${pl}" x2="${W-14}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" opacity=".15"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${v>=1e6?'1M':v>=1e3?v/1e3+'k':v}</text>`});
+const pts=D.map(d=>x(d[0])+','+y(d[1])).join(' ');
+el.innerHTML=`<h4>Measured: CaDiCaL conflicts on PHP(n+1→n), log scale</h4><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Conflicts grow about 7-8x per extra hole">${g}<polyline points="${pts}" fill="none" stroke="var(--acc)" stroke-width="2.5"/>${D.map(d=>`<circle cx="${x(d[0])}" cy="${y(d[1])}" r="4" fill="var(--acc)"/><text x="${x(d[0])}" y="${H-12}" text-anchor="middle">n=${d[0]}</text>`).join('')}</svg><p class="msg">A straight line on a log axis means exponential growth: roughly ×7–8 per extra hole. This is Haken's 1985 resolution lower bound showing up in a real solver. Reproduce with <code>php_blowup.py</code>.</p>`;})();
+</script>
+</body>
+</html>
