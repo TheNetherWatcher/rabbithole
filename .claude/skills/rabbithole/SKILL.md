@@ -40,6 +40,17 @@ Resolve the subject once per run: `subject:` token > `config.json` `subject`. If
 4. Prefer topics where something non-obvious happens inside, and where there is real recent work to report. In research mode this is a hard requirement: the topic must have meaningful papers/advancements from the last ~2 years.
 5. Actually be random: mentally enumerate ~10 candidates across different domains, then pick one — don't default to the most famous.
 
+## Step 1b — Log the entry (before any research)
+
+Once the topic is picked (or confirmed, for `topic:` modes), write its `history.md` row NOW, before launching any research. This reserves the topic so it is never repeated, even if the run dies mid-research.
+
+1. Append a row to `history.md`:
+   `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) · [html](dives/YYYY-MM-DD-<slug>/index.html) | — |`
+   (last column = blog link, filled by `/rabbithole blog`). For any subject other than `cs`, write the domain as `<Subject label>: <domain>` (e.g. `Physics: condensed matter`) so history stays readable.
+2. Fix the slug and folder name here; Steps 3–5 reuse them.
+3. Do not commit or push yet; that happens in Step 5 with the dive.
+4. If the run is abandoned before the dive is saved (user cancels, topic unresearchable), delete the row again.
+
 ## Step 2 — Web research (mandatory, before writing)
 
 Do not explain from memory alone. Research first, thoroughly.
@@ -169,9 +180,7 @@ Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverabl
 ## Step 5 — Save + log + push
 
 1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`) AND `dives/YYYY-MM-DD-<slug>/index.html` (Step 4). Put any code from the hands-on section in the same folder.
-2. Append a row to `history.md`:
-   `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) · [html](dives/YYYY-MM-DD-<slug>/index.html) | — |`
-   (last column = blog link, filled by `/rabbithole blog`). For any subject other than `cs`, write the domain as `<Subject label>: <domain>` (e.g. `Physics: condensed matter`) so history stays readable.
+2. The `history.md` row was already written in Step 1b. Confirm it exists and its links match the saved folder; fix it if the slug changed. Do not append a duplicate.
 3. **Guard before pushing**: run `git remote get-url origin`; it must be `https://github.com/TheNetherWatcher/rabbithole.git` (or the ssh equivalent), and `history.md` must exist in the cwd. If not, stop and tell the user — never push dives to another repo.
 4. `git add` the new dive folder (README.md, index.html, code) + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
 
