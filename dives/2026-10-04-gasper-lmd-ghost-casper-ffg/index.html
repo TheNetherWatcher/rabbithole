@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gasper: LMD-GHOST + Casper FFG</title>
+<style>:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#5f6368;--line:#e4e1d8;--card:#fff;--acc:#4b5bd6;--acc2:#e8eafc;--ok:#1b7f4b;--bad:#b3261e;--plain:#fff7e6;--plainb:#f0d9a0;--code:#f3f1ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121316;--fg:#e8e8ea;--mut:#9aa0a6;--line:#2a2c31;--card:#1a1c20;--acc:#8c9bff;--acc2:#23273f;--ok:#5fd394;--bad:#ff8a80;--plain:#2a2415;--plainb:#5a4a1f;--code:#1f2126}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+#toc{position:fixed;top:0;left:0;bottom:0;width:250px;overflow:auto;padding:20px 14px;border-right:1px solid var(--line);background:var(--bg);font-size:13.5px}
+#toc .tt{font-weight:700;margin-bottom:10px}
+#toc a{display:block;padding:4px 8px;border-radius:6px;color:var(--mut);text-decoration:none}
+#toc a:hover{background:var(--acc2)}#toc a.on{background:var(--acc2);color:var(--acc);font-weight:600}
+#menuBtn{display:none;position:fixed;top:10px;right:10px;z-index:20;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+main{margin-left:250px;padding:28px 32px 80px;max-width:calc(70ch + 250px + 64px)}
+main>*{max-width:76ch}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.45rem;margin:2.2em 0 .6em;scroll-margin-top:16px}h3{margin-top:1.4em}
+.num{display:inline-block;min-width:2em;color:var(--acc);font-weight:700;margin-right:.3em}
+a{color:var(--acc)}code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.9em}
+pre{background:var(--code);padding:14px;border-radius:10px;overflow:auto;position:relative;font-size:.85rem;line-height:1.5;border:1px solid var(--line)}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+.tw{overflow-x:auto}table{border-collapse:collapse;font-size:.88rem;width:100%}th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}th{background:var(--acc2)}
+.hero{margin-bottom:1em}.card-meta{display:flex;flex-wrap:wrap;gap:6px}.card-meta span{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--acc2);color:var(--acc)}
+.tldr{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);padding:14px 16px;border-radius:10px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:14px}
+.strip div,.kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}.strip b,.kv b{display:block;font-size:1.25rem;color:var(--acc)}.strip span,.kv span{font-size:12px;color:var(--mut)}
+.plain{background:var(--plain);border:1px solid var(--plainb);border-radius:14px;padding:6px 22px 14px;margin-top:1.4em}.plain h2{margin-top:.6em}
+.pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;background:var(--plainb);padding:3px 10px;border-radius:99px;color:var(--fg)}
+.divider{display:flex;align-items:center;gap:12px;margin:3em 0 0;color:var(--acc);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:13px}.divider:before,.divider:after{content:"";flex:1;height:1px;background:var(--acc)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:14px 0}.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.c b{display:block;font-size:.9rem}.c span{font-size:.82rem;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.twocol>div{border-radius:10px;padding:4px 14px;border:1px solid var(--line);background:var(--card)}.use{border-top:3px solid var(--ok)!important}.skip{border-top:3px solid var(--bad)!important}.twocol h4{margin:.7em 0 .2em}
+.widget{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:18px 0}.wtitle{font-weight:700;margin-bottom:8px}
+.widget svg{width:100%;height:auto}.axis{stroke:var(--line);stroke-width:3}.tick line{stroke:var(--mut)}.tick text{fill:var(--mut);font-size:12px;text-anchor:middle}.dotc{fill:var(--acc);transition:cx .5s}.lbl{fill:var(--fg);font-size:14px;transition:x .5s}
+.stepText{min-height:4.5em;font-size:.92rem}.ctrl{display:flex;align-items:center;gap:12px}.ctrl span{font-size:12px;color:var(--mut);letter-spacing:.06em}
+button{font:inherit;font-size:14px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}button:hover{border-color:var(--acc)}button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+label{display:block;margin:8px 0;font-size:.9rem}input[type=range]{width:100%}.small{font-size:.85rem;color:var(--mut)}
+.bar{height:16px;background:var(--code);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .25s}.bar i.adv{background:var(--bad)}.bars span{font-size:12px;color:var(--mut)}
+.verdict{margin-top:8px;font-weight:600}.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+details.q{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:6px 0;background:var(--card)}details.q summary{cursor:pointer}.ans{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);color:var(--mut)}
+.reveal-bar{margin:6px 0 12px}footer{margin-top:3em;font-size:.8rem;color:var(--mut)}
+@media (max-width:900px){#toc{transform:translateX(-100%);transition:transform .2s;z-index:15;box-shadow:2px 0 12px rgba(0,0,0,.2);width:78vw}#toc.open{transform:none}#menuBtn{display:block}main{margin-left:0;padding:56px 16px 60px}.twocol{grid-template-columns:1fr}.kv{grid-template-columns:1fr}}
+body{overflow-x:hidden}main{min-width:0;width:100%}@media (max-width:900px){main{width:auto}main>*{max-width:100%}}
+</style></head>
+<body>
+<button id="menuBtn" type="button" aria-label="Toggle contents">Contents</button>
+<nav id="toc" aria-label="Table of contents"><div class="tt">Gasper deep dive</div><a href="#s0b">Plain English</a><a href="#s1">Bare-minimum context</a><a href="#s1b">Real-world context</a><a href="#s2">The one-liner and what it hides</a><a href="#s3">The problem</a><a href="#s4">Mental model</a><a href="#s5">The mechanism, traced</a><a href="#s6">The math</a><a href="#s7">Why it works</a><a href="#s8">Design knobs &amp; alternatives</a><a href="#s9">Where it breaks</a><a href="#s10">In the wild</a><a href="#s11">Frontier (what&#x27;s new)</a><a href="#s11b">Open problems</a><a href="#s12">Lineage</a><a href="#s13">Hands-on (≤30 min)</a><a href="#s14">Question ladder</a><a href="#s15">Go deeper next</a><a href="#ssrc">Sources</a></nav>
+<main>
+
+<header class="hero" id="top">
+  <div class="card-meta"><span>Blockchain</span><span>Consensus</span><span>Gasper: LMD-GHOST + Casper FFG</span><span>Depth: hard</span><span>2026-10-04</span></div>
+  <h1>Ethereum Gasper: LMD-GHOST + Casper FFG</h1>
+  <div class="tldr"><b>TL;DR.</b> Ethereum picks its chain head by following the heaviest subtree of each validator's <em>latest</em> vote, and separately finalizes checkpoints once two-thirds of stake votes twice in a row. Reversing a finalized checkpoint burns at least one third of all stake. <b>Why it matters:</b> every exchange, bridge and rollup decides how long to wait based on these rules, and every known reorg attack targets the seam between the two layers.</div>
+  <div class="strip">
+    <div><b>12 s</b><span>slot</span></div><div><b>32</b><span>slots / epoch (6.4 min)</span></div><div><b>2/3</b><span>supermajority</span></div><div><b>&ge;1/3</b><span>slashable on a safety break</span></div><div><b>40%</b><span>proposer boost</span></div><div><b>&asymp;128</b><span>validators / committee</span></div><div><b>64&ndash;95</b><span>slots to finalize today</span></div>
+  </div>
+</header>
+<section id="s0b" class="plain"><span class="pill">Start here &middot; no jargon</span><h2>Plain English first</h2><p><strong>Explain it simply.</strong> Imagine ~900,000 people who all have to agree on one shared notebook, and nobody is in charge. Every 12 seconds one person is randomly picked to write the next page. Sometimes two pages get written at once, or a page arrives late, so the notebook briefly has two versions. Gasper is the rulebook for (1) which version to <em>follow today</em>, and (2) when a page is so firmly agreed that <em>throwing it away would cost cheaters a fortune</em>.</p>
+<p>Part one is <strong>LMD-GHOST</strong>: "follow the version most people most recently pointed at." Part two is <strong>Casper FFG</strong>: every ~6 minutes, people sign a public statement "I agree this page is part of history." If two-thirds of everyone signs, the page is <em>justified</em>; one more round of two-thirds on top and it is <em>finalized</em>. Anyone who signs two contradictory statements gets caught and loses money, so reversing a finalized page would force at least a third of all people to burn their deposits.</p>
+<p><strong>Everyday example.</strong> A town of 99 voters keeps a "latest news" board. Tuesday noon, the mayor posts "Bridge opens Friday" (page A). A prankster with slow-delivery tricks makes half the town hear about a rival post "Bridge opens Monday" (page B) first. Town splits 49/49 with two undecided wildcards the prankster controls. Each voter's rule: <em>"point at the post most of the town's latest pointers support."</em> The prankster feeds the wildcards' pointers one at a time to keep it a perfect tie forever, so the town never settles. The fix: whoever posts next gets a <strong>bonus of 40 imaginary votes for the first few seconds</strong> if their post arrives on time. A prompt honest post wins and the tie breaks. Every ~6 minutes the town also holds a signed roll call; once two-thirds sign the same post twice in a row, it is carved in stone.</p>
+<p><strong>Bridge:</strong> now the same thing, technically.</p>
+<hr /></section><section id="s1"><h2><span class="num">1</span>Bare-minimum context</h2><ul>
+<li><strong>Proof-of-stake</strong>: validators lock 32 ETH (up to 2048 post-Pectra, EIP-7251); voting power = <em>effective balance</em>. <a target="_blank" rel="noopener" href="https://ethereum.org/developers/docs/consensus-mechanisms/pos/">ethereum.org</a></li>
+<li><strong>Slot = 12 s, epoch = 32 slots = 6.4 min.</strong> One proposer per slot; every active validator attests once per epoch, spread across slots via committees. <a target="_blank" rel="noopener" href="https://eth2book.info/latest/part3/config/preset/">eth2book</a></li>
+<li><strong>Committees</strong>: validators shuffled each epoch into ≤64 committees/slot of ≈128 (<code>TARGET_COMMITTEE_SIZE = 128</code>).</li>
+<li><strong>BFT thresholds</strong>: tolerate &lt; 1/3 Byzantine stake; 2/3 supermajorities intersect in &gt; 1/3.</li>
+<li><strong>Slashing</strong>: provable equivocation burns stake.</li>
+<li><strong>Partial synchrony</strong>: messages arrive within an unknown bound Δ; <strong>dynamic availability</strong>: protocol keeps going when many validators go offline.</li>
+</ul></section><section id="s1b"><h2><span class="num">1b</span>Real-world context</h2><p><strong>What it is.</strong> The consensus protocol of Ethereum's Beacon Chain since the Merge (Sept 2022). A <em>fork-choice rule</em> (LMD-GHOST) picks a head so liveness never stalls; a <em>finality gadget</em> (Casper FFG) layered on checkpoints gives economic irreversibility. Formalized as "Gasper" by Buterin et al., <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2003.03052">arXiv 2003.03052</a>.</p>
+<p><strong>Why it exists.</strong> Tendermint-style BFT halts if ≥1/3 are offline and needs all-to-all voting rounds per block, which does not scale to ~10^5–10^6 validators with open, dynamic membership. Gasper keeps the chain <em>growing</em> whenever anyone is online (availability) and adds finality as an overlay that can stall without killing the chain. Cost of not having it: reorg-able chain, or a chain that halts.</p>
+<p><strong>Where it's used.</strong>
+- <strong>Ethereum mainnet</strong>: ~0.9M active validators, ~39M ETH staked (secondary sources, <strong>unverified</strong> figures).
+- <strong>Consensus clients</strong>: Lighthouse (Rust), Prysm (Go), Teku (Java), Nimbus (Nim), Lodestar (TS), Grandine (Rust); each implements the same spec fork choice.
+- <strong>Execution clients</strong> (Geth, Nethermind, Besu, Erigon, Reth) take <code>safe</code>/<code>finalized</code> block tags from it; exchanges and bridges wait for <code>finalized</code>.
+- <strong>Gnosis Chain</strong> runs an adaptation of the same beacon-chain design.
+- <strong>L2 rollups</strong> (Optimism, Arbitrum, Base) derive "finalized" L1 status from it.
+- <strong>Staking pools / restaking</strong> (Lido, EigenLayer) are slashed by its rules.</p>
+<p><strong>How it's used.</strong> A practitioner touches the Beacon API:</p>
+<pre class="cb"><button class="copy" type="button">Copy</button><code class="language-bash"># checkpoints (justified / finalized)
+curl -s localhost:5052/eth/v1/beacon/states/head/finality_checkpoints | jq
+# whole fork-choice tree with weights (debug)
+curl -s localhost:5052/eth/v1/debug/fork_choice | jq '.fork_choice_nodes | length'
+# start a node from a recent finalized state instead of genesis (weak subjectivity)
+lighthouse bn --checkpoint-sync-url https://&lt;trusted-beacon-api&gt;
+</code></pre>
+<p>JSON-RPC lets dapps ask for <code>eth_getBlockByNumber("finalized")</code> or <code>"safe"</code>. Typical rule: exchanges credit deposits at <code>finalized</code> (~13 min); wallets show <code>latest</code> (head).</p>
+<p><strong>When to use / not.</strong> Wait for <code>finalized</code> when value at risk &gt; cost of ~13 min; use <code>safe</code> (justified) for mid-latency; <code>latest</code> only for UX. Gasper itself is not something you "choose", but the design choice recurs: if you need sub-second finality, you want BFT (Tendermint/CometBFT) with a small validator set, and you accept halting.</p>
+<p><strong>Who should care.</strong> Node operators (missed attestations, slashing, client diversity), MEV/builder teams (reorg windows), bridge/exchange/rollup engineers (finality semantics), protocol researchers.</p>
+<hr />
+<div class="cards">
+ <div class="c"><b>Mainnet</b><span>~0.9M validators, ~39M ETH staked (secondary sources, unverified)</span></div>
+ <div class="c"><b>Lighthouse / Prysm / Teku / Nimbus / Lodestar</b><span>spec fork choice via proto-array</span></div>
+ <div class="c"><b>Execution clients</b><span>serve <code>safe</code> / <code>finalized</code> block tags from it</span></div>
+ <div class="c"><b>Exchanges, bridges</b><span>credit deposits at <code>finalized</code> (~13 min)</span></div>
+ <div class="c"><b>Rollups (OP, Arbitrum, Base)</b><span>derive L1 finality status</span></div>
+ <div class="c"><b>Lido, EigenLayer</b><span>exposed to its slashing rules</span></div>
+ <div class="c"><b>Gnosis Chain</b><span>adaptation of the same beacon design</span></div>
+</div>
+<div class="twocol">
+ <div class="use"><h4>Use it / rely on it when</h4><ul><li>value at risk exceeds the cost of ~13 min wait</li><li>you need an availability-first chain with open validator set</li><li>economic accountability (slashing) matters</li></ul></div>
+ <div class="skip"><h4>Skip it / look elsewhere when</h4><ul><li>you need sub-second finality (use CometBFT, small validator set)</li><li>you cannot tolerate reorgs in the unfinalized tail</li><li>you cannot add a social checkpoint trust layer</li></ul></div>
+</div></section><div class="divider" id="deep"><span>Technical deep dive</span></div><section id="s2"><h2><span class="num">2</span>The one-liner and what it hides</h2><p><em>"Gasper = LMD-GHOST for the head + Casper FFG for finality."</em> Hides:</p>
+<ol>
+<li>FFG votes carry <strong>two</strong> roles: a finality link <em>and</em> a GHOST head vote; the two layers are coupled by a <em>filter</em> on the block tree.</li>
+<li>"Latest message" means old votes are <strong>overwritten</strong>, which is exactly what makes balancing/bouncing attacks possible.</li>
+<li>Finality is <strong>economic</strong>, not cryptographic: it needs ≥1/3 of stake slashable (accountable safety), and only works if slashing is detectable within the weak-subjectivity period.</li>
+<li>The head rule has <strong>no safety proof for sub-1/3 adversaries</strong>: the fixes (proposer boost, equivocation discounting) are patches.</li>
+<li>Under &gt;1/3 offline, finality stops; the <strong>inactivity leak</strong> bleeds offline stake until 2/3 is restored (days).</li>
+</ol></section><section id="s3"><h2><span class="num">3</span>The problem</h2><p>Nakamoto longest-chain gives availability but only probabilistic finality; classical BFT gives deterministic finality but halts at 1/3 offline and costs O(n²) messages. Ethereum needed: ~10^5+ validators, open set, chain never halts, <em>and</em> a hard finality guarantee with slashing. Numbers: 12 s slots; one vote per validator per epoch (~900k votes / 32 slots ≈ 28k attestations per slot after committee split); at 2 epochs to justify + finalize, normal finality ≈ 2 epochs after the target epoch begins, ~12.8-19 min (64–95 slots per 3-Slot paper).</p></section><section id="s4"><h2><span class="num">4</span>Mental model</h2><p>A <strong>river with a stone bridge being built</strong>: LMD-GHOST is the floating raft you steer toward the strongest current (most recent votes); FFG periodically drives a stone pier (checkpoint) into the riverbed once two-thirds sign off. The raft may drift between piers; it can never cross a pier. <strong>Where it breaks:</strong> the raft is steered by <em>latest</em> currents, so a patient adversary can manipulate which current is "latest" at the moment it matters; piers also only get built if two-thirds are paying attention.</p></section><section id="s5"><h2><span class="num">5</span>The mechanism, traced</h2><p>Trace epoch <em>e</em>, one honest validator <em>v</em> (balance 32 ETH), 900,000 validators.</p>
+<pre class="cb"><button class="copy" type="button">Copy</button><code>slot 0 of epoch e   (t=0s)    proposer P builds block B_e on head H
+t = 0..4s                      attesters in slot's committee wait for B_e (deadline 4s = 1/3 slot)
+t = 4s                         v signs AttestationData:
+   { slot, index, beacon_block_root = B_e,           &lt;- LMD-GHOST head vote
+     source = justified checkpoint (epoch e-1, root S),
+     target = (epoch e, root of epoch-boundary block) }  &lt;- FFG vote (S -&gt; T link)
+t = 4..8s                      aggregators (selected by hash of slot signature) aggregate BLS sigs
+t = 8s                         aggregates broadcast; next proposer includes them
+epoch end                      process_epoch: sum balances with target==T;
+                               if 3*target_balance &gt;= 2*total_active_balance: justify T
+                               if justified(e-1) and justified(e) consecutive: finalize e-1 (rules 1-4)
+</code></pre>
+<p><strong>FFG: one attestation = one supermajority-link vote</strong> (source → target). Justification (spec <code>weigh_justification_and_finalization</code>): <code>previous_epoch_target_balance * 3 &gt;= total_active_balance * 2</code>. Finalization needs a justified checkpoint C whose <em>direct child</em> checkpoint is also justified via a link from C (4 patterns over the last four epochs).</p>
+<p><strong>LMD-GHOST head</strong> (spec <code>get_head</code>, simplified):</p>
+<pre class="cb"><button class="copy" type="button">Copy</button><code class="language-python">def get_head(store):
+    blocks = get_filtered_block_tree(store)       # drop branches whose leaf state disagrees with
+    head = store.justified_checkpoint.root        #   store's justified/finalized checkpoints
+    while True:
+        children = [r for r in blocks if blocks[r].parent_root == head]
+        if not children: return head
+        head = max(children, key=lambda r: (get_weight(store, r), r))   # weight, then root as tiebreak
+
+def get_weight(store, root):
+    state = store.checkpoint_states[store.justified_checkpoint]
+    score = sum(state.validators[i].effective_balance
+                for i in active_unslashed(state)
+                if i in store.latest_messages and i not in store.equivocating_indices
+                and get_ancestor(store, store.latest_messages[i].root, store.blocks[root].slot) == root)
+    if store.proposer_boost_root != Root() and get_ancestor(store, store.proposer_boost_root, slot_of(root)) == root:
+        score += (total_active_balance // SLOTS_PER_EPOCH) * PROPOSER_SCORE_BOOST // 100   # = 40% of one slot's committee
+    return score
+</code></pre>
+<p>A vote for block X counts for X and <em>every ancestor</em> (subtree weight). Only the <strong>latest</strong> message per validator counts.</p>
+<p><strong>Proposer boost</strong>: if a block arrives for the current slot <strong>before the attesting interval</strong> (4 s) and is the first such block (and has the same shuffling-dependent root as the head), <code>store.proposer_boost_root</code> is set; reset on the next slot. Spec constant <code>PROPOSER_SCORE_BOOST = 40</code> (percent of one slot's committee weight).</p>
+<p><strong>Real clients</strong>: instead of walking the tree each time, <strong>proto-array</strong> (Lighthouse, Prysm, Teku, Nimbus, Lodestar) stores nodes in a flat vec in insertion (parent-before-child) order and applies weight <em>deltas</em> in one backward pass: <code>apply_score_changes</code> updates each node's weight and bubbles deltas to the parent; each node caches <code>best_child</code>/<code>best_descendant</code>, so head lookup is O(1) after a pass that is O(N) in nodes (N pruned at finalization). (The research notes claimed O(log n); that is wrong: it is an O(N) linear pass, O(1) lookup.)</p>
+<div class="widget" id="stepper" aria-label="Step-through of one epoch">
+  <div class="wtitle">Step through one attestation (epoch e, one honest validator)</div>
+  <svg viewBox="0 0 720 150" role="img" aria-label="Timeline of a 12 second slot">
+    <line x1="30" y1="75" x2="690" y2="75" class="axis"/>
+    <g class="tick"><line x1="30" y1="68" x2="30" y2="82"/><text x="30" y="102">0s</text></g>
+    <g class="tick"><line x1="250" y1="68" x2="250" y2="82"/><text x="250" y="102">4s</text></g>
+    <g class="tick"><line x1="470" y1="68" x2="470" y2="82"/><text x="470" y="102">8s</text></g>
+    <g class="tick"><line x1="690" y1="68" x2="690" y2="82"/><text x="690" y="102">12s</text></g>
+    <circle id="dot" cx="30" cy="75" r="9" class="dotc"/>
+    <text id="lbl" x="30" y="40" class="lbl">proposer builds block</text>
+  </svg>
+  <div id="stepText" class="stepText"></div>
+  <div class="ctrl"><button id="back" type="button">&larr; Back</button><span id="stepNo">STEP 1 / 5</span><button id="next" type="button">Next &rarr;</button></div>
+</div></section><section id="s6"><h2><span class="num">6</span>The math</h2><p><strong>Supermajority and accountable safety.</strong> Let total stake = <em>n</em>. A supermajority link has ≥ 2n/3 stake. Two conflicting finalized checkpoints need two sets V₁, V₂ each with ≥ 2n/3; by inclusion–exclusion |V₁ ∩ V₂| ≥ 2n/3 + 2n/3 − n = n/3. Validators in the intersection signed <em>both</em> links. Claim (Casper FFG): any such overlap violates a slashing condition:</p>
+<ul>
+<li><strong>Double vote:</strong> <code>data_1 != data_2 and data_1.target.epoch == data_2.target.epoch</code></li>
+<li><strong>Surround vote:</strong> <code>data_1.source.epoch &lt; data_2.source.epoch and data_2.target.epoch &lt; data_1.target.epoch</code></li>
+</ul>
+<p>→ in plain terms: you cannot sign two different statements about the same epoch, or a statement that "wraps" an earlier one, without a witness being able to prove it. So ≥ n/3 stake is provably guilty (<em>accountable safety</em>). Why 2/3 and not 1/2: with 1/2, intersection could be empty; 2/3 is the smallest threshold giving a <em>non-empty-by-a-third</em> intersection robust to f &lt; n/3 faults while keeping liveness (n − f ≥ 2n/3 honest can still reach it).</p>
+<p><strong>Why finalization needs two rounds, not one.</strong> Justification alone only says "2/3 voted source→target"; a later conflicting justification could exist built from different sources without overlap violations. Finality of C requires a link C → C' with C justified, so that <em>any</em> conflicting justified checkpoint would need a link that surrounds or double-votes with C → C'. → in plain terms: the second round stops honest validators from being asked to sign something that contradicts an already-justified thing.</p>
+<p><strong>Inactivity leak.</strong> Spec: each epoch of non-finality (after 4), offline validator's inactivity score <code>s += INACTIVITY_SCORE_BIAS (=4)</code>; penalty per epoch <code>balance * s / (INACTIVITY_SCORE_BIAS * INACTIVITY_PENALTY_QUOTIENT_BELLATRIX)</code> with quotient 2²⁴ = 16,777,216 (phase0 launch value 2²⁶ = 67,108,864; <strong>quotient value checked for phase0 only; Bellatrix+ value from eth2book notes</strong>).
+Score grows linearly in time t (s ≈ 4t), penalty rate ∝ s → balance decays as B(t) ≈ B₀ · exp(−t²/(2·2²²)) <em>(since dB/dt = −B · 4t / (4·2²⁴) = −B·t / 2²⁴ → B = B₀ e^(−t²/(2·2²⁴)))</em>. Solving for a halving: t ≈ √(2·2²⁴·ln 2) ≈ 4,800 epochs ≈ 21 days (matches toy sim below at the 16 ETH ejection point).
+→ in plain terms: loss is <em>quadratic</em> in outage length. A 1-hour outage costs nearly nothing; 3 weeks costs half the stake. Quadratic form (not linear) is chosen so short outages are cheap but a long attack is ruinous, and so the offline fraction drops fast enough to recover finality in weeks, not years.</p>
+<p><strong>Proposer boost threshold.</strong> Boost weight W_b = 0.4·W_c (W_c = one slot's committee weight). A timely honest block's branch overtakes a withheld-vote lead L iff W_b &gt; L. So a balancing adversary needs to hold ≥ 40% of a slot's committee; at adversary fraction β of total stake, expected adversarial votes in a committee ≈ β·W_c, so boost beats it when β &lt; 0.4 (in the idealized model; the research notes say it is "designed for ~20%" because real attacks use multi-slot sandwiches, see §9).</p>
+<div class="widget" id="leakw">
+  <div class="wtitle">Inactivity leak calculator</div>
+  <label>Offline stake fraction <b id="ofv">40</b>% <input id="of" type="range" min="34" max="70" value="40"></label>
+  <div class="kv"><div><b id="lk1">-</b><span>epochs to regain 2/3</span></div><div><b id="lk2">-</b><span>days</span></div><div><b id="lk3">-</b><span>ETH lost per offline validator</span></div></div>
+  <p class="small">Same toy model as <code>gasper_sim.py</code>: offline score += 4 / epoch after 4 epochs, penalty = balance &times; score / (4 &times; 2<sup>24</sup>), ejection at 16 ETH.</p>
+</div>
+<div class="widget" id="boostw">
+  <div class="wtitle">Proposer boost vs a withheld-vote lead</div>
+  <p class="small">Committee weight W<sub>c</sub> = 100 votes. Adversary releases <b id="kv">30</b> withheld votes so fork B leads by that much. The honest timely block on A gets boost = <b id="bv">40</b>% of W<sub>c</sub>.</p>
+  <label>Adversary votes k <input id="kr" type="range" min="0" max="80" value="30"></label>
+  <label>Boost % <input id="br" type="range" min="0" max="100" value="40"></label>
+  <div class="bars"><div><span>Fork A (honest, +boost)</span><div class="bar"><i id="barA"></i></div></div><div><span>Fork B (adversary lead)</span><div class="bar"><i id="barB" class="adv"></i></div></div></div>
+  <div id="boostOut" class="verdict"></div>
+</div></section><section id="s7"><h2><span class="num">7</span>Why it works</h2><ul>
+<li><strong>Safety (FFG):</strong> 2/3 quorums intersect in ≥1/3, and intersection = slashable. Remove surround rule → attacker can finalize conflicting checkpoints by "wrapping" with no double vote. Remove double-vote rule → trivially sign both forks.</li>
+<li><strong>Availability (LMD-GHOST):</strong> the head never depends on 2/3 participation; any online subset keeps extending.</li>
+<li><strong>Coupling:</strong> the filter ensures the head follows the <em>latest justified checkpoint</em>, so honest validators following fork choice never produce slashable votes (this was the bug class behind "unrealized justification" fixes).</li>
+<li><strong>Latest message</strong> keeps state O(#validators) rather than O(votes ever).</li>
+<li>Ablation: no proposer boost → balancing attack with a handful of validators per slot (§9). No equivocation discounting → avalanche attack. No inactivity leak → &gt;1/3 offline halts finality forever.</li>
+</ul></section><section id="s8"><h2><span class="num">8</span>Design knobs &amp; alternatives</h2><div class="tw"><table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Value</th>
+<th>Trade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Slot / epoch</td>
+<td>12 s / 32 slots</td>
+<td>shorter slots → more P2P load; shorter epochs → fewer aggregates per checkpoint, less safety margin</td>
+</tr>
+<tr>
+<td>Committee size</td>
+<td>128 target</td>
+<td>smaller = cheaper aggregation, weaker per-slot sampling</td>
+</tr>
+<tr>
+<td>Proposer boost</td>
+<td>40%</td>
+<td>higher → proposer can reorg more easily (ex-post reorg); lower → balancing attack</td>
+</tr>
+<tr>
+<td>Effective balance cap</td>
+<td>32 → 2048 ETH (EIP-7251)</td>
+<td>fewer validators (less P2P/BLS cost), fatter slashing risk per key</td>
+</tr>
+<tr>
+<td>Weak-subjectivity period</td>
+<td>~ weeks, scales with validator churn</td>
+<td>shorter = more social trust</td>
+</tr>
+</tbody>
+</table></div>
+<p>Alternatives: Tendermint/CometBFT (BFT, halts), GRANDPA+BABE (finalizes <em>chains</em>), Algorand BA★, Avalanche. Gasper's selling point: the head layer and finality layer degrade independently (an "ebb-and-flow protocol", Neu–Tas–Tse, <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2009.04987">arXiv 2009.04987</a>).</p></section><section id="s9"><h2><span class="num">9</span>Where it breaks</h2><ul>
+<li><strong>Balancing attack</strong> (Neu–Tas–Tse 2021): adversary with a few % of stake per slot withholds votes, releases to keep two forks tied under LMD-GHOST ⇒ liveness lost. <em>Mitigation: proposer boost (2021–22)</em>.</li>
+<li><strong>Bouncing attack</strong> (2019): withheld votes make justification alternate between forks; patched by only updating the justified checkpoint early in the epoch (the old <code>SAFE_SLOTS_TO_UPDATE_JUSTIFIED</code>, now removed from the spec in favor of the unrealized-justification design (spec check: constant absent from current <code>fork-choice.md</code>)).</li>
+<li><strong>Ex-ante / sandwich reorgs</strong> (Schwarz-Schilling et al., <a target="_blank" rel="noopener" href="https://eprint.iacr.org/2021/1413">IACR 2021/1413</a>): adversary controlling consecutive proposals reorgs honest blocks by <em>pre-committing</em> in a way proposer boost (within-slot only) cannot stop.</li>
+<li><strong>Avalanche attack</strong>: reuse of withheld blocks via equivocation; fixed by <em>equivocation discounting</em> (<code>equivocating_indices</code> excluded from weights).</li>
+<li><strong>Commitment attacks</strong> (2024, <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2407.19479">arXiv 2407.19479</a>): proposer coerces prior-slot attesters with reward threats; mitigation unresolved.</li>
+<li><strong>Client bugs / finality delays</strong>: May 2023 two finality delays (11–12 May) under load (conflicting notes: one source also says May 2024 Prysm bug — <strong>unverified, treat the year as 2023 until confirmed</strong>); client concentration is a systemic risk.</li>
+<li><strong>MEV timing games</strong>: proposers delay publishing to extract more MEV; risk of more missed slots/reorgs.</li>
+<li><strong>Misconception:</strong> "finalized = cryptographically final." It's final unless ≥1/3 stake is willing to burn, and weak subjectivity means a new node can be fed a bogus checkpoint.</li>
+</ul></section><section id="s10"><h2><span class="num">10</span>In the wild</h2><ul>
+<li>Clients implement spec fork choice via <strong>proto-array</strong> (Lighthouse, Prysm, Teku, Nimbus, Lodestar); fork-choice compliance test vectors live in <code>ethereum/consensus-specs</code>.</li>
+<li>Spec adds <strong>proposer reorg</strong> logic (<code>REORG_HEAD_WEIGHT_THRESHOLD = 20</code>, <code>REORG_PARENT_WEIGHT_THRESHOLD = 160</code>, <code>REORG_MAX_EPOCHS_SINCE_FINALIZATION = 2</code>): a proposer may deliberately build on the parent of a weak late block (reorging an unattested head).</li>
+<li><strong>MEV-Boost</strong>: ~90% of blocks come from external builders; fork choice is oblivious, but timing games stress the 4 s attestation deadline.</li>
+<li><strong>Checkpoint sync</strong> replaces genesis sync (weak subjectivity in practice).</li>
+<li><strong>EIP-7251 (Pectra, May 2025)</strong> consolidates validators to cut P2P load.</li>
+</ul></section><section id="s11"><h2><span class="num">11</span>Frontier (what&#x27;s new)</h2><p>Verified items marked ✓ (fetched); others are from research-agent notes, to be treated as leads.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Item</th>
+<th>Contribution</th>
+<th>Link</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024 ✓</td>
+<td><em>3-Slot-Finality Protocol for Ethereum</em> (D'Amato, Saltini, Tran, Zanolini)</td>
+<td>partially synchronous finality gadget over a dynamically-available chain; finality within 3 slots vs 64–95 today (PODC 2024 per agent notes; arXiv page itself lists cs.DC)</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.00558">arXiv 2411.00558</a></td>
+</tr>
+<tr>
+<td>2024</td>
+<td><em>Towards Single Slot Finality</em></td>
+<td>evaluates protocols for SSF using single-vote total-order broadcast</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.09420">arXiv 2406.09420</a></td>
+</tr>
+<tr>
+<td>2024</td>
+<td><em>A Fast Confirmation Rule for the Ethereum Consensus Protocol</em></td>
+<td>confirm blocks within a slot, backward compatible with FFG</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.00549">arXiv 2405.00549</a></td>
+</tr>
+<tr>
+<td>2025 ✓</td>
+<td><em>Available Attestation: Towards a Reorg-Resilient Solution for Ethereum PoS</em> (Zhang, Li, Lu, Duan; USENIX Security 2025)</td>
+<td>replaces HLMD-GHOST with a stable-chain rule; secure against known reorg attacks in synchrony (agent claims EIP-7942 + Glamsterdam consideration: <strong>unverified</strong>; the paper does not mention EIP-7942)</td>
+<td><a target="_blank" rel="noopener" href="https://eprint.iacr.org/2025/097">IACR 2025/097</a></td>
+</tr>
+<tr>
+<td>2025–26</td>
+<td><em>SoK: Speedy Secure Finality</em></td>
+<td>survey Goldfish → RLMD-GHOST → 3SF</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.20715">arXiv 2512.20715</a></td>
+</tr>
+<tr>
+<td>2026</td>
+<td><em>Majorum: Ebb-and-Flow Consensus with Dynamic Quorums</em></td>
+<td>3-slot finality with one voting phase per slot</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2601.03862">arXiv 2601.03862</a></td>
+</tr>
+<tr>
+<td>2026</td>
+<td><em>Wonderboom</em></td>
+<td>million-scale signature aggregation</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.06655">arXiv 2602.06655</a></td>
+</tr>
+<tr>
+<td>2024</td>
+<td>Orbit SSF</td>
+<td>validator-set sampling for SSF with solo-staker friendliness</td>
+<td><a target="_blank" rel="noopener" href="https://ethresear.ch/t/orbit-ssf-solo-staking-friendly-validator-set-management-for-ssf/19928">ethresear.ch</a></td>
+</tr>
+<tr>
+<td>2025–26</td>
+<td>Lean Ethereum / Minimmit</td>
+<td>one-round BFT replacing Gasper; slot compression; post-quantum signatures (leanXMSS) — research, no fork assigned</td>
+<td><a target="_blank" rel="noopener" href="https://blog.ethereum.org/2025/07/31/lean-ethereum">blog.ethereum.org</a>, <a target="_blank" rel="noopener" href="https://commonware.xyz/blogs/minimmit">Commonware</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>Upgrades touching consensus: Pectra (May 2025; MaxEB), Fusaka (Dec 2025; PeerDAS), Glamsterdam (planned; ePBS EIP-7732 with Payload Timeliness Committee, which alters proposer-boost semantics). All dates from agent notes; Pectra/Fusaka dates cross-referenced only once.</p></section><section id="s11b"><h2><span class="num">11b</span>Open problems</h2><ol>
+<li><strong>Reorg resilience below 1/3</strong>: LMD-GHOST + boost is not proven reorg-resilient; Available Attestation, view-merge, RLMD-GHOST are candidates. Why hard: any rule using <em>latest</em> messages lets withheld votes act later.</li>
+<li><strong>Availability–finality dilemma</strong> (Neu–Tas–Tse): impossible to have dynamic participation <em>and</em> safety under partitions simultaneously; ebb-and-flow is the best known compromise. SSF designs trade fault tolerance (some proposals discuss &lt; 1/3 thresholds) for latency.</li>
+<li><strong>Ex-ante reorg/MEV during the 13-min window</strong>: removing it needs SSF/3SF, which raise message load (aggregation: Orbit, Wonderboom).</li>
+<li><strong>Timing games &amp; rational incentives</strong>: delaying publication is individually profitable; no protocol-level equilibrium fix. Prevalence numbers in the notes (62.8% / 28.8%) are <strong>unverified/contested</strong>.</li>
+<li><strong>Weak subjectivity</strong>: social-layer trust remains; unresolved how to make it objective.</li>
+<li><strong>Correlation penalty adequacy</strong> (2024 critique) — theoretical, no live exploit known.</li>
+<li><strong>Post-quantum</strong>: BLS aggregation is not PQ-secure; hash-based aggregation (leanXMSS+STARKs) is research.</li>
+</ol></section><section id="s12"><h2><span class="num">12</span>Lineage</h2><p>GHOST (Sompolinsky–Zohar 2013) → Casper FFG (Buterin–Griffith 2017, <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1710.09437">1710.09437</a>) → Gasper (2020, <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2003.03052">2003.03052</a>) → ebb-and-flow analysis (2020) → proposer boost + equivocation discounting (2021–23) → Goldfish/RLMD-GHOST/view-merge (2022–23) → 3-slot finality (2024) → Lean consensus / Minimmit (2025+).</p></section><section id="s13"><h2><span class="num">13</span>Hands-on (≤30 min)</h2><p><code>gasper_sim.py</code> (stdlib Python) in this folder:</p>
+<pre class="cb"><button class="copy" type="button">Copy</button><code class="language-bash">python3 gasper_sim.py
+</code></pre>
+<p>Observed output:</p>
+<ol>
+<li><strong>LMD latest message:</strong> 3 votes A vs 1 B → head A; after the 3 validators' <em>latest</em> messages move to B, head flips to B.</li>
+<li><strong>Proposer boost threshold (toy):</strong> committee=100 votes; adversary releases k withheld votes for B. With 40% boost the timely honest block's branch wins for k=10, 30; at k=39 B's lead is 40 (honest split 30/31 plus 39 adversary votes), exactly equal to the boost, so the tie goes to B by root-name tiebreak; k=41 loses outright. With 0% boost it never wins. Boost beats adversaries holding fewer than ~40% of one committee.</li>
+<li><strong>Inactivity leak:</strong> 34% offline → 1,005 epochs (4.5 days, 0.94 ETH lost each); 40% → 3,111 epochs (13.8 d, 8 ETH); 50%/60% → ejection at 16 ETH after 4,826 epochs (21.4 d). Caveat: toy model, uniform offline validators, ejection at exactly 16 ETH balance, bias 4 and quotient 2²⁴.</li>
+</ol>
+<p>Extension: query a real beacon node with the <code>curl</code> commands in §1b and watch <code>finalized.epoch</code> lag <code>current_justified.epoch</code> by 1–2.</p></section><section id="s15"><h2><span class="num">15</span>Go deeper next</h2><ol>
+<li><strong>RLMD-GHOST / view-merge / Goldfish</strong>: vote expiry as a reorg-resilience knob.</li>
+<li><strong>BLS12-381 aggregate signatures and the aggregation subnet P2P layer</strong> (what limits validator count).</li>
+<li><strong>ePBS (EIP-7732) and the Payload Timeliness Committee</strong>.</li>
+</ol></section><section id="s14"><h2><span class="num">14</span>Question ladder</h2><div class="reveal-bar"><button id="revealAll" type="button">Reveal all answers</button></div><h3>Mechanism</h3><details class="q"><summary><b>1.</b> Walk through what a single attestation commits to (which fields serve FFG, which serve LMD-GHOST).</summary><div class="ans"><code>beacon_block_root</code> = LMD-GHOST head vote; <code>source</code> and <code>target</code> checkpoints = FFG link; <code>slot</code>/<code>index</code> locate the committee.</div></details><details class="q"><summary><b>2.</b> When exactly does a checkpoint become justified, and when finalized?</summary><div class="ans">Justified when ≥2/3 of total active balance attests the same target in the epoch (processed at epoch boundary); finalized when a justified checkpoint's next epoch's checkpoint is also justified via a link from it (4 rules over the last 4 epochs).</div></details><details class="q"><summary><b>3.</b> How does a vote for block X contribute to weight of its ancestors?</summary><div class="ans">Subtree weight: the weight of a node is the sum of effective balances of validators whose latest message points at the node <em>or any descendant</em>.</div></details><details class="q"><summary><b>4.</b> What does <code>filter_block_tree</code> remove and why?</summary><div class="ans">Drops branches whose leaf state's justified/finalized checkpoints are inconsistent with the store, so head never follows a chain that would force a slashable vote.</div></details><details class="q"><summary><b>5.</b> When is proposer boost applied and when is it reset?</summary><div class="ans">Applied when the block for the current slot is first seen before the 4 s attesting interval (plus same dependent-root condition); reset at the next slot tick.</div></details><h3>Why</h3><details class="q"><summary><b>6.</b> Why 2/3 and not 1/2 or 3/4?</summary><div class="ans">2/3 is the minimum quorum such that two quorums intersect in ≥ 1/3 (accountability) while f &lt; 1/3 faults still permit a quorum (liveness).</div></details><details class="q"><summary><b>7.</b> Why does finalization need <em>two</em> justified consecutive checkpoints?</summary><div class="ans">So that no honest validator can be driven by fork choice into signing a link that contradicts an already-justified checkpoint without being slashable themselves; a one-round rule leaves a gap with conflicting justifications.</div></details><details class="q"><summary><b>8.</b> Why is the inactivity leak quadratic?</summary><div class="ans">Score grows linearly, penalty ∝ score, so loss ∝ t²: short outages are cheap, long ones ruinous.</div></details><details class="q"><summary><b>9.</b> Why only the <em>latest</em> message per validator?</summary><div class="ans">Bounded state and recency; the cost is that old votes can be overwritten, enabling balancing/bouncing.</div></details><h3>Counterfactual</h3><details class="q"><summary><b>10.</b> Remove the surround-vote rule: describe an attack.</summary><div class="ans">Adversary (≥1/3) signs A→B (wide) and later a nested C→D inside it; both finalize on conflicting forks with no double vote.</div></details><details class="q"><summary><b>11.</b> Remove proposer boost: describe a balancing attack.</summary><div class="ans">Split honest votes with delayed delivery; release withheld votes each slot to keep a tie, no block ever gets decisive weight.</div></details><details class="q"><summary><b>12.</b> Double the committee size: what changes?</summary><div class="ans">More aggregation cost, better per-slot sampling of the validator set; shifts attack thresholds.</div></details><details class="q"><summary><b>13.</b> Make boost 100%: what attack opens?</summary><div class="ans">A single proposer can force the weight of its (possibly late, adversarial) block over a majority of attestations: a cheap ex-post reorg of honest blocks.</div></details><h3>Adversarial</h3><details class="q"><summary><b>14.</b> How does an adversary with 20% stake try to prevent finality?</summary><div class="ans">Stay online but withhold and release votes to bounce justification or balance forks; needs ~&lt;1/3 but exploits LMD.</div></details><details class="q"><summary><b>15.</b> Why does proposer boost fail against ex-ante reorgs?</summary><div class="ans">Boost is slot-local; an ex-ante adversary controls the next slot's proposer too and pre-arranges votes across slots.</div></details><details class="q"><summary><b>16.</b> How could a long-range attacker rewrite history and what stops a new node from believing it?</summary><div class="ans">Slashing penalties do not apply to exited validators; weak-subjectivity checkpoints (social consensus) tell a new node which history to follow.</div></details><h3>Connection</h3><details class="q"><summary><b>17.</b> How does ebb-and-flow relate to the CAP theorem?</summary><div class="ans">Under partition you must choose availability (chain grows, no finality) or consistency (halt); ebb-and-flow exposes both views.</div></details><details class="q"><summary><b>18.</b> How is Gasper's finality different from Tendermint's?</summary><div class="ans">Gasper finality is economic and delayed (~2 epochs); Tendermint is immediate but halts when ≥1/3 are offline.</div></details><details class="q"><summary><b>19.</b> What does ePBS change for the fork choice?</summary><div class="ans">In-protocol builders; the Payload Timeliness Committee votes on payload reveal; fork choice weights must account for payload status; proposer boost semantics change.</div></details><h3>Open</h3><details class="q"><summary><b>20.</b> Can finality be single-slot without losing 1/3 fault tolerance at 10^6 validators?</summary><div class="ans">Open: message load for 10^6 signers per slot (hence Orbit/Wonderboom/Minimmit), and thresholds below 1/3 are discussed.</div></details><details class="q"><summary><b>21.</b> Is there a reorg-resilient, dynamically available protocol that survives asynchrony?</summary><div class="ans">Open: Goldfish is secure in sync but brittle to asynchrony; RLMD-GHOST trades vote expiry for asynchrony resilience.</div></details></section><section id="ssrc"><h2>Sources</h2><p><strong>Papers:</strong> <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2003.03052">Gasper 2003.03052</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1710.09437">Casper FFG 1710.09437</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2009.04987">Ebb-and-flow 2009.04987</a> · <a target="_blank" rel="noopener" href="https://eprint.iacr.org/2021/1413">Three Attacks 2021/1413</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.00558">3SF 2411.00558</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2406.09420">SSF 2406.09420</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.00549">Fast Confirmation 2405.00549</a> · <a target="_blank" rel="noopener" href="https://eprint.iacr.org/2025/097">Available Attestation 2025/097</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.20715">SoK Speedy Secure Finality 2512.20715</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2601.03862">Majorum 2601.03862</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2602.06655">Wonderboom 2602.06655</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2407.19479">Commitment attacks 2407.19479</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2302.11326">RLMD-GHOST 2302.11326</a></p>
+<p><strong>Code/docs:</strong> <a target="_blank" rel="noopener" href="https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/fork-choice.md">consensus-specs fork-choice.md</a> · <a target="_blank" rel="noopener" href="https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/beacon-chain.md">beacon-chain.md</a> · <a target="_blank" rel="noopener" href="https://eth2book.info/latest/part3/forkchoice/">eth2book fork choice</a> · <a target="_blank" rel="noopener" href="https://eth2book.info/latest/part2/incentives/inactivity/">eth2book inactivity</a> · <a target="_blank" rel="noopener" href="https://ethereum.org/developers/docs/consensus-mechanisms/pos/gasper/">ethereum.org Gasper</a> · <a target="_blank" rel="noopener" href="https://docs.chainstack.com/reference/getdebugforkchoice">Beacon API debug/fork_choice</a> · <a target="_blank" rel="noopener" href="https://blog.ethereum.org/2025/07/31/lean-ethereum">Lean Ethereum</a></p>
+<p><strong>Articles/forums:</strong> <a target="_blank" rel="noopener" href="https://ethresear.ch/t/orbit-ssf-solo-staking-friendly-validator-set-management-for-ssf/19928">Orbit SSF</a> · <a target="_blank" rel="noopener" href="https://ethresear.ch/t/view-merge-as-a-replacement-for-proposer-boost/13739">View-merge</a> · <a target="_blank" rel="noopener" href="https://commonware.xyz/blogs/minimmit">Minimmit (Commonware)</a> · <a target="_blank" rel="noopener" href="https://notes.ethereum.org/@casparschwa/HkPjIzUQY">Ex-ante reorg note</a> · <a target="_blank" rel="noopener" href="https://www.paradigm.xyz/writing/mev-boost-ethereum-consensus">Paradigm: MEV-boost and consensus</a></p></section>
+<footer>Generated from README.md. Constants checked against ethereum/consensus-specs; items marked unverified came from single or conflicting secondary sources.</footer>
+</main>
+<script>(function(){
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click',function(){
+      var code=b.parentElement.querySelector('code').innerText;
+      var done=function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1200)};
+      if(navigator.clipboard){navigator.clipboard.writeText(code).then(done,function(){})}else{done()}
+    });
+  });
+  // mobile menu
+  var toc=document.getElementById('toc');
+  document.getElementById('menuBtn').addEventListener('click',function(){toc.classList.toggle('open')});
+  toc.addEventListener('click',function(e){if(e.target.tagName==='A')toc.classList.remove('open')});
+  // scroll-spy
+  var links={};toc.querySelectorAll('a').forEach(function(a){links[a.getAttribute('href').slice(1)]=a});
+  var secs=[].slice.call(document.querySelectorAll('main section'));
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting){
+      Object.keys(links).forEach(function(k){links[k].classList.remove('on')});
+      var l=links[e.target.id];if(l)l.classList.add('on');
+    }});
+  },{rootMargin:'-20% 0px -70% 0px'});
+  secs.forEach(function(s){io.observe(s)});
+  // reveal all
+  var ra=document.getElementById('revealAll');
+  if(ra){var open=false;ra.addEventListener('click',function(){
+    open=!open;document.querySelectorAll('details.q').forEach(function(d){d.open=open});
+    ra.textContent=open?'Hide all answers':'Reveal all answers';
+  })}
+  // stepper
+  var steps=[
+    {x:30,l:'proposer builds block',t:'t=0s. Proposer P builds block B_e on the current head H and broadcasts it. Fork choice gives B_e the proposer boost if it arrives before the 4 s attesting interval (first block of the slot, same dependent root).'},
+    {x:250,l:'attest (4 s)',t:'t=4s. Committee member v signs AttestationData {slot, index, beacon_block_root=B_e (LMD head vote), source=justified checkpoint S, target=(epoch e, boundary block T) (FFG vote S to T)}.'},
+    {x:360,l:'aggregators collect',t:'t=4..8s. Aggregators (selected by hashing a slot signature) combine BLS signatures from the committee (~128 members) into one aggregate per committee.'},
+    {x:470,l:'aggregates broadcast (8 s)',t:'t=8s. Aggregates go out on the global topic. Nodes update store.latest_messages for each validator: only the newest message per validator counts, older ones are overwritten.'},
+    {x:690,l:'next slot / epoch end',t:'t=12s. Next proposer packs aggregates into its block. At the epoch boundary process_epoch sums target balances: if 3*target_balance >= 2*total_active_balance, T is justified; two consecutive justified checkpoints finalize the earlier one.'}
+  ];
+  var i=0;
+  function draw(){
+    var s=steps[i];
+    document.getElementById('dot').setAttribute('cx',s.x);
+    var l=document.getElementById('lbl');l.setAttribute('x',Math.min(Math.max(s.x-60,10),520));l.textContent=s.l;
+    document.getElementById('stepText').textContent=s.t;
+    document.getElementById('stepNo').textContent='STEP '+(i+1)+' / '+steps.length;
+  }
+  if(document.getElementById('next')){
+    document.getElementById('next').onclick=function(){i=Math.min(i+1,steps.length-1);draw()};
+    document.getElementById('back').onclick=function(){i=Math.max(i-1,0);draw()};
+    draw();
+  }
+  // boost widget (same arithmetic as gasper_sim.py)
+  var kr=document.getElementById('kr'),br=document.getElementById('br');
+  function boost(){
+    var k=+kr.value,b=+br.value,C=100,honest=C-k;
+    var a=Math.floor(honest/2),bh=honest-a;
+    var A=a+C*b/100,B=bh+k;
+    document.getElementById('kv').textContent=k;document.getElementById('bv').textContent=b;
+    var max=Math.max(A,B,1);
+    document.getElementById('barA').style.width=(A/max*100)+'%';
+    document.getElementById('barB').style.width=(B/max*100)+'%';
+    var o=document.getElementById('boostOut');
+    o.textContent=A>B?'Honest branch wins (A '+A.toFixed(1)+' vs B '+B.toFixed(1)+')':(A===B?'Tie: root-hash tiebreak decides':'Adversary branch holds (B '+B.toFixed(1)+' vs A '+A.toFixed(1)+')');
+  }
+  if(kr){kr.oninput=boost;br.oninput=boost;boost()}
+  // leak widget (mirrors gasper_sim.py leak())
+  var of=document.getElementById('of');
+  function leak(){
+    var f=+of.value/100,start=32,bal=start,score=0,res=null;
+    var Q=Math.pow(2,24),non=1000*(1-f),noff=1000*f;
+    for(var e=1;e<20000;e++){
+      if(e>4){score+=4;bal-=bal*score/(4*Q)}
+      var offEff=bal<=16?0:noff;
+      var on=non*start,off=offEff*bal;
+      if(on*3>=(on+off)*2){res=e;break}
+    }
+    document.getElementById('ofv').textContent=Math.round(f*100);
+    document.getElementById('lk1').textContent=res;
+    document.getElementById('lk2').textContent=(res*6.4/60/24).toFixed(1);
+    document.getElementById('lk3').textContent=(start-bal).toFixed(2);
+  }
+  if(of){of.oninput=leak;leak()}
+})();
+</script>
+</body></html>
