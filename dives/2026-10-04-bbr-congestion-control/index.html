@@ -1,0 +1,750 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BBR congestion control dive</title>
+<meta name="description" content="Deep dive: BBR congestion control v1 to v3 — BtlBw/RTprop model, pacing-gain state machine, loss/ECN bounds, CUBIC coexistence, frontier research.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>:root{--bg:#f8f9fb;--fg:#1b1d22;--mut:#5a5f6b;--card:#fff;--bd:#dfe3ea;--ac:#2456c9;--ac2:#0f7a6c;--code:#eff2f6;--warm:#fff6e5;--warmbd:#efd29a;--ok:#1e7d3a;--bad:#c0392b;--band:rgba(36,86,201,.09);--reno:#c0392b;--bbr:#0f7a6c}
+@media (prefers-color-scheme:dark){:root{--bg:#101217;--fg:#e8eaf0;--mut:#9aa0ad;--card:#181b22;--bd:#2a2f3a;--ac:#7fa6ff;--ac2:#4fd1bd;--code:#1e222b;--warm:#272116;--warmbd:#5b4a26;--ok:#5fd17e;--bad:#ff7b6b;--band:rgba(127,166,255,.12);--reno:#ff7b6b;--bbr:#4fd1bd}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 14px;border-right:1px solid var(--bd);font-size:13.5px}
+nav .nt{font:700 11px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:0 8px 8px}
+nav a{display:block;color:var(--mut);text-decoration:none;padding:4px 8px;border-left:2px solid transparent;border-radius:0 6px 6px 0}
+nav a.on{color:var(--ac);border-left-color:var(--ac);background:var(--card)}
+main{padding:24px 28px 80px;max-width:calc(72ch + 56px);min-width:0}
+h1{font-size:2rem;line-height:1.2;margin:.3em 0}h2{font-size:1.45rem;margin:1.6em 0 .5em}h3{margin-top:1.4em}h4{margin:.6em 0 .2em}
+section{scroll-margin-top:12px}
+.card-line{font:600 12px/1.4 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.hero{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:22px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.nums div{background:var(--code);border-radius:10px;padding:10px 12px}.nums b{display:block;font-size:1.25rem;color:var(--ac)}.nums span{font-size:12.5px;color:var(--mut)}
+.plain{background:var(--warm);border:1px solid var(--warmbd);border-radius:14px;padding:6px 22px 14px;margin:18px 0}.plain h2{margin-top:.8em}
+.divider{margin:44px 0 10px;padding:14px 0;border-top:3px solid var(--ac);font:700 13px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow:auto;position:relative;font-size:13px;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}:not(pre)>code{background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:3px 8px}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%;margin:1em 0;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--code)}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--ac2);background:var(--card);border-radius:0 8px 8px 0}
+blockquote.callout{border-left-color:var(--bad);background:var(--warm)}blockquote.callout strong{color:var(--bad)}
+a{color:var(--ac);overflow-wrap:anywhere}
+details.q{border:1px solid var(--bd);border-radius:10px;margin:8px 0;background:var(--card)}details.q summary{cursor:pointer;padding:10px 14px}details.q .ans{padding:0 14px 10px}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 14px;min-height:36px}button:disabled{opacity:.45;cursor:default}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}.gc{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.gc b{display:block;color:var(--ac2)}.gc span{font-size:13.5px;color:var(--mut)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.twocol>div{border-radius:10px;padding:4px 16px 10px;border:1px solid var(--bd)}.use{background:rgba(30,125,58,.08)}.skip{background:rgba(192,57,43,.08)}
+.widget{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:18px 0}.widget label{display:block;margin:6px 0 0}.widget input[type=range]{width:min(340px,100%);accent-color:var(--ac)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.stc{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:var(--ac2)}
+.note,figcaption{font-size:13.5px;color:var(--mut)}.fig{margin:18px 0}
+.verdict{margin-top:10px;padding:10px 12px;border-radius:8px;font-weight:600;background:var(--code)}
+.eq{overflow-x:auto;margin:12px 0;padding:6px 0}
+.svg{width:100%;height:auto;display:block;margin:8px 0}
+.svg .lbl{font:12px system-ui,sans-serif;fill:var(--mut)}.svg .mono{font:600 14px ui-monospace,monospace;fill:var(--fg)}.svg .acc2{fill:var(--ac2);font:700 13px ui-monospace,monospace}
+.svg .ax{stroke:var(--bd);stroke-width:1.5}.svg .band{fill:var(--band)}.svg .curve{fill:none;stroke:var(--fg);stroke-width:2.5}
+.svg .bad{stroke:var(--bad);stroke-width:2}.svg .ok-dot{fill:var(--ok)}.svg .bad-dot{fill:var(--bad)}.svg .cur{fill:var(--ac);stroke:var(--card);stroke-width:2}
+.svg .node{fill:var(--code);stroke:var(--bd);stroke-width:1.5}.svg .sub{fill:var(--card);stroke:var(--ac2);stroke-width:1.2}
+.svg .edge,.svg .arr{fill:none;stroke:var(--mut);stroke-width:1.6}.svg .ahead{fill:var(--mut)}.svg .qfill{fill:var(--ac);opacity:.55}
+.svg .sreno{fill:none;stroke:var(--reno);stroke-width:1.6}.svg .sbbr{fill:none;stroke:var(--bbr);stroke-width:2}.svg .lreno{fill:var(--reno)}.svg .lbbr{fill:var(--bbr)}
+.simt td:first-child{font-weight:600}
+ul.src li{margin:4px 0}
+@media (max-width:860px){.layout{display:block}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;gap:4px;padding:12px 16px}nav .nt{width:100%}nav a{border:1px solid var(--bd);border-radius:999px;padding:3px 10px;font-size:12.5px}nav a.on{border-color:var(--ac)}main{padding:16px 16px 60px}.twocol,.cols{grid-template-columns:1fr}h1{font-size:1.6rem}}
+</style></head><body>
+<div class="layout">
+<nav aria-label="Table of contents"><div class="nt">Contents</div>
+<a href="#s0b">Plain English</a>
+<a href="#s1">Bare-minimum context</a>
+<a href="#s1b">Real-world context</a>
+<a href="#s2">One-liner &amp; what it hides</a>
+<a href="#s3">The problem</a>
+<a href="#s4">Mental model</a>
+<a href="#s5">The mechanism, traced</a>
+<a href="#s6">The math</a>
+<a href="#s7">Why it works</a>
+<a href="#s8">Design knobs &amp; alternatives</a>
+<a href="#s9">Where it breaks</a>
+<a href="#s10">In the wild</a>
+<a href="#s11">Frontier (what&#x27;s new)</a>
+<a href="#s11b">Open problems</a>
+<a href="#s12">Lineage</a>
+<a href="#s13">Hands-on</a>
+<a href="#s14">Question ladder</a>
+<a href="#s15">Go deeper next</a>
+<a href="#sources">Sources</a>
+</nav>
+<main>
+<header class="hero">
+<div class="card-line">Computer science · Networking/protocols · hard · 2026-10-04</div>
+<h1>BBR: modeling the pipe instead of waiting for loss</h1>
+<p><b>TL;DR.</b> BBR estimates two numbers, the max recent delivery rate (BtlBw) and the min recent RTT (RTprop). It paces at BtlBw and caps inflight at about 2 × their product. It alternates probing up, draining, and briefly emptying the pipe, because you can't measure both at once. v2/v3 add a 2% loss cap and ECN.</p>
+<p><b>Why it matters.</b> It's the CC behind google.com, YouTube and much of the CDN edge. It cut YouTube's median RTT 53% compared with CUBIC. It is also still unfair to CUBIC in many conditions, and that is why it's on the IETF's <i>Experimental</i> track.</p>
+<div class="nums">
+<div><b>−53%</b><span>YouTube median RTT vs CUBIC (−80%+ developing world)</span></div>
+<div><b>2–25×</b><span>B4 WAN throughput vs CUBIC; 133× on one path</span></div>
+<div><b>4 ln 2 ≈ 2.77</b><span>Startup pacing gain (v3)</span></div>
+<div><b>2%</b><span>v3 per-round loss threshold</span></div>
+<div><b>~40%</b><span>v1's fixed share vs 1–16 CUBIC flows</span></div>
+<div><b>&gt;99%</b><span>one v3 flow vs 5 CUBIC, ECN on (ANRW'24)</span></div>
+</div>
+</header>
+<div class="plain"><section id="s0b"><h2>0b. Plain-English first</h2>
+<h3>Explain it simply</h3>
+<p>Picture a highway with a toll booth that can let through exactly 100 cars per minute. Behind the booth is a parking lot where cars wait when they arrive too fast. The old way of driving onto this highway (Reno, CUBIC) is: keep sending more and more cars until the lot is so full that a car gets turned away, then cut back by about a third, and creep up again. It works, but the parking lot is almost always full, so every car waits a long time. With a huge lot, a trip that should take 40 ms can take half a second. That's "bufferbloat".</p>
+<p>BBR does something else. It watches two things: how fast cars actually come out the far side of the booth (the most it has ever seen recently is the booth's speed), and the shortest trip time it has ever seen (that's the trip with an empty lot). Multiply them and you know exactly how many cars should be on the road at once to keep the booth busy without anyone waiting. BBR sends cars at that pace. Now and then it sends a few extra to check whether the booth got faster, then a few fewer to clear out any line it caused. Every few seconds it nearly stops for a moment to re-measure the empty-lot trip time.</p>
+<h3>Everyday example</h3>
+<p>You upload a video from a café. The link out to the internet carries 12 megabits per second and the round trip to the server takes 40 ms when nothing is queued. The café router has a big buffer. With the old method your upload fills that buffer: your ping jumps to around 220 ms and your friend's video call at the next table starts to stutter. With BBR, your laptop ramps up for about half a second and sees the delivery rate stop growing at 12 Mbit/s. It notes that the best round trip was 40 ms, so "12 Mbit/s × 40 ms ≈ 40 packets" is the right amount to have in flight. It drains the short line it built while ramping up, then holds about 40 packets in flight. Upload speed is the same 12 Mbit/s, but your ping stays near 55 ms, and your friend's call is fine.</p>
+<p><strong>Now the same thing, technically.</strong></p>
+<hr /></section></div>
+<section id="s1"><h2>1. Bare-minimum context</h2>
+<ul>
+<li><strong>cwnd (congestion window):</strong> the cap on unacknowledged bytes in flight, set by the sender. <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc5681">RFC 5681</a></li>
+<li><strong>Loss-based CC:</strong> Reno/CUBIC grow cwnd until a packet drops, then multiply it by β (0.5 for Reno, 0.7 for CUBIC). <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc9438">RFC 9438 (CUBIC)</a></li>
+<li><strong>BDP (bandwidth-delay product):</strong> bottleneck rate × base RTT, the number of bytes needed to keep the pipe full. <a target="_blank" rel="noopener" href="https://queue.acm.org/detail.cfm?id=3022184">ACM Queue BBR paper</a></li>
+<li><strong>Bufferbloat:</strong> oversized FIFO buffers that loss-based CC fills, which adds hundreds of ms of queueing delay. <a target="_blank" rel="noopener" href="https://www.bufferbloat.net/">bufferbloat.net</a></li>
+<li><strong>Pacing:</strong> spacing packets out at a target rate instead of sending a burst whenever cwnd opens. Linux does it in the <code>fq</code> qdisc or inside TCP. <a target="_blank" rel="noopener" href="https://fasterdata.es.net/host-tuning/linux/recent-tcp-enhancements/bbr-tcp/">fasterdata BBR notes</a></li>
+<li><strong>ECN:</strong> routers set a CE bit instead of dropping. The receiver echoes it back. <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc3168">RFC 3168</a></li>
+</ul></section>
+<section id="s1b"><h2>1b. Real-world context</h2>
+<p><strong>What it is.</strong> BBR (Bottleneck Bandwidth and Round-trip propagation time) is a sender-side congestion control algorithm from Google (Cardwell, Cheng, Gunn, Hassas Yeganeh, Jacobson, 2016). It keeps an explicit model of the path, made of a max-filtered delivery rate and a min-filtered RTT. It sets a <strong>pacing rate</strong> from that model and uses cwnd only as a safety cap. It does not use loss as the main signal.</p>
+<p><strong>Why it exists.</strong> Loss-based CC has two problems at the ends of the buffer range. With <strong>deep buffers</strong> it fills them, so a 40 ms path becomes hundreds of ms or seconds. With <strong>shallow buffers or random loss</strong> it reads a 1% non-congestive loss rate as congestion and collapses. Google's B4 WAN ran into the second problem: BBR's throughput was <strong>2–25× CUBIC's</strong> there, and on one US–Europe path BBR sustained 2 Gbit/s where CUBIC got 15 Mbit/s (<strong>133×</strong>). On YouTube, BBR cut <strong>median RTT by 53% globally and &gt;80% in the developing world</strong> (<a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs244/papers/bbr.pdf">ACM Queue 2016</a>).</p>
+<p><strong>Where it's used.</strong></p>
+<div class="grid">
+<div class="gc"><b>Google B4 WAN</b><span>All B4 TCP on BBR since 2016. BBRv3 for all Google-internal WAN traffic.</span></div>
+<div class="gc"><b>google.com + YouTube</b><span>BBRv3 is the TCP CC for all public-Internet traffic. QUIC v3 in A/B tests (Mar 2024).</span></div>
+<div class="gc"><b>Linux kernel</b><span><code>tcp_bbr.c</code> (v1) mainline since 4.9. v3 out of tree in google/bbr.</span></div>
+<div class="gc"><b>AWS CloudFront</b><span>Rolled out Mar–Apr 2019. Up to 22% higher aggregate throughput.</span></div>
+<div class="gc"><b>Dropbox edge</b><span>BBRv2 vs v1: 4× lower loss, but ~2× CUBIC's.</span></div>
+<div class="gc"><b>QUIC stacks</b><span>Google QUICHE, Meta mvfst, Cloudflare quiche ship BBR in user space.</span></div>
+<div class="gc"><b>Verizon Media CDN</b><span>+6–8% client-facing, but ~50% PoP-to-PoP regression → CUBIC inside the DC.</span></div>
+</div><p class="note">Sources: <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00" target="_blank" rel="noopener">IETF 119</a> · <a target="_blank" rel="noopener" href="https://aws.amazon.com/blogs/networking-and-content-delivery/tcp-bbr-congestion-control-with-amazon-cloudfront/" target="_blank" rel="noopener">AWS</a> · <a target="_blank" rel="noopener" href="https://dropbox.tech/infrastructure/evaluating-bbrv2-on-the-dropbox-edge-network" target="_blank" rel="noopener">Dropbox</a> · <a target="_blank" rel="noopener" href="https://blog.apnic.net/2019/11/01/bbr-evaluation-at-a-large-cdn/" target="_blank" rel="noopener">APNIC</a></p>
+<p><strong>How it's used.</strong></p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash"># system-wide (Linux ≥ 4.9; ≥ 4.13 paces inside TCP if fq absent)
+sysctl -w net.core.default_qdisc=fq
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+
+# per socket
+setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, &quot;bbr&quot;, 3);
+
+# inspect live model
+ss -tin dst :443
+#  ... bbr:(bw:160Mbps,mrtt:0.073,pacing_gain:2.88672,cwnd_gain:2.88672) ...
+</code></pre>
+<p><code>bw</code> is the BtlBw estimate and <code>mrtt</code> is the RTprop estimate. A <code>pacing_gain</code> of 2.88672 (= 2/ln2) means the flow is still in Startup. There are no tunables in mainline. The constants are in the source.</p>
+<div class="twocol"><div class="use"><h4>✓ Use it</h4>
+Server → Internet clients, especially long RTT, lossy (cellular, Wi-Fi, intercontinental), or deep-buffered last miles. Bulk transfer over a WAN with some random loss. Latency-sensitive services co-hosted with bulk traffic on a bloated link.
+</div><div class="skip"><h4>✗ Skip it / be careful</h4>
+Intra-DC or PoP-to-PoP fabric where flows with very different RTTs share a shallow switch buffer (v1 RTT unfairness). Shallow buffers where you care about other tenants' retransmits (v1 ignores loss). Links behind token-bucket policers or heavy ACK aggregation, unless you test first.
+</div></div>
+
+<p><strong>Who should care.</strong> Edge/CDN and video infra engineers (it decides QoE). Backend people debugging p99 on long-haul links. Network ops seeing their CUBIC customers starved. QUIC implementers, since BBR lives in user space there. Researchers in CC fairness.</p></section>
+<div class="divider">Technical deep dive</div>
+<section id="s2"><h2>2. The one-liner — and what it hides</h2>
+<blockquote>
+<p>"BBR measures bottleneck bandwidth and min RTT and sends at that rate instead of waiting for packet loss."</p>
+</blockquote>
+<p>What this hides:</p>
+<ol>
+<li><strong>You can't measure both at once.</strong> Seeing max bandwidth needs a full pipe, which means a queue. Seeing min RTT needs an empty queue, which means less than full bandwidth. So BBR has to alternate between them, and that is the reason the state machine exists.</li>
+<li><strong>"Sends at that rate" needs gains above and below 1.</strong> At gain 1.0 BBR can never learn that bandwidth went up. At gain &gt;1 it builds a queue. So the 1.25/0.75 (v1) or UP/DOWN (v3) cycle is required by the design.</li>
+<li><strong>cwnd still matters.</strong> It caps inflight at 2×BDP, and in competition with CUBIC that cap, not the rate, decides BBR's share (Ware et al., IMC 2019).</li>
+<li><strong>v1 really did ignore loss</strong>, and that is why it caused 10× the retransmits of CUBIC in shallow buffers. v2/v3 added a 2% loss bound and ECN, which changed what BBR is.</li>
+<li><strong>The model assumes non-congestive delay is zero.</strong> Jitter from ACK aggregation, Wi-Fi or scheduling breaks the min-RTT and max-bw filters. There is a theorem saying no delay-bounding CCA can avoid starvation if jitter is large enough.</li>
+</ol></section>
+<section id="s3"><h2>3. The problem</h2>
+<p>Any path has one slowest link, the bottleneck, with rate <strong>BtlBw</strong>, and a propagation RTT <strong>RTprop</strong>. There are three operating regions as inflight grows:</p>
+<figure class="widget fig" id="klein">
+<div class="cols">
+<svg class="svg" viewBox="0 0 320 200" role="img" aria-label="Delivery rate versus inflight">
+ <rect class="band" x="140" y="20" width="100" height="150"/>
+ <line class="ax" x1="40" y1="170" x2="310" y2="170"/><line class="ax" x1="40" y1="20" x2="40" y2="170"/>
+ <polyline class="curve" points="40,170 140,50 240,50"/><line class="bad" x1="240" y1="50" x2="240" y2="170" stroke-dasharray="4 4"/>
+ <text class="lbl" x="44" y="40">delivery rate</text><text class="lbl" x="250" y="46">BtlBw</text>
+ <text class="lbl" x="122" y="186">BDP</text><text class="lbl" x="214" y="186">BDP+buf</text>
+ <text class="lbl" x="250" y="110" style="fill:var(--bad)">loss</text>
+ <circle class="ok-dot" cx="140" cy="50" r="5"/><circle class="bad-dot" cx="240" cy="50" r="5"/>
+ <circle id="kd1" class="cur" cx="100" cy="98" r="6"/>
+</svg>
+<svg class="svg" viewBox="0 0 320 200" role="img" aria-label="RTT versus inflight">
+ <rect class="band" x="140" y="20" width="100" height="150"/>
+ <line class="ax" x1="40" y1="170" x2="310" y2="170"/><line class="ax" x1="40" y1="20" x2="40" y2="170"/>
+ <polyline class="curve" points="40,140 140,140 240,40"/><line class="bad" x1="240" y1="40" x2="240" y2="170" stroke-dasharray="4 4"/>
+ <text class="lbl" x="44" y="34">RTT</text><text class="lbl" x="44" y="134">RTprop</text>
+ <text class="lbl" x="122" y="186">BDP</text><text class="lbl" x="214" y="186">BDP+buf</text>
+ <circle class="ok-dot" cx="140" cy="140" r="5"/><circle class="bad-dot" cx="240" cy="40" r="5"/>
+ <circle id="kd2" class="cur" cx="100" cy="140" r="6"/>
+</svg>
+</div>
+<label for="kx">Inflight: <b id="kxv">0.6 × BDP</b></label>
+<input id="kx" type="range" min="0.05" max="2.05" step="0.05" value="0.6" aria-describedby="kout">
+<div class="verdict" id="kout" aria-live="polite"></div>
+<figcaption>Path: BtlBw 12 Mbit/s, RTprop 40 ms, buffer 1 BDP. Green dot = BBR's target (Kleinrock optimum). Red dot = where loss-based CC finds its signal. Shaded = queue building. Drag the slider.</figcaption>
+</figure>
+
+<ul>
+<li>Below BDP, delivery rate = inflight / RTprop and RTT = RTprop.</li>
+<li>Between BDP and BDP + buffer, delivery rate = BtlBw and RTT grows linearly (queueing).</li>
+<li>Above BDP + buffer, drops.</li>
+</ul>
+<p>Loss-based CC finds the right edge of the middle region, where loss starts. Kleinrock (1979) showed the optimum for each connection is the <strong>left</strong> edge: max throughput at min delay. Jaffe (1981) showed no distributed algorithm can converge to that point exactly, because a single measurement can't tell BtlBw and RTprop apart. BBR's answer is to estimate them <strong>at different times</strong> and combine them.</p>
+<p>Size of the gap: a 12 Mbit/s, 40 ms path has BDP = 40 packets of 1500 B. Home routers often buffer hundreds of packets. At 320 packets (8 BDP), Reno's steady-state queue delay averages in the hundreds of ms. Our toy sim gives a <strong>221 ms median RTT for Reno vs 55.5 ms for BBR at the same 11.9 Mbit/s goodput</strong> (§13).</p></section>
+<section id="s4"><h2>4. Mental model</h2>
+<p><strong>A garden hose of unknown diameter and length.</strong> You want the hose full of water but no puddle at the tap. Two gauges:
+- an <strong>outflow meter</strong> at the nozzle, whose peak reading is the hose diameter (BtlBw);
+- a <strong>dye-transit timer</strong>, whose fastest reading is the hose length (RTprop).</p>
+<p>Water in the hose = diameter × length. You turn the tap to the peak outflow rate. Sometimes you open it 25% wider to see if the hose got wider, then close it to 75% to drain the puddle you just made. Sometimes you nearly shut it so the dye timer can get a clean reading.</p>
+<p><strong>Where the analogy breaks.</strong></p>
+<ul>
+<li>The hose is <strong>shared</strong>. Other taps make outflow look smaller (your share) and transit look longer (their puddle). A max filter of your own delivery rate measures your current share, not capacity, so the model has no idea of a "fair share".</li>
+<li>Real hoses don't spit water in <strong>clumps</strong>. Wi-Fi and cellular deliver ACKs in bursts, so the outflow meter shows short spikes far above the true rate.</li>
+<li>Some hoses have a <strong>valve that slams shut</strong> once you've used your allowance (token-bucket policers). Delivery rate then drops suddenly with heavy loss, and that is not the bottleneck model at all.</li>
+</ul></section>
+<section id="s5"><h2>5. The mechanism, traced</h2>
+<p>One BBRv1-style flow, 12 Mbit/s bottleneck, RTprop 40 ms, buffer 320 packets. These are output lines from <code>bbr_sim.py --trace</code> (state every 100 ms):</p>
+<figure class="widget" id="stepper">
+<svg class="svg" viewBox="0 0 640 170" role="img" aria-label="Sender, bottleneck queue, link">
+ <rect id="spSnd" class="node" x="10" y="50" width="110" height="70" rx="10"/><text class="mono" x="65" y="80" text-anchor="middle">sender</text>
+ <text id="spState" class="acc2" x="65" y="102" text-anchor="middle">STARTUP</text>
+ <line class="edge" x1="120" y1="85" x2="200" y2="85"/><text id="spPace" class="lbl" x="160" y="74" text-anchor="middle">pace</text>
+ <rect class="node" x="200" y="55" width="260" height="60" rx="6"/>
+ <rect id="spQ" class="qfill" x="200" y="55" width="4" height="60" rx="6"/>
+ <text class="lbl" x="330" y="135" text-anchor="middle">bottleneck queue (320 pkt buffer, scaled)</text>
+ <text id="spQn" class="mono" x="330" y="90" text-anchor="middle">0 pkts</text>
+ <line class="edge" x1="460" y1="85" x2="530" y2="85"/>
+ <rect class="node" x="530" y="50" width="100" height="70" rx="10"/><text class="mono" x="580" y="80" text-anchor="middle">12 Mbit/s</text><text class="lbl" x="580" y="100" text-anchor="middle">link</text>
+ <text id="spBw" class="lbl" x="10" y="30">btlbw est: 0.00 Mbit/s</text><text id="spT" class="lbl" x="630" y="30" text-anchor="end">t = 0.0 s</text>
+</svg>
+<div class="ctl"><button id="stPrev" type="button">◀ Back</button><span class="stc" id="stCount">STEP 1 / 8</span><button id="stNext" type="button">Next ▶</button></div>
+<p id="stText" aria-live="polite"></p>
+<figcaption class="note">Real rows from <code>bbr_sim.py --trace</code> (12 Mbit/s, 40 ms, buffer 8 × BDP).</figcaption>
+</figure>
+
+<h3>Step 1 — one ACK → one delivery-rate sample</h3>
+<p>Each packet carries a snapshot taken at send time: <code>(delivered, delivered_time, first_sent_time, is_app_limited)</code>. When its ACK arrives at time <code>now</code>:</p>
+<pre><button class="copy" type="button">copy</button><code>send_elapsed = P.sent_time  - P.first_sent_time
+ack_elapsed  = now          - P.delivered_time
+interval     = max(send_elapsed, ack_elapsed)        # guards against ACK compression
+delivery_rate = (C.delivered - P.delivered) / interval
+if interval &lt; min_rtt: discard sample                 # too short to trust
+</code></pre>
+<p>Concrete numbers. Packet P was sent when <code>C.delivered = 120</code> packets and <code>delivered_time = 0.210 s</code>. Its ACK arrives at 0.252 s, when <code>C.delivered = 160</code>. Then <code>ack_elapsed = 42 ms</code> and the rate = 40 / 0.042 = 952 pkt/s ≈ <strong>11.4 Mbit/s</strong>. That's one sample, and it is a lower bound on BtlBw.</p>
+<p>Taking <code>max(send_elapsed, ack_elapsed)</code> matters. If ACKs were compressed (arriving in a clump), <code>ack_elapsed</code> is too short and inflates the rate. The send-side interval can't be compressed by the network, so the max of the two is the honest choice. (<a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06">draft-ietf-ccwg-bbr-06 §4.1</a>)</p>
+<h3>Step 2 — update the model</h3>
+<pre><button class="copy" type="button">copy</button><code>max_bw  = windowed_max(delivery_rate, window = 10 round trips (v1) / 2 ProbeBW cycles (v3))
+min_rtt = windowed_min(rtt_sample,    window = 10 s)
+BDP     = max_bw × min_rtt     = 12 Mbit/s × 0.040 s = 480 kbit = 40 packets
+</code></pre>
+<p>Samples marked <strong>app-limited</strong> (the app had nothing to send, so the pipe wasn't full) can only <em>raise</em> max_bw, never lower it. Otherwise a video player pausing would teach BBR that the network got slow.</p>
+<h3>Step 3 — turn model into control</h3>
+<pre><button class="copy" type="button">copy</button><code>pacing_rate = pacing_gain × max_bw
+cwnd        = cwnd_gain   × BDP   (+ extra_acked allowance for ACK aggregation)
+</code></pre>
+<h3>Step 4 — the state machine</h3>
+<figure class="fig">
+<svg class="svg" viewBox="0 0 680 270" role="img" aria-label="BBR state machine">
+ <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ahead"/></marker></defs>
+ <rect class="node" x="10" y="30" width="130" height="78" rx="10"/><text class="mono" x="75" y="58" text-anchor="middle">STARTUP</text><text class="lbl" x="75" y="78" text-anchor="middle">g = 2.77 (v1 2.885)</text><text class="lbl" x="75" y="95" text-anchor="middle">cwnd_gain 2</text>
+ <rect class="node" x="200" y="30" width="110" height="78" rx="10"/><text class="mono" x="255" y="58" text-anchor="middle">DRAIN</text><text class="lbl" x="255" y="78" text-anchor="middle">g = 0.5 (v1 0.347)</text>
+ <rect class="node" x="370" y="10" width="300" height="130" rx="10"/><text class="mono" x="520" y="34" text-anchor="middle">PROBE_BW (v3)</text>
+ <rect class="sub" x="385" y="48" width="62" height="40" rx="6"/><text class="lbl" x="416" y="66" text-anchor="middle">DOWN</text><text class="lbl" x="416" y="81" text-anchor="middle">0.90</text>
+ <rect class="sub" x="457" y="48" width="62" height="40" rx="6"/><text class="lbl" x="488" y="66" text-anchor="middle">CRUISE</text><text class="lbl" x="488" y="81" text-anchor="middle">1.0</text>
+ <rect class="sub" x="529" y="48" width="62" height="40" rx="6"/><text class="lbl" x="560" y="66" text-anchor="middle">REFILL</text><text class="lbl" x="560" y="81" text-anchor="middle">1.0</text>
+ <rect class="sub" x="601" y="48" width="62" height="40" rx="6"/><text class="lbl" x="632" y="66" text-anchor="middle">UP</text><text class="lbl" x="632" y="81" text-anchor="middle">1.25</text>
+ <text class="lbl" x="520" y="112" text-anchor="middle">wait min(2–3 s, 62–63 rounds) in CRUISE</text><text class="lbl" x="520" y="128" text-anchor="middle">v1: fixed 8-phase 1.25, 0.75, 1×6</text>
+ <path class="arr" d="M140,69 H198" marker-end="url(#ah)"/><text class="lbl" x="169" y="125" text-anchor="middle">bw +&lt;25% × 3 rounds</text><text class="lbl" x="169" y="140" text-anchor="middle">(v3: or loss &gt; 2% / ECN)</text>
+ <path class="arr" d="M310,69 H368" marker-end="url(#ah)"/><text class="lbl" x="339" y="60" text-anchor="middle">inflight</text><text class="lbl" x="339" y="96" text-anchor="middle">≤ BDP</text>
+ <path class="arr" d="M447,68 H455 M519,68 H527 M591,68 H599" marker-end="url(#ah)"/>
+ <rect class="node" x="370" y="190" width="300" height="66" rx="10"/><text class="mono" x="520" y="214" text-anchor="middle">PROBE_RTT</text><text class="lbl" x="520" y="234" text-anchor="middle">v3: cwnd 0.5·BDP · v1: 4 pkts · ≥200 ms</text>
+ <path class="arr" d="M480,140 V188" marker-end="url(#ah)"/><text class="lbl" x="476" y="170" text-anchor="end">min_rtt stale 5 s (v1 10 s)</text>
+ <path class="arr" d="M560,188 V142" marker-end="url(#ah)"/><text class="lbl" x="566" y="170">pipe full</text>
+ <path class="arr" d="M370,232 H75 V110" marker-end="url(#ah)"/><text class="lbl" x="220" y="225" text-anchor="middle">pipe not full</text>
+</svg>
+<figcaption>Constants from draft-ietf-ccwg-bbr-06 (July 2026). g = pacing_gain; numbers inside ProbeBW boxes are pacing gains (UP also raises cwnd_gain to 2.25).</figcaption>
+</figure>
+
+<p>Constants from the current spec (<a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06">draft-ietf-ccwg-bbr-06</a>, July 2026):</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>pacing_gain</th>
+<th>cwnd_gain</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Startup</td>
+<td>2.77 (4 ln 2)</td>
+<td>2</td>
+<td>v1 used 2/ln2 = 2.885 for both</td>
+</tr>
+<tr>
+<td>Drain</td>
+<td>0.5</td>
+<td>2</td>
+<td>v1 used ln2/2 = 0.347</td>
+</tr>
+<tr>
+<td>ProbeBW_DOWN</td>
+<td>0.90</td>
+<td>2</td>
+<td>v1's 0.75 phase</td>
+</tr>
+<tr>
+<td>ProbeBW_CRUISE</td>
+<td>1.0</td>
+<td>2</td>
+<td>inflight ≤ 0.85·inflight_longterm</td>
+</tr>
+<tr>
+<td>ProbeBW_REFILL</td>
+<td>1.0</td>
+<td>2</td>
+<td>one round to refill the pipe</td>
+</tr>
+<tr>
+<td>ProbeBW_UP</td>
+<td>1.25</td>
+<td>2.25</td>
+<td>ends on loss &gt;2% or bw plateau</td>
+</tr>
+<tr>
+<td>ProbeRTT</td>
+<td>1.0</td>
+<td>0.5</td>
+<td>≥200 ms, at most every 5 s</td>
+</tr>
+</tbody>
+</table>
+<p>Other constants: <code>LossThresh = 2%</code>, <code>Beta = 0.7</code> (multiplicative cut on loss), <code>Headroom = 0.15</code>, <code>MinPipeCwnd = 4·SMSS</code>, <code>MinRTTFilterLen = 10 s</code>, <code>StartupFullLossCnt = 6</code>.</p>
+<h3>Step 5 — what v2/v3 add: inflight bounds</h3>
+<p>v1 had one model, (bw, rtt). v2/v3 add <strong>long-term and short-term bounds</strong>:</p>
+<ul>
+<li><code>inflight_longterm</code> (previously <code>inflight_hi</code>) is the largest inflight that did <em>not</em> cause loss &gt;2% or ECN above threshold. It is learned in ProbeBW_UP.</li>
+<li><code>bw_shortterm</code> / <code>inflight_shortterm</code> (previously <code>*_lo</code>) are cut by β = 0.7 per round with loss and recover in REFILL/UP.</li>
+</ul>
+<p>So in CRUISE, v3 deliberately keeps inflight at 85% of the known-safe ceiling (<code>Headroom = 0.15</code>) to leave room for other flows.</p>
+<h3>Step 6 — when to probe again</h3>
+<p>v3 doesn't probe on a fixed 8-RTT cycle. It waits <code>T_probe = min(T_bbr, T_reno)</code>:</p>
+<ul>
+<li><code>T_bbr</code> is random in <strong>2–3 s</strong> wall clock;</li>
+<li><code>T_reno = min(BDP in packets, 62 or 63)</code> round trips, chosen randomly between 62 and 63.</li>
+</ul>
+<p>So on a small-BDP path BBR probes about as often as Reno's sawtooth would. On a huge-BDP path it probes every 2–3 s, which is much faster than Reno, whose cycle there takes minutes. (Draft §5.3.3.8.)</p></section>
+<section id="s6"><h2>6. The math</h2>
+<h3>6.1 The two-region model</h3>
+<p>Let <code>x</code> = inflight (bytes), <code>B</code> = BtlBw, <code>R</code> = RTprop, <code>Q</code> = buffer size.</p>
+<div class="eq">\[\text{deliveryRate}(x)=\min\!\left(\tfrac{x}{R},\,B\right),\qquad \text{RTT}(x)=\max\!\left(R,\,\tfrac{x}{B}\right)\quad (x\le BR+Q)\]</div>
+<p>→ in plain terms: below the BDP, data is limited by how much you sent per round trip. Above it, the pipe is full and every extra byte just waits in line.</p>
+<p>Kleinrock's <em>power</em> metric is throughput / delay:</p>
+<div class="eq">\[P(x)=\frac{\text{deliveryRate}(x)}{\text{RTT}(x)}=\begin{cases}x/R^2 & x\le BR\ \ (\text{increasing})\\ B^2/x & x\ge BR\ \ (\text{decreasing})\end{cases}\]</div>
+<p>→ in plain terms: power peaks exactly at x = B·R = BDP. Below it you waste bandwidth. Above it you only add delay. BBR's target is this kink.</p>
+<p><strong>Why both filters, and why max/min.</strong> Any queueing <em>adds</em> to RTT, so every RTT sample ≥ R and <code>min</code> converges to R from above. Any competing traffic or under-utilization <em>reduces</em> the delivery rate, so every sample ≤ B and <code>max</code> converges to B from below. Each filter is biased only toward the truth, never past it, as long as there is no measurement noise. That condition is exactly what jitter and ACK aggregation break.</p>
+<h3>6.2 Why the Startup gain is 4 ln 2 ≈ 2.77</h3>
+<p><em>(This is my reconstruction. It reproduces the draft's value, which the draft calls "the minimum gain value that will allow the sending rate to double each round".)</em></p>
+<p>You want the sending rate to double every round trip <code>R</code>: <code>r(t) = r₀·2^{t/R}</code>. BBR can't see <code>r(t)</code> directly. It sees the delivery rate of data acknowledged now, and that data was sent over the previous round and is reported one round late. Model the estimate as the average send rate over <code>[t−2R, t−R]</code>:</p>
+<div class="eq">\[b(t)=\frac1R\int_{t-2R}^{t-R} r_0\,2^{s/R}\,ds = r(t)\cdot\frac{2^{-1}-2^{-2}}{\ln 2}=\frac{r(t)}{4\ln 2}\;\Rightarrow\; g=\frac{r(t)}{b(t)}=4\ln 2\approx 2.77\]</div>
+<p>To send at <code>r(t)</code> while only knowing <code>b(t)</code>, the gain must be <code>g = r(t)/b(t) = 4 ln 2 ≈ 2.77</code>.</p>
+<p>→ in plain terms: your bandwidth estimate is always about one-and-a-half rounds stale and averaged, so to double you must multiply it by ~2.77, not by 2. BBRv1's 2/ln2 ≈ 2.885 came from a slightly different model of the lag (the paper only states "2/ln2 … discovers BtlBw in log₂BDP RTTs"). The difference is about 4%. Startup still finds BtlBw in roughly <strong>log₂(BDP)</strong> rounds: about 5–6 rounds for our 40-packet BDP from a 10-packet initial window, and that matches the trace (exit at ~0.4 s ≈ 10 RTTs including the 3 plateau rounds).</p>
+<p>Overshoot cost: when Startup exits, inflight ≈ 2·BDP (cwnd_gain 2), so roughly one BDP sits in the queue. Drain removes it. With v1's Drain gain <code>ln2/2 = 0.347</code> (the inverse of the Startup gain), the queue empties in about one round.</p>
+<h3>6.3 Why ProbeBW is 1.25 then 0.75 (v1) / 0.9 (v3)</h3>
+<p>Pacing at <code>1.25·B</code> for one RTprop sends <code>0.25·B·R</code> = 0.25 BDP more than the bottleneck can drain. If no new bandwidth exists, that becomes a 0.25 BDP queue. Pacing at <code>0.75·B</code> for the next RTprop under-sends by exactly 0.25 BDP, which drains it. The average gain over 8 phases is <code>(1.25 + 0.75 + 6·1)/8 = 1.0</code>.</p>
+<p>→ in plain terms: probe up, then pay it back, so the average rate stays at the estimate and the average queue stays near zero.</p>
+<p>If bandwidth <em>did</em> increase, the 1.25 phase measures higher delivery, <code>max_bw</code> rises, and the new bandwidth is taken within a few cycles. Growth is multiplicative, about 1.25× per 8 rounds.</p>
+<p>v3's DOWN is 0.90, not 0.75. The draft says it is "the minimum pacing_gain value that allows bandwidth-based convergence to approximate fairness". The intuition is that a gentler down phase lets a <em>larger</em> flow's max filter stay elevated less, so flows move toward equal shares through their bandwidth estimates rather than all draining equally.</p>
+<h3>6.4 Loss response and the 62-round magic number</h3>
+<p>In v3 steady state, a round with loss rate <code>p</code> cuts the sending rate by <code>p</code>, so after <code>N</code> lossy CRUISE rounds the rate is <code>(1−p)^N</code>. REFILL + UP can then double cwnd twice (×4). The draft picks the Reno-timescale bound so that a flow facing 1% loss still recovers fully:</p>
+<div class="eq">\[(1-0.01)^N\cdot 2^2\ \ge\ 1\quad\Longleftrightarrow\quad N\le\frac{\ln 4}{-\ln 0.99}\approx 137.9\]</div>
+<p>→ in plain terms: if BBR waits ≤ ~137 rounds between probes, it can tolerate 1% random loss and still hold its rate. The lower limit of ~62 rounds comes from the other side: wait less than about 60 rounds and Reno/CUBIC sharing the link can't sustain 4K video. So they picked 62–63.</p>
+<p>The wall-clock lower bound of 2 s comes from a Reno flow at RTT 30 ms needing 25 Mbit/s. Its sawtooth from BDP to 2·BDP at +1 MSS/RTT takes <code>BDP·RTT = (25e6·0.03/12112 bits)·0.03 ≈ 1.9 s</code>, so BBR shouldn't cause loss more often than that.</p>
+<h3>6.5 Cost of ProbeRTT</h3>
+<p>v1: cwnd = 4 packets for ≥ 200 ms every 10 s → at most <code>200 ms / 10 s ≈ 2%</code> throughput lost (paper). v3 halves inflight instead (<code>0.5·BDP</code>) and does it every 5 s. The cost per episode is smaller and the RTprop estimate is fresher, so it reacts faster to route changes that <em>raise</em> RTprop. The min filter can never notice a raise until the old minimum ages out.</p>
+<h3>6.6 Why BBRv1 takes a fixed share against CUBIC</h3>
+<p>When BBR competes with a buffer-filling CUBIC flow, the queue never drains. BBR's ProbeRTT dips briefly, but <code>min_rtt</code> still ends up close to R, and the RTT BBR actually sees is <code>R + q</code>. BBR's inflight is capped at <code>2·max_bw·min_rtt</code>. Its throughput is therefore <code>inflight / RTT = 2·max_bw·R / (R + q)</code>, which is bounded by its <em>cap</em>, not by any loss signal. Ware et al. model this cap and predict BBR's share against CUBIC within <strong>5% median error</strong> (8% vs Reno). The headline result: <strong>a single BBR flow takes a fixed ~40% of the link, whether it competes with 1 or 16 CUBIC flows</strong> (<a target="_blank" rel="noopener" href="https://www.cs.cmu.edu/~srini/papers/2019-Ware-imc">IMC 2019 abstract</a>). Adding more CUBIC flows only splits the remaining 60% among them.</p>
+<h3>6.7 Starvation theorem (sketch)</h3>
+<p>Arun, Alizadeh and Balakrishnan (SIGCOMM 2022): suppose a CCA converges, on an ideal path, to an equilibrium delay range of width δ that depends on its rate. Then if non-congestive delay variation (ACK aggregation, end-host scheduling) can exceed <strong>2δ</strong>, there are paths where two flows of that CCA end up with arbitrarily unequal throughput, i.e. starvation. The reason is that the CCA <em>encodes its rate in the delay it sees</em>. Jitter of more than 2δ lets one flow see a delay that "means" a much lower rate. BBR, PCC Vivace and Copa were all shown to starve in emulation (<a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs244/papers/venkat_starvation.pdf">paper</a>).</p></section>
+<section id="s7"><h2>7. Why it works</h2>
+<p><strong>Core insight:</strong> the two quantities that define the optimum change on different timescales and can each be filtered with a one-sided estimator. Bandwidth changes from competition, so it gets a short max window. Propagation delay changes from routing, so it gets a long min window. Pacing, not cwnd, is the control output, so BBR sends at the rate it believes the bottleneck drains, and that is what prevents the queue.</p>
+<p>Ablations:</p>
+<ul>
+<li><strong>Remove pacing (cwnd only):</strong> cwnd opens in ACK-clocked bursts, line-rate bursts build queues at the bottleneck, and the RTT samples get inflated. This is why early BBR needed <code>fq</code>.</li>
+<li><strong>Remove the 1.25 phase:</strong> BBR can never discover added capacity. A flow that starts while another is active stays at its initial share forever.</li>
+<li><strong>Remove the 0.75/0.9 phase:</strong> each probe leaves 0.25 BDP behind. After a few cycles a standing queue forms and min_rtt samples stop appearing.</li>
+<li><strong>Remove ProbeRTT:</strong> with ≥2 BBR flows each keeping some queue, nobody ever sees R again. min_rtt is never refreshed, and if a route change raises R, BBR's BDP estimate is permanently too low.</li>
+<li><strong>Remove the cwnd cap (pure rate):</strong> if ACKs stop (a delay spike), a pure pacer keeps sending at max_bw into a black hole. cwnd = 2·BDP bounds the damage to about 1 BDP of queue.</li>
+<li><strong>Remove v2/v3 loss bounds (= v1):</strong> in buffers smaller than ~1.5 BDP, the 2·BDP cwnd plus probing overflow the buffer every cycle. Our sim at 0.5 BDP buffer: <strong>324 drops for BBRv1-like vs 8 for Reno</strong> in 12 s.</li>
+<li><strong>Remove app-limited marking:</strong> every idle period would pull <code>max_bw</code> down and slow the next burst.</li>
+</ul></section>
+<section id="s8"><h2>8. Design knobs &amp; alternatives</h2>
+<table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>v1</th>
+<th>v3</th>
+<th>Tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BtlBw window</td>
+<td>10 rounds</td>
+<td>2 ProbeBW cycles</td>
+<td>longer → stickier to stale bandwidth after capacity drops</td>
+</tr>
+<tr>
+<td>RTprop window</td>
+<td>10 s</td>
+<td>10 s (ProbeRTT every 5 s)</td>
+<td>shorter → more ProbeRTT dips; longer → slow to see route changes</td>
+</tr>
+<tr>
+<td>ProbeBW down gain</td>
+<td>0.75</td>
+<td>0.90</td>
+<td>lower drains faster; higher converges to fairness better (draft)</td>
+</tr>
+<tr>
+<td>ProbeRTT inflight</td>
+<td>4 pkts</td>
+<td>0.5·BDP</td>
+<td>4 pkts gets a cleaner min_rtt but a 2% throughput hit and big sawtooth</td>
+</tr>
+<tr>
+<td>Loss threshold</td>
+<td>none</td>
+<td>2%/round</td>
+<td>lower is more CUBIC-friendly; higher tolerates random loss</td>
+</tr>
+<tr>
+<td>Inter-probe time</td>
+<td>8 RTprop</td>
+<td>min(2–3 s, 62–63 rounds)</td>
+<td>shorter grabs freed bandwidth faster but hurts Reno</td>
+</tr>
+<tr>
+<td>ECN</td>
+<td>ignored</td>
+<td>DCTCP/L4S-style shallow-threshold response</td>
+<td>stronger signal, but classic-ECN AQMs make it collapse CUBIC (§9)</td>
+</tr>
+</tbody>
+</table>
+<p>Alternatives:</p>
+<ul>
+<li><strong>CUBIC + HyStart++</strong> is the default almost everywhere, well understood and fair to itself, but bufferbloat-prone and loss-fragile.</li>
+<li><strong>Delay-based (Vegas, Copa)</strong> have a low standing queue but lose to buffer-fillers. Copa switches modes to compete, and both are subject to the starvation theorem.</li>
+<li><strong>Online-learning (PCC Vivace, Sage, Astraea, Orca)</strong> optimize a utility function from experiments or traces. They're good in benchmarks, but deployment needs fairness and compute guarantees (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.25105">Learning vs human-derived CC, 2025</a>).</li>
+<li><strong>L4S / TCP Prague with DualPQ AQM</strong> move the problem into the network. Routers give immediate fine-grained ECN, and the sender runs a scalable (DCTCP-like) response. With an L4S AQM you get the latency without guessing.</li>
+<li><strong>Receiver/in-network</strong> (DCTCP, HPCC, Swift in DCs) use explicit signals. Inside Google's DC the CC is BBR.Swift, which uses network_RTT excluding receiver delay (<a target="_blank" rel="noopener" href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00">IETF 119</a>).</li>
+</ul>
+<p>BBR won where you control only the sender and serve the open Internet. It lost, or needs care, where everyone shares a shallow buffer with legacy CC.</p></section>
+<section id="s9"><h2>9. Where it breaks</h2>
+<blockquote class="callout">
+<p><strong>Misconception: "BBR is delay-based."</strong> It isn't. Vegas reacts to RTT <em>rising</em>. BBR uses <em>min</em> RTT as a constant of the path and doesn't back off when RTT rises. That's why v1 kept going under CUBIC's standing queue.</p>
+<p><strong>Misconception: "BBR ignores loss."</strong> True only of v1, which looks at loss only for policer detection and recovery. v2/v3 cap the loss rate at 2% per round and cut by β = 0.7.</p>
+<p><strong>Misconception: "BBR needs the fq qdisc."</strong> True before Linux 4.13. Since then TCP paces internally via a high-resolution timer. <code>fq</code> is still more efficient with many flows.</p>
+</blockquote>
+<p><strong>Failure modes</strong></p>
+<ol>
+<li><strong>Shallow buffers (v1).</strong> cwnd = 2·BDP with buffer &lt; BDP means constant overflow. Hock, Bless and Zitterbart (ICNP 2017) saw massive loss and unfairness. Our sim shows 324 vs 8 drops.</li>
+<li><strong>Deep buffers vs CUBIC (v1).</strong> BBR gets a fixed ~40% share regardless of the number of CUBIC flows (Ware 2019). In very deep buffers CUBIC wins, because BBR's inflight cap uses a min_rtt that excludes the standing queue.</li>
+<li><strong>RTT unfairness.</strong> A longer-RTprop flow has a larger BDP, hence a larger inflight cap and a larger slice of the shared queue. PAM 2024 finds this bias <strong>persists in v3 and grows with RTT disparity</strong>. This is what bit Verizon's PoP-to-PoP traffic.</li>
+<li><strong>ACK aggregation (Wi-Fi, DOCSIS, cellular).</strong> ACKs arrive in bursts, so a short interval and an inflated max_bw. Or cwnd = 2·BDP stalls the sender during ACK gaps. The fix is <code>extra_acked</code>, a 10-round max filter of "ACKed more than expected", added to cwnd (<a target="_blank" rel="noopener" href="https://blog.apnic.net/2018/04/30/bbr-patches-for-higher-wifi-throughput-and-lower-queuing-delays/">APNIC 2018</a>).</li>
+<li><strong>Token-bucket policers.</strong> The bucket gives a burst at line rate, so the max filter sees line rate and then hits ~20% loss at the policed rate. v1 added a separate long-term bandwidth model (<code>lt_bw</code>) to detect this (<a target="_blank" rel="noopener" href="https://www.ietf.org/proceedings/97/slides/slides-97-maprg-traffic-policing-in-the-internet-yuchung-cheng-and-neal-cardwell-00.pdf">IETF 97 policing slides</a>).</li>
+<li><strong>ECN + CUBIC.</strong> With ECN enabled, <strong>one BBRv3 flow takes ~99% of bandwidth against five CUBIC flows</strong> (Zeynali et al., ANRW 2024). The paper also says that using RFC-3168 classic marking instead of DCTCP-style shallow marking changes the picture. ECN makes v3 <em>more</em> unfair to CUBIC, not less.</li>
+<li><strong>Non-congestive jitter → starvation</strong> (§6.7). This one can't be patched away with constants.</li>
+<li><strong>Bandwidth drops.</strong> The max filter keeps the old peak for its whole window, so BBR overshoots the new capacity until the sample ages out. v1 lost heavily in that window. v2/v3's <code>bw_shortterm</code> cut on loss shortens it.</li>
+</ol></section>
+<section id="s10"><h2>10. In the wild</h2>
+<ul>
+<li><strong>Linux mainline <code>tcp_bbr.c</code></strong> is still <strong>BBRv1</strong> (plus later tweaks like <code>extra_acked</code>). Google's plan since IETF 119 (March 2024) is to replace it in place with v3 because "throughput within 1% of v1 on YouTube" with lower loss. As of the latest public info it has not landed; check upstream for status.</li>
+<li><strong>Google production</strong> deviates from the paper: v3, not v1, everywhere public. Inside DCs it runs <strong>BBR.Swift</strong>, which uses network_RTT (excluding receiver delay) as the primary signal.</li>
+<li><strong>QUIC stacks</strong> run BBR in user space. Pacing precision depends on the event loop timer (Cloudflare quiche issue #514 notes libev/libuv timer accuracy was insufficient for BBR pacing). ACK frequency is under the receiver's control (QUIC ACK-delay), which changes the delivery-rate sampling.</li>
+<li><strong>Dropbox (2019, v2 on Linux 5.3 patches):</strong> 4× lower loss and 3× lower inflight than v1, but still about 2× CUBIC's loss. Throughput comparable to CUBIC on slow links.</li>
+<li><strong>Verizon Media/Edgecast:</strong> BBR on client-facing traffic only. Kept CUBIC inside the DC after a ~50% PoP-to-PoP regression.</li>
+<li><strong>CloudFront (2019):</strong> up to 22% aggregate throughput. Third-party Tutela data saw ~28% in Asia for a 2 MB object.</li>
+</ul></section>
+<section id="s11"><h2>11. Frontier (what&#x27;s new)</h2>
+<table>
+<thead>
+<tr>
+<th>Year · venue</th>
+<th>Paper</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2024 · PAM</td>
+<td><a target="_blank" rel="noopener" href="https://pam2024.cs.northwestern.edu/pdfs/paper-59.pdf">Promises and Potential of BBRv3</a> (Zeynali, Weyulu, Fathalli, Chandrasekaran, Feldmann)</td>
+<td>First independent v3 study. "BBRv3's throughput unfairness towards … Cubic is nearly identical to BBRv1's behavior and is exacerbated in shallow buffers". Long-RTT bias persists. v3 converges faster than v1/v2 among BBR flows but has more retransmits than v2 in shallow buffers</td>
+</tr>
+<tr>
+<td>2024 · ANRW</td>
+<td><a target="_blank" rel="noopener" href="https://balakrishnanc.github.io/papers/zeynali-anrw2024.pdf">BBRv3 in the public Internet: a boon or a bane?</a></td>
+<td>Adds ECN: one BBRv3 flow gets &gt;~99% vs 5 CUBIC flows. JFI tables show CUBIC at ~0.5–1.6% share</td>
+</tr>
+<tr>
+<td>2025 · IFIP Networking</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.07741">BBR's Sharing Behavior with CUBIC and Reno</a> (Sarpkaya, Srivastava, Fund, Panwar)</td>
+<td>Validates the Ware steady-state and the IMC'22 fluid models on FABRIC. They fit v1 and partly v2, but <strong>v3 shows "clear discrepancies"</strong>, so we lack a working analytical model for v3</td>
+</tr>
+<tr>
+<td>2025 · PERFORMANCE</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.22773">A Control-Theoretic Perspective on BBR/CUBIC Competition</a></td>
+<td>Treats the BBR–CUBIC interaction as a feedback system to explain the coexistence dynamics</td>
+</tr>
+<tr>
+<td>2025 · PAM</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.10952">To Adopt or Not to Adopt L4S-Compatible CC?</a></td>
+<td>Measures partial L4S deployment where Prague / L4S-BBR coexist with CUBIC/BBR. The incentive question for ECN-based low latency</td>
+</tr>
+<tr>
+<td>2026 · NSDI</td>
+<td><a target="_blank" rel="noopener" href="https://www.usenix.org/conference/nsdi26/presentation/agarwal-anup">FRCC: Towards Provably Fair and Robust CC</a> (Agarwal, Arun, Seshan)</td>
+<td>"First CCA that provably bounds unfairness (avoids starvation) even under network jitter". Separates flow-count signaling from capacity estimation</td>
+</tr>
+<tr>
+<td>2026 · arXiv</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2607.07133">Unveiling TCP BBR Dominance in Starlink Internet</a></td>
+<td>Measures BBR (v1 and v3) against CUBIC over Starlink, where handovers every ~15 s reshuffle RTT and capacity</td>
+</tr>
+<tr>
+<td>2026 · IETF</td>
+<td><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06">draft-ietf-ccwg-bbr-06</a> (Cardwell, Swett, Beshay)</td>
+<td>BBRv3 as a CCWG working-group document (editors from Google and Meta), Experimental track. Renamed <code>inflight_hi/lo</code> → <code>inflight_longterm/shortterm</code> and specifies the 2–3 s / 62–63-round probe timing</td>
+</tr>
+<tr>
+<td>2025 · arXiv</td>
+<td><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.25105">Learning-Based vs Human-Derived CC</a></td>
+<td>Side-by-side test of Sage/Astraea/Orca vs BBRv3/CUBIC. Learning-based schemes still carry overhead and generalization gaps</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What changed in the last two years:</strong> v3 replaced v1 as Google's default, BBR became an IETF WG draft, independent measurements showed v3's fairness problems largely survived, ECN made things worse against classic CC, and the theory side moved from "model BBR" to "build provably starvation-free CC" (FRCC).</p></section>
+<section id="s11b"><h2>11b. Open problems</h2>
+<ol>
+<li><strong>What does "fair" even mean between different CCAs?</strong> Jain's index treats every unequal split as equally bad and ignores how long it lasts. Ware et al. (HotNets 2019, "Beyond Jain's Fairness Index") argue for <em>harm</em>-based metrics: how much worse off am I because you showed up? Nobody agrees on the target, so nobody can say v3 is "done".</li>
+<li><strong>Coexistence with CUBIC in shallow buffers.</strong> Any rate-based scheme that probes above its estimate overflows a sub-BDP buffer. A loss bound (v3's 2%) helps, but CUBIC halves at <em>any</em> loss, so the two respond on different scales. PAM 2024 shows the v3 gap ≈ v1's.</li>
+<li><strong>Jitter-robust delay signals.</strong> The starvation theorem says a delay-convergent CCA must oscillate by at least jitter/2. That conflicts with the low-delay goal. FRCC is one exit, but it isn't deployed and hasn't been evaluated at Internet scale.</li>
+<li><strong>No validated analytical model of v3.</strong> The 2025 IFIP paper finds existing models diverge for v3. Without one, every tuning change needs a testbed campaign.</li>
+<li><strong>ECN semantics.</strong> v3 treats CE as a DCTCP/L4S-style signal. Classic RFC 3168 AQMs mark like loss. With mixed deployment the same bit means two different things, and CUBIC gets crushed (ANRW 2024). L4S's dual-queue isolation is the proposed fix but isn't widely deployed yet.</li>
+<li><strong>LEO and 5G.</strong> Capacity and RTT change every few seconds (Starlink reconfigures roughly every 15 s). A 10 s min filter and 2–3 s probe cadence are too slow, so you get overshoot or underuse (<a target="_blank" rel="noopener" href="https://conferences.sigcomm.org/hotnets/2024/papers/hotnets24-79.pdf">HotNets 2024 LEO mobility</a>).</li>
+<li><strong>Multipath QUIC coupling.</strong> Coupled BBR across subflows that may share a bottleneck has no standard. Reno-style coupled CC (LIA/OLIA) doesn't translate to rate-based control.</li>
+</ol></section>
+<section id="s12"><h2>12. Lineage</h2>
+<ul>
+<li><strong>1979</strong> Kleinrock: power metric, the optimum at BDP.</li>
+<li><strong>1981</strong> Jaffe: a distributed algorithm can't converge to it with a single signal.</li>
+<li><strong>1988</strong> Jacobson: TCP congestion avoidance (Tahoe/Reno), loss as the signal, ACK clocking.</li>
+<li><strong>1994</strong> Vegas: delay-based, loses to Reno.</li>
+<li><strong>2008</strong> CUBIC: RTT-independent cubic growth, became the Linux default.</li>
+<li><strong>2011–13</strong> bufferbloat recognized; CoDel/fq_codel AQMs.</li>
+<li><strong>2014–15</strong> PCC (online learning), Sprout/Remy (learned).</li>
+<li><strong>2016</strong> <strong>BBRv1</strong>: ACM Queue paper, Linux 4.9, B4 + YouTube.</li>
+<li><strong>2017</strong> Linux 4.13 internal pacing; ICNP shallow-buffer critique.</li>
+<li><strong>2018</strong> Copa (NSDI); BBR Wi-Fi ACK-aggregation patches.</li>
+<li><strong>2019</strong> <strong>BBRv2</strong> (alpha): loss + ECN, inflight_hi/lo. Ware IMC model; Dropbox eval.</li>
+<li><strong>2022</strong> Starvation theorem; IMC fluid model (Scherrer et al.).</li>
+<li><strong>2023</strong> <strong>BBRv3</strong> released (July); Sage (SIGCOMM).</li>
+<li><strong>2024</strong> BBRv3 default for google.com + YouTube; PAM/ANRW critiques; IETF CCWG adoption.</li>
+<li><strong>2026</strong> draft-ietf-ccwg-bbr-06; FRCC (NSDI).</li>
+</ul></section>
+<section id="s13"><h2>13. Hands-on (≤30 min)</h2>
+<figure class="widget" id="sim">
+<h3 style="margin-top:.2em">Try it: Reno vs BBRv1-like on one bottleneck</h3>
+<label for="simBuf">Buffer: <b id="simBufV">8 × BDP</b> (BDP = 40 pkts)</label>
+<input id="simBuf" type="range" min="0" max="7" step="1" value="5">
+<label for="simRtt">RTprop: <b id="simRttV">40 ms</b></label>
+<input id="simRtt" type="range" min="10" max="200" step="10" value="40">
+<svg class="svg" id="simPlot" viewBox="0 0 640 220" role="img" aria-label="Queue length over time for Reno and BBR">
+ <line class="ax" x1="50" y1="190" x2="630" y2="190"/><line class="ax" x1="50" y1="10" x2="50" y2="190"/>
+ <text class="lbl" x="56" y="22" id="simYmax">queue</text><text class="lbl" x="620" y="208" text-anchor="end">time (12 s)</text><text class="lbl" x="44" y="194" text-anchor="end">0</text>
+ <polyline id="simReno" class="sreno" points=""/><polyline id="simBbr" class="sbbr" points=""/>
+ <rect x="460" y="18" width="12" height="4" class="lreno"/><text class="lbl" x="478" y="24">Reno queue</text>
+ <rect x="460" y="34" width="12" height="4" class="lbbr"/><text class="lbl" x="478" y="40">BBR queue</text>
+</svg>
+<table class="simt"><thead><tr><th></th><th>goodput</th><th>median RTT (2nd half)</th><th>drops</th></tr></thead>
+<tbody><tr><td>Reno</td><td id="rG"></td><td id="rR"></td><td id="rD"></td></tr><tr><td>BBR</td><td id="bG"></td><td id="bR"></td><td id="bD"></td></tr></tbody></table>
+<p class="note">JS port of <code>bbr_sim.py</code> (same toy model, 12 Mbit/s bottleneck). Slide the buffer down to 0.25–0.5 × BDP to see v1's drop storm. Slide it up to watch Reno's RTT follow the buffer while BBR's stays put.</p>
+</figure>
+<p><code>bbr_sim.py</code> in this folder is a toy packet-level simulator: one bottleneck, a Reno-like sender and a BBRv1-like sender (max/min filters, Startup/Drain/ProbeBW/ProbeRTT, pacing). It's deliberately simple: drops are detected instantly and there are no SACK or RTO details.</p>
+<pre><button class="copy" type="button">copy</button><code class="language-bash">python3 bbr_sim.py --trace       # 12 Mbit/s, 40 ms, buffer 8×BDP, print BBR states
+python3 bbr_sim.py --buf 0.5     # shallow buffer
+python3 bbr_sim.py --buf 32      # bloated buffer
+</code></pre>
+<p>Actual output on this machine:</p>
+<pre><button class="copy" type="button">copy</button><code># --buf 8
+reno  bdp=40.0pkt buf=320pkt  goodput=11.91Mbit/s median_rtt=221.0ms drops=1
+bbr   bdp=40.0pkt buf=320pkt  goodput=11.89Mbit/s median_rtt=55.5ms  drops=0
+# --buf 0.5
+reno  bdp=40.0pkt buf=20pkt   goodput=11.32Mbit/s median_rtt=49.0ms  drops=8
+bbr   bdp=40.0pkt buf=20pkt   goodput=11.89Mbit/s median_rtt=49.5ms  drops=324
+# --buf 32
+reno  bdp=40.0pkt buf=1280pkt goodput=11.91Mbit/s median_rtt=670.0ms drops=1
+bbr   bdp=40.0pkt buf=1280pkt goodput=11.89Mbit/s median_rtt=55.5ms  drops=0
+</code></pre>
+<p>Read it this way: Reno's RTT tracks <em>buffer size</em> (221 → 670 ms), while BBR's stays at about RTprop + ~0.4 BDP of probe queue whatever the buffer. In the shallow buffer BBRv1 gets 5% more goodput by blasting through 40× more drops. That is the v1 retransmit problem in miniature.</p>
+<p>Try next:</p>
+<ol>
+<li>Set the Drain gain to 1.0 and watch the Startup queue never drain.</li>
+<li>Remove the 0.75 phase (<code>gains = [1.25, 1, 1, ...]</code>) and watch the median RTT creep up.</li>
+<li>On a real Linux box: <code>tc qdisc add dev lo root netem delay 20ms rate 50mbit limit 1000</code>, run <code>iperf3 -C bbr</code> vs <code>-C cubic</code>, and watch <code>ss -tin</code> show <code>bw</code>, <code>mrtt</code> and <code>pacing_gain</code> cycling through 1.25/0.75.</li>
+</ol></section>
+<section id="s14"><h2>14. Question ladder</h2>
+<p><button id="revealAll" aria-pressed="false">Reveal all answers</button></p>
+<h3>Mechanism</h3>
+<details class="q"><summary><b>1.</b> When an ACK arrives, exactly which two intervals does BBR compare to compute a delivery-rate sample, and why the max of the two?</summary><div class="ans"><p><code>send_elapsed = P.sent_time − P.first_sent_time</code> (how long the sender took to send the flight) and <code>ack_elapsed = now − P.delivered_time</code> (how long the ACKs for it took to come back). The rate is <code>Δdelivered / max(send_elapsed, ack_elapsed)</code>. ACK compression or aggregation can make <code>ack_elapsed</code> artificially short, and a sender burst can make <code>send_elapsed</code> short. The bottleneck can't deliver faster than either one, so the larger interval gives the conservative, unbiased-low estimate.</p></div></details>
+<details class="q"><summary><b>2.</b> What happens to <code>max_bw</code> when the application goes idle for 2 s, then resumes?</summary><div class="ans"><p>During idle, any samples are marked app-limited and can't lower <code>max_bw</code>. If the idle lasts longer than the filter window (10 rounds in v1), the old peak expires only when it is replaced. Implementations keep the last max because app-limited samples are ignored unless they're higher. On restart BBR paces at the old <code>max_bw</code>, not slow-start. Linux also has a "restart from idle" path that paces at <code>pacing_gain=1·bw</code> so it doesn't dump a burst.</p></div></details>
+<details class="q"><summary><b>3.</b> Walk through what ProbeBW_UP does in v3 if loss reaches 3% halfway through the phase.</summary><div class="ans"><p>The loss rate for the round crosses <code>LossThresh = 2%</code>. BBR sets <code>inflight_longterm</code> to the inflight at which loss crossed the threshold (with a correction to estimate where it crossed 2%), sets <code>prev_probe_too_high</code>, exits UP to DOWN, and cuts the short-term bounds by β = 0.7. The next UP is a short "precautionary" probe until it shows no excess loss.</p></div></details>
+<details class="q"><summary><b>4.</b> Why does ProbeRTT trigger on "min_rtt not refreshed" rather than on a fixed timer?</summary><div class="ans"><p>If the flow naturally observed a new minimum (e.g. the app was idle and the queue emptied, or another flow left), there's no need to dip. Triggering only when <code>min_rtt</code> hasn't been refreshed for <code>ProbeRTTInterval</code> (5 s in v3) avoids the throughput cost for flows that see the true RTprop for free. It also tends to synchronize competing BBR flows: they all see the same queue, so they all go stale and dip together, and that dip empties the queue for everyone.</p></div></details>
+<h3>Why</h3>
+<details class="q"><summary><b>5.</b> Why is the Startup gain ~2.77–2.89 and not 2?</summary><div class="ans"><p>The bandwidth estimate lags: it's the delivery rate of data sent about a round ago, averaged over a round, and reported a round later. For the send rate to double each round, the gain must correct for that lag. Integrating an exponential <code>r₀2^{t/R}</code> over <code>[t−2R, t−R]</code> gives <code>r(t)/(4 ln 2)</code>, so g = 4 ln 2 ≈ 2.77. Gain 2 would grow more slowly than 2× per round, roughly 1.4–1.5×, and take many more rounds to find BtlBw.</p></div></details>
+<details class="q"><summary><b>6.</b> Why does BBR need a cwnd at all if it paces?</summary><div class="ans"><p>Pacing is open-loop between ACKs. If the path stalls (ACK loss, a delay spike, ACK aggregation gaps) a pure pacer keeps sending at <code>max_bw</code> with no feedback. cwnd = 2·BDP bounds inflight so that stall costs at most one extra BDP of queue. Against CUBIC, that cap is what sets BBRv1's share.</p></div></details>
+<details class="q"><summary><b>7.</b> Why does v3 use 0.9 in DOWN instead of v1's 0.75?</summary><div class="ans"><p>The draft calls 0.9 "the minimum pacing_gain that allows bandwidth-based convergence to approximate fairness", given UP = 1.25. It also gives up less throughput during DOWN. v3 no longer depends on DOWN to empty the queue fully. It uses inflight bounds and <code>Headroom</code> (CRUISE at 0.85 × inflight_longterm) to keep queues low.</p></div></details>
+<details class="q"><summary><b>8.</b> Why 62–63 rounds for T_reno and not, say, 200?</summary><div class="ans"><p>Two constraints. With much fewer than ~60 rounds between probes (each probe may cause loss), Reno/CUBIC flows can't regrow enough to carry 4K video. With too many rounds, BBR can't tolerate 1% random loss: <code>(0.99)^N · 4 ≥ 1</code> requires N ≤ ~137. 62–63 satisfies both, and the randomization avoids synchronization.</p></div></details>
+<h3>Counterfactual</h3>
+<details class="q"><summary><b>9.</b> If you made the RTprop filter 60 s instead of 10 s, what breaks?</summary><div class="ans"><p>ProbeRTT would happen much less often (good for throughput), but a route change that <em>raises</em> propagation delay would go unnoticed for up to 60 s. BDP would be underestimated and BBR would be cwnd-limited below capacity. Competing BBR flows would also stay on standing-queue-inflated estimates longer, and multi-flow queue drains would be rarer.</p></div></details>
+<details class="q"><summary><b>10.</b> If cwnd_gain were 1 instead of 2, what would happen on a Wi-Fi link with ACK aggregation?</summary><div class="ans"><p>ACKs arrive in clumps separated by gaps. With cwnd = 1·BDP, the sender exhausts cwnd during a gap and idles until the next clump, so throughput drops well below BtlBw. That is exactly the problem behind the Wi-Fi patches. Gain 2 plus <code>extra_acked</code> gives enough headroom to keep sending through gaps.</p></div></details>
+<details class="q"><summary><b>11.</b> What if every flow on the Internet ran BBRv1, so there is no CUBIC at all? Does bufferbloat vanish?</summary><div class="ans"><p>The standing queue would mostly vanish: each flow paces near its share and probes ±25%. But not entirely. Multiple v1 flows each overestimate their share by a bit, and studies found BBR-vs-BBR queues of about 1–2 BDP in deep buffers, plus RTT unfairness and massive loss in shallow buffers. v2/v3 bounds fix much of that.</p></div></details>
+<h3>Adversarial</h3>
+<details class="q"><summary><b>12.</b> How could an on-path middlebox make a BBR sender wildly overestimate bandwidth?</summary><div class="ans"><p>Hold ACKs and release them in a burst (ACK compression / aggregation) so a short <code>ack_elapsed</code> interval inflates samples. Or ACK data optimistically before it is delivered (a split-TCP or ACK-spoofing proxy). <code>max(send_elapsed, ack_elapsed)</code> and <code>extra_acked</code> bound but don't eliminate the first. The second fools every CC.</p></div></details>
+<details class="q"><summary><b>13.</b> Construct a scenario where two BBR flows on the same bottleneck get a 10:1 split.</summary><div class="ans"><p>Give the flows very different RTprops on a deep-buffer bottleneck: say 10 ms vs 200 ms. Each caps inflight at 2·its own BDP. The long-RTT flow's cap is 20× larger, so it holds most of the queue, and its delivery rate wins in the max filter. PAM 2024 reports this persists in v3. Alternatively, add non-congestive jitter &gt; 2× the equilibrium delay oscillation to one flow's path (the starvation construction).</p></div></details>
+<details class="q"><summary><b>14.</b> Why does enabling ECN on a classic-AQM router make BBRv3 <em>more</em> unfair to CUBIC?</summary><div class="ans"><p>v3 reacts to CE like DCTCP: proportionally to the fraction marked. CUBIC reacts to <em>any</em> CE like a loss, so it cuts its window by 30%. A classic AQM marks well before dropping, so CUBIC keeps backing off on marks while v3 trims only a little. Zeynali et al. (ANRW 2024) measured one v3 flow taking &gt;~99% vs five CUBIC flows with ECN on.</p></div></details>
+<h3>Connection</h3>
+<details class="q"><summary><b>15.</b> How does BBR's delivery-rate estimator relate to TCP's ACK clock from Jacobson '88?</summary><div class="ans"><p>Jacobson's ACK clock says ACK arrivals are paced by the bottleneck, so sending one packet per ACK self-clocks to the bottleneck rate. BBR measures that clock explicitly (Δdelivered/Δt), filters it with a max, and replaces ACK-clocked sending with timer-driven pacing at that rate. That's why it survives ACK compression better than pure ACK clocking.</p></div></details>
+<details class="q"><summary><b>16.</b> How is BBR's "probe up, pay back" related to CUBIC's concave/convex window curve around W_max?</summary><div class="ans"><p>CUBIC grows concavely toward the last W_max (cautious near the known ceiling), then convexly beyond it (probing for more). v3's CRUISE at 85% of <code>inflight_longterm</code> then REFILL/UP is the same "stay below the known-safe ceiling, then periodically probe above it" idea, with the ceiling learned from loss/ECN rather than from the last drop.</p></div></details>
+<details class="q"><summary><b>17.</b> How does L4S change the problem BBR is trying to solve?</summary><div class="ans"><p>L4S AQMs mark CE at a very shallow queue threshold with a scalable signal and isolate L4S traffic in its own queue. The sender no longer needs to infer the queue from RTT or probe for bandwidth by overshooting. The network tells it. The BBR question becomes "how to respond to a scalable ECN signal while sharing with non-L4S flows", and that is why v3 adopted DCTCP-style ECN.</p></div></details>
+<h3>Open</h3>
+<details class="q"><summary><b>18.</b> Can any sender-only CCA be both starvation-free under jitter and low-delay?</summary><div class="ans"><p>Unsettled. Arun et al. show delay-convergent CCAs must oscillate by at least half the jitter to avoid starvation, which means some delay floor. FRCC (NSDI 2026) claims provable fairness under jitter by separating flow-count estimation from capacity estimation. Whether that also gives low delay on real Internet paths, and how it coexists with CUBIC, is open.</p></div></details>
+<details class="q"><summary><b>19.</b> What fairness metric should the IETF use to judge whether BBRv3 is "safe to deploy"?</summary><div class="ans"><p>Candidates: Jain's index (simple, ignores duration and harm), max-min fairness (needs to know demand), and "harm" (Ware et al. 2019: compare a flow's performance with and without the newcomer, so it's acceptable if you harm others no more than CUBIC harms them). The IETF hasn't standardized one. BBRv3 is on the <em>Experimental</em> track partly for this reason.</p></div></details></section>
+<section id="s15"><h2>15. Go deeper next</h2>
+<ol>
+<li><strong>L4S and DualPI2:</strong> how a coupled dual-queue AQM gives scalable ECN flows sub-ms queues while protecting classic flows (RFC 9330–9332).</li>
+<li><strong>Delivery-rate estimation and ACK frequency in QUIC:</strong> how ACK-delay, ACK decimation and GRO/LRO distort BBR's samples, and the <code>extra_acked</code> math.</li>
+<li><strong>Swift / HPCC datacenter CC:</strong> delay targets and in-band telemetry instead of model inference. Why Google runs BBR.Swift in the DC.</li>
+</ol></section>
+<section id="sources"><h2>Sources</h2>
+<p><strong>Papers &amp; specs</strong></p>
+<ul class="src">
+<li>Cardwell et al., "BBR: Congestion-Based Congestion Control", ACM Queue 14(5), 2016 — <a target="_blank" rel="noopener" href="https://queue.acm.org/detail.cfm?id=3022184">https://queue.acm.org/detail.cfm?id=3022184</a> · PDF <a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs244/papers/bbr.pdf">https://web.stanford.edu/class/cs244/papers/bbr.pdf</a></li>
+<li>draft-ietf-ccwg-bbr-06 (July 2026) — <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06">https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06</a></li>
+<li>draft-cardwell-iccrg-bbr-congestion-control — <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-02">https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-02</a></li>
+<li>Ware et al., "Modeling BBR's Interactions with Loss-Based Congestion Control", IMC 2019 — <a target="_blank" rel="noopener" href="https://www.cs.cmu.edu/~srini/papers/2019-Ware-imc">https://www.cs.cmu.edu/~srini/papers/2019-Ware-imc</a> · <a target="_blank" rel="noopener" href="https://blog.apnic.net/2020/01/24/modelling-bbrs-interactions-with-loss-based-congestion-control/">https://blog.apnic.net/2020/01/24/modelling-bbrs-interactions-with-loss-based-congestion-control/</a></li>
+<li>Hock, Bless, Zitterbart, "Experimental Evaluation of BBR Congestion Control", ICNP 2017 — <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/meeting/100/materials/slides-100-iccrg-an-experimental-evaluation-of-bbr-congestion-control-00">https://datatracker.ietf.org/meeting/100/materials/slides-100-iccrg-an-experimental-evaluation-of-bbr-congestion-control-00</a></li>
+<li>Arun, Alizadeh, Balakrishnan, "Starvation in End-to-End Congestion Control", SIGCOMM 2022 — <a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs244/papers/venkat_starvation.pdf">https://web.stanford.edu/class/cs244/papers/venkat_starvation.pdf</a></li>
+<li>Scherrer et al., "Model-Based Insights on the Performance, Fairness, and Stability of BBR", IMC 2022 — <a target="_blank" rel="noopener" href="https://netsec.ethz.ch/publications/papers/scherrer_bbr_imc22.pdf">https://netsec.ethz.ch/publications/papers/scherrer_bbr_imc22.pdf</a></li>
+<li>Zeynali et al., "Promises and Potential of BBRv3", PAM 2024 — <a target="_blank" rel="noopener" href="https://pam2024.cs.northwestern.edu/pdfs/paper-59.pdf">https://pam2024.cs.northwestern.edu/pdfs/paper-59.pdf</a></li>
+<li>Zeynali et al., "BBRv3 in the public Internet: a boon or a bane?", ANRW 2024 — <a target="_blank" rel="noopener" href="https://balakrishnanc.github.io/papers/zeynali-anrw2024.pdf">https://balakrishnanc.github.io/papers/zeynali-anrw2024.pdf</a></li>
+<li>Sarpkaya et al., "BBR's Sharing Behavior with CUBIC and Reno", IFIP Networking 2025 — <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2505.07741">https://arxiv.org/abs/2505.07741</a></li>
+<li>"A Control-Theoretic Perspective on BBR/CUBIC Congestion-Control Competition", PERFORMANCE 2025 — <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.22773">https://arxiv.org/abs/2510.22773</a></li>
+<li>"To Adopt or Not to Adopt L4S-Compatible Congestion Control?", PAM 2025 — <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.10952">https://arxiv.org/abs/2411.10952</a></li>
+<li>Agarwal, Arun, Seshan, "FRCC: Towards Provably Fair and Robust Congestion Control", NSDI 2026 — <a target="_blank" rel="noopener" href="https://www.usenix.org/conference/nsdi26/presentation/agarwal-anup">https://www.usenix.org/conference/nsdi26/presentation/agarwal-anup</a></li>
+<li>"Unveiling TCP BBR Dominance in Starlink Internet", arXiv 2026 — <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2607.07133">https://arxiv.org/abs/2607.07133</a></li>
+<li>"Learning-Based vs Human-Derived Congestion Control", arXiv 2025 — <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2510.25105">https://arxiv.org/abs/2510.25105</a></li>
+<li>"Mind the Misleading Effects of LEO Mobility on End-to-End CC", HotNets 2024 — <a target="_blank" rel="noopener" href="https://conferences.sigcomm.org/hotnets/2024/papers/hotnets24-79.pdf">https://conferences.sigcomm.org/hotnets/2024/papers/hotnets24-79.pdf</a></li>
+</ul>
+<p><strong>Code &amp; docs</strong></p>
+<ul class="src">
+<li>Google BBR repo (v3 branch) — <a target="_blank" rel="noopener" href="https://github.com/google/bbr/blob/v3/README.md">https://github.com/google/bbr/blob/v3/README.md</a></li>
+<li>Linux <code>tcp_bbr.c</code> — <a target="_blank" rel="noopener" href="https://codebrowser.dev/linux/linux/net/ipv4/tcp_bbr.c.html">https://codebrowser.dev/linux/linux/net/ipv4/tcp_bbr.c.html</a></li>
+<li>IETF 119 BBRv3 overview &amp; Google deployment — <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00">https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00</a></li>
+<li>IETF 97 traffic policing slides — <a target="_blank" rel="noopener" href="https://www.ietf.org/proceedings/97/slides/slides-97-maprg-traffic-policing-in-the-internet-yuchung-cheng-and-neal-cardwell-00.pdf">https://www.ietf.org/proceedings/97/slides/slides-97-maprg-traffic-policing-in-the-internet-yuchung-cheng-and-neal-cardwell-00.pdf</a></li>
+<li>ESnet fasterdata BBR — <a target="_blank" rel="noopener" href="https://fasterdata.es.net/host-tuning/linux/recent-tcp-enhancements/bbr-tcp/">https://fasterdata.es.net/host-tuning/linux/recent-tcp-enhancements/bbr-tcp/</a></li>
+<li>Cloudflare quiche BBR pacing issue — <a target="_blank" rel="noopener" href="https://github.com/cloudflare/quiche/issues/514">https://github.com/cloudflare/quiche/issues/514</a></li>
+</ul>
+<p><strong>Articles / deployment reports</strong></p>
+<ul class="src">
+<li>AWS CloudFront BBR — <a target="_blank" rel="noopener" href="https://aws.amazon.com/blogs/networking-and-content-delivery/tcp-bbr-congestion-control-with-amazon-cloudfront/">https://aws.amazon.com/blogs/networking-and-content-delivery/tcp-bbr-congestion-control-with-amazon-cloudfront/</a></li>
+<li>Dropbox, Evaluating BBRv2 — <a target="_blank" rel="noopener" href="https://dropbox.tech/infrastructure/evaluating-bbrv2-on-the-dropbox-edge-network">https://dropbox.tech/infrastructure/evaluating-bbrv2-on-the-dropbox-edge-network</a></li>
+<li>APNIC, BBR evaluation at a large CDN — <a target="_blank" rel="noopener" href="https://blog.apnic.net/2019/11/01/bbr-evaluation-at-a-large-cdn/">https://blog.apnic.net/2019/11/01/bbr-evaluation-at-a-large-cdn/</a></li>
+<li>APNIC, BBR patches for Wi-Fi — <a target="_blank" rel="noopener" href="https://blog.apnic.net/2018/04/30/bbr-patches-for-higher-wifi-throughput-and-lower-queuing-delays/">https://blog.apnic.net/2018/04/30/bbr-patches-for-higher-wifi-throughput-and-lower-queuing-delays/</a></li>
+</ul></section>
+</main></div>
+<script>(function(){
+var $=function(id){return document.getElementById(id);};
+// scroll-spy
+var links=[].slice.call(document.querySelectorAll('nav a'));
+var secs=links.map(function(a){return $(a.getAttribute('href').slice(1));});
+function spy(){var y=window.scrollY+90,cur=0;secs.forEach(function(s,i){if(s&&s.getBoundingClientRect().top+window.scrollY<=y)cur=i;});links.forEach(function(a,i){a.classList.toggle('on',i===cur);});}
+window.addEventListener('scroll',spy,{passive:true});spy();
+// copy
+document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){var t=b.parentNode.querySelector('code').innerText;
+ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='copied';},function(){b.textContent='select+copy';});setTimeout(function(){b.textContent='copy';},1500);});});
+// reveal all
+var ra=$('revealAll');if(ra)ra.addEventListener('click',function(){var open=ra.getAttribute('aria-pressed')!=='true';
+ document.querySelectorAll('details.q').forEach(function(d){d.open=open;});ra.setAttribute('aria-pressed',open);ra.textContent=open?'Hide all answers':'Reveal all answers';});
+// KaTeX
+window.addEventListener('load',function(){if(window.renderMathInElement)renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true}],throwOnError:false});});
+
+// Kleinrock slider: x in BDP units; BDP at px 140, BDP+buf(1 BDP) at 245; x px = 40 + x*100 (clamped 245 for display beyond)
+var kx=$('kx');function klein(){var x=+kx.value,B=12,R=40,px=Math.min(40+x*100,300);
+ var rate=Math.min(x,1)*B,rtt=Math.max(1,x)*R,loss=x>2;
+ $('kd1').setAttribute('cx',px);$('kd1').setAttribute('cy',x<=1?170-120*x:50);
+ $('kd2').setAttribute('cx',px);$('kd2').setAttribute('cy',x<=1?140:Math.max(40,140-100*(x-1)));
+ $('kxv').textContent=x.toFixed(2)+' × BDP ('+Math.round(x*40)+' pkts)';
+ var pw=(rate/rtt*1000).toFixed(0);
+ $('kout').textContent=(loss?'Buffer overflow → drops. ':'')+'delivery '+rate.toFixed(1)+' Mbit/s · RTT '+Math.round(Math.min(rtt,80))+' ms · power '+(loss?'—':pw)+(Math.abs(x-1)<0.03?'  ← Kleinrock optimum (BBR target)':x>1&&!loss?'  · queue adds delay, no throughput':x<1?'  · pipe not full':'');}
+if(kx){kx.addEventListener('input',klein);klein();}
+
+// stepper
+var steps=[
+ {t:'0.0',st:'STARTUP',q:0,bw:'0.00',pace:'gain 2.885',tx:'<b>Start.</b> No model yet. BBR sends an initial window of 10 packets and paces at 2.885 × a nominal rate. Nothing is queued.'},
+ {t:'0.1',st:'STARTUP',q:1,bw:'2.96',pace:'gain 2.885',tx:'<b>Exponential search.</b> Each ACK gives a delivery-rate sample. max_bw reads 2.96 Mbit/s and the send rate roughly doubles every round.'},
+ {t:'0.2',st:'STARTUP',q:72,bw:'11.43',pace:'gain 2.885',tx:'<b>Overshoot.</b> Pacing is now well above the 12 Mbit/s link, so 72 packets pile up. That queue is the price of finding BtlBw in log₂(BDP) rounds.'},
+ {t:'0.3',st:'STARTUP',q:78,bw:'12.09',pace:'gain 2.885',tx:'<b>Plateau.</b> max_bw stops growing at ~12.1 Mbit/s. cwnd = 2.885 × BDP now limits inflight, so the queue stops growing at ~78.'},
+ {t:'0.4',st:'STARTUP',q:78,bw:'12.09',pace:'gain 2.885',tx:'<b>Full pipe detected.</b> Three rounds with &lt;25% bandwidth growth. BBR concludes BtlBw ≈ 12 Mbit/s, so BDP = 12 Mbit/s × 40 ms = 40 packets.'},
+ {t:'0.5',st:'DRAIN',q:71,bw:'12.09',pace:'gain 0.347',tx:'<b>Drain.</b> Pacing drops to 0.347 × BtlBw (v1, = ln2/2; v3 uses 0.5) so the link empties the queue faster than BBR refills it.'},
+ {t:'0.6',st:'PROBE_BW',q:1,bw:'12.09',pace:'gain 1.0',tx:'<b>Cruise.</b> inflight ≤ BDP, so BBR enters ProbeBW and paces at 1.0 × BtlBw. Queue ≈ 1 packet and RTT ≈ RTprop. This is the Kleinrock point.'},
+ {t:'0.9',st:'PROBE_BW',q:9,bw:'12.09',pace:'gain 1.25',tx:'<b>Probe and pay back.</b> One RTprop at 1.25 × builds ~9 packets of queue (no new bandwidth showed up). The next RTprop at 0.75 × drains it (t = 1.0 s: queue 3). Average gain = 1.0.'}
+];
+var si=0;function rs(){var s=steps[si];$('stCount').textContent='STEP '+(si+1)+' / '+steps.length;$('spState').textContent=s.st;$('spPace').textContent=s.pace;
+ $('spQ').setAttribute('width',Math.max(4,Math.min(260,s.q*260/80)));$('spQn').textContent=s.q+' pkts';$('spBw').textContent='btlbw est: '+s.bw+' Mbit/s';$('spT').textContent='t = '+s.t+' s';
+ $('stText').innerHTML=s.tx;$('stPrev').disabled=si===0;$('stNext').disabled=si===steps.length-1;}
+if($('stepper')){$('stPrev').onclick=function(){if(si>0){si--;rs();}};$('stNext').onclick=function(){if(si<steps.length-1){si++;rs();}};rs();}
+
+// simulator: port of bbr_sim.py
+function run(cca,rateMbps,rtpropMs,bufBdp){
+ var MSS=12000,dt=0.0005,secs=12,rate=rateMbps*1e6/MSS,rtprop=rtpropMs/1000,bdp=rate*rtprop,bufCap=Math.max(1,Math.floor(bufBdp*bdp));
+ var queue=[],qh=0,inNet=[],nh=0,serve=0,delivered=0,deliveredTime=0,inflight=0,drops=0;
+ var bwS=[],round=0,nextRound=0,btlbw=0,rtEst=Infinity,rtStamp=0,state='STARTUP',ci=0,cs=0,fullBw=0,fullCnt=0,prDone=0,gains=[1.25,0.75,1,1,1,1,1,1],pc=0;
+ var cwnd=10,ssth=Infinity,t=0,rtts=[],trace=[],lastLog=-1,L2=Math.LN2;
+ while(t<secs){t+=dt;
+  serve+=rate*dt;while(qh<queue.length&&serve>=1){serve-=1;inNet.push([t+rtprop,queue[qh++]]);}
+  if(qh>=queue.length)serve=Math.min(serve,1);
+  while(nh<inNet.length&&inNet[nh][0]<=t){var p=inNet[nh++][1];inflight--;delivered++;deliveredTime=t;var rtt=t-p[0];rtts.push([t,rtt]);
+   if(cca==='bbr'){var iv=Math.max(t-p[2],rtt);if(iv>0)bwS.push([round,(delivered-p[1])/iv]);
+    if(p[1]>=nextRound){nextRound=delivered;round++;if(state==='STARTUP'){if(btlbw>=fullBw*1.25){fullBw=btlbw;fullCnt=0;}else if(++fullCnt>=3)state='DRAIN';}}
+    while(bwS.length&&bwS[0][0]<round-10)bwS.shift();btlbw=0;for(var k=0;k<bwS.length;k++)if(bwS[k][1]>btlbw)btlbw=bwS[k][1];
+    if(rtt<=rtEst||t-rtStamp>10){rtEst=rtt;rtStamp=t;}}
+   else{if(cwnd<ssth)cwnd+=1;else cwnd+=1/cwnd;}}
+  var win=0,pace=0;
+  if(cca==='bbr'){var bdpE=btlbw*(rtEst<1e9?rtEst:rtprop);
+   if(state==='DRAIN'&&inflight<=bdpE){state='PROBE_BW';ci=2;cs=t;}
+   if(state==='PROBE_BW'&&t-cs>rtEst){ci=(ci+1)%8;cs=t;}
+   if(state!=='PROBE_RTT'&&t-rtStamp>10){state='PROBE_RTT';prDone=t+0.2;}
+   if(state==='PROBE_RTT'&&t>=prDone){rtStamp=t;state='PROBE_BW';ci=2;cs=t;}
+   var pg=state==='STARTUP'?2/L2:state==='DRAIN'?L2/2:state==='PROBE_RTT'?1:gains[ci];
+   var cg=state==='STARTUP'?2/L2:2;win=state==='PROBE_RTT'?4:(btlbw?Math.max(4,cg*bdpE):10);
+   pace=btlbw?pg*btlbw:10/rtprop;pc=Math.min(pc+pace*dt,2);}
+  while(cca==='bbr'?(pc>=1&&inflight<win):(inflight<Math.floor(cwnd))){
+   if(cca==='bbr')pc-=1;inflight++;var pkt=[t,delivered,delivered?deliveredTime:t];
+   if(queue.length-qh>=bufCap){drops++;inflight--;if(cca==='reno'){ssth=Math.max(cwnd/2,2);cwnd=ssth;}continue;}
+   queue.push(pkt);}
+  if(qh>8192){queue=queue.slice(qh);qh=0;}if(nh>8192){inNet=inNet.slice(nh);nh=0;}
+  var lg=Math.floor(t*50);if(lg!==lastLog){lastLog=lg;trace.push(queue.length-qh);}}
+ var late=rtts.filter(function(r){return r[0]>secs/2;}).map(function(r){return r[1];}).sort(function(a,b){return a-b;});
+ return {g:(delivered*MSS/secs/1e6).toFixed(2),r:late.length?(late[late.length>>1]*1000).toFixed(1):'—',d:drops,trace:trace,buf:bufCap};}
+var BUFS=[0.25,0.5,1,2,4,8,16,32];
+function sim(){var b=BUFS[+$('simBuf').value],rt=+$('simRtt').value;$('simBufV').textContent=b+' × BDP';$('simRttV').textContent=rt+' ms';
+ var bdp=Math.round(12e6/12000*rt/1000);$('simBufV').parentNode.lastChild.textContent=' (BDP = '+bdp+' pkts)';
+ var R=run('reno',12,rt,b),B=run('bbr',12,rt,b),mx=Math.max(10,Math.max.apply(null,R.trace),Math.max.apply(null,B.trace));
+ function pts(tr){return tr.map(function(v,i){return (50+580*i/(tr.length-1)).toFixed(1)+','+(190-170*v/mx).toFixed(1);}).join(' ');}
+ $('simReno').setAttribute('points',pts(R.trace));$('simBbr').setAttribute('points',pts(B.trace));$('simYmax').textContent='queue (max '+mx+' pkts)';
+ $('rG').textContent=R.g+' Mbit/s';$('rR').textContent=R.r+' ms';$('rD').textContent=R.d;$('bG').textContent=B.g+' Mbit/s';$('bR').textContent=B.r+' ms';$('bD').textContent=B.d;}
+if($('sim')){var tm;function deb(){clearTimeout(tm);tm=setTimeout(sim,60);}$('simBuf').addEventListener('input',deb);$('simRtt').addEventListener('input',deb);sim();}
+})();</script>
+</body></html>
