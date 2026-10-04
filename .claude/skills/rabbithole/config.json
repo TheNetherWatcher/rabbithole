@@ -1,0 +1,29 @@
+{
+  "subject": "cs",
+  "subjects": {
+    "cs": {
+      "label": "Computer science",
+      "domains": ["ML/AI", "LLM systems", "security/offense", "cryptography", "OS/kernels", "distributed systems", "databases/storage", "networking/protocols", "compilers/PL/runtimes", "blockchain", "graphics/GPU", "hardware/architecture", "algorithms/data structures", "browsers/web internals", "formal methods"]
+    },
+    "math": {
+      "label": "Mathematics",
+      "domains": ["number theory", "algebra", "topology", "analysis", "probability", "combinatorics", "geometry", "logic/set theory", "optimization", "numerical methods", "information theory"]
+    },
+    "physics": {
+      "label": "Physics",
+      "domains": ["classical mechanics", "electromagnetism", "thermodynamics/stat mech", "quantum mechanics", "condensed matter", "particle physics", "astrophysics/cosmology", "optics/photonics", "fluid dynamics", "nuclear physics"]
+    },
+    "biology": {
+      "label": "Biology",
+      "domains": ["molecular biology", "genetics/genomics", "immunology", "neuroscience", "evolution", "cell biology", "microbiology", "ecology", "biochemistry", "developmental biology"]
+    },
+    "medicine": {
+      "label": "Medicine",
+      "domains": ["radiology/imaging", "pharmacology", "oncology", "cardiology", "neurology", "infectious disease", "epidemiology/biostatistics", "surgery/devices", "clinical trials", "medical AI"]
+    },
+    "economics": {
+      "label": "Economics & finance",
+      "domains": ["market microstructure", "monetary policy", "game theory/mechanism design", "auctions", "behavioral economics", "asset pricing", "derivatives", "econometrics", "industrial organization", "development economics"]
+    }
+  }
+}
