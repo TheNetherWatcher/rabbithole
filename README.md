@@ -21,12 +21,3 @@ One topic at a time (CS by default, any subject on request), all the way down â€
 ```
 
 Defaults (subject, research model) live in `.claude/skills/rabbithole/config.json`. The skill runs on Haiku; research subagents default to Haiku too.
-
-## Codex
-
-Separate Codex port in `.agents/skills/rabbithole/` â€” Codex picks it up automatically from this repo, no install. Same dive format and history.
-
-```
-codex --search        # web search is required
-$rabbithole [args]    # same args as above
-```
