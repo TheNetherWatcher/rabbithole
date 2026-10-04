@@ -195,10 +195,10 @@ This skill also runs natively in Codex. Install once with `.claude/skills/rabbit
 - No `mcp__claude-in-chrome__*`: verify the HTML in Step 4 with a headless browser if one is available (e.g. `npx playwright screenshot`), otherwise by checking the file parses and every section/link is present; say which check ran.
 - Steps 3–5 (writing, saving, history, guarded commit + push) are unchanged.
 
-## Skill sync (when `SKILL.md` itself changes)
+## Skill sync (when the skill itself changes)
 
-`SKILL.md` lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/SKILL.md`. After any edit to it:
-1. Run `.claude/skills/rabbithole/sync.sh` (copies the file to the claude-skills repo and prints `git status` there).
+The skill (`SKILL.md`, `config.json`, `scripts/`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit to it:
+1. Run `.claude/skills/rabbithole/sync.sh` (mirrors the folder, minus `sync.sh`, into the claude-skills repo and prints `git status` there).
 2. Commit it in both repos separately (`skill: <change>` here, `update rabbithole skill` there; no attribution lines), then push both.
 Never edit the claude-skills copy directly.
 
