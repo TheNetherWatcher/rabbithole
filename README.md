@@ -17,11 +17,10 @@ One topic at a time (CS by default, any subject on request), all the way down â€
 
 /rabbithole subject:physics          # random topic from another subject
 /rabbithole subject:"music theory"   # any free-form subject
-/rabbithole engine:codex             # research angles via Codex CLI
 /rabbithole model:sonnet             # heavier research subagents for this run
 ```
 
-Defaults (subject, research model, engine, codex model) live in `.claude/skills/rabbithole/config.json`. The skill runs on Haiku; research subagents default to Haiku too.
+Defaults (subject, research model) live in `.claude/skills/rabbithole/config.json`. The skill runs on Haiku; research subagents default to Haiku too.
 
 ## Codex
 
