@@ -1,11 +1,11 @@
 ---
 name: rabbithole
-description: Deep, web-researched dive into ONE random non-trivial CS topic (ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a polished interactive HTML page per dive. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS", "rabbit hole", or asks to blog a past dive.
+description: Deep, web-researched dive into ONE random non-trivial topic in a configurable subject (default CS — ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...; also math, physics, biology, medicine, economics, or any free-form subject) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a polished interactive HTML page per dive. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS" (or any subject), "rabbit hole", or asks to blog a past dive.
 ---
 
 # rabbithole
 
-One CS topic. All the way down. Researched from the web, explained in chat, saved to the repo.
+One topic. All the way down. Researched from the web, explained in chat, saved to the repo.
 
 All files live in the current working directory (the repo root): `history.md` is here, dives go in `dives/`, blog posts in `blog/`. Never read or write history anywhere else.
 
@@ -18,13 +18,22 @@ All files live in the current working directory (the repo root): `history.md` is
 | `/rabbithole <topic>` | User-chosen topic, hard depth (add `research` anywhere for research depth) |
 | `/rabbithole blog [slug]` | Turn a saved dive (default: latest) into a blog post in `blog/` |
 | `/rabbithole history` | Show past dives grouped by domain |
+| `subject:<name>` (combine with any of the above) | Pick the topic from another subject for this run, e.g. `/rabbithole subject:physics research`. `<name>` is a key in `config.json` → `subjects`, or any free-form subject (`subject:"music theory"`) |
+
+## Configuration
+
+`config.json` (next to this file) holds defaults:
+- `subject` — default subject key when no `subject:` token is given (`cs` out of the box).
+- `subjects.<key>` — `label` + `domains` list for each preset subject.
+
+Resolve the subject once per run: `subject:` token > `config.json` `subject`. If the subject is free-form (not a preset key), derive 10–15 mechanism-rich domains for it yourself before Step 1 and use those. The rest of the skill is subject-agnostic: "system", "implementation", "in the wild" mean the real-world practice of that subject (labs, instruments, clinical protocols, markets, proofs…), not software, unless the subject is CS.
 
 ## Step 1 — Pick the topic (random modes)
 
 1. Read `history.md`. Never repeat a topic. Don't repeat the domain of the last 2 dives.
-2. Domains: ML/AI · LLM systems · security/offense · cryptography · OS/kernels · distributed systems · databases/storage · networking/protocols · compilers/PL/runtimes · blockchain · graphics/GPU · hardware/architecture · algorithms/data structures · browsers/web internals · formal methods.
+2. Domains: the resolved subject's `domains` list from `config.json` (or the derived list for a free-form subject).
 3. Choose at the **mechanism level**, never the category level.
-   - Bad: "neural networks", "blockchain", "encryption", "Kubernetes".
+   - Bad: "neural networks", "blockchain", "encryption", "Kubernetes" (non-CS: "quantum mechanics", "the immune system", "inflation").
    - Good: "classifier-free guidance and why it trades diversity for fidelity", "Raft split votes and randomized timeouts", "Spectre v1 via branch predictor training", "JIT deoptimization in V8", "LSM-tree compaction: leveled vs tiered", "PagedAttention and KV-cache fragmentation", "TLS 1.3 0-RTT replay", "EVM gas metering and storage refunds", "io_uring submission/completion rings", "flow matching vs diffusion".
 4. Prefer topics where something non-obvious happens inside, and where there is real recent work to report. In research mode this is a hard requirement: the topic must have meaningful papers/advancements from the last ~2 years.
 5. Actually be random: mentally enumerate ~10 candidates across different domains, then pick one — don't default to the most famous.
@@ -49,7 +58,7 @@ Do not explain from memory alone. Research first, thoroughly.
 Primary output is **chat markdown**. Structure:
 
 ### 0. Topic card
-`Domain · Topic · Depth (hard|research)`
+`Subject · Domain · Topic · Depth (hard|research)`
 
 ### 0b. Plain-English first (no jargon)
 Mandatory, and it comes BEFORE any technical content. Written for a smart non-engineer:
@@ -144,7 +153,7 @@ Requirements:
 - **Self-contained single file**: inline CSS + JS, no build step. No external design kits; system fonts or one Google Font max. Must work offline.
 - **Reading order**: plain-English explainer and everyday example first (visually distinct, open by default, friendly tone), then real-world context, then a clear "Technical deep dive" divider before the rest.
 - **Complete**: contains every section of the dive, including 1b real-world context, frontier, open problems, question ladder, sources. Content must match the README (same facts, same links).
-- **Layout**: sticky sidebar / top table of contents with scroll-spy, topic card header (domain · topic · depth · date), a "TL;DR + why it matters" hero block, readable measure (~70ch), responsive down to phone width, light + dark via `prefers-color-scheme`.
+- **Layout**: sticky sidebar / top table of contents with scroll-spy, topic card header (subject · domain · topic · depth · date), a "TL;DR + why it matters" hero block, readable measure (~70ch), responsive down to phone width, light + dark via `prefers-color-scheme`.
 - **Informative at a glance**: a "Where it's used" card grid (system → role), a "How it's used" code block with copy button, a pros/cons or "use it / skip it" two-column box, a key-numbers strip (latencies, sizes, params), callouts for misconceptions and gotchas.
 - **Diagrams**: render flows and state as inline SVG (or styled HTML), not ASCII. Where the topic has a process, add a step-through (Back/Next) of the traced example. Add an interactive widget (slider, toggle, simulator) when a parameter's effect is the point; skip it when forced.
 - **Math**: render equations legibly (inline MathML or KaTeX from cdnjs); each followed by its "in plain terms" line.
@@ -160,7 +169,7 @@ Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverabl
 1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`) AND `dives/YYYY-MM-DD-<slug>/index.html` (Step 4). Put any code from the hands-on section in the same folder.
 2. Append a row to `history.md`:
    `| YYYY-MM-DD | <domain> | <topic> | <hard|research> | [dive](dives/YYYY-MM-DD-<slug>/) · [html](dives/YYYY-MM-DD-<slug>/index.html) | — |`
-   (last column = blog link, filled by `/rabbithole blog`).
+   (last column = blog link, filled by `/rabbithole blog`). For any subject other than `cs`, write the domain as `<Subject label>: <domain>` (e.g. `Physics: condensed matter`) so history stays readable.
 3. **Guard before pushing**: run `git remote get-url origin`; it must be `https://github.com/TheNetherWatcher/rabbithole.git` (or the ssh equivalent), and `history.md` must exist in the cwd. If not, stop and tell the user — never push dives to another repo.
 4. `git add` the new dive folder (README.md, index.html, code) + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
 
