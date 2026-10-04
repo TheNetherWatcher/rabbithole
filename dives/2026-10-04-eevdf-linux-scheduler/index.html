@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux EEVDF scheduler — rabbithole</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#62666d;--card:#fff;--line:#e3e0d8;--acc:#0b6bcb;--accbg:#e8f1fb;--warn:#b45309;--warnbg:#fdf1e1;--ok:#17703a;--okbg:#e5f5ea;--code:#f3f1ec;--friendly:#fff7e0;--ca:#e4572e;--cb:#2e86ab;--cc:#3b9b4f;--ch:#8e5bd0}
+@media (prefers-color-scheme:dark){:root{--bg:#121316;--fg:#e8e8ea;--mut:#9aa0a8;--card:#1a1c20;--line:#2c2f35;--acc:#6db0ff;--accbg:#18263a;--warn:#f0b35a;--warnbg:#2b2214;--ok:#6fd08c;--okbg:#14291b;--code:#1f2227;--friendly:#2a2514;--ca:#ff7a55;--cb:#5cb6dd;--cc:#62c577;--ch:#b389f0}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--acc)}
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);max-width:1200px;margin:0 auto}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:24px 16px;border-right:1px solid var(--line);font-size:13px}
+nav.toc a{display:block;padding:3px 8px;color:var(--mut);text-decoration:none;border-left:2px solid transparent}
+nav.toc a.active{color:var(--acc);border-left-color:var(--acc);font-weight:600}
+nav.toc .grp{margin:14px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+main{padding:24px 24px 80px;max-width:calc(70ch + 48px);min-width:0}
+main.wide{max-width:none}
+h1{font-size:2rem;line-height:1.2;margin:.2em 0}
+h2{font-size:1.45rem;margin:2.2em 0 .5em;padding-top:.4em;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;margin:1.5em 0 .3em}
+.card{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.card span{background:var(--accbg);color:var(--acc);padding:2px 10px;border-radius:99px;font-size:13px}
+.hero{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+.hero b.k{color:var(--acc)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.strip div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.strip b{display:block;font-size:1.3rem;color:var(--acc)}
+.strip small{color:var(--mut)}
+.friendly{background:var(--friendly);border:1px solid var(--line);border-radius:12px;padding:6px 18px 12px;margin:18px 0}
+.divider{margin:48px 0 8px;padding:14px 18px;text-align:center;background:var(--fg);color:var(--bg);border-radius:10px;font-weight:700;letter-spacing:.06em}
+pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto;line-height:1.45;position:relative;border:1px solid var(--line)}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:6px;cursor:pointer}
+.eq{display:block;margin:10px 0 2px;padding:8px 12px;background:var(--card);border-left:3px solid var(--acc);font-family:ui-monospace,Menlo,monospace;font-size:.92em;overflow-x:auto;white-space:pre}
+.plain{margin:0 0 12px;color:var(--mut);font-style:italic}
+.plain:before{content:"→ in plain terms: ";font-style:normal;font-weight:600;color:var(--acc)}
+.callout{padding:10px 14px;border-radius:8px;margin:14px 0;border-left:4px solid}
+.callout.warn{background:var(--warnbg);border-color:var(--warn)}
+.callout.ok{background:var(--okbg);border-color:var(--ok)}
+.callout.info{background:var(--accbg);border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0}
+.grid .c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.grid .c b{display:block;color:var(--acc)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.two>div{border-radius:10px;padding:10px 14px}
+.two .use{background:var(--okbg)}.two .skip{background:var(--warnbg)}
+.two ul{margin:.3em 0;padding-left:1.1em}
+table{border-collapse:collapse;width:100%;font-size:.92em;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin:6px 0}
+details summary{cursor:pointer;font-weight:600}
+.widget{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:16px 0}
+.widget label{display:block;font-size:13px;margin:6px 0 0}
+.widget input[type=range]{width:100%}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 16px}
+.tl{display:flex;flex-wrap:wrap;gap:2px;margin:10px 0}
+.tl i{width:22px;height:22px;border-radius:3px;font:600 11px/22px system-ui;color:#fff;text-align:center;font-style:normal}
+.bars{display:grid;gap:4px;margin-top:6px;font-size:13px}
+.bar{display:flex;align-items:center;gap:8px}.bar div{height:14px;border-radius:3px}
+button{font:inherit;padding:4px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.step{overflow-x:auto}
+.step table{display:table;min-width:520px}
+.step td.el{background:var(--okbg)}.step td.pk{outline:2px solid var(--acc);outline-offset:-2px;font-weight:700}
+svg{max-width:100%;height:auto}
+.src li{margin:3px 0;word-break:break-word}
+@media (max-width:860px){.layout{display:block}nav.toc{display:none}main{padding:16px}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Table of contents" id="toc"></nav>
+<main id="main">
+
+<div class="card"><span>Computer science</span><span>OS/kernels</span><span>EEVDF in Linux</span><span>hard</span><span>2026-10-04</span></div>
+<h1>Linux EEVDF scheduler: virtual lag, eligibility, virtual deadlines</h1>
+
+<div class="hero" id="tldr">
+<b class="k">TL;DR.</b> Since Linux 6.6 the default CPU scheduler picks the <b>eligible</b> task (not ahead of its fair share) with the <b>earliest virtual deadline</b>. Fairness (weight) and latency (slice) become two independent dials. <b class="k">Why it matters:</b> every modern Linux box (Ubuntu 24.04, Debian 13, Android 6.6+ GKI, Kubernetes nodes) runs it, and tail-latency regressions after 6.5→6.6 were EEVDF's.
+<div class="strip">
+<div><b>1995</b><small>Stoica &amp; Abdel-Wahab</small></div>
+<div><b>6.6</b><small>mainline (Oct 2023)</small></div>
+<div><b>0.7–2.8 ms</b><small>default slice (1…≥8 CPUs)</small></div>
+<div><b>100 µs–100 ms</b><small>custom slice clamp</small></div>
+<div><b>O(log n)</b><small>pick, augmented rbtree</small></div>
+<div><b>±1 slice</b><small>lag bound</small></div>
+</div>
+</div>
+
+<section id="plain" class="friendly">
+<h2 style="border:0;margin-top:.6em">Plain English first</h2>
+<h3>Explain it simply</h3>
+<p>Picture one barista (the CPU) and a line of customers (programs). Everyone should get a fair share of the barista's time. The old Linux rule (CFS) was: "serve whoever has been served the least so far." Fair, but no way to say "this customer only wants a 20-second chat, serve them quickly." Linux bolted on piles of guesses about who "seems interactive."</p>
+<p>EEVDF replaces the guesses with two honest ideas. <b>Fairness:</b> keep a ledger of who is owed time and who has had too much; only people owed time (or square) may be served next. <b>Urgency:</b> every customer states how long a turn they want, which gives a "finish-by" time; short turns finish by earlier. Among those allowed, serve the earliest finish-by. Short turn = served sooner, but total time over the day stays equal. Latency and fairness are separate dials.</p>
+<h3>Everyday example</h3>
+<p>Three people share a whiteboard: Ann and Bob want 3-minute turns, Cy wants 1-minute turns. All start equally owed. Cy's finish-by is earliest (1 vs 3), so Cy goes first for a minute. Now Cy has had more than average, so Cy is <i>not allowed</i> until the others catch up. Ann goes, then Bob. When all are square, Cy's next finish-by is again earliest, so Cy jumps back in. By the end of the day each had exactly the same total minutes, but Cy got many more, shorter turns and never waited long.</p>
+<p><b>Now the same thing, technically.</b></p>
+</section>
+
+<section id="ctx">
+<h2>Real-world context</h2>
+<h3>What it is</h3>
+<p>A proportional-share scheduling algorithm (Stoica &amp; Abdel-Wahab, 1995). Linux 6.6 replaced CFS's "pick smallest vruntime" with it. Each task has a <i>weight</i> (CPU share) and a <i>slice</i> (requested turn length). The scheduler runs the <i>eligible</i> task with the <i>earliest virtual deadline</i>.</p>
+<h3>Why it exists</h3>
+<p>CFS equalised vruntime but had no latency notion, so Linux accreted <code>sched_latency_ns</code>, <code>sched_min_granularity_ns</code>, <code>sched_wakeup_granularity_ns</code>, <code>GENTLE_FAIR_SLEEPERS</code>… that conflicted. LWN reports ~450 lines of heuristics removed (secondary claim, not re-counted). Latency-sensitive work needed a way to ask for short turns <i>without raising weight</i> (which steals share).</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="c"><b>Ubuntu 24.04 (6.8)</b>default fair class on desktops/servers</div>
+<div class="c"><b>Debian 13 (6.12)</b>fair class, DELAY_DEQUEUE + custom slices</div>
+<div class="c"><b>Android GKI ≥ 6.6</b>app + system_server scheduling</div>
+<div class="c"><b>Kubernetes / cgroup v2</b><code>cpu.weight</code> → entity weight; EEVDF per group runqueue</div>
+<div class="c"><b>sched_ext (Meta, Valve)</b><code>scx_lavd</code> reuses the virtual-deadline idea in BPF</div>
+<div class="c"><b>PipeWire / games</b>short-slice requests via <code>sched_setattr</code></div>
+</div>
+<h3>How it's used</h3>
+<pre><button class="copy" aria-label="Copy code">copy</button><code>// per-task custom slice (Linux &gt;= 6.12): 0.5 ms turns, normal weight
+struct sched_attr a = {
+    .size = sizeof(a),
+    .sched_policy = SCHED_OTHER,
+    .sched_nice = 0,
+    .sched_runtime = 500 * 1000,   // ns; clamped to [100us, 100ms]
+};
+syscall(SYS_sched_setattr, 0, &amp;a, 0);
+
+# shell
+nice -n -5 ./app                            # weight = CPU share
+cat /sys/kernel/debug/sched/base_slice_ns   # default slice
+cat /sys/kernel/debug/sched/features        # PLACE_LAG RUN_TO_PARITY DELAY_DEQUEUE
+echo NO_RUN_TO_PARITY &gt; /sys/kernel/debug/sched/features</code></pre>
+<p>Default base slice (verified in <code>fair.c</code>): <code>700000 ns × (1 + ilog2(min(ncpu,8)))</code> = 0.7 / 1.4 / 2.1 / 2.8 ms for 1 / 2 / 4 / ≥8 CPUs. Docs often say "3 ms" (older 0.75 ms × 4).</p>
+<div class="two">
+<div class="use"><b>Use it / custom slice</b><ul><li>latency-sensitive, non-RT (UI, RPC workers, mixers)</li><li>general multi-tenant, cgroup-heavy hosts</li><li>want latency without paying CPU share</li></ul></div>
+<div class="skip"><b>Skip it</b><ul><li>hard deadlines → <code>SCHED_DEADLINE</code> (CBS+EDF admission)</li><li>static-priority RT → <code>SCHED_FIFO/RR</code></li><li>workload-specific policy → <code>sched_ext</code></li><li>wrong sign: p99 tracks nr_running even with tiny slices</li></ul></div>
+</div>
+<p><b>Who should care:</b> backend/infra engineers chasing tail latency, SREs reading regressions after kernel upgrades, audio/game developers, kernel and BPF-scheduler authors, anyone with tight cgroup CPU limits.</p>
+</section>
+
+<div class="divider" role="separator">TECHNICAL DEEP DIVE</div>
+
+<section id="ctx2">
+<h2>Bare-minimum context</h2>
+<ul>
+<li>Scheduler picks the next task <b>per-CPU runqueue</b>; a separate load balancer migrates tasks between runqueues.</li>
+<li><b>Weight</b> <code>w</code> from nice (nice 0 → 1024, ≈1.25× per step).</li>
+<li><b>vruntime</b> <code>v</code> = CPU time × 1024/w: heavy tasks age slower.</li>
+<li><b>GPS</b>: ideal fluid scheduler gives each task <code>w_i/Σw</code> at every instant.</li>
+<li>Entities live in a <b>red-black tree</b>; a <code>sched_entity</code> is a task or a cgroup group.</li>
+<li>cgroups nest entities; each level has its own runqueue.</li>
+</ul>
+</section>
+
+<section id="onel">
+<h2>The one-liner, and what it hides</h2>
+<blockquote>"EEVDF runs the eligible task with the earliest virtual deadline."</blockquote>
+<ol>
+<li><b>"Virtual"</b>: V is a <i>weighted average</i> of vruntimes and moves when tasks join, leave, reweight.</li>
+<li><b>"Eligible"</b>: lag ≥ 0, tested in fixed point without division and with overflow handling.</li>
+<li><b>Sleep</b>: forget lag at sleep and it can be gamed; remember it and placement must compensate for the task's own effect on V.</li>
+<li><b>Slice vs weight</b>: slice sets <i>when</i>, weight sets <i>how much</i>.</li>
+<li><b>One CPU only</b>: cross-CPU fairness is the unchanged load balancer's job.</li>
+</ol>
+</section>
+
+<section id="problem">
+<h2>The problem</h2>
+<p>CFS picks the smallest vruntime: long-run fair, but the only latency lever is where a waking task is <i>placed</i> relative to min_vruntime, steered by tunables with mixed units scaled by log2(ncpu). A task wanting 100 µs turns and one wanting 10 ms were treated alike unless priority was abused, and lag was not even a tracked quantity. Needed: (a) a bounded-error fairness guarantee, (b) a per-task latency request orthogonal to weight, (c) fewer magic numbers.</p>
+</section>
+
+<section id="model">
+<h2>Mental model</h2>
+<p><b>Bank ledger + due dates.</b> Lag = your account with the CPU: positive means it owes you; negative means you overdrew. Only non-negative accounts are served (eligibility). Each request has a due date (virtual deadline); serve the earliest among the eligible.</p>
+<div class="callout warn"><b>Where it breaks:</b> the reference V is the weighted mean of whoever is <i>currently queued</i>, so your balance changes when others arrive or leave. That is why sleep/wake, reweighting and cgroups produce most real bugs.</div>
+</section>
+
+<section id="trace">
+<h2>The mechanism, traced</h2>
+<p>Three equal-weight (1024) CPU-bound tasks: A, B slice 3 ms; C slice 1 ms. Same numbers as <code>eevdf_sim.py</code>. Green = eligible (V ≥ v), outline = picked. Step through:</p>
+<div class="widget step" id="stepper">
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="sb">◀ Back</button><button id="sn">Next ▶</button><span id="sl" aria-live="polite"></span></div>
+<table id="st"></table>
+<div class="tl" id="stl" aria-label="Schedule so far"></div>
+</div>
+<p>Observe: equal CPU (8/8/8 over 24 ms) because eligibility drags everyone back to V; C runs in 1 ms bursts about twice as often because <code>ve+1</code> beats <code>ve+3</code>; at t=7 B consumes its request (v=3 ≥ vd=3) and gets <code>vd=6</code> (<code>update_deadline()</code>). Weights 2:1 (H=2048, L=1024) give <code>HLHHLHHLHHLH</code>: H 8, L 4.</p>
+<h3>Kernel flow</h3>
+<pre><button class="copy" aria-label="Copy code">copy</button><code>tick / wakeup
+  update_curr():      vruntime += delta * 1024 / w          # real -&gt; virtual
+  update_deadline():  if v &gt;= vd: vd = v + slice*1024/w     # new request
+  pick_eevdf():
+     only 1 queued            -&gt; return it
+     curr eligible &amp;&amp; protected   -&gt; keep curr (RUN_TO_PARITY)
+     leftmost (min deadline) eligible -&gt; take it           # common O(1) path
+     else heap-descend: go left while left-&gt;min_vruntime is eligible</code></pre>
+<pre><button class="copy" aria-label="Copy code">copy</button><code>/* kernel/sched/fair.c (master, fetched 2026-10-04) */
+/* Heap search for the EEVD entity */
+while (node) {
+    struct rb_node *left = node-&gt;rb_left;
+    /* Eligible entities in left subtree are always better choices,
+       since they have earlier deadlines. */
+    if (left &amp;&amp; vruntime_eligible(cfs_rq, __node_2_se(left)-&gt;min_vruntime)) {
+        node = left; continue;
+    }
+    se = __node_2_se(node);
+    if (entity_eligible(cfs_rq, se)) { best = se; break; }
+    node = node-&gt;rb_right;
+}</code></pre>
+<p>The tree is keyed by <i>deadline</i>; each node stores subtree <code>min_vruntime</code>, so subtrees with no eligible task are pruned: O(log n).</p>
+<h3>Sleep and wake</h3>
+<p>On dequeue <code>update_entity_lag()</code> stores <code>vlag = V − v</code> (clamped). On enqueue <code>place_entity()</code> restores it:</p>
+<span class="eq">vl'  = vl · (W + w_i) / W
+v_i  = V − vl'
+vd_i = v_i + slice·1024/w_i        (new tasks: half a slice, PLACE_DEADLINE_INITIAL)</span>
+<p><code>DELAY_DEQUEUE</code> (6.12): a task sleeping with <i>negative</i> lag stays on the tree as <code>sched_delayed</code>, ineligible, burning lag off in virtual time; really dequeued only when picked (lag ≥ 0 by definition) or woken. <code>DELAY_ZERO</code> clips lag to ≤ 0.</p>
+</section>
+
+<section id="widget-sec">
+<h2>Try it: slice vs share</h2>
+<div class="widget" id="sim">
+<div class="ctl">
+<div><label>A slice (ms): <b id="vA">3</b></label><input type="range" id="sA" min="1" max="8" value="3"></div>
+<div><label>B slice (ms): <b id="vB">3</b></label><input type="range" id="sB" min="1" max="8" value="3"></div>
+<div><label>C slice (ms): <b id="vC">1</b></label><input type="range" id="sC" min="1" max="8" value="1"></div>
+<div><label>C weight (×1024): <b id="wC">1</b></label><input type="range" id="swC" min="1" max="4" value="1"></div>
+<div><label><input type="checkbox" id="elig" checked> eligibility gate on</label></div>
+</div>
+<div class="tl" id="tl" aria-label="Schedule over 48 ms"></div>
+<div class="bars" id="bars"></div>
+<p class="plain" id="simtxt" style="margin-top:8px"></p>
+</div>
+<p>Try: shrink C's slice (more switches, same share); raise C's weight (more share); untick eligibility (C with tiny slice starves A and B: pure virtual-EDF, no lag bound).</p>
+</section>
+
+<section id="math">
+<h2>The math</h2>
+<h3>Paper setup</h3>
+<span class="eq">V(t) = ∫₀ᵗ dτ / Σⱼ wⱼ(τ)        lag_i(t) = S_i(t₀,t) − s_i(t₀,t)</span>
+<p class="plain">V counts how much service one unit of weight should have received; lag = ideal minus actual service, positive = owed.</p>
+<h3>Kernel form</h3>
+<span class="eq">lag_i = w_i (V − v_i)     vlag_i = V − v_i     V = Σ wⱼvⱼ / Σ wⱼ</span>
+<p class="plain">V is the weighted mean vruntime; being left of the mean means being owed. Tracking <i>virtual</i> lag avoids carrying w_i everywhere.</p>
+<h3>Eligibility</h3>
+<span class="eq">lag_i ≥ 0  ⇔  V ≥ v_i  ⇔  Σ wⱼ(vⱼ−v₀) ≥ (v_i−v₀) · Σ wⱼ</span>
+<p class="plain">The kernel uses the cross-multiplied right side because dividing loses precision (comment in <code>fair.c</code>). Sums are kept relative to a moving <code>zero_vruntime</code> and the product uses <code>__int128</code> or <code>check_mul_overflow</code>.</p>
+<h3>Virtual eligible time and deadline</h3>
+<span class="eq">V(e) = V(t₀) + s(t₀,t)/w        V(d) = V(e) + c/w        kernel: vd_i = ve_i + r_i/w_i</span>
+<p class="plain">A request of size c costs c/w of virtual time, so heavier tasks get earlier deadlines per real ms and run more.</p>
+<h3>Placement derivation (from the kernel comment)</h3>
+<span class="eq">V' = (W·V + w_i(V − vl_i)) / (W + w_i) = V − w_i·vl_i/(W + w_i)
+vl'_i = V' − v_i = vl_i · W/(W + w_i)   &lt;  vl_i
+fix: place with vl_i = vl'_i · (W + w_i)/W</span>
+<p class="plain">A creditor joining pulls the mean toward itself and its apparent credit shrinks; inflate before placement or the lag evaporates. This is <code>lag *= load + weight; lag /= load</code>.</p>
+<h3>Lag conservation and bounds</h3>
+<span class="eq">Σ_i lag_i(t) = 0        −c &lt; lag_k(t) &lt; max(c_max, q)        f &lt; d + q</span>
+<p class="plain">Slides of Stoica &amp; Abdel-Wahab (UNC): nobody is ever more than about one max slice ahead or behind the fluid schedule, and a request finishes at most one quantum q after its virtual deadline d. Proof sketch: partition by deadline before/after d; lags sum to zero, the "after" group cannot be owed more than q, so all "before" requests finish by d+q.</p>
+<div class="callout info"><b>Why not simpler:</b> picking by earliest virtual finish with no eligibility (WFQ) can serve a task <i>ahead</i> of its fluid schedule (WF2Q's observation). The eligibility gate gives the lower lag bound.</div>
+</section>
+
+<section id="why">
+<h2>Why it works</h2>
+<p>Two properties factor the problem: <b>eligibility</b> ⇒ bounded unfairness (a task ahead of V can't be picked); <b>deadline order among eligibles</b> ⇒ latency chosen by the task. Ablations:</p>
+<table><tr><th>Remove</th><th>What breaks</th></tr>
+<tr><td>eligibility</td><td>pure virtual-EDF: tiny-slice stream starves others, lag unbounded</td></tr>
+<tr><td>deadlines (min vruntime)</td><td>= CFS: fair, no latency control</td></tr>
+<tr><td>PLACE_LAG</td><td>sleep resets debt; sleep briefly each slice to wipe negative lag</td></tr>
+<tr><td>DELAY_DEQUEUE</td><td>same exploit via ineligible-then-sleep, or lag kept forever and long sleepers punished</td></tr>
+<tr><td>RUN_TO_PARITY</td><td>every wakeup with slightly earlier deadline preempts; switch storms (hackbench-style regressions after merge)</td></tr></table>
+</section>
+
+<section id="knobs">
+<h2>Design knobs &amp; alternatives</h2>
+<table><tr><th>Knob</th><th>Effect</th></tr>
+<tr><td>nice / <code>cpu.weight</code></td><td>CPU share (slope of vruntime)</td></tr>
+<tr><td><code>sched_runtime</code> (≥ 6.12)</td><td>latency / switch rate; 100 µs–100 ms</td></tr>
+<tr><td><code>base_slice_ns</code></td><td>default slice; ×(1+log2 ncpu), capped at 8 CPUs</td></tr>
+<tr><td><code>RUN_TO_PARITY</code></td><td>protect current until lag 0 / min slice</td></tr>
+<tr><td><code>PREEMPT_SHORT</code></td><td>shorter-slice wakeup may cancel the protection</td></tr>
+<tr><td><code>PLACE_LAG</code>, <code>DELAY_DEQUEUE</code>, <code>DELAY_ZERO</code></td><td>sleep/wake lag policy</td></tr>
+<tr><td><code>PLACE_DEADLINE_INITIAL</code></td><td>new tasks start with half a slice</td></tr>
+<tr><td><code>NEXT_BUDDY</code> (default false)</td><td>cache-locality hint</td></tr></table>
+<p>Alternatives: CFS (heuristic latency); BORE/MuQSS (burst-score heuristics, popular on desktop kernels); <code>SCHED_DEADLINE</code> (wall-clock EDF+CBS reservations); stride/lottery (no latency input); BPF <code>sched_ext</code> (any policy). EEVDF won mainline with one theory-backed rule and fewer tunables.</p>
+</section>
+
+<section id="breaks">
+<h2>Where it breaks</h2>
+<ul>
+<li><b>Merge regressions (6.6):</b> over-scheduling when lag ≈ slice (fixed by wakeup-preemption curbing / RUN_TO_PARITY); vhost/netperf, schbench/tbench shifts blamed on lag-based placement. Magnitudes come from forum/LKML summaries: <i>unverified</i>.</li>
+<li><b>CVE-2024-35985</b> (verified): <code>reweight_eevdf()</code> scaled vlag without the clamp used elsewhere; s64 multiply overflowed (weight is 20-bit fixed-point), <code>entity_eligible()</code> said nothing is eligible, <code>pick_eevdf()</code> returned NULL → NULL deref. "Rare, but fatal." Fixed in 6.9-rc6 (commit 1560d1f6eb6b), backported.</li>
+<li><b>Per-CPU only:</b> bursty tasks pile onto one CPU until the balancer (tens to 100+ ms) reacts.</li>
+<li><b>cgroups:</b> reweighting a group entity changes the units of queued members; clamping and deadline pushes interact. Placement fixes landed around 6.13 (Phoronix) and later (later commit history <i>unverified</i>).</li>
+<li><b>Tick granularity:</b> a 3 ms slice at HZ=1000 can fire up to 1 ms early/late; <code>HRTICK</code> exists but is false by default.</li>
+</ul>
+<div class="callout warn"><b>Misconceptions.</b> "Short slice = more CPU": no, same weight ⇒ same share, just in smaller earlier pieces plus switch cost. "EEVDF is real-time": no, deadlines are virtual, relative to the queued set on one runqueue.</div>
+</section>
+
+<section id="wild">
+<h2>In the wild</h2>
+<p>Linux vs the 1995 paper: tick/clock-driven time instead of exact quanta (<code>update_deadline()</code> comment: "strictly vd_i += N*r_i/w_i… good enough"); lag clamped and remembered across sleep; <code>RUN_TO_PARITY</code> (not in paper) using the shortest queued slice; hierarchical group entities with <code>h_load</code>; augmented rbtree (key deadline, aug subtree min_vruntime); <code>DELAY_DEQUEUE</code> as a Linux-specific answer to sleep gaming. Kernel docs: "There are ongoing discussions on how to manage lag, especially for sleeping tasks."</p>
+</section>
+
+<section id="frontier">
+<h2>Frontier (what's new)</h2>
+<p>arXiv IDs verified via the arXiv API on 2026-10-04; venue/speedup claims from research summaries are unverified unless stated.</p>
+<ul>
+<li><b>Proxy Execution</b> (Stultz, Google): mutex-blocked task stays queued, lock owner runs on its behalf. <code>SCHED_PROXY_EXEC</code> in master but <code>depends on EXPERT</code> and <code>!SCHED_CLASS_EXT</code> (verified in <code>init/Kconfig</code>): merged, experimental, not combined with sched_ext.</li>
+<li><b>sched_ext</b> (6.12): BPF scheduler class. <code>scx_lavd</code> (Valve/Igalia; reported Meta fleet use, secondary). <a target="_blank" rel="noopener" href="https://docs.kernel.org/scheduler/sched-ext.html">docs</a></li>
+<li><b>SchedCP</b> "Towards Agentic OS" (2025): LLM agents synthesize sched_ext policies via an MCP control plane; claims up to 1.79× on a kernel build (abstract-level, unreplicated). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.01245">2509.01245</a></li>
+<li><b>Mixture-of-Schedulers</b> (Nov 2025): learned router over expert policies. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2511.11628">2511.11628</a></li>
+<li><b>UFS "Unfair by design"</b> (May 2026): sched_ext scheduler confining background DB tasks to idle CPU, with eBPF-map hints against priority inversion. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2605.02377">2605.02377</a></li>
+<li><b>Affinity Tailor</b> (Apr 2026, Google): compact CPU sets as affinity hints to recover cache/chiplet-LLC locality (headline numbers unverified). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.27915">2604.27915</a></li>
+<li><b>Latency-Aware Group Scheduling</b> (Aug 2025): fewer context switches in dense clusters. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.15703">2508.15703</a></li>
+<li><b>AKTS</b> (Sep 2026): sub-µs kernel policy switching for LM agents (title/date verified, content unread). <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2609.12276">2609.12276</a></li>
+<li><b>Ekiben</b> (2023; EuroSys 2024 per notes): safe Rust scheduler framework with live upgrade. <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2306.15076">2306.15076</a></li>
+</ul>
+<p>Thread: EEVDF fixed the per-runqueue mechanism; active work moved to <b>policy</b> (BPF/LLM schedulers), <b>locality</b> (affinity hints) and <b>priority inversion</b> (proxy execution).</p>
+</section>
+
+<section id="open">
+<h2>Open problems</h2>
+<ol>
+<li><b>Latency SLOs:</b> slice is a proxy; "p99 ≤ 5 ms" is not expressible without RT or weight changes.</li>
+<li><b>Cross-CPU fairness:</b> the theorem is per-runqueue; global share relies on a periodic balancer that equalises load, not lag.</li>
+<li><b>cgroup hierarchy correctness:</b> reweight cascades (CVE-2024-35985 was one).</li>
+<li><b>Heterogeneous / SMT / NUMA:</b> capacity and cache effects are not in the lag model.</li>
+<li><b>Tick-free precision</b> without hrtick cost.</li>
+<li><b>Interactive tuning:</b> desktop kernels still ship BORE or tuned slices (anecdotal).</li>
+<li><b>Policy-synthesis safety:</b> the BPF verifier proves memory safety, not starvation-freedom.</li>
+</ol>
+</section>
+
+<section id="lineage">
+<h2>Lineage</h2>
+<p>WFQ/PGPS (1989) → GPS analysis (Parekh–Gallager 1993) → stride (Waldspurger 1995) → <b>EEVDF (Stoica–Abdel-Wahab 1995; RTSS 2000 revisit)</b> → WF2Q (1996) → CFS (Molnár, 2.6.23, 2007) → <b>EEVDF in Linux (Zijlstra, 6.6, 2023)</b> → DELAY_DEQUEUE + custom slice + sched_ext (6.12) → proxy execution (experimental).</p>
+</section>
+
+<section id="hands">
+<h2>Hands-on (≤ 30 min)</h2>
+<pre><button class="copy" aria-label="Copy code">copy</button><code>python3 eevdf_sim.py        # exact-arithmetic toy, same numbers as above
+
+# real box, Linux &gt;= 6.12
+sudo mount -t debugfs none /sys/kernel/debug 2&gt;/dev/null
+cat /sys/kernel/debug/sched/features
+echo NO_RUN_TO_PARITY | sudo tee /sys/kernel/debug/sched/features
+perf sched record -- schbench; perf sched latency</code></pre>
+<ol><li>Edit C's slice to 1/3/6: switch rate vs share (also the widget above).</li><li>Delete the <code>eligible()</code> filter in <code>pick()</code>: C monopolises.</li><li>Compare p99 with/without RUN_TO_PARITY.</li></ol>
+</section>
+
+<section id="ladder">
+<h2>Question ladder</h2>
+<button id="revealall">Reveal all</button>
+<div id="qs"></div>
+</section>
+
+<section id="next">
+<h2>Go deeper next</h2>
+<ol><li>PELT and the load balancer (what EEVDF doesn't do).</li><li>sched_ext / BPF schedulers (<code>scx_lavd</code>, DSQs, verifier limits).</li><li>SCHED_DEADLINE: CBS + EDF admission control.</li></ol>
+</section>
+
+<section id="sources" class="src">
+<h2>Sources</h2>
+<h3>Papers / primary</h3>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://www.cs.unc.edu/~jeffay/courses/pisa/eevdf.pdf">Stoica &amp; Abdel-Wahab 1995 (lecture slides, UNC)</a></li>
+<li><a target="_blank" rel="noopener" href="https://users.soe.ucsc.edu/~sbrandt/rtss2000/proceedings/6.pdf">EEVDF revisited, RTSS 2000</a> (not read)</li>
+<li>arXiv: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.01245">2509.01245</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2511.11628">2511.11628</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2605.02377">2605.02377</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.27915">2604.27915</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.15703">2508.15703</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2609.12276">2609.12276</a> · <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2306.15076">2306.15076</a></li>
+</ul>
+<h3>Code / docs</h3>
+<ul>
+<li><code>kernel/sched/fair.c</code>, <code>features.h</code>, <code>init/Kconfig</code> (torvalds/linux master, fetched 2026-10-04)</li>
+<li><a target="_blank" rel="noopener" href="https://docs.kernel.org/scheduler/sched-eevdf.html">sched-eevdf</a> · <a target="_blank" rel="noopener" href="https://docs.kernel.org/scheduler/sched-ext.html">sched-ext</a> · <a target="_blank" rel="noopener" href="https://security-tracker.debian.org/tracker/CVE-2024-35985">CVE-2024-35985</a></li>
+</ul>
+<h3>Articles</h3>
+<ul>
+<li>LWN <a target="_blank" rel="noopener" href="https://lwn.net/Articles/925371/">925371</a> · <a target="_blank" rel="noopener" href="https://lwn.net/Articles/969062/">969062</a> · <a target="_blank" rel="noopener" href="https://lwn.net/Articles/968575/">968575</a></li>
+<li>Phoronix <a target="_blank" rel="noopener" href="https://www.phoronix.com/news/Linux-6.6-EEVDF-Merged">6.6 merge</a> · <a target="_blank" rel="noopener" href="https://www.phoronix.com/news/Linux-6.13-Last-Minute-EEVDF">6.13 fix</a> · <a target="_blank" rel="noopener" href="https://www.phoronix.com/news/Meta-SCX-LAVD-Steam-Deck-Server">Meta lavd (secondary)</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.vittoriozaccaria.net/blog/notes-on-linux-eevdf/">Zaccaria notes</a> · <a target="_blank" rel="noopener" href="https://kernel-internals.org/sched/eevdf/">Kernel Internals</a></li>
+</ul>
+<p><i>Unverified: regression magnitudes from forum/LKML summaries, Affinity Tailor headline numbers, later placement-fix commit dates, Meta fleet-wide scx_lavd claim.</i></p>
+</section>
+
+</main>
+</div>
+<script>
+(function(){
+const NICE0=1024;
+function mk(name,w,s){return{name,w,slice:s,v:0,vd:s*NICE0/w,ran:0}}
+function Vavg(ts){let W=0,S=0;ts.forEach(t=>{W+=t.w;S+=t.w*t.v});return S/W}
+function elig(ts,t){let W=0,S=0;ts.forEach(x=>{W+=x.w;S+=x.w*x.v});return S>=t.v*W-1e-9}
+function pick(ts,gate){const c=ts.filter(t=>!gate||elig(ts,t));return c.reduce((a,b)=>(b.vd<a.vd-1e-9?b:a),c[0])}
+function advance(ts,cur){cur.v+=NICE0/cur.w;cur.ran++;if(cur.v>=cur.vd-1e-9)cur.vd=cur.v+cur.slice*NICE0/cur.w}
+const COL={A:'var(--ca)',B:'var(--cb)',C:'var(--cc)',H:'var(--ch)'};
+const f=x=>(Math.round(x*100)/100).toFixed(2);
+
+// ---- stepper
+const st=[mk('A',1024,3),mk('B',1024,3),mk('C',1024,1)];
+const frames=[];
+for(let t=0;t<24;t++){const V=Vavg(st);const row=st.map(x=>({n:x.name,v:x.v,vd:x.vd,e:elig(st,x)}));const c=pick(st,true);frames.push({t,V,row,pick:c.name});advance(st,c)}
+let k=0;
+const stT=document.getElementById('st'),stl=document.getElementById('stl'),sl=document.getElementById('sl');
+function drawStep(){
+  const fr=frames[k];
+  let h='<tr><th>task</th><th>v (vruntime)</th><th>vd (deadline)</th><th>eligible?</th></tr>';
+  fr.row.forEach(r=>{h+=`<tr><td>${r.n}</td><td>${f(r.v)}</td><td>${f(r.vd)}</td><td class="${r.e?'el':''} ${r.n===fr.pick?'pk':''}">${r.e?'yes (V ≥ v)':'no'}${r.n===fr.pick?' ← picked':''}</td></tr>`});
+  stT.innerHTML=h;
+  sl.textContent=`t = ${fr.t} ms · V = ${f(fr.V)} · picks ${fr.pick} (earliest vd among eligible)`;
+  stl.innerHTML=frames.slice(0,k+1).map(x=>`<i style="background:${COL[x.pick]}">${x.pick}</i>`).join('');
+  document.getElementById('sb').disabled=k===0;document.getElementById('sn').disabled=k===frames.length-1;
+}
+document.getElementById('sb').onclick=()=>{if(k>0){k--;drawStep()}};
+document.getElementById('sn').onclick=()=>{if(k<frames.length-1){k++;drawStep()}};
+drawStep();
+
+// ---- simulator
+const ids=['sA','sB','sC','swC'];
+function sim(){
+  const sA=+document.getElementById('sA').value,sB=+document.getElementById('sB').value,sC=+document.getElementById('sC').value,wC=+document.getElementById('swC').value,gate=document.getElementById('elig').checked;
+  document.getElementById('vA').textContent=sA;document.getElementById('vB').textContent=sB;document.getElementById('vC').textContent=sC;document.getElementById('wC').textContent=wC;
+  const ts=[mk('A',1024,sA),mk('B',1024,sB),mk('C',1024*wC,sC)];
+  const N=48;let seq=[],sw=0,prev=null;
+  for(let i=0;i<N;i++){const c=pick(ts,gate);seq.push(c.name);if(prev&&prev!==c.name)sw++;prev=c.name;advance(ts,c)}
+  document.getElementById('tl').innerHTML=seq.map(n=>`<i style="background:${COL[n]}">${n}</i>`).join('');
+  document.getElementById('bars').innerHTML=ts.map(t=>`<div class="bar"><span style="width:24px">${t.name}</span><div style="width:${t.ran/N*100*2}%;max-width:80%;background:${COL[t.name]}"></div><span>${t.ran} ms (${Math.round(t.ran/N*100)}%)</span></div>`).join('');
+  const exp=wC/(2+wC);
+  document.getElementById('simtxt').textContent=`${sw} context switches in ${N} ms. Fair share of C by weight: ${Math.round(exp*100)}%; actual: ${Math.round(ts[2].ran/N*100)}%.`+(gate?'':' Eligibility off: share is no longer tied to weight.');
+}
+ids.concat(['elig']).forEach(i=>document.getElementById(i).addEventListener('input',sim));
+sim();
+
+// ---- question ladder
+const Q=[
+['Mechanism',[
+['Walk <code>pick_eevdf()</code> when the leftmost-by-deadline node is ineligible. Which subtree is descended?','Loop: go to the left child while the left subtree\'s <code>min_vruntime</code> is eligible (an eligible task exists there, with earlier deadlines); else test the current node; else go right. First eligible node = earliest-deadline eligible.'],
+['What does <code>update_deadline()</code> do and when?','When v ≥ vd (request consumed): vd = v + slice·1024/w, then reschedule.'],
+['Why compare <code>avg >= key*load</code> instead of <code>avg/load >= key</code>?','Division truncates; cross-multiplication is exact. Needs 128-bit math or overflow checks.'],
+['What does <code>place_entity()</code> multiply lag by, and why (W+w)/W?','Adding the task pulls V toward its vruntime and shrinks apparent lag by W/(W+w); inflating pre-compensates (derivation above).'],
+['What state does a <code>sched_delayed</code> task hold?','Its clamped (≤0) vlag and deadline; it stays on the tree, ineligible, aging in virtual time until picked or woken.']]],
+['Why',[
+['Why must V be the <i>weighted</i> average?','So Σlag_i = 0 (conservation) and V is the fluid reference: each task should have got w_i·ΔV.'],
+['Why key the tree on deadline but augment with min_vruntime?','Deadline order answers the pick; min_vruntime prunes subtrees with no eligible task → O(log n).'],
+['Why store virtual lag?','vlag is weight-independent, so reweight is one scaling and comparisons avoid w.'],
+['Why deadlines use slice/weight?','The same request costs less virtual time at higher weight, so heavy tasks get earlier deadlines and more CPU per unit V.']]],
+['Counterfactual',[
+['Remove eligibility: what workload breaks?','A flood of tiny-slice tasks always holds the earliest deadline and starves long-slice tasks; lag unbounded.'],
+['All slices = 0.1 ms?','Context-switch and cache cost soar; throughput drops, fairness error (≤ slice) shrinks.'],
+['PLACE_LAG off: exploit?','Sleep briefly every slice: negative lag is discarded, you re-enter near V and never repay overconsumption.'],
+['Weight doubles while queued: what must be rescaled?','vruntime/vlag/deadline (the reweight path) with the same lag clamp, else overflow (CVE-2024-35985).']]],
+['Adversarial',[
+['How can sleeping game EEVDF, and what closes it?','Short sleeps reset negative lag. <code>DELAY_DEQUEUE</code> keeps such tasks queued/ineligible to burn lag.'],
+['Can unprivileged code shorten its slice to hurt others?','It becomes preempt-prone with early deadlines, but eligibility caps share at its weight, so damage is extra context switches, not extra CPU.'],
+['How did CVE-2024-35985 become a NULL deref?','reweight_eevdf() computed vlag unclamped; weight is 20-bit fixed point; s64 product overflowed; entity_eligible() false for all; pick_eevdf() returned NULL.']]],
+['Connection',[
+['How does EEVDF relate to WF2Q?','Same eligibility gate (start ≤ virtual time): WF2Q caps how far ahead of GPS a flow runs; EEVDF bounds lag with it.'],
+['How does <code>cpu.weight</code> interact with groups?','Each group has a per-CPU sched_entity weighted from cpu.weight, competing in its parent\'s EEVDF; inner tasks have their own EEVDF; h_load carries effective weight.'],
+['SCHED_DEADLINE vs virtual deadline?','SCHED_DEADLINE: wall-clock runtime/deadline/period with admission control and CBS. EEVDF: virtual, relative to a fair-share reference, no guarantee.']]],
+['Open',[
+['Do per-runqueue lag bounds compose with a periodic balancer into a global bound?','Open: the balancer equalises load, not lag, on timescales ≫ slice.'],
+['What would a latency-SLO interface look like?','Open: candidates are latency-nice, SLO hints through sched_ext maps, proxy-execution-aware slices.'],
+['How to define lag on heterogeneous cores?','Open: capacity-scaled vruntime (as PELT does for util) is obvious but unsettled.']]]
+];
+const qs=document.getElementById('qs');let n=0;
+Q.forEach(([g,items])=>{qs.insertAdjacentHTML('beforeend',`<h3>${g}</h3>`);items.forEach(([q,a])=>{n++;qs.insertAdjacentHTML('beforeend',`<details><summary>${n}. ${q}</summary><p>${a}</p></details>`)})});
+let open=false;const ra=document.getElementById('revealall');
+ra.onclick=()=>{open=!open;qs.querySelectorAll('details').forEach(d=>d.open=open);ra.textContent=open?'Hide all':'Reveal all'};
+
+// ---- copy buttons
+document.querySelectorAll('.copy').forEach(b=>b.onclick=()=>{const t=b.parentElement.querySelector('code').innerText;try{navigator.clipboard.writeText(t).then(()=>{b.textContent='copied';setTimeout(()=>b.textContent='copy',1200)})}catch(e){}});
+
+// ---- TOC + scroll spy
+const secs=[...document.querySelectorAll('main > section')];
+const toc=document.getElementById('toc');
+let th='<div class="grp">Plain English</div>';
+const names={plain:'Explain it simply',ctx:'Real-world context',ctx2:'Bare-minimum context',onel:'One-liner',problem:'The problem',model:'Mental model',trace:'Mechanism traced','widget-sec':'Try it',math:'The math',why:'Why it works',knobs:'Knobs & alternatives',breaks:'Where it breaks',wild:'In the wild',frontier:'Frontier',open:'Open problems',lineage:'Lineage',hands:'Hands-on',ladder:'Question ladder',next:'Go deeper',sources:'Sources'};
+secs.forEach(s=>{if(s.id==='ctx2')th+='<div class="grp">Technical deep dive</div>';th+=`<a href="#${s.id}" data-id="${s.id}">${names[s.id]||s.id}</a>`});
+toc.innerHTML=th;
+const links=[...toc.querySelectorAll('a')];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('active',l.dataset.id===e.target.id))}})},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>io.observe(s));
+})();
+</script>
+</body>
+</html>
