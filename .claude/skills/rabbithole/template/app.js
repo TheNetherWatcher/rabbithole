@@ -131,7 +131,7 @@
   var KEY = 'rh:p:' + D.slug;
   var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
-  var qs = $$('.q');
+  var qs = $$('.q[data-i]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
