@@ -1,0 +1,17 @@
+<p><a href="lsm_sim.py" target="_blank" rel="noopener"><code>lsm_sim.py</code></a>: count-based simulator of leveling, tiering, lazy leveling; prints write amp, run count, and the theoretical W for comparison.</p>
+<pre><code>python3 lsm_sim.py 10 3</code></pre>
+<p>Actual output (insert-only, unique keys; unit = one flush):</p>
+<pre><code>T=10 L=3 N=1000 flushes
+policy      write-amp  runs@end  peak runs   theory W
+leveling        17.09         2          3      13.50
+tiering          4.00         1         27       2.70
+lazy             8.40         1         19       6.30
+T=10 L=4 N=10000 flushes
+leveling        22.49         3          4      18.00
+tiering          5.00         1         36       3.60
+lazy             9.40         1         28       7.20
+T=4 L=5 N=1024 flushes
+leveling        11.92         3          5       7.50
+tiering          6.00         1         15       3.75
+lazy             7.25         1         13       4.50</code></pre>
+<p>Read it: the sim counts the initial flush write (+1) and boundary effects the asymptotic formula drops, so absolute numbers sit above theory, but the <i>ordering and ratios</i> match: leveling ≈ (T−1)/2 per level, tiering ≈ 1 per level, lazy in between. Peak run count (a read-amp proxy) goes the opposite way: leveling ≤ L runs, tiering up to (T−1)·L. Exercise: add random keys with updates and measure space amp and dedup; add a Bloom-filter model and reproduce Monkey's L-independence.</p>

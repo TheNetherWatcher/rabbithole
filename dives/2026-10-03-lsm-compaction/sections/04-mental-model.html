@@ -1,0 +1,2 @@
+<p><b>Analogy:</b> laundry. Wash small loads often (leveling: always merge into the one big pile, clothes are always sorted but you rewash the same shirts constantly) or let loads accumulate in baskets and wash baskets together (tiering).</p>
+<div class="callout gotcha"><b>Where it breaks:</b> laundry has no cost for <i>finding</i> a shirt; here, a lookup must probe every basket (run) unless a Bloom filter says "not here." And deleting a shirt means writing a "delete marker" that must travel to the bottom of the pile before the shirt's space is reclaimed.</div>

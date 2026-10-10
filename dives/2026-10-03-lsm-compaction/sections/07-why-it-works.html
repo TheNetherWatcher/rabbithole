@@ -1,0 +1,8 @@
+<p><b>Key insight:</b> <b>lookup and space cost are determined by the shape of the <i>last</i> level</b> (it holds ~(T−1)/T of the data); <b>update cost is determined by how often data is re-merged across all levels.</b> Those are different levels, so you can pick different policies for each. Ablation:</p>
+<ul>
+<li>Remove the size-ratio geometry (equal-sized levels) → O'Neil's theorem says merge I/O is no longer minimal.</li>
+<li>Remove Bloom filters → every run is probed; tiering lookups cost T·L I/Os.</li>
+<li>Uniform filters instead of Monkey's → lookup cost grows with L.</li>
+<li>Remove tombstone dropping at the bottom level → deleted data is never freed.</li>
+<li>Remove dynamic level sizing in RocksDB → space amp worse (static mode: Dong et al. §3.1 say space amp "would be larger than 2" when the last level is only slightly bigger than the previous level's target); with it ≈ 1.11 at T=10 because ~90% of data sits in the last level (<a href="https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf" target="_blank" rel="noopener">CIDR'17</a>).</li>
+</ul>

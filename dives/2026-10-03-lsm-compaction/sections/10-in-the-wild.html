@@ -1,0 +1,8 @@
+<ul>
+<li><b>RocksDB</b>: leveled default; score-based picker; dynamic level bytes default since v8.4; subcompactions; universal and FIFO styles. The tuning guide's worked example computes "1 + 2 + 10 + 10 + 10 = 33" write amp and space amp 1.14; the Leveled-Compaction wiki (Intra-L0 section) calls leveled write amp "often larger than 10"; "10–30× in practice" is my range from these sources, not one measurement.</li>
+<li><b>Universal (tiered)</b>: write amp often 2–7× <i>(unverified)</i>; wiki trigger order: data age (hard requirement) → space-amp (full compaction) → sorted-run count respecting size_ratio → run count without it; "temporarily double the disk space" during a full compaction.</li>
+<li><b>Cassandra</b>: STCS default; UCS (5.0) unifies tiered/leveled with scaling parameter W and density-based sharding.</li>
+<li><b>ScyllaDB ICS</b>: ~1 GB fragments freed incrementally (see section 1b). I could not find a "space amplification goal 1–2" in the primary post, so that claim was dropped.</li>
+<li><b>Pebble</b>: CRDB docs only say read amp &lt;10 is healthy; the sublevel &gt;10/&gt;20 thresholds and <code>admission.l0_sub_level_count_overload_threshold = 20</code> come from netdata guides <i>(secondary)</i>.</li>
+<li><b>TiKV</b>: RocksDB + Titan for large values.</li>
+</ul>

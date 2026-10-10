@@ -1,0 +1,51 @@
+<table><thead><tr><th>Knob</th><th>Effect</th></tr></thead><tbody>
+<tr><td>Size ratio T</td><td>Larger T → fewer levels, cheaper lookups under leveling but more write amp (T/2 per level); under tiering larger T → fewer merges but more runs per level</td></tr>
+<tr><td>Policy (K, Z)</td><td>Fluid LSM dial from leveling to tiering</td></tr>
+<tr><td>Bloom bits/entry &amp; allocation</td><td>Monkey: skew FPRs toward the large last level</td></tr>
+<tr><td>File granularity</td><td>Partial compaction (RocksDB SST-granular) changes constants, not asymptotics</td></tr>
+<tr><td><code>compaction_pri</code></td><td><code>kMinOverlappingRatio</code> default picks least-overlap file → lowers write amp</td></tr>
+<tr><td><code>level_compaction_dynamic_level_bytes</code></td><td>Bottom level defines target sizes; space amp ≈ 1.11</td></tr>
+<tr><td>Universal triggers</td><td><code>max_size_amplification_percent</code> (default 200, i.e. a 100-byte DB may need up to 300; the last run is excluded from the ratio), size ratio, run count</td></tr>
+<tr><td>Write-stall triggers</td><td>L0 slowdown 20 / stop 36; pending-bytes soft 64 GB / hard 256 GB</td></tr>
+<tr><td>Key-value separation</td><td>WiscKey/BlobDB/Titan: store values separately → lower write amp, GC cost, slower scans</td></tr>
+<tr><td>FIFO</td><td>No merging; TTL drop; write amp ≈ 1</td></tr>
+</tbody></table>
+<p>Competing structures: B-trees (in-place, lower read amp, higher write amp), Bε-trees, LSM with KV-separation, learned/adaptive hybrids (see Frontier).</p>
+
+<div class="widget" id="knobs-calc" role="group" aria-label="Amplification calculator">
+ <b>Amplification calculator (worst-case DAM formulas).</b>
+ <div class="ctl" style="margin-top:8px">
+  <label class="mini" for="knobs-T">Size ratio T: <b id="knobs-tv">10</b></label>
+  <input id="knobs-T" type="range" min="2" max="20" value="10" aria-label="Size ratio T">
+ </div>
+ <div class="ctl" style="margin-top:6px">
+  <label class="mini" for="knobs-L">Levels L: <b id="knobs-lv">4</b></label>
+  <input id="knobs-L" type="range" min="1" max="7" value="4" aria-label="Levels L">
+ </div>
+ <div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th></th><th>Update cost W (per entry/B, ×(1+φ))</th><th>Max runs probed</th><th>Excess space</th></tr></thead>
+ <tbody id="knobs-body"></tbody></table></div>
+ <p class="mini">Leveling W = L(T−1)/2 · Tiering W = L(T−1)/T · Lazy W = (L−1)(T−1)/T + (T−1)/2 (Monkey Eq.10, Dostoevsky Eq.12, Fluid LSM). Excess space: Z−1+1/T. These are worst-case model values; real systems differ by constants.</p>
+</div>
+
+<script>
+(function(){
+  // amplification calculator: worst-case DAM formulas
+  var Tin = document.getElementById('knobs-T'), Lin = document.getElementById('knobs-L');
+  function calc(){
+    var T = +Tin.value, L = +Lin.value;
+    document.getElementById('knobs-tv').textContent = T;
+    document.getElementById('knobs-lv').textContent = L;
+    var rows = [
+      ['Leveling', L * (T - 1) / 2, L, 1 / T],
+      ['Tiering', L * (T - 1) / T, L * (T - 1), (T - 1) - 1 + 1 / T],
+      ['Lazy leveling', (L - 1) * (T - 1) / T + (T - 1) / 2, (L - 1) * (T - 1) + 1, 1 / T]
+    ];
+    document.getElementById('knobs-body').innerHTML = rows.map(function(r){
+      return '<tr><td><b>' + r[0] + '</b></td><td>' + r[1].toFixed(2) + '</td><td>' + r[2] + '</td><td>' + r[3].toFixed(2) + '</td></tr>';
+    }).join('');
+  }
+  Tin.addEventListener('input', calc);
+  Lin.addEventListener('input', calc);
+  calc();
+})();
+</script>

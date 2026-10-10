@@ -1,0 +1,9 @@
+<ul>
+<li><b>Memtable</b>: in-memory sorted buffer absorbing writes; flushed to disk as an immutable sorted file (SSTable / "run") when full. Writes are also appended to a WAL for durability.</li>
+<li><b>Run</b>: one immutable sorted file (or set of files). Reads must consult every run that might contain the key.</li>
+<li><b>Level</b>: a group of runs; level <i>i</i> holds roughly <i>T×</i> the data of level <i>i−1</i> (<i>T</i> = size ratio).</li>
+<li><b>Bloom filter</b>: per-run probabilistic membership test, false-positive rate <i>p</i>; lets point lookups skip runs.</li>
+<li><b>Amplification trio</b>: write amp (bytes written to disk per user byte), read amp (runs/pages touched per lookup), space amp (bytes on disk per live byte). Compaction trades among them.</li>
+<li><b>DAM model</b>: cost = number of page I/Os. All the closed-form results below use it.</li>
+</ul>
+<p>Primary sources: <a href="https://www.cs.umb.edu/~poneil/lsmtree.pdf" target="_blank" rel="noopener">O'Neil 1996</a>, <a href="https://nivdayan.github.io/monkeykeyvaluestore.pdf" target="_blank" rel="noopener">Monkey SIGMOD'17</a>, <a href="https://nivdayan.github.io/dostoevsky.pdf" target="_blank" rel="noopener">Dostoevsky SIGMOD'18</a>.</p>

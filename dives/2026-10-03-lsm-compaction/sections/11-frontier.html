@@ -1,0 +1,41 @@
+<p>Metadata below was fetched from arXiv abstract pages unless tagged <i>(search)</i> (ACM/IEEE/dblp blocked; venue rests on search snippets).</p>
+
+<h3>Tuning &amp; policy</h3>
+<ol>
+<li><b>CAMAL: Optimizing LSM-trees via Active Learning</b> (Yu, Luo, Yu, Cong), SIGMOD 2025 (<a href="https://arxiv.org/abs/2409.15130" target="_blank" rel="noopener">2409.15130</a>). Active-learning tuner combining cost models, decoupled per-parameter analysis, and incremental updates; in RocksDB, "28% on average and up to 8x" over SOTA configs.</li>
+</ol>
+<figure data-fig="camal3"></figure>
+<ol start="2">
+<li><b>Rethinking the Compaction Policies in LSM-trees</b> (EcoTune; Wang, Qiu, Yuan, Zhang), SIGMOD 2025 <i>(search)</i> (<a href="https://people.iiis.tsinghua.edu.cn/~huanchen/publications/ecotune-sigmod25.pdf" target="_blank" rel="noopener">PDF</a>). Treats compaction as an investment in future query throughput; dynamic programming finds the optimal policy; 1.5–3× query throughput vs leveling, up to 2.5× vs lazy leveling.</li>
+<li><b>How to Grow an LSM-tree?</b> (Vertiorizon; Mo, Luo, Idreos), SIGMOD 2025 (<a href="https://arxiv.org/abs/2504.17178" target="_blank" rel="noopener">2504.17178</a>). Hybrid of vertical growth (add levels, as RocksDB/LevelDB) and horizontal growth (bigger level capacities); better writes than vertical, ~6× less extra space than horizontal.</li>
+<li><b>ArceKV</b> (Liu, Xie, Luo), arXiv Aug 2025, rev. Jan 2026, no venue stated (<a href="https://arxiv.org/abs/2508.03565" target="_blank" rel="noopener">2508.03565</a>). ElasticLSM relaxes structural constraints (adaptive compactions and write stalls as actions); a lightweight decision engine picks actions; "around 3x faster" in dynamic workloads. The paper's Fig. 5 draws a "stable tree state" as a set of runs across three levels, each with a Bloom filter, and counts them as s = |S| = 6.</li>
+</ol>
+<figure data-fig="arce5"></figure>
+<ol start="5">
+<li><b>AXE: Task Decomposition Approach to Learned LSM Tuning</b> (Huynh, Saha, Chaudhari, Athanassoulis), PVLDB 18(13) 2025 <i>(search)</i> (<a href="https://www.vldb.org/pvldb/vol18/p5582-huynh.pdf" target="_blank" rel="noopener">PDF</a>). Learned cost model as loss for a learned tuner; ~100× lower tuning overhead.</li>
+</ol>
+
+<h3>Stalls, offload, disaggregation</h3>
+<ol start="6">
+<li><b>DiaLSM: Write-Stall-Free Performance via Shard-based LSM-tree</b> (Byun et al.), "Accepted to ICDE 2027" per its page, submitted Sept 2026 (<a href="https://arxiv.org/abs/2609.14370" target="_blank" rel="noopener">2609.14370</a>). Queuing argument that a monolithic write-flush-compaction pipeline cannot eliminate stalls; internal sharding with fallback redirection; 2.4× throughput, 94% fewer stalls vs ADOC/sub-compaction on RocksDB.</li>
+<li><b>RESYSTANCE</b> (Byun, Lee, Yoo, Kim, Park), ICDE 2026 (<a href="https://arxiv.org/abs/2603.05162" target="_blank" rel="noopener">2603.05162</a>). Moves compaction reads into the kernel via eBPF + io_uring, no change to the algorithm: 99% fewer syscalls, 50% faster compaction, 75% higher write-heavy throughput, 40% lower p99.</li>
+<li><b>CaaS-LSM: Compaction-as-a-Service</b> (Yu, Guo, Zhuang, Thakkar, Wang, Cao), SIGMOD 2024 <i>(search)</i> (<a href="https://dl.acm.org/doi/10.1145/3654927" target="_blank" rel="noopener">ACM</a>). Stateless compaction service decoupled from the LSM instance; up to 8× throughput, up to 98% lower p99 vs conventional LSM-KVS (RocksDB prototype, Kvrocks and Nebula).</li>
+<li><b>O³-LSM</b> (Lin et al.), SIGMOD 2026 (<a href="https://arxiv.org/abs/2603.05439" target="_blank" rel="noopener">2603.05439</a>). Extends compaction offload to memtable and flush offload over disaggregated memory; up to 4.5× write throughput, 76% lower p99.</li>
+<li><b>SlateDB</b> (object-storage LSM): pluggable scheduler (only size-tiered shipped), distributed compaction via shared <code>.compactions</code> file, subcompactions on the roadmap; scaling numbers are the project's own claims (<a href="https://slatedb.io/docs/design/compaction/" target="_blank" rel="noopener">design</a>, <a href="https://slatedb.io/blog/compaction-roadmap/" target="_blank" rel="noopener">roadmap</a>). Not a paper.</li>
+</ol>
+
+<h3>Key-value separation</h3>
+<ol start="11">
+<li><b>Scavenger: Space-Time Trade-offs for KV-Separated LSM-trees</b> (Zhang et al.), ICDE 2024; arXiv upload Aug 2025 (<a href="https://arxiv.org/abs/2508.13909" target="_blank" rel="noopener">2508.13909</a>). I/O-efficient GC plus space-aware compaction (compensated size); better than BlobDB, Titan, TerarkDB. Extension Scavenger+ in IEEE TC 2025 (<a href="https://arxiv.org/abs/2508.13935" target="_blank" rel="noopener">2508.13935</a>). Venue discrepancy resolved: late arXiv upload of an ICDE 2024 paper (IEEE Xplore record seen via search; dblp not reachable).</li>
+</ol>
+
+<h3>Survey</h3>
+<ol start="12">
+<li><b>Rethinking LSM-tree based Key-Value Stores: A Survey</b> (Lv et al.), arXiv Jul 2025, no venue (<a href="https://arxiv.org/abs/2507.09642" target="_blank" rel="noopener">2507.09642</a>). Five years of work on compaction, stalls, and read amplification (100+ papers per search snippet).</li>
+</ol>
+
+<p><i>Adjacent, fetched but not compaction-policy:</i> Mnemosyne (SIGMOD 2025, Bloom-filter memory tuning), dLSM (VLDB Journal 2024, disaggregated memory), LSM-OPD (<a href="https://arxiv.org/abs/2508.11862" target="_blank" rel="noopener">2508.11862</a>, scans on compressed data), Nezha (<a href="https://arxiv.org/abs/2603.09122" target="_blank" rel="noopener">2603.09122</a>, ICDE 2026, KV separation + Raft).</p>
+
+<p><b>Pattern:</b> compaction is becoming adaptive/learned (CAMAL, EcoTune, ArceKV, AXE), stalls are attacked structurally (DiaLSM), compaction cost by kernel and offload tricks (RESYSTANCE, CaaS-LSM, O³-LSM), and KV-separation co-designs GC with compaction (Scavenger).</p>
+
+<p><i>Still unverified (search snippets only, not cited above):</i> D2Comp and DFlush (DPU offload), multi-threaded compaction pipelining, GPComp/gLSM (GPU), the EDBT 2025 write-amplification benchmark paper. No ZNS-specific compaction paper found.</p>

@@ -1,0 +1,9 @@
+<p><em>"Leveling = fast reads, slow writes; tiering = fast writes, slow reads."</em></p>
+<p>It hides:</p>
+<ol>
+<li>The tradeoff is <b>not symmetric across levels</b>: space amp is set by the <i>last</i> level, update cost accumulates over <i>all</i> levels. Hence hybrids (lazy leveling).</li>
+<li><b>Bloom filter memory must be allocated non-uniformly</b> (Monkey), or lookup cost silently grows with the number of levels.</li>
+<li>The formulas are <b>worst-case DAM bounds</b>; real write amp is shaped by partial compaction, compression, skew, and the SSD's own write amp (multiplicative).</li>
+<li>Compaction is <b>also where deletes become real</b>, so it is a correctness hazard, not just a performance knob (tombstones, snapshots, <code>gc_grace</code>).</li>
+<li>Compaction <b>competes with foreground I/O</b>: the "optimal" policy on paper can be a tail-latency disaster (write stalls).</li>
+</ol>

@@ -1,0 +1,23 @@
+<svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="lsm-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#lsm-dots)"/></g>
+<g class="layer" data-depth="0.14">
+<rect x="150" y="96" width="52" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="210" y="96" width="52" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="270" y="96" width="52" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="400" y="156" width="150" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="640" y="216" width="400" height="40" rx="6" class="f-line s-line" stroke-width="1.5"/>
+<rect x="930" y="80" width="40" height="26" rx="5" class="f-line s-mute" stroke-width="1" opacity=".6"/>
+<rect x="990" y="80" width="40" height="26" rx="5" class="f-line s-mute" stroke-width="1" opacity=".4"/>
+<rect x="1050" y="80" width="40" height="26" rx="5" class="f-line s-mute" stroke-width="1" opacity=".25"/>
+</g>
+<g class="layer" data-depth="0.22">
+<path d="M322 116 C360 116 370 176 400 176" class="flow s-acc" fill="none" stroke-width="2.5" stroke-dasharray="6 8"/>
+<path d="M550 176 C600 176 600 236 640 236" fill="none" class="s-acc" stroke-width="2"/>
+<path d="M300 150 L300 150" class="s-mute" fill="none" stroke-width="1"/>
+</g>
+<g class="layer" data-depth="0.32">
+<circle cx="1040" cy="236" r="9" class="f-acc pulse"/>
+<rect x="446" y="168" width="14" height="14" rx="3" class="f-acc blink"/>
+</g>
+</svg>

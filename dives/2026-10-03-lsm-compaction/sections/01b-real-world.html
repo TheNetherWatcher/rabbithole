@@ -1,0 +1,31 @@
+<p><b>What it is.</b> A log-structured merge tree stores data as immutable sorted runs and <i>compaction</i> is the background process that merges runs to bound read cost, discard overwritten/deleted data, and reclaim space. The compaction <i>policy</i> (when, which runs, how much) is the single biggest tuning lever in an LSM engine.</p>
+<p><b>Why it exists.</b> B-tree pages are updated in place: a random write per update, which is slow on spinning disks and wears SSDs. LSM turns random writes into sequential ones (one memtable flush) and pays later, in background merges. Facebook's MyRocks post reports an instance 3.5× smaller than uncompressed InnoDB and 2× smaller than compressed InnoDB, with "orders of magnitude less" data written (<a href="https://engineering.fb.com/2016/08/31/core-infra/myrocks/" target="_blank" rel="noopener">MyRocks</a>); the CIDR'17 abstract says RocksDB uses less than half the storage InnoDB uses (<a href="https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf" target="_blank" rel="noopener">Dong et al.</a>).</p>
+<p><b>Where it's used</b> (each checked against a primary or official page unless tagged):</p>
+<ul>
+<li><b>RocksDB</b> at Facebook/Meta: MyRocks (MySQL engine).</li>
+<li><b>Cassandra / ScyllaDB</b>: the compaction overview docs say STCS is the default strategy (check your version); LCS "is optimized for read heavy workloads"; TWCS is for TTL'd, mostly immutable time-series. Cassandra 5.0 adds UCS (CEP-26) and its docs say it is "recommended for most workloads"; UCS default is <code>scaling_parameters = T4</code>, with the fan factor f = 2 + |w| (w&lt;0 leveled <code>L_f</code>, w&gt;0 tiered <code>T_f</code>). ScyllaDB's Incremental Compaction uses ~1 GB fragments (<code>sstable_size_in_mb</code>=1000) freed as they finish, cutting ~200 GB of STCS temporary space to ~2 GB and reaching ~90–93% disk use vs the ~50% STCS rule of thumb; steady-state space amp stays "relatively high" like STCS.</li>
+<li><b>CockroachDB Pebble</b>: Go RocksDB descendant; the CRDB docs call a read amplification below 10 healthy. L0 <i>sublevels</i> and the "&gt;10 visible, &gt;20 stalls" operator rule come from netdata guides <i>(secondary)</i>.</li>
+<li><b>TiKV/TiDB</b>: two RocksDB instances per node (data and Raft log); Titan (key-value separation) is on by default for new clusters since v7.6.0.</li>
+<li><b>SlateDB</b> (object-storage LSM): pluggable compaction scheduler, only size-tiered shipped; distributed compaction via a shared <code>.compactions</code> file (RFC-0025, v0.14.1+); "trivial move" off by default. Its scaling figures are the project's own claims.</li>
+<li><b>YugabyteDB</b> ("highly customized" RocksDB), <b>Flink</b> (EmbeddedRocksDBStateBackend), <b>Bigtable</b> (memtable→SSTable minor compaction, major compaction merges all SSTables), <b>LevelDB</b> as Chrome's IndexedDB backend (Wikipedia, secondary), <b>ClickHouse MergeTree</b> (parts merged in background; "no memtable" is an inference from the docs' silence). Kafka Streams default store RocksDB and HBase minor/major compaction: weak evidence <i>(unverified)</i>.</li>
+</ul>
+<p><b>How it's used.</b> The practitioner touches options like these (RocksDB; 512 MB base and 8 jobs are my choices, not defaults; the tuning guide only uses 512 MB / L0 trigger 8–10 in example configs, never as a recommendation):</p>
+<pre><code>rocksdb::Options o;
+o.write_buffer_size = 64&lt;&lt;20;                    // memtable
+o.max_write_buffer_number = 4;
+o.level0_file_num_compaction_trigger = 4;        // L0 -&gt; L1 trigger (default 4)
+o.level0_slowdown_writes_trigger = 20;           // default 20
+o.level0_stop_writes_trigger = 36;               // default 36
+o.max_bytes_for_level_base = 512&lt;&lt;20;
+o.max_bytes_for_level_multiplier = 10;           // T, default 10
+o.target_file_size_base = 64&lt;&lt;20;                // default 64 MB
+o.level_compaction_dynamic_level_bytes = true;   // default since 8.4
+o.compaction_pri = rocksdb::kMinOverlappingRatio;// default
+o.max_background_jobs = 8;                       // default is 2
+o.max_subcompactions = 4;
+o.compression = rocksdb::kLZ4Compression;
+o.bottommost_compression = rocksdb::kZSTD;
+// tiered instead: o.compaction_style = rocksdb::kCompactionStyleUniversal;
+// TTL/log data:  o.compaction_style = rocksdb::kCompactionStyleFIFO;</code></pre>
+<p><b>When to use / not.</b> Use leveled for read-heavy or space-sensitive workloads on SSD (worst case ≈1.111 with dynamic level bytes per Dong et al.). Use tiered/universal for write-heavy ingestion where write amp dominates and you can afford 2× temporary space and more runs per read. Use FIFO for TTL'd caches/metrics (write amp ≈ 1). Pick a <b>B-tree</b> when read latency predictability matters more than write throughput, tail latency is critical (compaction/stalls are LSM-specific), or you want less operational tuning (InnoDB, Postgres, LMDB).</p>
+<p><b>Who should care.</b> Backend/infra engineers running RocksDB-backed stores; Cassandra/Scylla operators choosing strategies; anyone debugging p99 spikes, write stalls, disk-full-during-compaction, or SSD wear.</p>

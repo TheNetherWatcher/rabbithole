@@ -1,0 +1,96 @@
+<style>
+#mech-steps .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#mech-steps .lv{min-height:120px;font:13px ui-monospace,monospace}
+#mech-steps .lvl{display:flex;gap:4px;align-items:center;margin:4px 0;flex-wrap:wrap}
+#mech-steps .lvl i{font-style:normal;color:var(--mute);width:28px}
+#mech-steps .run{background:var(--accent2);color:var(--bg);border-radius:4px;padding:2px 7px}
+#mech-steps .none{color:var(--mute)}
+@media (max-width:560px){#mech-steps .cols{grid-template-columns:1fr}}
+</style>
+<p>Setup: buffer = 1 unit (one flush). Size ratio T = 3 for readability. Leveling vs tiering on the same insert stream (each arrival = one flushed run of size 1).</p>
+<pre><code>LEVELING (1 run per level; level i capacity T^(i+1)):
+ flush1: L0=[1]
+ flush2: merge into L0 -&gt; [2]                         (rewrote 1)
+ flush3: merge -&gt; [3]  (3 &gt; cap? cap(L0)=3, no)       (rewrote 2)
+ flush4: merge -&gt; [4] &gt; cap 3 -&gt; push down: L1=[4]    (rewrote 3)
+ flush5: L0=[1]; flush6: [2]; flush7: [3]; flush8: [4] -&gt; merge into L1 -&gt; [8] (rewrote 4+4)
+ each level re-merges its resident data up to ~(T-1)/2 times on average before overflowing
+
+TIERING (up to T runs per level; merge all when T arrive):
+ flush1: L0=[1]; flush2: L0=[1,1]; flush3: L0=[1,1,1] -&gt; T runs -&gt; merge -&gt; L1=[3]  (wrote 3)
+ flush4..6: same -&gt; L1=[3,3]; flush7..9 -&gt; L1=[3,3,3] -&gt; merge -&gt; L2=[9]            (wrote 9)
+ each entry is written ~once per level; a lookup may face up to T-1 runs per level</code></pre>
+<p>The three basic operations, drawn in the ArceKV paper: a point lookup consults the memtable, then each run whose Bloom filter answers positively; a range lookup sort-merges the runs in range and discards duplicates; a put flushes into the memtable and compacts a run into the next level when it is full.</p>
+<figure data-fig="arce1"></figure>
+
+<p>Real code path in RocksDB (leveled): compaction picker scores each level (L0: <code>max(num_files / level0_file_num_compaction_trigger, total_size / max_bytes_for_level_base)</code>; L1+: <code>size / target</code>), compacts the highest score ≥ 1, picks the file with least overlap ratio in the next level (<code>kMinOverlappingRatio</code>), merges the file with its overlapping next-level files, optionally split into <b>subcompactions</b> by key range across threads (<a href="https://github.com/facebook/rocksdb/wiki/Leveled-Compaction" target="_blank" rel="noopener">wiki</a>). Merging drops shadowed versions and, at the bottom level, tombstones.</p>
+
+<div class="widget" id="mech-steps" role="group" aria-label="Leveling vs tiering step-through">
+ <b>Step-through: 9 flushes, T = 3.</b>
+ <div class="cols" style="margin-top:8px">
+  <div><b>Leveling</b><div class="lv" id="mech-lev"></div></div>
+  <div><b>Tiering</b><div class="lv" id="mech-tier"></div></div>
+ </div>
+ <p class="mini" id="mech-note" aria-live="polite"></p>
+ <div class="stepbar">
+  <button class="btn" id="mech-prev" type="button" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" type="button" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+ </div>
+</div>
+
+<script>
+(function(){
+  // leveling vs tiering on the same stream of 9 flushes, T = 3, 3 levels
+  var T = 3, N = 9, MAXL = 3;
+  var L = [[], [], []], Tr = [[], [], []];
+  var wl = 0, wt = 0, steps = [], notes = [];
+  steps.push({L: [[], [], []], Tr: [[], [], []]});
+  notes.push('Press Next to insert one flush at a time. Numbers are run sizes in flush units.');
+  for (var f = 1; f <= N; f++) {
+    var dl = 0, dt = 0, cur = 1, i = 0;
+    // leveling: one run per level, merged on every arrival
+    while (true) {
+      var had = L[i].length ? L[i][0] : 0, merged = had + cur;
+      if (had) dl += merged;
+      L[i] = [merged];
+      if (merged > Math.pow(T, i + 1) && i < MAXL - 1) { cur = merged; L[i] = []; i++; continue; }
+      break;
+    }
+    // tiering: up to T runs per level, merged all at once
+    cur = 1; i = 0;
+    while (true) {
+      Tr[i].push(cur);
+      if (Tr[i].length >= T) {
+        var m = Tr[i].reduce(function(a, b){ return a + b; }, 0);
+        dt += m; Tr[i] = []; cur = m;
+        if (i < MAXL - 1) { i++; continue; }
+        Tr[i] = [m];
+      }
+      break;
+    }
+    wl += dl + 1; wt += dt + 1;
+    steps.push({L: JSON.parse(JSON.stringify(L)), Tr: JSON.parse(JSON.stringify(Tr))});
+    notes.push('After flush ' + f + ': cumulative bytes written (units): leveling ' + wl + ', tiering ' + wt + '.');
+  }
+  var s = 0;
+  function render(el, lv) {
+    el.innerHTML = lv.map(function(runs, k){
+      var chips = runs.length ? runs.map(function(r){ return '<span class="run">' + r + '</span>'; }).join('')
+                              : '<span class="none">-</span>';
+      return '<div class="lvl"><i>L' + k + '</i>' + chips + '</div>';
+    }).join('');
+  }
+  function draw(){
+    document.getElementById('mech-n').textContent = 'STEP ' + s + ' / ' + N;
+    render(document.getElementById('mech-lev'), steps[s].L);
+    render(document.getElementById('mech-tier'), steps[s].Tr);
+    document.getElementById('mech-note').textContent = notes[s];
+  }
+  document.getElementById('mech-prev').onclick = function(){ if (s > 0) { s--; draw(); } };
+  document.getElementById('mech-next').onclick = function(){ if (s < N) { s++; draw(); } };
+  draw();
+})();
+</script>
+
+<p>Read the trace as a budget: leveling's arrivals 2, 3 and 4 each rewrite the resident L0 data, so the same bytes are paid for again and again. Tiering pays once per level, when a level fills with T runs and they move down together.</p>

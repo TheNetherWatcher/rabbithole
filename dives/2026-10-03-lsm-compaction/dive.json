@@ -1,0 +1,383 @@
+{
+ "meta": {
+  "title": "LSM-tree compaction: leveling vs tiering vs lazy leveling",
+  "short": "LSM compaction policies",
+  "subject": "Computer science",
+  "domain": "Databases & storage",
+  "topic": "LSM-tree compaction policy, write/read/space amplification",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "Every LSM store trades write amplification against read amplification through its <b>compaction policy</b>. Leveling keeps one sorted run per level, so lookups are fast but each entry is rewritten about <b>(T−1)/2</b> times per level. Tiering lets <b>T</b> runs pile up before merging, writing each entry once per level but making lookups probe many runs. Lazy leveling mixes the two, and Monkey's Bloom-filter allocation keeps lookup cost flat as levels grow.",
+ "why": "<b>Why it matters:</b> compaction decides write throughput, read latency, disk usage and when a database stalls; RocksDB, Cassandra, ScyllaDB and CockroachDB all expose this choice.",
+ "stats": [
+  {
+   "v": "1.11×",
+   "l": "space amp with dynamic level bytes, T = 10"
+  },
+  {
+   "v": "3.5×",
+   "l": "MyRocks instance vs uncompressed InnoDB"
+  },
+  {
+   "v": "20",
+   "l": "L0 files before RocksDB slows writes (default)"
+  },
+  {
+   "v": "8×",
+   "l": "CAMAL's reported best over prior RocksDB configs (abstract)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "Compaction is a dial between eager merging and lazy piles",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A librarian shelves new books on a \"recent\" cart, then merges the cart into sorted batches. Merge eagerly and each book gets re-handled over and over. Merge lazily and searching means checking many batches.</p><p>Every LSM database picks a point on that dial.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six terms cover the whole policy debate",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Memtable → run</b>: writes buffer in memory, then flush as an immutable sorted file.</li><li><b>Level</b>: about <i>T×</i> the data of the level above.</li><li><b>Bloom filter</b>: skips runs at false-positive rate <i>p</i>.</li><li><b>Amplification</b>: write, read and space amp trade off.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Every major LSM store ships a compaction policy",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>RocksDB (under MyRocks), Cassandra, ScyllaDB, Pebble and TiKV all run LSM compaction. MyRocks reports an instance <b>3.5×</b> smaller than uncompressed InnoDB. You tune the policy with options like <code>level_compaction_dynamic_level_bytes</code> and watch write stalls.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"Leveling = fast reads, slow writes\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>Space amp is set by the last level, Bloom memory must be skewed toward it, the formulas are worst-case, compaction is where deletes become real, and it competes with foreground I/O.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Batching writes creates runs that lookups must pay for",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>A B-tree update costs about one random read and one random write per page. An LSM writes sequentially but must merge runs to bound lookups. The question: how many times each byte is rewritten, and how many runs a lookup may face.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "Laundry baskets, where lookups must probe every basket",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Wash small loads often (leveling), or let baskets pile up and wash them together (tiering). The analogy breaks: a lookup probes every basket unless a Bloom filter says no, and a delete marker must sink to the bottom before space comes back.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "Leveling rewrites resident data; tiering writes each entry once per level",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>With T = 3, each arrival under leveling re-merges the resident level, so resident data is rewritten about (T−1)/2 = 1 time per level. Tiering waits for T runs, then writes them once into the next level.</p><p class=\"mini\">9-flush step-through inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Leveling re-merges each entry (T−1)/2 times per level",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Update cost is <b>W = (L/B)·((T−1)/2)·(1+φ)</b> under leveling and <b>(L/B)·((T−1)/T)·(1+φ)</b> under tiering. Monkey's filter allocation removes the factor L from lookup cost, and lazy leveling keeps leveling's lookups with cheaper updates.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Read cost follows the last level; write cost follows every level",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>The last level holds about (T−1)/T of the data, so it sets space and lookup cost. Update cost depends on re-merges across all levels, so each can get its own policy. Dynamic level sizing keeps space amp near <b>1.11×</b> at T = 10.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "One dial from leveling to tiering, plus filter allocation",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Size ratio T, the (K, Z) run limits, filter bits per entry, <code>compaction_pri</code>, and FIFO. Leveling vs tiering is a dial, not a switch. The calculator compares update cost, runs probed and excess space.</p><p class=\"mini\">Calculator inside.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Stalls, tombstones and range deletes are where compaction bites",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Write stalls are deliberate backpressure: RocksDB slows writes at 20 L0 files and stops them at 36. Deletes stay on disk until the tombstone reaches the bottom level, and Cassandra can resurrect rows if repair misses <code>gc_grace</code>.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "RocksDB defaults to leveled, Cassandra to size-tiered",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>RocksDB has used leveled compaction with dynamic level bytes since v8.4. Cassandra's default is STCS, and UCS in 5.0 unifies tiered and leveled. ScyllaDB's incremental compaction cuts ~200 GB of temporary space to ~2 GB.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "Tuners and offload now attack compaction cost directly",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>Learned tuners (CAMAL reports up to 8× in RocksDB), hybrid growth (Vertiorizon), kernel offload (RESYSTANCE: 50% faster compaction), and KV-separated GC (Scavenger). Most numbers come from abstracts or the authors' own benchmarks.</p><p class=\"mini\">Figures inside.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "No policy wins everywhere, and switching policy costs rewrites",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>No strategy dominates across metrics. Changing layout means rewriting data, so transition cost is hard to model. Bounded-latency deletes remain research, and object storage shifts the optimum because requests are priced.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From O'Neil's 1996 merge to learned tuners in thirty years",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>O'Neil's LSM-tree (1996) gave leveling. Bigtable and LevelDB followed, then bLSM's scheduling, Monkey's filter allocation (2017) and Dostoevsky's lazy leveling (2018). Since 2024, learned and offloaded compaction.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "A simulator reproduces the leveling-tiering ordering",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p>A count-based simulator, <code>lsm_sim.py</code>, prints measured write amp and peak run count for three policies. At T = 10, L = 3: leveling 17.09×, tiering 4.00×, lazy 8.40×. The ordering matches the formulas, while absolute numbers sit above them.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>23 questions in six groups, each with a reveal, a self-mark and a link back to the card that teaches it.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three threads to pull next",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Key-value separation (WiscKey, Titan), learned and robust tuning (Endure, CAMAL), and compaction on object storage (SlateDB, CaaS-LSM). Each changes the amplification math the table above assumes.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Sources, with a verification note on every number",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Primary papers (O'Neil, Monkey, Dostoevsky, Dong et al., Lethe, Sarkar et al.), the RocksDB wiki and source, and frontier arXiv abstracts. Tags mark anything seen only secondhand or not confirmed.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "Walk a flush through leveling at T=3 until it overflows into L1: how many bytes are rewritten?",
+   "a": "Per the section-5 trace: arrivals 2, 3, 4 each rewrite the resident L0 data (1, 2, 3 units) = 6 units of resident data rewritten, plus 4 flush writes; the size-4 run (&gt; cap 3) then moves down to L1. Resident data is re-merged each arrival, which is the (T−1)/2 factor."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "Why does tiering write each entry about once per level while leveling writes it ≈(T−1)/2 times?",
+   "a": "Tiering merges only when T runs accumulate, then writes the result once into the next level; leveling re-merges the arriving run with the <i>resident</i> level data on every arrival, so resident data is rewritten on average (T−1)/2 times before overflowing."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "What does RocksDB's L0 score formula compute and why two terms?",
+   "a": "L0 score = max(num_files/trigger, total_size/max_bytes_for_level_base): file count matters because overlapping L0 files drive read amp; size matters for byte-based backlog."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "What does <code>kMinOverlappingRatio</code> choose and why does it lower write amp?",
+   "a": "It picks the file whose overlap with next-level files is smallest relative to its own size: least rewrite of the lower level per byte moved down."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "What exactly makes a tombstone droppable?",
+   "a": "Compaction reaches the bottommost level (nothing deeper can hold older versions) and no snapshot needs it."
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why must Bloom FPR grow geometrically with level size under Monkey?",
+   "a": "Probing any run costs one I/O regardless of size; Lagrange optimization of Σp<sub>i</sub> under a memory constraint gives p<sub>i</sub> ∝ entries at level i, i.e. p<sub>i</sub> = T·p<sub>i−1</sub>."
+  },
+  {
+   "type": "Why",
+   "sec": "why",
+   "q": "Why does lazy leveling use leveling only at the <i>last</i> level?",
+   "a": "The last level holds ~(T−1)/T of data, so it controls space amp and lookup cost; upper levels (little data) only affect update/scan costs, where tiering is cheaper."
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why is space amp ≈1.11 with dynamic level bytes at T=10?",
+   "a": "With dynamic level bytes the last level is sized to its actual data and each level above is 1/T of the one below, so total = last × (1 + 1/T + 1/T² + …) = last × T/(T−1) = 1.111× at T=10 (the last level ≈ 90% of all data)."
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why do equal size ratios minimize merge I/O (O'Neil Thm 3.1)?",
+   "a": "Merge I/O per level is proportional to (1+r<sub>i</sub>); with a fixed product of ratios (fixed total size) the sum is minimized by equalizing ratios (convexity)."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "knobs",
+   "q": "What if T→T<sub>lim</sub> (one huge level)? What if T=2?",
+   "a": "T→T<sub>lim</sub>: L→1, a sorted array: reads optimal, each insert rewrites everything. T=2: tiering and leveling coincide."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "knobs",
+   "q": "What if Bloom filters were free and perfect? Does tiering still lose?",
+   "a": "Perfect filters make zero-result lookups free for both; tiering still pays on existing-key lookups and scans (up to T runs/level) but wins on writes."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "knobs",
+   "q": "What if the SSD had no write-amp penalty (WAF=1)? Does the optimal policy change?",
+   "a": "WAF multiplies: policy ranking by LSM WA is unchanged, but the <i>absolute</i> endurance budget and cost balance (φ) shift, favoring lower-WA policies on worn/shared SSDs."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "breaks",
+   "q": "What if compaction ran strictly at lower priority than foreground I/O? What happens to debt?",
+   "a": "Debt accumulates, L0 files/pending bytes hit stall thresholds and writes stall hard anyway: the cliff just moves."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "Craft a workload that maximizes L0 overlap and read amp.",
+   "a": "Random keys across the whole range with bursts of flushes faster than L0→L1 compaction: every L0 file spans the whole key space."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "How would an attacker (or buggy client) trigger a write-stall cascade?",
+   "a": "Burst writes beyond sustained compaction bandwidth, or bulk load that builds pending-compaction debt past 64 GB/256 GB."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "Construct a Cassandra delete→resurrection scenario with a missed repair.",
+   "a": "Delete row; a replica is down/unrepaired past gc_grace; healthy replicas compact the tombstone away; the down replica returns still holding the row; repair treats it as live."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "How can long-running iterators/snapshots defeat the space-amp bound?",
+   "a": "Pinned snapshots/iterators keep obsolete SSTs alive; compaction can't drop versions they might read."
+  },
+  {
+   "type": "Connection",
+   "sec": "model",
+   "q": "How does this relate to external merge sort and to garbage-collected heaps (generational GC)?",
+   "a": "Compaction is multiway merge sort run incrementally; levels with ratio T are generational GC with promotion."
+  },
+  {
+   "type": "Connection",
+   "sec": "wild",
+   "q": "How is SSD FTL garbage collection a nested LSM?",
+   "a": "The FTL writes log-structured pages and compacts blocks: stacked WA multiplies with the LSM's."
+  },
+  {
+   "type": "Connection",
+   "sec": "frontier",
+   "q": "How does key-value separation reshape the policy math?",
+   "a": "Values aren't rewritten during compaction, so keys-only merges shrink W; but GC must reclaim value logs and range scans lose locality."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Is there an optimal online compaction scheduler under drifting workloads with transition cost?",
+   "a": "Genuinely open; see section 11b."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Can deletes be given a hard persistence bound without much write-amp?",
+   "a": "Genuinely open; see section 11b (bounded-latency deletes remain mostly research, Lethe)."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "How should the optimum shift on object storage with per-request pricing?",
+   "a": "Genuinely open; see section 11b (SlateDB only ships size-tiered; offloaded compaction is an open design space)."
+  }
+ ],
+ "figures": {
+  "arce1": {
+   "file": "img/fig/arcekv-fig1-lsm-ops.png",
+   "caption": "The three basic operations in a leveled LSM-tree: a point lookup skips runs whose Bloom filter says no, a range lookup merges sorted runs and drops duplicates, and a put flushes the memtable and compacts a full level into the next.",
+   "source": {
+    "cite": "Liu, Xie and Luo, \"ArceKV\" (ElasticLSM), arXiv:2508.03565",
+    "url": "https://arxiv.org/abs/2508.03565",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "arce2": {
+   "file": "img/fig/arcekv-fig2-transition.png",
+   "caption": "Three existing transition policies (Greedy, Lazy, Ruskey) stall or delay writes while a tree changes shape; ElasticLSM keeps compacting across levels during the change.",
+   "source": {
+    "cite": "Liu, Xie and Luo, \"ArceKV\" (ElasticLSM), arXiv:2508.03565",
+    "url": "https://arxiv.org/abs/2508.03565",
+    "figure": "Fig. 2"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "arce5": {
+   "file": "img/fig/arcekv-fig5-stable-tree.png",
+   "caption": "A stable ElasticLSM state within a count window: six runs spread over three levels, each level with its own Bloom filter, so s = |S| = 6.",
+   "source": {
+    "cite": "Liu, Xie and Luo, \"ArceKV\" (ElasticLSM), arXiv:2508.03565",
+    "url": "https://arxiv.org/abs/2508.03565",
+    "figure": "Fig. 5"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "camal3": {
+   "file": "img/fig/camal-fig3-overview.png",
+   "caption": "CAMAL's workflow: a complexity model finds the theoretical optimum, an active-learning loop samples the database and trains an ML model, and extrapolation carries the result to larger data and dynamic workloads.",
+   "source": {
+    "cite": "Yu et al., \"CAMAL: Optimizing LSM-trees via Active Learning\", arXiv:2409.15130",
+    "url": "https://arxiv.org/abs/2409.15130",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

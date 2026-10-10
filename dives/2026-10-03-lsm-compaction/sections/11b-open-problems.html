@@ -1,0 +1,13 @@
+<ul>
+<li><b>No dominant strategy.</b> <a href="https://arxiv.org/abs/2202.04522" target="_blank" rel="noopener">Sarkar et al., VLDB'21</a> decompose any compaction strategy into four primitives (trigger, data layout, granularity, data-movement policy), benchmark 10 strategies, and report 12 observations and 7 takeaways. That no strategy wins every metric is my paraphrase of their findings, not an abstract quote.</li>
+<li><b>Granularity done wrong.</b> Spooky (Dayan, Weiss, Dashevsky, Pan, Bortnikov, Twitto; PVLDB 15(11) 2022) argues partial-compaction granularity is often implemented incorrectly <i>(venue/authors from search; abstract not read)</i>.</li>
+<li><b>Tuning under workload shift.</b> Policy changes require rewriting data, so transition cost is hard and rarely modeled. Work: Endure/K-LSM (<a href="https://arxiv.org/abs/2311.10005" target="_blank" rel="noopener">2311.10005</a>, Huynh, Chaudhari, Terzi, Athanassoulis; first at PVLDB 2022 <i>(from memory)</i>), RusKey RL tuner (<a href="https://arxiv.org/abs/2308.07013" target="_blank" rel="noopener">2308.07013</a>, SIGMOD 2024 <i>(search)</i>), and the 2024–26 papers above.</li>
+</ul>
+<figure data-fig="arce2"></figure>
+<ul start="4">
+<li><b>Scheduling theory.</b> No clean optimal result trading tail latency vs write amp vs space; picking is heuristic. bLSM's spring-and-gear scheduler (Sears &amp; Ramakrishnan, SIGMOD 2012) and SILK are partial answers.</li>
+<li><b>Deletes/TTL.</b> Bounded-latency physical deletes remain mostly research (Lethe), not default.</li>
+<li><b>Cloud/object storage.</b> Request pricing shifts the optimum; SlateDB only ships size-tiered; offloaded compaction (CaaS-LSM, O³-LSM) is an open design space.</li>
+<li><b>KV separation</b> cuts write amp but moves cost to GC and range scans.</li>
+</ul>
+<p>Why hard: any change to the layout is paid for in rewritten data, workloads drift, and foreground/background I/O interact non-linearly.</p>

@@ -1,0 +1,42 @@
+<div class="callout flag"><b>Verification note</b> (second pass, 2026-10-03): every number below was re-checked against a primary page unless tagged. Equations were read from the Monkey, Dostoevsky and O'Neil PDFs (equations rendered to images where text extraction garbled them). RocksDB defaults were read from <code>options.h</code> / <code>advanced_options.h</code> / <code>HISTORY.md</code> / the RocksDB wiki on <code>main</code>. Frontier papers were checked on their arXiv abstract pages. Tags: <i>(secondary)</i> = seen only in a secondary source; <i>(unverified)</i> = could not be confirmed this session (ACM/IEEE/dblp/Medium blocked some fetches).</div>
+
+<h3>Papers</h3>
+<ul>
+<li><a href="https://www.cs.umb.edu/~poneil/lsmtree.pdf" target="_blank" rel="noopener">O'Neil et al. 1996</a></li>
+<li><a href="https://nivdayan.github.io/monkeykeyvaluestore.pdf" target="_blank" rel="noopener">Monkey SIGMOD'17</a></li>
+<li><a href="https://nivdayan.github.io/dostoevsky.pdf" target="_blank" rel="noopener">Dostoevsky SIGMOD'18</a></li>
+<li><a href="https://cidrdb.org/cidr2017/papers/p82-dong-cidr17.pdf" target="_blank" rel="noopener">Dong et al., CIDR'17</a></li>
+<li><a href="https://www.usenix.org/conference/atc19/presentation/balmau" target="_blank" rel="noopener">SILK ATC'19</a></li>
+<li><a href="https://arxiv.org/pdf/2006.04777v2" target="_blank" rel="noopener">Lethe SIGMOD'20</a></li>
+<li><a href="https://arxiv.org/pdf/2202.04522" target="_blank" rel="noopener">Sarkar et al. VLDB'21 (design space)</a></li>
+<li><a href="https://mail.vldb.org/pvldb/volumes/15/paper/Spooky%3A%20Granulating%20LSM-Tree%20Compactions%20Correctly" target="_blank" rel="noopener">Spooky (PVLDB 15(11), 2022)</a></li>
+<li><a href="https://arxiv.org/abs/2308.07013" target="_blank" rel="noopener">RL tuning</a> · <a href="https://arxiv.org/abs/2311.10005" target="_blank" rel="noopener">Robust tuning</a></li>
+<li><a href="https://people.iiis.tsinghua.edu.cn/~huanchen/publications/ecotune-sigmod25.pdf" target="_blank" rel="noopener">EcoTune</a> · <a href="https://www.vldb.org/pvldb/vol18/p5582-huynh.pdf" target="_blank" rel="noopener">AXE</a> · <a href="https://dl.acm.org/doi/10.1145/3654927" target="_blank" rel="noopener">CaaS-LSM</a> · <a href="https://arxiv.org/abs/2603.05439" target="_blank" rel="noopener">O3-LSM</a> · <a href="https://arxiv.org/abs/2508.13935" target="_blank" rel="noopener">Scavenger+</a></li>
+<li><a href="https://arxiv.org/abs/2409.15130" target="_blank" rel="noopener">CAMAL</a> · <a href="https://arxiv.org/abs/2504.17178" target="_blank" rel="noopener">Vertiorizon</a> · <a href="https://arxiv.org/abs/2508.03565" target="_blank" rel="noopener">ArceKV</a> · <a href="https://arxiv.org/abs/2603.05162" target="_blank" rel="noopener">RESYSTANCE</a> · <a href="https://arxiv.org/abs/2609.14370" target="_blank" rel="noopener">DiaLSM</a> · <a href="https://arxiv.org/abs/2508.13909" target="_blank" rel="noopener">Scavenger</a> · <a href="https://arxiv.org/abs/2507.09642" target="_blank" rel="noopener">Survey</a></li>
+</ul>
+
+<h3>Code / docs</h3>
+<ul>
+<li><a href="https://github.com/facebook/rocksdb/wiki/Write-Stalls" target="_blank" rel="noopener">RocksDB Write Stalls</a> · <a href="https://rocksdb.org/blog/2018/11/21/delete-range.html" target="_blank" rel="noopener">DeleteRange blog</a> · <a href="https://github.com/cockroachdb/pebble/blob/master/docs/range_deletions.md" target="_blank" rel="noopener">Pebble range deletions</a></li>
+<li>RocksDB <code>options.h</code> / <code>advanced_options.h</code> / <code>universal_compaction.h</code> / <code>HISTORY.md</code> (8.4.0): <a href="https://github.com/facebook/rocksdb" target="_blank" rel="noopener">github.com/facebook/rocksdb</a></li>
+<li><a href="https://slatedb.io/docs/design/compaction/" target="_blank" rel="noopener">SlateDB compaction</a> · <a href="https://slatedb.io/blog/compaction-roadmap/" target="_blank" rel="noopener">SlateDB roadmap</a></li>
+<li><a href="https://cassandra.apache.org/doc/5.0/cassandra/managing/operating/compaction/ucs.html" target="_blank" rel="noopener">Cassandra UCS</a> · <a href="https://cwiki.apache.org/confluence/display/CASSANDRA/CEP-26%3A+Unified+Compaction+Strategy" target="_blank" rel="noopener">CEP-26</a></li>
+<li><a href="https://github.com/facebook/rocksdb/wiki/Leveled-Compaction" target="_blank" rel="noopener">RocksDB Leveled Compaction</a></li>
+<li><a href="https://github.com/facebook/rocksdb/wiki/Universal-Compaction" target="_blank" rel="noopener">RocksDB Universal Compaction</a></li>
+<li><a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide" target="_blank" rel="noopener">RocksDB tuning guide</a></li>
+<li><a href="https://raw.githubusercontent.com/facebook/rocksdb/main/include/rocksdb/advanced_options.h" target="_blank" rel="noopener"><code>advanced_options.h</code></a></li>
+<li><a href="https://cassandra.apache.org/doc/latest/cassandra/managing/operating/compaction/tombstones.html" target="_blank" rel="noopener">Cassandra tombstones</a></li>
+<li><a href="https://www.cockroachlabs.com/docs/stable/architecture/storage-layer.md" target="_blank" rel="noopener">CockroachDB storage layer</a></li>
+<li><a href="https://tikv.org/blog/rocksdb-in-tikv/" target="_blank" rel="noopener">TiKV RocksDB</a> · <a href="https://docs.pingcap.com/tidb/dev/titan-overview/" target="_blank" rel="noopener">Titan</a></li>
+</ul>
+
+<h3>Articles / incidents</h3>
+<ul>
+<li><a href="https://engineering.fb.com/2016/08/31/core-infra/myrocks/" target="_blank" rel="noopener">MyRocks</a></li>
+<li><a href="https://www.scylladb.com/2020/01/16/maximizing-disk-utilization-with-incremental-compaction/" target="_blank" rel="noopener">ScyllaDB ICS</a> · <a href="https://www.scylladb.com/2021/04/28/incremental-compaction-2-0-a-revolutionary-space-and-write-optimized-compaction-strategy" target="_blank" rel="noopener">ICS 2.0</a></li>
+<li><a href="https://www.netdata.cloud/guides/cassandra/cassandra-choosing-compaction-strategy/" target="_blank" rel="noopener">Cassandra strategy guide</a> · <a href="https://docs.axonops.com/data-platforms/cassandra/architecture/storage-engine/compaction/ucs" target="_blank" rel="noopener">Cassandra UCS (AxonOps)</a></li>
+<li><a href="https://www.netdata.cloud/guides/cassandra/cassandra-data-resurrection-gc-grace/" target="_blank" rel="noopener">Cassandra resurrection</a></li>
+<li><a href="https://pingcap.medium.com/how-we-found-a-data-corruption-bug-in-rocksdb-60e708769352" target="_blank" rel="noopener">PingCAP corruption</a></li>
+<li><a href="https://www.cockroachlabs.com/docs/advisories/a48860" target="_blank" rel="noopener">CockroachDB advisory</a></li>
+<li><a href="https://rocksdb.org/blog/2021/04/12/universal-improvements.html" target="_blank" rel="noopener">RocksDB universal improvements</a></li>
+</ul>

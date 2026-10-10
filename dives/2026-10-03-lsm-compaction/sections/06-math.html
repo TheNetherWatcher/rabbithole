@@ -1,0 +1,36 @@
+<p>Notation (Monkey/Dostoevsky): <i>N</i> entries, <i>B</i> entries/page, <i>P</i> buffer pages, <i>T</i> size ratio, <i>L</i> levels, <i>M</i> filter bits, <i>p_i</i> Bloom FPR at level <i>i</i>, <i>φ</i> write/read cost ratio (SSD asymmetry), <i>μ</i> scan-vs-seek factor, <i>s</i> scan selectivity.</p>
+
+<p><b>Levels</b> (Eq.1): the last level holds ≈ N(T−1)/T entries, so</p>
+<div class="eq">L = ⌈ log<sub>T</sub>( N·E / M<sub>buffer</sub> · (T−1)/T ) ⌉<small>→ in plain terms: each level is T× bigger, so you need log base T of (data/buffer) levels. Bigger T = fewer levels (T→T<sub>lim</sub> collapses to 1 level = a sorted array).</small></div>
+
+<p><b>O'Neil's origin of leveling cost</b> (Thm 3.1): with K disk components of ratios r<sub>i</sub> = S<sub>i</sub>/S<sub>i−1</sub>, merge I/O is minimized when all r<sub>i</sub> are equal; H = (2R/Sp)·(K(1+r) − ½).</p>
+<div class="eq">H = (2R/Sp) · (K(1 + r) − ½)<small>→ each byte is read and written about (1+r) times per level, which is where leveling's ~T-per-level cost comes from.</small></div>
+
+<p><b>Update cost</b> (Monkey Eq.10):</p>
+<div class="eq">Leveling: W = (L/B) · ((T−1)/2) · (1+φ)<small>→ under leveling each entry is merged ≈ (T−1)/2 times per level (it sits in a level while arrivals merge into it, then moves on).</small></div>
+<div class="eq">Tiering: W = (L/B) · ((T−1)/T) · (1+φ)<small>→ under tiering each entry is merged about once per level.</small></div>
+<p>Why not simpler? Because the same <i>amount</i> of merge work happens per level in aggregate (bigger levels merge exponentially more data, exponentially less often), so the cost per entry per level is set only by <i>how many times a level's resident data is re-merged</i>.</p>
+
+<p><b>Zero-result lookup</b> (Eq.3): R = Σp<sub>i</sub> (leveling, ≤1 run/level) or (T−1)·Σp<sub>i</sub> (tiering). The filter FPR is p = e<sup>−(bits/entry)·ln²2</sup>.</p>
+<p><b>Monkey's optimization</b> (Lagrange): minimize R subject to total filter memory fixed → optimal p<sub>i</sub> ∝ entries at level <i>i</i>, i.e. <b>p<sub>i</sub> = T·p<sub>i−1</sub></b>: give the small levels tiny FPR, the huge last level a large one. Because probing <i>any</i> run costs one I/O regardless of its size, memory buys more I/O avoided on small levels.</p>
+<div class="eq">R = O(e<sup>−M/N</sup>) with enough memory, <small>independent of L, versus O(L · e<sup>−M/N</sup>) for uniform allocation.</small></div>
+<p>→ uniform 10 bits/entry costs R ≈ L·0.008; Monkey's allocation removes the L factor.</p>
+
+<p><b>Dostoevsky's table</b> (worst case, Section 3):</p>
+<div style="overflow-x:auto"><table><thead><tr><th></th><th>Tiering</th><th>Leveling</th><th>Lazy leveling</th></tr></thead><tbody>
+<tr><td><b>Update W</b></td><td>O(L/B)</td><td>O(L·T/B)</td><td>O((L+T)/B)</td></tr>
+<tr><td><b>Zero-result lookup R</b></td><td>O(T·e<sup>−M/N</sup>)</td><td>O(e<sup>−M/N</sup>)</td><td>O(e<sup>−M/N</sup>)</td></tr>
+<tr><td><b>Existing-key lookup V</b></td><td>O(1 + T·e<sup>−M/N</sup>)</td><td>O(1)</td><td>O(1)</td></tr>
+<tr><td><b>Short range</b></td><td>O(T·L)</td><td>O(L)</td><td>O(1 + (L−1)·T)</td></tr>
+<tr><td><b>Long range</b></td><td>O(T·s/B)</td><td>O(s/B)</td><td>O(s/B)</td></tr>
+<tr><td><b>Space amp</b></td><td>O(T)</td><td>O(1/T)</td><td>O(1/T)</td></tr>
+</tbody></table></div>
+<p>→ lazy leveling = tiering on levels 1…L−1, leveling at level L. It keeps leveling's lookup/space cost but cuts update cost from L·T to L+T, paying only on short scans.</p>
+
+<p><b>Fluid LSM-tree</b> generalizes: K = max runs at levels 1…L−1, Z = max runs at level L. Leveling K=Z=1; tiering K=Z=T−1; lazy K=T−1, Z=1.</p>
+<div class="eq">Eq.12: W = φ/(μB) · ( (T−1)/(K+1) · (L−1) + (T−1)/(Z+1) )</div>
+<div class="eq">Eq.13: excess space = Z − 1 + 1/T<small>(T = 10, 10 bits/entry: leveling 0.1, tiering 8.1)</small></div>
+<p>Sanity: K=Z=1 gives (T−1)/2·L; K=Z=T−1 gives (T−1)/T·L (matches Monkey Eq.10).</p>
+
+<p><b>Monkey exact forms</b> (rendered pages checked): per-level FPR leveling Eq.15 p<sub>i</sub> = R/T<sup>L−i</sup> · T<sup>L−1</sup>/(T<sup>L</sup>−1) · (T−1); tiering Eq.16 p<sub>i</sub> = R/T<sup>L−i</sup> · T<sup>L−1</sup>/(T<sup>L</sup>−1) (a factor (T−1) lower). For large L (≈5+): p<sub>i</sub> ≈ R/T<sup>L−i+1</sup>·(T−1) (leveling), R/T<sup>L−i+1</sup> (tiering).</p>
+<p>Zero-result cost Eq.7: R = R<sub>filtered</sub> + R<sub>unfiltered</sub>, R<sub>filtered</sub> = [T<sup>T/(T−1)</sup>/(T−1)] · e<sup>−(M<sub>filters</sub>/N)·ln²2</sup> · T<sup>L<sub>unfiltered</sub></sup> for leveling (without the 1/(T−1) for tiering); R<sub>unfiltered</sub> = L<sub>unfiltered</sub> (leveling) or L<sub>unfiltered</sub>·(T−1) (tiering). Eq.8: M<sub>threshold</sub> = N/ln²2 · ln T/(T−1), and L<sub>unfiltered</sub> = 0 if M<sub>filters</sub> ≥ M<sub>threshold</sub>. Dostoevsky Eq.7 gives the lazy-leveling threshold maximum <b>1.62 bits/entry at T=3</b> (and says the Fluid LSM generalization keeps 1.62). The "no strategy wins everywhere" statement elsewhere is a paraphrase of Sarkar et al., not a quote.</p>
