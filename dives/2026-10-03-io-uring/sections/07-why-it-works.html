@@ -1,0 +1,11 @@
+<p style="font-size:18px">Core insight: <strong>turn syscall into data.</strong> A syscall = control transfer + argument marshalling. Move marshalling to shared memory (SQE), make control transfer batched or removable (SQPOLL), and make completion a memory read (CQE).</p>
+<p>Ablate each piece:</p>
+<ul>
+<li>Remove shared rings &rarr; back to aio's copies/&ge;2 syscalls.</li>
+<li>Remove inline-first attempt &rarr; every op pays a context switch to a worker even on page-cache hit (the thread-pool problem).</li>
+<li>Remove poll-arm path &rarr; sockets need a worker thread per blocked op (thousands of threads) or you are back to epoll+read.</li>
+<li>Remove io-wq fallback &rarr; buffered file I/O blocks <code>io_uring_enter</code> (submit stalls for disk), breaking the "submit never blocks" promise.</li>
+<li>Remove registration &rarr; per-op atomic refcount + page pin; Jasny: registered buffers are part of the 2&times; gain.</li>
+<li>Remove DEFER_TASKRUN &rarr; IPIs interrupt the app mid-batch, break batching, add jitter.</li>
+<li>Remove the <code>user_data</code> indirection &rarr; can't match out-of-order completions.</li>
+</ul>

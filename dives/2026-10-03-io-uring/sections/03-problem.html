@@ -1,0 +1,12 @@
+<p>Before: Linux aio (<code>io_submit</code>/<code>io_getevents</code>).</p>
+<ul>
+<li>Async only for O_DIRECT; buffered "behaves in a synchronous manner". <span class="mini">[V]</span> paper &sect;1</li>
+<li>Submit can still block (metadata fetch, device request slots exhausted) &rarr; apps still ran thread pools.</li>
+<li>Copies: 64 B (iocb) + 8 B pointer on submit, 32 B (io_event) on completion &rarr; <strong>104 B copied for "zero-copy" I/O</strong>. <span class="mini">[V]</span></li>
+<li>Completion ring exposed but "hard (impossible?) to use correctly". <span class="mini">[V]</span></li>
+<li>&ge;2 syscalls per I/O (submit + getevents): "post spectre/meltdown ... a serious slowdown". <span class="mini">[V]</span></li>
+<li>Devices &lt;10 &micro;s latency, millions of IOPS: slow non-deterministic submit, bad single-core scaling.</li>
+<li>epoll: readiness only; regular files always "ready" &rarr; no file I/O help; pair with thread pool. Thread pool for buffered I/O = &ge;2 context switches even on page-cache hit. <span class="mini">[V]</span> paper &sect;9.2</li>
+</ul>
+<p>Axboe tried extending aio (2010 and again) &rarr; more entry points, worse API &rarr; started fresh. Goals: easy to use/hard to misuse, extensible, efficient, scalable; "no memory copies for either submissions or completion events, and no memory indirections" <span class="mini">[V]</span> &sect;3-4. Merged 5.1 (Jan 2019 merge, May 2019 release).</p>
+<p>Headline numbers from paper &sect;9: 4K random reads &mdash; aio 608K IOPS, io_uring 1.2M (no polling), 1.7M (polling). Authors' own caveat: "these values don't carry a lot of absolute meaning" (unfair: aio has no polling).</p>

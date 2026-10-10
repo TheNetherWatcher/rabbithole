@@ -1,0 +1,24 @@
+<div class="callout mis measure"><b>Verification status</b>Not independently re-verified in the follow-up pass: treat figures, versions and merge status below as the original research's claims.</div>
+<ol>
+<li><strong>High-Performance DBMSs with io_uring: When and How to Use It</strong> &mdash; Jasny, El-Hindi, Ziegler, Leis, Binnig. PVLDB 19(9):2317&ndash;2330 (2026), <a href="https://arxiv.org/abs/2512.04859" target="_blank" rel="noopener">arXiv 2512.04859</a>. <span class="mini">[V]</span> numbers from PDF. Setup: EPYC 9654P, 8&times; PCIe5 Kioxia CM7-R, ConnectX-7 400G, Linux 6.15.
+<ul>
+<li>Problem: naive io_uring swap &rArr; 1.06&times; (buffer mgr), 1.10&times; (network shuffle).</li>
+<li>Method: add one feature at a time &mdash; batching, fibers, DEFER_TASKRUN (avoids IPI preemption), registered buffers, NVMe passthrough, IOPoll, SQPoll.</li>
+<li>Buffer manager: 173K &rarr; 376K tx/s (2.05&times;) one thread; +1 core for SQPoll &rarr; 546.5K. Sync POSIX: 16.5K. Shuffle: 12.0 &rarr; 30.5 GiB/s (2.31&times;).</li>
+<li>Costs: io-wq fallback &asymp; 7.3 &micro;s/op; SQPoll wake &asymp; 30 &micro;s; needs app redesign. Applying to Postgres: +14%.</li></ul></li>
+<li><strong>Zero-copy receive (zcrx)</strong> &mdash; Begunkov &amp; Wei, merged Linux 6.15 (2025); DMA-BUF follow-up targeted 6.16, large buffers later (Phoronix-reported). <a href="https://docs.kernel.org/networking/iou-zcrx.html" target="_blank" rel="noopener">docs.kernel.org/networking/iou-zcrx.html</a>
+<ul>
+<li>Problem: kernel&rarr;user copy caps TCP RX at 100&ndash;400G.</li>
+<li>Mechanism: page_pool hands user-registered memory to the NIC RX queue; HW header/data split; flow steering to that queue; completion CQEs + refill ring returns buffers. Demo: one core saturates 200G.</li>
+<li>Limits: needs NIC header/data split, flow steering, queue config; app owns buffer lifetime.</li></ul></li>
+<li><strong>BPF-controlled io_uring</strong> &mdash; Begunkov struct_ops series (v1&ndash;v10, Jan&ndash;Feb 2026), LWN reports Axboe applied 17 Mar 2026 for the 7.1 merge window; competing <code>IORING_OP_BPF</code> (Ming Lei) pending. LWN 1062286, 1044989; merge status secondhand.
+<ul><li>A BPF program replaces the enter loop: <code>bpf_io_uring_submit_sqes()</code>, <code>bpf_io_uring_get_region()</code>, returns <code>IOU_LOOP_CONTINUE/STOP</code>. Goal: fewer syscalls, custom completion logic. No benchmarks seen.</li></ul></li>
+<li><strong>Task-level restrictions + cBPF filter</strong> &mdash; <code>IORING_REGISTER_RESTRICTIONS_TASK</code>, <code>IORING_REGISTER_BPF_FILTER</code> (Jan 2026, v5 at LWN 1054225; <strong>merge version unconfirmed</strong>). cBPF so it works unprivileged in containers; per-opcode, cannot inspect args like seccomp, defaults allow.</li>
+<li><strong>"Asynchronous I/O &mdash; With Great Power Comes Great Responsibility"</strong> &mdash; Pestka, Paradies, Pohl, <a href="https://arxiv.org/abs/2411.16254" target="_blank" rel="noopener">arXiv 2411.16254</a> (Nov 2024): API complexity limits DBMS adoption.</li>
+<li><strong>Upstreaming a flexible and efficient I/O path in Linux (I/O Passthru)</strong> &mdash; Joshi et al., <a href="https://www.usenix.org/system/files/fast24-joshi.pdf" target="_blank" rel="noopener">FAST 2024</a>: <code>IORING_OP_URING_CMD</code> + NVMe char dev <code>/dev/ngXnY</code> + SQE128; 16&ndash;40% higher IOPS than the block path (fio); in SPDK, xNVMe, fio, liburing.</li>
+<li><strong>xNVMe for DBMS I/O</strong> &mdash; Houlborg, CIDR 2026 (title/URL only, not read). <a href="https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf" target="_blank" rel="noopener">https://www.vldb.org/cidrdb/papers/2026/p6-houlborg.pdf</a></li>
+<li><strong>ARMO "Curing"</strong> &mdash; Apr 2025 PoC; Sysdig detection write-up.</li>
+<li>Audit hooks: <code>security_uring_cmd</code> LSM (5.19); Dec 2024 patch for an <code>io_uring_setup</code> LSM hook (Microsoft; merge unconfirmed).</li>
+<li>Dropped: 2026-numbered CVEs (zcrx races, "PinTheft") &mdash; only vendor-snippet sourced, unverified against NVD.</li>
+</ol>
+<p><em>Gap: no 2024&ndash;26 formal cross-OS benchmark paper found.</em></p>

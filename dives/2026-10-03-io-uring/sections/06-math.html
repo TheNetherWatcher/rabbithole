@@ -1,0 +1,85 @@
+<div id="math-root">
+<style>
+#math-root .row{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0}
+@media (min-width:640px){#math-root .row{grid-template-columns:repeat(3,1fr)}}
+#math-root label{display:block;font-size:13.5px;color:var(--mute)}
+#math-root label b{color:var(--ink);font-variant-numeric:tabular-nums}
+#math-root input[type=range]{width:100%;accent-color:var(--accent)}
+#math-root .bar i{display:block;height:100%;transition:none}
+#math-root .bar .a{background:var(--accent)}#math-root .bar .b{background:var(--accent2)}
+#math-root .out{font-size:16px;margin-top:8px}#math-root .out b{color:var(--accent);font-variant-numeric:tabular-nums}
+#math-root .legend{font-size:12.5px;color:var(--mute);margin-top:4px}
+#math-root .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 4px 0 10px;vertical-align:-1px}
+#math-root .legend .la::before{background:var(--accent)}#math-root .legend .lb::before{background:var(--accent2)}
+</style>
+<h3>Amortization</h3>
+<p>Let <i>c<sub>s</sub></i> = enter syscall cost, <i>c<sub>o</sub></i> = per-op in-kernel work, <i>B</i> = ops per enter.</p>
+<div class="eq">cost/op = c<sub>s</sub> / B + c<sub>o</sub><small>&rarr; in plain terms: batching divides the fixed cost. Jasny et al. measure 5-6&times; fewer cycles/op at B &ge; 16 <span class="mini">[V]</span> arXiv 2512.04859. The limit B&rarr;&infin; gives c<sub>o</sub>: you can't beat it, which is why SQPOLL/polling matter only when c<sub>s</sub>/B is still visible.</small></div>
+
+<div class="widget" id="math-w-amort"><h3>Try it: batch size vs per-op cost</h3>
+<p class="legend" style="margin:0">Illustrative inputs you control, not measurements.</p>
+<div class="row">
+<label>c<sub>s</sub> syscall cost: <b id="math-wa-cs-v">1000</b> ns<input id="math-wa-cs" type="range" min="100" max="5000" step="50" value="1000"></label>
+<label>c<sub>o</sub> per-op kernel work: <b id="math-wa-co-v">500</b> ns<input id="math-wa-co" type="range" min="50" max="5000" step="50" value="500"></label>
+<label>B ops per enter: <b id="math-wa-b-v">16</b><input id="math-wa-b" type="range" min="0" max="8" step="1" value="4"></label></div>
+<div class="bar" aria-hidden="true"><i class="a" id="math-wa-bar-a"></i><i class="b" id="math-wa-bar-b"></i></div>
+<div class="legend"><span class="la">c<sub>s</sub>/B (amortized syscall)</span><span class="lb">c<sub>o</sub> (real work, the floor)</span></div>
+<p class="out">cost/op = <b id="math-wa-out">-</b> ns &middot; syscall share = <b id="math-wa-share">-</b> &middot; vs B=1: <b id="math-wa-x">-</b> cheaper</p></div>
+
+<p>The paper's batching experiment: no-op requests, cycles per operation against batch size. Past about 32 the syscall cost is gone and the curve flattens.</p>
+<figure data-fig="fig4"></figure>
+<h3>Little's law for queue depth</h3>
+<div class="eq">IOPS = QD / latency<small>&rarr; in plain terms: 100 &micro;s NVMe read, 1M IOPS &rArr; QD = 100. Sync I/O has QD=1 per thread &rArr; 10K IOPS/thread. Jasny's synchronous POSIX baseline 16.5K tx/s vs 376K tx/s with io_uring (buffer manager, 1 thread) is mostly <em>QD</em>, not syscall cost. Batching isn't the only win; <strong>concurrency in one thread</strong> is.</small></div>
+
+<div class="widget" id="math-w-little"><h3>Try it: queue depth and IOPS</h3>
+<p class="legend" style="margin:0">Illustrative: set latency and queue depth; read the ceiling.</p>
+<div class="row">
+<label>latency: <b id="math-wl-lat-v">100</b> &micro;s<input id="math-wl-lat" type="range" min="10" max="1000" step="10" value="100"></label>
+<label>queue depth QD: <b id="math-wl-qd-v">1</b><input id="math-wl-qd" type="range" min="0" max="9" step="1" value="0"></label>
+<label>threads: <b id="math-wl-th-v">1</b><input id="math-wl-th" type="range" min="1" max="16" step="1" value="1"></label></div>
+<p class="out">IOPS ceiling = <b id="math-wl-out">-</b> &middot; QD needed for 1M IOPS = <b id="math-wl-need">-</b></p></div>
+
+<h3>Ring index arithmetic</h3>
+<p><code>head</code>, <code>tail</code> are free-running u32. <code>used = tail &minus; head</code> (mod 2<sup>32</sup>), <code>free = N &minus; used</code>, slot = <code>idx &amp; (N&minus;1)</code> (N power of 2).</p>
+<div class="eq">used = (tail &minus; head) mod 2<sup>32</sup>; free = N &minus; used; slot = idx &amp; (N&minus;1)<small>&rarr; in plain terms: Why free-running instead of wrapping at N: full vs empty are distinguishable (<code>used==N</code> vs <code>0</code>) with no spare slot or flag; all N slots are usable. Correct across u32 overflow because of modular subtraction.</small></div>
+
+<h3>Memory-ordering contract (SQ)</h3>
+<p>App: write SQE; <code>store_release(tail)</code>. Kernel: <code>load_acquire(tail)</code>; read SQE. The release&rarr;acquire edge &rArr; SQE writes happen-before kernel reads. The kernel consumes with <code>smp_store_release(sq.head)</code> (seen in <code>io_commit_sqring</code> <span class="mini">[V]</span>); the app <code>load_acquire(head)</code> before reusing a slot. CQ mirrored. Without release on tail, the CPU/compiler could expose tail before the entry bytes &rArr; the kernel reads a garbage SQE. (CQ-side acquire/release pairings are inferred from paper + liburing, not read from source.)</p>
+
+<h3>CQ overflow bound</h3>
+<p>Pending requests can exceed SQ size (SQE consumed &rArr; slot reusable, request still in flight). In-flight <code>P &le; SQ_entries + inflight_async</code>; CQ = 2&times;SQ by default doesn't bound P. Hence <code>NODROP</code> (5.5): overflow CQEs are held in a kernel list, flushed on next <code>enter(GETEVENTS)</code>; a purely userspace CQ poller can stall forever.</p>
+<script>
+(function(){
+var $=function(s,r){return (r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS="http://www.w3.org/2000/svg";
+function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+/* amortization widget */
+(function(){
+  var cs=$("#math-wa-cs"),co=$("#math-wa-co"),b=$("#math-wa-b");
+  function f(){
+    var S=+cs.value,O=+co.value,B=Math.pow(2,+b.value);
+    $("#math-wa-cs-v").textContent=S;$("#math-wa-co-v").textContent=O;$("#math-wa-b-v").textContent=B;
+    var c=S/B+O,base=S+O,sh=(S/B)/c;
+    $("#math-wa-out").textContent=c.toFixed(0);$("#math-wa-share").textContent=(sh*100).toFixed(0)+"%";$("#math-wa-x").textContent=(base/c).toFixed(2)+"x";
+    var pa=(S/B)/base*100,pb=O/base*100;
+    $("#math-wa-bar-a").style.width=pa+"%";$("#math-wa-bar-b").style.width=pb+"%";
+  }
+  [cs,co,b].forEach(function(e){e.addEventListener("input",f)});f();
+})();
+/* little widget */
+(function(){
+  var lat=$("#math-wl-lat"),qd=$("#math-wl-qd"),th=$("#math-wl-th");
+  function f(){
+    var L=+lat.value,Q=Math.pow(2,+qd.value),T=+th.value;
+    $("#math-wl-lat-v").textContent=L;$("#math-wl-qd-v").textContent=Q;$("#math-wl-th-v").textContent=T;
+    var iops=Q*T/(L*1e-6);
+    $("#math-wl-out").textContent=iops>=1e6?(iops/1e6).toFixed(2)+"M":(iops/1e3).toFixed(1)+"K";
+    $("#math-wl-need").textContent=Math.ceil(1e6*L*1e-6/T)+" per thread";
+  }
+  [lat,qd,th].forEach(function(e){e.addEventListener("input",f)});f();
+})();
+
+
+})();
+</script>
+</div>

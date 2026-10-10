@@ -1,0 +1,12 @@
+<p style="font-size:19px"><strong>"io_uring is async I/O via two shared ring buffers, so you skip syscalls."</strong></p>
+<p>Hides:</p>
+<ol>
+<li>Most ops are <strong>not</strong> async: the kernel first tries the op <em>inline, non-blocking</em> in submit context. Async is the fallback, and for buffered file I/O the fallback is a <strong>thread pool</strong> (<code>io-wq</code>), not hardware async.</li>
+<li>"No syscalls" is only true with <code>SQPOLL</code> (burns a core); otherwise one <code>io_uring_enter</code> per <em>batch</em>. Win = amortization.</li>
+<li>Naive port gains about nothing (measured: 1.06x buffer mgr, 1.10x shuffle). Gains come from batching + registered resources + task-work control + redesigned architecture.</li>
+<li>It is a <strong>second syscall interface</strong>: ops live in SQEs, invisible to seccomp/syscall audit. Google disabled it on ChromeOS/prod.</li>
+<li>Zero-copy isn't free: ownership of buffers/cancellation is the hard part; ZC send loses to memcpy for small payloads <span class="mini">[K]</span>.</li>
+</ol>
+<p>Jasny et al. compare a naive swap with a redesigned io_uring path in a buffer manager and a network shuffle. The naive swap barely moves; the redesign does the work.</p>
+<figure data-fig="fig1"></figure>
+

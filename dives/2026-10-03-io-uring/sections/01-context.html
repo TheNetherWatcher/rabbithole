@@ -1,0 +1,8 @@
+<ul>
+<li>Syscall = user&rarr;kernel mode switch. Cost = entry/exit + mitigations (post-Spectre/Meltdown), not the work itself. [paper &sect;1]</li>
+<li>Readiness vs completion: epoll says "fd <em>can</em> be read"; you still do the <code>read</code>. A completion API says "your read <em>is done</em>, here are the bytes".</li>
+<li>Buffered I/O goes through the page cache; <code>O_DIRECT</code> bypasses it. Linux aio only did true async for <code>O_DIRECT</code>.</li>
+<li>SPSC ring buffer: single-producer/single-consumer queue with <code>head</code> (consumer) and <code>tail</code> (producer) indexes; lock-free with proper memory ordering.</li>
+<li>Acquire/release: producer <em>releases</em> (publishes) tail after writing the entry; consumer <em>acquires</em> tail before reading the entry. Entry visible iff tail visible.</li>
+<li>Little's law: in-flight ops = throughput &times; latency. NVMe needs deep queues to hit rated IOPS.</li>
+</ul>

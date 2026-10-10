@@ -1,0 +1,11 @@
+<div class="callout tip measure"><b>Restaurant order window</b>Kitchen (kernel) and diner (app) share two conveyor belts: orders in (SQ), plates out (CQ). The diner stacks 32 order slips then rings the bell <em>once</em>. The cook grabs whatever's quick (inline), parks slow orders on a side-queue (poll waitlist) or hands them to a prep crew (io-wq).</div>
+<p>Breaks where:</p>
+<p>The paper's picture of the same idea: the database and the kernel exchange requests through two rings in shared memory, and the submit call crosses the boundary once.</p>
+<figure data-fig="fig2"></figure>
+
+<ul>
+<li>The belt carries <em>indexes</em> to slips, not slips (SQ array indirection).</li>
+<li>The cook may <em>not</em> be asynchronous at all: simple orders finish while you're ringing the bell; the CQE is already there on return.</li>
+<li>The prep crew = real kernel threads in your process (since 5.12), counted against <code>RLIMIT_NPROC</code>.</li>
+<li>Once the cook has <em>read</em> a slip, you may reuse the slot, but the kernel may still be using your <strong>buffers</strong>.</li>
+</ul>

@@ -1,0 +1,9 @@
+<ol>
+<li><strong>Sandboxing.</strong> Disable-for-untrusted is the current answer. seccomp can't see opcodes; attack surface grows per opcode/registration type (zcrx, uring_cmd). The task-restriction/cBPF filter is the live attempt; coarse (no arg inspection). Hard because opcodes carry pointers/flags nested in shared memory the filter can't TOCTOU-safely inspect. [reasoning mine]</li>
+<li><strong>Cancellation of in-flight block I/O.</strong> Needs hardware-side cancel to avoid stray DMA into reused pages. Axboe on LKML: file/bdev I/O can't be cancelled.</li>
+<li><strong>Truly async buffered I/O.</strong> Page-cache miss alloc, block allocation, journalling, fsync still punt to io-wq; needs NOWAIT through every FS path. Async-buffered-read patches (2020: preadv 1m13s vs io_uring 12.0 s/82% CPU vs patched 9.3 s/52% CPU) fixed reads only partially.</li>
+<li><strong>Resource accounting.</strong> io-wq per-task&times;NUMA pools vs <code>RLIMIT_NPROC</code>/<code>pids.max</code>; no clean per-ring CPU accounting.</li>
+<li><strong>Security observability.</strong> EDR keyed on syscalls is blind; LSM/KRSI hooks proposed, not default.</li>
+<li><strong>API complexity vs adoption.</strong> Pestka et al.; Jasny et al. say gains need redesign. Open: can a higher-level library give 80% of the win without redesign? (tokio-uring's stall suggests cancellation semantics are the blocker.)</li>
+<li><strong>Cross-OS standard.</strong> Windows IoRing is similar but narrower; BSDs/macOS have no completion API.</li>
+</ol>

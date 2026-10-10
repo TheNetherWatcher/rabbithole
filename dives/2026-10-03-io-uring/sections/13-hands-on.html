@@ -1,0 +1,40 @@
+<p>See the syscall count collapse and the inline/punt split. Needs Linux &ge;5.19, <code>liburing-dev</code>, <code>strace</code>.</p>
+<pre><code>// Not compiled/run by the author (no Linux/liburing available when checked). cc -O2 t.c -luring -o t
+#include &lt;liburing.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#define N 4096
+int main(int argc, char **argv) {
+    int sqpoll = argc &gt; 2 &amp;&amp; !strcmp(argv[2], "sqpoll");
+    int fd = open(argv[1], O_RDONLY /* | O_DIRECT for true async */);
+    struct io_uring r; struct io_uring_params p = {0};
+    if (sqpoll) { p.flags = IORING_SETUP_SQPOLL; p.sq_thread_idle = 2000; }
+    io_uring_queue_init_params(256, &amp;r, &amp;p);
+    static char buf[N][4096];
+    for (int round = 0; round &lt; 100; round++) {
+        for (int i = 0; i &lt; 64; i++) {
+            struct io_uring_sqe *s = io_uring_get_sqe(&amp;r);
+            io_uring_prep_read(s, fd, buf[i], 4096, (__u64)i * 4096);
+            s-&gt;user_data = i;
+        }
+        io_uring_submit(&amp;r);              // 1 enter per 64 reads (0 w/ SQPOLL awake)
+        for (int i = 0; i &lt; 64; i++) {
+            struct io_uring_cqe *c;
+            io_uring_wait_cqe(&amp;r, &amp;c);
+            io_uring_cqe_seen(&amp;r, c);
+        }
+    }
+    printf("done\n");
+}</code></pre>
+<p>Run:</p>
+<pre><code>dd if=/dev/urandom of=f bs=1M count=64; strace -f -c -e trace=io_uring_enter,pread64 ./t f   # vs: ... ./t f sqpoll</code></pre>
+<p>Predict then check:</p>
+<ol>
+<li>Enter count &asymp; 100&ndash;200 (not 6400). Why not exactly 100? (<code>wait_cqe</code> enters when CQ is empty.)</li>
+<li>With a page-cache-warm file: most CQEs are already present on return from submit &rArr; <code>wait_cqe</code> doesn't enter (inline completion).</li>
+<li>Drop caches (<code>echo 3 &gt; /proc/sys/vm/drop_caches</code>), rerun, <code>ps -L</code> / <code>top -H</code> during the run: see <code>iou-wrk-*</code> threads &rArr; buffered punt to io-wq.</li>
+<li>Switch <code>open</code> to O_DIRECT (aligned buffers needed: use <code>posix_memalign</code>) &rarr; threads vanish on NVMe.</li>
+<li><code>sqpoll</code>: strace shows ~0 enters; <code>top -H</code> shows an <code>iou-sqp-*</code> thread at 100% CPU.</li>
+</ol>

@@ -1,0 +1,1 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M 80 20 C 130 20, 140 80, 80 80 C 20 80, 30 20, 80 20" fill="none" class="s-warn flow" stroke-width="2.2" stroke-dasharray="6 5"/><circle cx="80" cy="20" r="6" class="f-bad"/><text x="80" y="95" class="t-mute" font-size="9" text-anchor="middle">evict, recompute, evict</text></svg>

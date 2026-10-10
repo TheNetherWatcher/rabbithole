@@ -1,0 +1,8 @@
+<p><strong>Knobs:</strong> SQ depth; CQ size; batch size B; SQPOLL (core vs latency); IOPOLL (poll NVMe CQ; needs O_DIRECT; reaps via GETEVENTS or SQPOLL thread); COOP vs DEFER_TASKRUN; registered files/bufs; <code>IOWQ_MAX_WORKERS</code>; passthrough; multishot + buffer rings.</p>
+<p><strong>Alternatives:</strong></p>
+<ul>
+<li><strong>epoll + threads</strong>: simple, portable; no file I/O. Network gain of io_uring over tuned epoll &asymp; ~10% @1000 conns (Alibaba blog, read in this pass; single vendor benchmark), single-digit&ndash;20% typical <span class="mini">[K]</span>, big only with ZC/large batches.</li>
+<li><strong>libaio</strong>: O_DIRECT only; competitive for tuned Seastar/Scylla (Scylla engineers reported no big win <span class="mini">[K, unverified]</span>; Seastar/Scylla details not re-verified).</li>
+<li><strong>SPDK</strong>: userspace NVMe polling; "io_uring within ~10% of SPDK but ~2&times; the cores" (SYSTOR 2022, outside the 2y window) <span class="mini">[V]</span> via agent.</li>
+<li><strong>Windows IoRing</strong>: "almost identical" design, far fewer opcodes. <strong>IOCP</strong>: completion-based but a syscall per submit. <strong>kqueue</strong> (BSD/macOS): readiness only. TigerBeetle/Qt wrap them behind one API.</li>
+</ul>

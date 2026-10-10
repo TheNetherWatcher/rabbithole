@@ -1,0 +1,10 @@
+<div>
+<div class="callout"><b>RocksDB</b><p>io_uring on read paths only (MultiGet, iterator prefetch), thread-local rings, SINGLE_ISSUER|DEFER_TASKRUN; ~24% over pread on raw disk (<span class="mini">[unverified (single secondary source)]</span>; the 2022 RocksDB blog does not mention io_uring; the opt-in claim is likewise unverified). Not writes/compaction.</p></div>
+<div class="callout"><b>TigerBeetle</b><p>Single thread alternating <code>tick()</code> and <code>io.run_for_ns()</code>; all I/O via io_uring (kqueue/IOCP behind abstraction); a mid-2026 newsletter reports +8% from re-entering the kernel after each completion callback to pipeline IO and CPU (secondary).</p></div>
+<div class="callout"><b>Seastar / Scylla</b><p>io_uring reactor backend exists; long-default linux-aio+epoll <span class="mini">[K]</span> (not independently re-verified).</p></div>
+<div class="callout"><b>libuv / Node</b><p>io_uring for file ops only; network stays epoll; ref issue #1947 (+38% seq read, tighter variance in thread); later restricted for security <span class="mini">[K]</span>.</p></div>
+<div class="callout"><b>QEMU</b><p><em>(not independently re-verified)</em> 1.2M (no poll) / 1.7M (poll) 4K IOPS vs Linux AIO cliff ~608K (FOSDEM 2020); 2025 series makes io_uring the event loop (<code>aio_add_sqe</code>).</p></div>
+<div class="callout"><b>PostgreSQL 18</b><p><code>io_method=io_uring</code> (default <code>worker</code>, per the PG 18 docs <span class="mini">[V]</span>); guidelines from the Jasny paper &rarr; +14%.</p></div>
+<div class="callout"><b>Glommio / tokio-uring / nginx</b><p>Glommio (thread-per-core, io_uring-native; not independently re-verified), tokio-uring (stale since 0.5.0, May 2024), nginx (not merged).</p></div>
+<div class="callout"><b>10M IOPS/core</b><p>Axboe, Ryzen 5950X, 2&times; Optane P5800X, 512B polled random reads, fixed files/bufs: a per-IO software overhead microbenchmark, not app throughput. <span class="mini">[V]</span> Phoronix</p></div>
+</div>

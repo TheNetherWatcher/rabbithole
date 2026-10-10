@@ -1,0 +1,393 @@
+{
+ "meta": {
+  "title": "io_uring: shared rings, zero-syscall I/O, and the security bill",
+  "short": "io_uring & the security bill",
+  "subject": "Computer science",
+  "domain": "OS / kernels",
+  "topic": "io_uring (SQ/CQ rings, inline-then-punt execution, security fallout)",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "io_uring gives Linux two shared rings: the app fills a submission queue, the kernel fills a completion queue, and one <b>io_uring_enter</b> can submit and reap many I/Os. The win is batching and concurrency, not a faster epoll: a naive swap gains only <b>1.06–1.10×</b>. The price is a second syscall surface that seccomp cannot inspect.",
+ "why": "<b>Why it matters:</b> it is now an opt-in I/O path in PostgreSQL 18, a read path in RocksDB, and the file path in several runtimes, and it is why security teams ask whether to allow it in containers at all.",
+ "stats": [
+  {
+   "v": "1.06×",
+   "l": "gain from a naive libaio-to-io_uring swap"
+  },
+  {
+   "v": "2.05×",
+   "l": "more after redesigning the buffer manager"
+  },
+  {
+   "v": "376K",
+   "l": "tx/s with io_uring, vs 16.5K for sync POSIX"
+  },
+  {
+   "v": "60%",
+   "l": "of Google's kCTF Linux submissions hit io_uring"
+  },
+  {
+   "v": "5.1",
+   "l": "first kernel with io_uring (2019)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "Two trays and one bell, not a walk per errand",
+   "visual": "img/plain.svg",
+   "brief": "<p>A cook drops several order notes on a tray, rings one bell and keeps cooking. The helper does the quick ones at once, parks the slow ones and posts each result with its number. Many errands in flight from one thread.</p>",
+   "group": "Plain English",
+   "file": "sections/00-plain.html",
+   "tone": "plain"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six ideas to know first",
+   "visual": "img/ctx.svg",
+   "brief": "<ul><li><b>Syscall</b>: a user-to-kernel switch; mitigations make entry costly.</li><li><b>Readiness vs completion</b>: epoll says \"can read\", completion says \"the read is done\".</li><li><b>Page cache vs O_DIRECT</b>: only O_DIRECT was truly async in Linux aio.</li><li><b>SPSC ring</b> with acquire/release on the tail.</li><li><b>Little's law</b>: in flight = throughput × latency.</li></ul>",
+   "group": "Context",
+   "file": "sections/01-context.html"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Databases adopt it for storage; sockets are the harder half",
+   "visual": "img/world.svg",
+   "brief": "<p>PostgreSQL 18 offers <code>io_method=io_uring</code> (default is <code>worker</code>). RocksDB uses it on read paths, TigerBeetle routes all I/O through it, libuv moved file ops to it. Google disabled it on ChromeOS and production.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "“Async I/O through shared rings” hides five things",
+   "visual": "img/onel.svg",
+   "brief": "<p>Most ops finish inline, not async. \"No syscalls\" needs SQPOLL, which burns a core. A naive swap gains only 1.06–1.10×; the redesign adds 2.05–2.31×. It is a second syscall surface that seccomp cannot see.</p>",
+   "group": "Technical deep dive",
+   "file": "sections/02-one-liner.html"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Linux aio copies 104 bytes and needs two syscalls per I/O",
+   "visual": "img/problem.svg",
+   "brief": "<p>Linux aio was async only for O_DIRECT, copied 104 bytes per I/O and took at least two syscalls, so apps bolted on thread pools. The paper's 4K random reads: 608K IOPS for aio, 1.2M for io_uring without polling, 1.7M with it.</p>",
+   "file": "sections/03-problem.html"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A restaurant order window: one bell for a stack of orders",
+   "visual": "img/model.svg",
+   "brief": "<p>Kitchen and diner share two belts: orders in (SQ), plates out (CQ). The diner stacks 32 slips and rings once. The cook does quick orders on the spot and parks slow ones. The analogy breaks where belts carry indexes and buffers stay yours.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One read from SQE to CQE, usually with no thread",
+   "visual": "img/mech.svg",
+   "brief": "<p>One <code>io_uring_enter</code> submits the batch and the kernel tries the read inline. A socket with no data sleeps on a poll list; a buffered file falls back to an <code>iou-wrk</code> worker. Results come back as CQEs read from shared memory.</p><p class=\"mini\">Seven-step walkthrough inside.</p>",
+   "file": "sections/05-mechanism.html"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Batching divides the syscall cost; queue depth sets IOPS",
+   "visual": "img/math.svg",
+   "brief": "<p>Cost per op is c<sub>s</sub>/B + c<sub>o</sub>, so batching only hides the entry cost. Little's law gives IOPS = QD / latency: 100 µs reads need QD ≈ 100 for 1M IOPS. Sync POSIX ran 16.5K tx/s against 376K with io_uring, mostly from queue depth.</p><p class=\"mini\">Two sliders inside.</p>",
+   "file": "sections/06-math.html"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Remove any one piece and it falls back to aio or a thread pool",
+   "visual": "img/why.svg",
+   "brief": "<p>The core move is turning the syscall into data. Shared rings replace copies; inline-first avoids thread handoffs; the poll path avoids a thread per socket; io-wq catches the rest. Without <code>user_data</code> out-of-order completions cannot be matched.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Batch size, SQPOLL and polling trade cores for latency",
+   "visual": "img/knobs.svg",
+   "brief": "<p>You choose SQ depth, batch size, and whether to burn a core on SQPOLL or IOPOLL. Alternatives: epoll with threads (about 10% behind at 1,000 connections, one vendor benchmark), libaio for O_DIRECT, SPDK at about 2× the cores.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "A second syscall surface that seccomp cannot see",
+   "visual": "img/breaks.svg",
+   "brief": "<p>Google's kCTF: 60% of 42 Linux kernel exploit submissions targeted io_uring, so it was disabled on ChromeOS and production and blocked for Android apps. Seccomp sees only setup and enter calls, not the SQE opcodes.</p>",
+   "file": "sections/09-where-it-breaks.html"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Engines use it where the win is, and deviate from the paper",
+   "visual": "img/wild.svg",
+   "brief": "<p>RocksDB uses it only on read paths. libuv moved file ops to it, then reverted the default to the thread pool in v1.49. Jasny et al. report +14% for PostgreSQL after applying their guidelines. Glommio runs thread-per-core on io_uring.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier",
+   "title": "The frontier moves to zero-copy receive and BPF-run rings",
+   "visual": "img/frontier.svg",
+   "brief": "<p>Zero-copy receive, merged in Linux 6.15, hands NIC buffers to user space; one core saturated 200G in the demo. A BPF struct_ops series could replace the enter loop, with merge status only secondhand. Restrictions plus a cBPF filter cannot inspect arguments.</p>",
+   "group": "Research edge",
+   "file": "sections/11-frontier.html"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Sandboxing io_uring without disabling it is still unsolved",
+   "visual": "img/open.svg",
+   "brief": "<p>Filters see opcodes but not safe arguments, and pointers live in shared memory (TOCTOU). Disk I/O cannot be cancelled, so a cancel can DMA into reused pages. Buffered file I/O stays on a thread pool until every filesystem has NOWAIT paths.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Linux aio (2002) failed on copies; io_uring shipped in 5.1 (2019)",
+   "visual": "img/lineage.svg",
+   "brief": "<p>Linux aio was O_DIRECT-only and copy-heavy, while Windows IOCP was completion-based from the 1990s. io_uring then gained fixed resources and multishot (5.19), DEFER_TASKRUN (6.0–6.1), NVMe passthrough, zero-copy receive (6.15) and BPF rings targeted for 7.1.</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "A 30-line program shows the syscall count and the inline/punt split",
+   "visual": "img/hands.svg",
+   "brief": "<p>Read 64 blocks per round, count <code>io_uring_enter</code> calls with strace, then drop caches to watch <code>iou-wrk</code> threads appear. Predict first. Needs Linux 5.19+ and liburing. The author did not compile it; run it on your kernel.</p>",
+   "group": "Practice & self-test",
+   "file": "sections/13-hands-on.html"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>24 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>",
+   "builtin": "quiz"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "brief": "<p>NVMe queue pairs and SPDK polling; TCP zero-copy with page_pool and flow steering; kernel object lifetimes and the LPE work behind the io_uring CVE stream.</p>",
+   "group": "Further",
+   "file": "sections/15-go-deeper.html"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Each number traces to a paper, kernel doc or primary post",
+   "visual": "img/sources.svg",
+   "brief": "<p>Axboe 2019, Jasny et al. VLDB'26, Pestka et al., Joshi et al. FAST'24, kernel and liburing docs, Google's kCTF post and the CVE write-ups. Tags: [V] checked against a source; [K] unverified.</p>",
+   "file": "sections/99-sources.html"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly happens, step by step, from <code>io_uring_submit()</code> for a socket read with no data yet?",
+   "a": "SQE written, tail released; <code>enter</code> &rarr; <code>io_submit_sqes</code> &rarr; <code>io_queue_sqe</code> &rarr; inline <code>io_issue_sqe</code> with NONBLOCK &rarr; socket returns <code>-EAGAIN</code> &rarr; <code>io_queue_async</code> copies SQE &rarr; <code>io_arm_poll_handler</code> &rarr; <code>APOLL_OK</code>: request sleeps on socket waitqueue (no thread). Data arrives &rarr; wakeup &rarr; <code>io_poll_task_func</code> (task_work) rechecks with <code>vfs_poll</code>, reissues, posts CQE.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does the SQ ring hold indexes into <code>array[]</code> rather than SQEs, and what did 6.6 change?",
+   "a": "Lets apps submit non-contiguous SQEs / embed SQEs in own structs. <code>NO_SQARRAY</code> (6.6) removes the extra load and the indirection when apps don't need it.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "How does the kernel know the app has freed an SQE slot, and why is that safe with in-flight requests?",
+   "a": "Kernel <code>smp_store_release(sq.head)</code> after consuming (<code>io_commit_sqring</code>); app acquires head. Safe because the kernel copies the SQE into the request (<code>io_req_sqe_copy</code>, FEAT_SUBMIT_STABLE 5.5) when it will need it later; user buffers aren't copied &mdash; you must keep those alive.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does <code>CQE_F_MORE</code> mean for multishot recv and SEND_ZC, and how do the two differ?",
+   "a": "MORE on multishot: request still armed, more CQEs will come; absence &rArr; re-arm. MORE on SEND_ZC: a second <code>F_NOTIF</code> CQE follows meaning \"buffer reusable\"; the first CQE carries bytes sent.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why must SQPOLL's NEED_WAKEUP flow have a full barrier on both sides?",
+   "a": "Store-load ordering (Dekker): app stores tail then loads flag; thread stores flag then loads tail. Without a full barrier both can read stale values &rarr; app sees no flag, thread sees no entries &rarr; sleeps forever with work pending.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What is task_work, and why does DEFER_TASKRUN require SINGLE_ISSUER?",
+   "a": "task_work = a callback run in the context of a specific task at kernel&rarr;user transition (or an explicit point). DEFER_TASKRUN runs it only within <code>io_uring_enter(GETEVENTS)</code> on the ring's <code>work_llist</code>; only the submitter task may reap, hence single issuer.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why try inline non-blocking first rather than always queue?",
+   "a": "Most ops (page-cache hit, ready socket, NOWAIT O_DIRECT) finish immediately; queueing costs &ge;2 context switches. Inline = no handoff, CQE ready on return.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why two io-wq pools (bound/unbound)?",
+   "a": "Bound ops (regular files/bdev) have bounded concurrency tied to the device queue; unbound (sockets) can block indefinitely; mixing would let slow sockets starve disk work or force an arbitrary cap.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why are free-running indexes better than wrapping indexes?",
+   "a": "Full vs empty distinguishable without a wasted slot; all N usable; modular subtraction handles u32 wrap.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why do provided buffer rings make multishot recv scale better than epoll+read for idle connections?",
+   "a": "Provided buffers are picked at data arrival, so idle connections hold no buffer; epoll+read typically needs a buffer per connection (or read-after-ready, which still needs a buffer at that time but costs a syscall each).",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If CQ were exactly SQ size and no NODROP, what breaks?",
+   "a": "A burst of completions exceeds CQ while the app is busy &rArr; completions dropped (pre-5.5) or must be stored; with NODROP they pile in kernel memory until the app enters; extreme case: lost/stalled completions.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If io-wq workers were kernel threads (pre-5.12) not process threads, what changes for cgroups/creds/ptrace?",
+   "a": "Kernel threads: separate creds/cgroup/ptrace invisibility, harder accounting, no <code>RLIMIT_NPROC</code> coupling; 5.12 made them process threads: inherit cgroup/creds, visible to ptrace/coredump (and regressions).",
+   "sec": "mech"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If SEND_ZC had no notification CQE, what could go wrong?",
+   "a": "App reuses/frees the buffer while the NIC still DMAs from it &rArr; corrupted data on the wire or use-after-free of page contents.",
+   "sec": "mech"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If the kernel read your SQE lazily (after returning) without copying it, what bug appears?",
+   "a": "App reuses the slot, kernel executes the new SQE (or a half-written one) &rArr; wrong op/args. Hence copy-on-defer.",
+   "sec": "mech"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you hide file exfiltration from a seccomp+Falco setup using io_uring?",
+   "a": "Do exfil via SQEs: <code>OPENAT</code>, <code>READ</code>, <code>SEND</code>/<code>CONNECT</code> ops; seccomp sees only <code>enter</code>; Falco hooks syscalls &rarr; blind (ARMO Curing).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Where is the TOCTOU surface when the kernel reads shared-memory SQEs?",
+   "a": "Kernel reads SQE fields from user-writable memory (after <code>READ_ONCE</code>); an app thread can mutate the SQE or pointed-to structs concurrently. A per-opcode filter that inspects args at filter time may see different values than at execution; the kernel mitigates by copying the SQE before use, but pointer targets (iovecs, msghdr) remain user memory.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could a registered-buffer bug give physical-memory access (cf. CVE-2023-2598)?",
+   "a": "Fixed-buffer registration coalesces pages into compound-page folios; wrong arithmetic computes a buffer range/length past the folio &rArr; read/write to adjacent physical pages through the registered buffer &rArr; kernel memory R/W &rArr; LPE.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you DoS a host using only unprivileged io_uring and <code>RLIMIT_NPROC</code>?",
+   "a": "Queue many blocking unbound ops (e.g., reads on a socket/pipe that never gets data) across many ring-submitting threads: each can spawn io-wq workers up to <code>RLIMIT_NPROC</code> (per-user), starving the user/container of threads; with <code>pids.max</code>, workers burn CPU retrying creation.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "Compare io_uring's SQ/CQ with NVMe's submission/completion queues. What does passthrough remove?",
+   "a": "Same producer/consumer queue pair idea; io_uring has an extra software layer (block layer, page cache, FS). Passthrough (<code>URING_CMD</code> + <code>/dev/ng*</code>) skips block layer/FS so the NVMe SQE goes nearly straight to the device queue; you give up caching, FS semantics, LBA mgmt (16&ndash;40% IOPS gain in FAST'24).",
+   "sec": "frontier"
+  },
+  {
+   "type": "Connection",
+   "q": "How does completion-based I/O change Rust's <code>Future</code> cancellation model?",
+   "a": "Rust futures are cancelled by drop; with readiness that's safe. With completion, the kernel may still write into your buffer after drop &rArr; UB. Fix: ownership transfer of buffers (tokio-uring style APIs) or cancel-and-wait; cost: ergonomics, no <code>&amp;mut [u8]</code> APIs.",
+   "sec": "why"
+  },
+  {
+   "type": "Connection",
+   "q": "How is Little's law behind both NVMe queue depth and why sync I/O is slow?",
+   "a": "IOPS = QD/latency: the device has ~&micro;s&ndash;100 &micro;s latency, so to reach 1M IOPS you need ~100 in flight. Sync I/O has QD=1/thread; io_uring/NVMe queues allow deep QD from one thread.",
+   "sec": "math"
+  },
+  {
+   "type": "Open",
+   "q": "Can a sandbox filter io_uring per-op without TOCTOU and without disabling it?",
+   "a": "Open. Needs filtering at the semantic level (opcode + stable args) with a TOCTOU-safe copy; the current cBPF filter doesn't inspect args. Alternative: capability-style per-ring restrictions (existing <code>REGISTER_RESTRICTIONS</code>) &mdash; coarse.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Can buffered file I/O ever be truly async on Linux without per-filesystem NOWAIT work?",
+   "a": "Open. Requires NOWAIT support for allocation, journalling, writeback throttling in each FS; or accept the thread pool as the implementation (what io-wq is).",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Should the ring be BPF-programmable, or does that grow the attack surface faster than it removes syscalls?",
+   "a": "Open. BPF removes syscalls and enables custom completion logic but adds a verified-code attack surface and interaction with cancellation; the history of BPF verifier bugs argues caution; the unprivileged cBPF filter is the conservative variant.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "fig1": {
+   "file": "img/fig/jasny-fig1-naive-vs-redesign.png",
+   "caption": "Naive io_uring swaps gain only 1.06× in a buffer manager and 1.10× in a network shuffle; the redesign adds 2.05× and 2.31× on top.",
+   "source": {
+    "cite": "Jasny, El-Hindi, Ziegler, Leis, Binnig, \"High-Performance DBMSs with io_uring: When and How to Use It\", PVLDB 19(9), 2026",
+    "url": "https://arxiv.org/abs/2512.04859",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig2": {
+   "file": "img/fig/jasny-fig2-sq-cq-rings.png",
+   "caption": "The database and the kernel share the SQ and CQ rings; io_uring_enter() is the only crossing point in the figure.",
+   "source": {
+    "cite": "Jasny, El-Hindi, Ziegler, Leis, Binnig, \"High-Performance DBMSs with io_uring: When and How to Use It\", PVLDB 19(9), 2026",
+    "url": "https://arxiv.org/abs/2512.04859",
+    "figure": "Fig. 2"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig3": {
+   "file": "img/fig/jasny-fig3-execution-paths.png",
+   "caption": "Three execution paths: inline completion (2a), the poll set for sockets (2b), and the worker-pool fallback for blocking work (2c).",
+   "source": {
+    "cite": "Jasny, El-Hindi, Ziegler, Leis, Binnig, \"High-Performance DBMSs with io_uring: When and How to Use It\", PVLDB 19(9), 2026",
+    "url": "https://arxiv.org/abs/2512.04859",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig4": {
+   "file": "img/fig/jasny-fig4-nop-batching.png",
+   "caption": "Cycles per no-op request fall from about 1,300 at batch size 1 to about 250 by batch size 32, then flatten.",
+   "source": {
+    "cite": "Jasny, El-Hindi, Ziegler, Leis, Binnig, \"High-Performance DBMSs with io_uring: When and How to Use It\", PVLDB 19(9), 2026",
+    "url": "https://arxiv.org/abs/2512.04859",
+    "figure": "Fig. 4"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

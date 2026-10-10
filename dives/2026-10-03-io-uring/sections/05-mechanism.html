@@ -1,0 +1,223 @@
+<div id="mech-root">
+<style>
+#mech-root svg{width:100%;height:auto;display:block}
+#mech-root svg text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:var(--ink)}
+#mech-root svg .lbl{font-size:12px}
+#mech-root svg .sm{font-size:10.5px;fill:var(--mute)}
+#mech-root svg .ttl{font-size:12px;font-weight:700;fill:var(--mute);letter-spacing:.06em}
+#mech-root svg .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#mech-root svg .slot{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+#mech-root svg .edge{stroke:var(--mute);stroke-width:1.6;fill:none;opacity:.35}
+#mech-root svg .dim{opacity:.35;transition:opacity .2s}
+#mech-root svg .on .box,#mech-root svg .box.on{stroke:var(--accent);stroke-width:2.4;fill:var(--plain)}
+#mech-root svg .edge.on{stroke:var(--accent);opacity:1;stroke-width:2.6}
+#mech-root svg .hl-fill{fill:var(--plain);stroke:var(--accent);stroke-width:2}
+#mech-root svg .mk{fill:var(--accent)}
+@media (prefers-reduced-motion:no-preference){#mech-root svg .edge.on{stroke-dasharray:7 5;animation:mech-dash 1s linear infinite}@keyframes mech-dash{to{stroke-dashoffset:-24}}}
+#mech-root figcaption{font-size:14px;color:var(--mute);margin-top:6px}
+#mech-root .stepper{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+#mech-root .stepcap{margin-top:10px;padding:10px 14px;background:var(--code);border-radius:10px;border:1px solid var(--line);font-size:15px;min-height:4.4em}
+#mech-root .stepcap code{font-size:.85em}
+#mech-root .counter-s{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+#mech-root .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+#mech-root .btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+<h3>5.1 Memory layout</h3>
+<pre><code>mmap(fd, IORING_OFF_SQ_RING   = 0x0)         SQ ring: head tail ring_mask ring_entries flags dropped array[]
+mmap(fd, IORING_OFF_CQ_RING   = 0x8000000)   CQ ring: head tail ring_mask ring_entries overflow cqes[]   (single mmap w/ SQ since 5.4)
+mmap(fd, IORING_OFF_SQES      = 0x10000000)  sqes[ entries ] each 64 B</code></pre>
+<p>(<code>IORING_OFF_PBUF_RING = 0x80000000</code>, 5.19.) Offsets inside rings come from <code>io_uring_params.sq_off / cq_off</code> returned by <code>io_uring_setup</code>.</p>
+<p>SQE (64 B) <span class="mini">[V]</span> field order; offsets reconstructed:</p>
+<pre><code> 0 opcode u8 | 1 flags u8 | 2 ioprio u16 | 4 fd s32
+ 8 off/addr2 u64 | 16 addr u64 | 24 len u32 | 28 op-flags u32
+32 user_data u64   &lt;- echoed in CQE, your correlation id
+40 buf_index/buf_group u16 | 42 personality u16 | 44 splice_fd_in/file_index u32
+48 addr3 u64 + pad   (SQE128, 5.19: 128 B for NVMe passthrough cmd)</code></pre>
+<p>CQE (16 B): <code>user_data u64 | res s32 (bytes or -errno) | flags u32</code> (F_BUFFER, F_MORE, F_NOTIF; CQE32 = 32 B).</p>
+
+<figure class="widget"><svg viewBox="0 0 760 200" role="img" aria-labelledby="mech-ind-t"><title id="mech-ind-t">SQ ring array indexes into the SQE table; the CQ ring holds CQEs directly</title>
+<defs><marker id="mech-ah0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>
+<text class="ttl" x="10" y="18">SQ RING  array[]  (indexes)</text>
+<g id="mech-indA"></g>
+<text class="ttl" x="10" y="108">sqes[]  (64 B each, can live anywhere in this table)</text>
+<g id="mech-indS"></g>
+<text class="ttl" x="10" y="150">CQ RING  cqes[]  (16 B each, indexed directly: no indirection)</text>
+<g id="mech-indC"></g>
+</svg><figcaption>The kernel does <code>head = READ_ONCE(sq_array[cached_sq_head++ &amp; mask]); sqe = &amp;sq_sqes[head]</code> (with <code>array_index_nospec</code>). This lets apps embed SQEs in their own structures and submit non-contiguously. <code>IORING_SETUP_NO_SQARRAY</code> (6.6) drops it.</figcaption></figure>
+<p>SQ ring holds <strong>indexes into <code>array[]</code></strong>, which index <code>sqes[]</code>: kernel does <code>head = READ_ONCE(sq_array[cached_sq_head++ &amp; mask]); sqe = &amp;sq_sqes[head]</code> (with <code>array_index_nospec</code>). CQ indexes <code>cqes[]</code> directly. Indirection lets apps embed SQEs in own structures and submit non-contiguously. <code>IORING_SETUP_NO_SQARRAY</code> (6.6) drops it.</p>
+<p>CQ defaults to 2&times; SQ entries (<code>CQSIZE</code> overrides); sizes &rarr; power of 2.</p>
+
+<h3>5.2 One <code>read(fd, buf, 4096)</code> end to end</h3>
+<p>Step through the trace below (a socket read with no data yet, then the buffered-file variant). The ring pointers move as the app and kernel hand off.</p>
+
+<figure class="widget" id="mech-trace">
+<svg viewBox="0 0 760 385" role="img" aria-labelledby="mech-tr-t"><title id="mech-tr-t">Step-through: SQE published, io_uring_enter, inline attempt, poll or io-wq, task_work, CQE posted, CQE reaped</title>
+<defs>
+<marker id="mech-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker>
+</defs>
+<!-- app -->
+<g data-s="1 7"><rect class="box" x="8" y="96" width="132" height="168" rx="12"/><text class="ttl" x="20" y="118">USERSPACE APP</text>
+<text class="lbl" x="20" y="144">fill sqes[i]</text><text class="lbl" x="20" y="162">store_release</text><text class="lbl" x="20" y="180">(sq.tail)</text>
+<text class="lbl" x="20" y="212">acquire(cq.tail)</text><text class="lbl" x="20" y="230">use cqe.res</text><text class="lbl" x="20" y="248">store_release(cq.head)</text></g>
+<!-- SQ ring -->
+<text class="ttl" x="190" y="22">SQ RING (app produces)</text>
+<g id="mech-sqslots"></g>
+<g id="mech-sqHead"><polygon class="mk kk" points="0,0 -7,10 7,10"/><text class="sm" x="-10" y="9" text-anchor="end">head</text></g>
+<g id="mech-sqTail"><polygon class="mk" points="0,0 -7,10 7,10"/><text class="sm" x="10" y="9">tail</text></g>
+<!-- kernel -->
+<g data-s="2 3 4"><rect class="box" x="190" y="112" width="320" height="136" rx="12"/><text class="ttl" x="204" y="134">KERNEL  io_uring_enter</text>
+<text class="lbl" x="204" y="158">io_submit_sqes (uring_lock)</text><text class="lbl" x="204" y="178">io_queue_sqe: NONBLOCK|COMPLETE_DEFER</text><text class="lbl" x="204" y="198">io_issue_sqe() inline, submitter ctx</text>
+<text class="sm" x="204" y="228" id="mech-ktext">-</text></g>
+<!-- right side -->
+<g data-s="4 5"><rect class="box" x="560" y="96" width="192" height="64" rx="10"/><text class="ttl" x="572" y="118">POLL WAITLIST</text><text class="sm" x="572" y="138">socket/pipe: waitqueue</text><text class="sm" x="572" y="152">APOLL_OK, no thread</text></g>
+<g data-s="4 5" id="mech-iowq"><rect class="box" x="560" y="200" width="192" height="64" rx="10"/><text class="ttl" x="572" y="222">IO-WQ  iou-wrk-*</text><text class="sm" x="572" y="242">buffered file: worker</text><text class="sm" x="572" y="256">APOLL_ABORTED</text></g>
+<!-- CQ ring -->
+<text class="ttl" x="190" y="300">CQ RING (kernel produces)</text>
+<g id="mech-cqslots"></g>
+<g id="mech-cqHead"><polygon class="mk kk" points="0,0 -7,10 7,10"/><text class="sm" x="-10" y="9" text-anchor="end">head</text></g>
+<g id="mech-cqTail"><polygon class="mk" points="0,0 -7,10 7,10"/><text class="sm" x="10" y="9">tail</text></g>
+<!-- edges -->
+<path class="edge" data-s="1" d="M140 130 L190 52" marker-end="url(#mech-ah)"/>
+<path class="edge" data-s="2" d="M140 180 L190 180" marker-end="url(#mech-ah)"/>
+<path class="edge" data-s="2" d="M350 112 L350 80" marker-end="url(#mech-ah)"/>
+<path class="edge k" data-s="4" d="M510 136 L560 128" marker-end="url(#mech-ah)"/>
+<path class="edge k" data-s="4" d="M510 224 L560 232" marker-end="url(#mech-ah)"/>
+<path class="edge k" data-s="5" d="M560 146 L510 158 M560 218 L510 206" marker-end="url(#mech-ah)"/>
+<path class="edge" data-s="6" d="M350 248 L350 300" marker-end="url(#mech-ah)"/>
+<path class="edge" data-s="7" d="M190 326 L110 264" marker-end="url(#mech-ah)"/>
+</svg>
+<div class="stepper"><button class="btn ghost" id="mech-tback" type="button">Back</button><button class="btn" id="mech-tnext" type="button">Next</button><button class="btn ghost" id="mech-treset" type="button">Reset</button><span class="counter-s" id="mech-tcount">Step 1 / 7</span>
+<label style="font-size:14px;margin-left:auto"><input type="checkbox" id="mech-tfile"> buffered-file variant (io-wq)</label></div>
+<div class="stepcap" id="mech-tcap" role="status" aria-live="polite"></div>
+</figure>
+
+<pre><code>app:   sqe = &amp;sqes[tail &amp; mask];  fill(opcode=READ, fd, addr=buf, len=4096, user_data=0xA1)
+       array[tail &amp; mask] = tail &amp; mask
+       store_release(sq.tail, tail+1)            # publish
+       io_uring_enter(fd, to_submit=1, min_complete=1, GETEVENTS)   # 1 syscall for N sqes
+
+kernel io_uring_enter -&gt; io_submit_sqes (uring_lock)
+   per SQE: io_alloc_req -&gt; io_get_sqe -&gt; io_submit_sqe -&gt; io_init_req
+   non-linked -&gt; io_queue_sqe:
+        issue_flags = NONBLOCK | COMPLETE_DEFER
+        io_issue_sqe()  ----- inline attempt in *submitter's context* ----&gt;
+             page-cache hit / O_DIRECT w/ NOWAIT / socket w/ data  =&gt; completes, CQE posted
+        ret == -EAGAIN ?
+          io_queue_async -&gt; copy SQE (slot about to be reused) -&gt; io_arm_poll_handler
+             APOLL_OK      pollable fd (socket/pipe): sleep on file waitqueue, no thread
+             APOLL_READY   became ready meanwhile: queue as task_work, retry
+             APOLL_ABORTED not pollable (regular file buffered, etc.): io_queue_iowq -&gt; io_wq_enqueue
+                              worker thread runs io_issue_sqe(UNLOCKED|IOWQ) *blocking*
+app:   acquire(cq.tail) != cq.head ?  cqe = cqes[head &amp; mask]; use(cqe.res, cqe.user_data)
+       store_release(cq.head, head+1)</code></pre>
+<p>Key facts <span class="mini">[V]</span> from source:</p>
+<ul>
+<li>Non-blocking ops complete <strong>inside the submit call</strong>; the CQE is already in the ring on return (paper &sect;9.2).</li>
+<li><code>IOSQE_ASYNC</code> skips the inline attempt &rarr; straight to io-wq.</li>
+<li>Completions from poll/io-wq come back via <strong>task_work</strong> on the submitting task. Plain <code>TWA_SIGNAL</code> = IPI that interrupts userspace.</li>
+<li><code>__io_submit_flush_completions</code> batches CQE posting.</li>
+</ul>
+<div class="callout gotcha measure"><b>Reality check</b>"Async" for buffered file I/O = a kernel thread pool doing blocking syscalls (<code>iou-wrk-*</code> threads), like libuv's pool, just in-kernel and cheaper. Real async: O_DIRECT/NVMe with NOWAIT, sockets/pipes via poll.</div>
+
+<p>Jasny et al. draw the three execution paths: inline completion, the poll set for sockets, and the worker fallback for blocking work.</p>
+<figure data-fig="fig3"></figure>
+<h3>5.3 io-wq details <span class="mini">[V]</span></h3>
+<ul>
+<li>Two pools: <strong>bound</strong> (regular files/bdev; sized from SQ ring) and <strong>unbound</strong> (sockets, char devs; max = <code>RLIMIT_NPROC</code>).</li>
+<li>Per-task, per-NUMA pools; workers are threads of the submitting task (5.12 <code>NATIVE_WORKERS</code>), idle timeout 5 s.</li>
+<li>Hashed work serializes buffered writes to the same inode.</li>
+<li>Control: <code>IORING_REGISTER_IOWQ_MAX_WORKERS</code> (5.15). Hitting <code>RLIMIT_NPROC</code>/cgroup <code>pids.max</code> &rarr; the ring may burn CPU retrying thread creation (Cloudflare "missing manuals").</li>
+</ul>
+
+<h3>5.4 SQPOLL</h3>
+<p>A per-ring kernel thread polls the SQ tail. Zero syscalls while awake.</p>
+<pre><code>thread idle &gt; sq_thread_idle (default 1 s):
+   atomic_or(sq.flags, NEED_WAKEUP); smp_mb__after_atomic(); recheck sq entries; sleep
+app after tail store:
+   full barrier;  if (load(sq.flags) &amp; NEED_WAKEUP) io_uring_enter(SQ_WAKEUP)</code></pre>
+<p>The full barrier pairs with the thread's post-flag barrier: a classic Dekker-style store&rarr;load race. Without it the app sees no flag while the thread sees no entry &rarr; lost wakeup. Unprivileged since 5.13. Costs a core; Jasny et al. measure ~30 &micro;s wake latency from sleep.</p>
+
+<h3>5.5 Flags that decide perf</h3>
+<div class="tblwrap"><table><thead><tr><th>Flag</th><th>Ver</th><th>What</th></tr></thead><tbody>
+<tr><td><code>COOP_TASKRUN</code></td><td>5.19</td><td>no IPI; task_work runs at next kernel entry</td></tr>
+<tr><td><code>SINGLE_ISSUER</code></td><td>6.0</td><td>one task submits &rarr; drop locks/atomics</td></tr>
+<tr><td><code>DEFER_TASKRUN</code></td><td>6.1</td><td>task_work runs <em>only</em> inside <code>io_uring_enter(GETEVENTS)</code> on <code>ctx-&gt;work_llist</code>; needs SINGLE_ISSUER; gotcha: never call GETEVENTS &rarr; nothing completes</td></tr>
+<tr><td>multishot accept/recv</td><td>5.19/6.0</td><td>1 SQE &rarr; many CQEs; <code>CQE_F_MORE</code> clear &rArr; must re-arm</td></tr>
+<tr><td>provided buffer rings</td><td>5.19</td><td>kernel picks buffer at data arrival; no buffer pinned per idle conn</td></tr>
+<tr><td><code>SEND_ZC</code></td><td>6.0</td><td>2 CQEs: result (F_MORE) then <code>F_NOTIF</code> = buffer reusable; <code>NOTIF_USAGE_ZC_COPIED</code> = kernel fell back to copy</td></tr>
+<tr><td>fixed files/buffers</td><td>5.1</td><td>skip per-op fdget/refcount atomics and per-op page pin (pinned, memlock-charged, &le;1 GiB/buf)</td></tr>
+<tr><td><code>IOSQE_IO_LINK</code></td><td>5.3</td><td>next SQE starts after prev success; error &rarr; rest <code>-ECANCELED</code>; HARDLINK doesn't sever</td></tr>
+</tbody></table></div>
+<script>
+(function(){
+var $=function(s,r){return (r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS="http://www.w3.org/2000/svg";
+function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+/* indirection figure */
+(function(){
+  var A=$("#mech-indA"),S=$("#mech-indS"),C=$("#mech-indC"),i;
+  var map=[5,2,7,0,3,6];
+  for(i=0;i<6;i++){var x=10+i*52;el("rect",{class:"slot",x:x,y:26,width:46,height:30,rx:4},A);var t=el("text",{class:"lbl",x:x+23,y:46,"text-anchor":"middle"},A);t.textContent=map[i]}
+  for(i=0;i<8;i++){var x2=10+i*52;var r=el("rect",{class:"slot"+"",x:x2,y:116,width:46,height:30,rx:4},S);if(map.indexOf(i)>=0)r.setAttribute("style","fill:var(--accent-soft);stroke:var(--accent)");var t2=el("text",{class:"lbl",x:x2+23,y:136,"text-anchor":"middle"},S);t2.textContent="sqe"+i}
+  map.forEach(function(m,k){el("path",{d:"M"+(33+k*52)+" 56 L"+(33+m*52)+" 116",stroke:"var(--accent)","stroke-width":1.5,fill:"none","marker-end":"url(#mech-ah0)",opacity:.8},A)});
+  for(i=0;i<6;i++){var x3=10+i*52;el("rect",{class:"slot",x:x3,y:158,width:46,height:30,rx:4,style:"fill:var(--surface2)"},C);var t3=el("text",{class:"lbl",x:x3+23,y:178,"text-anchor":"middle"},C);t3.textContent="cqe"+i}
+})();
+
+/* trace stepper */
+(function(){
+  var SQ=8,sx=190,sw=40,sy=34,cy=310;
+  var sqg=$("#mech-sqslots"),cqg=$("#mech-cqslots"),i;
+  for(i=0;i<SQ;i++){el("rect",{class:"slot",x:sx+i*sw,y:sy,width:sw-4,height:30,rx:4},sqg);var t=el("text",{class:"sm",x:sx+i*sw+(sw-4)/2,y:sy+19,"text-anchor":"middle"},sqg);t.textContent=i}
+  var sqe0=el("rect",{x:sx+4,y:sy+4,width:sw-12,height:22,rx:3,class:"hl-fill",id:"sqe0",style:"opacity:0"},sqg);
+  for(i=0;i<SQ;i++){el("rect",{class:"slot",x:sx+i*sw,y:cy,width:sw-4,height:30,rx:4},cqg);var t2=el("text",{class:"sm",x:sx+i*sw+(sw-4)/2,y:cy+19,"text-anchor":"middle"},cqg);t2.textContent=i}
+  var cqe0=el("rect",{x:sx+4,y:cy+4,width:sw-12,height:22,rx:3,class:"hl-fill",style:"opacity:0"},cqg);
+  var sqH=$("#mech-sqHead"),sqT=$("#mech-sqTail"),cqH=$("#mech-cqHead"),cqT=$("#mech-cqTail");
+  function place(g,idx,y){g.setAttribute("transform","translate("+(sx+idx*sw+(sw-4)/2)+","+y+")")}
+  var steps=[
+   {sock:true,t:0,h:0,ct:0,ch:0,k:"waiting",cap:"The app fills <code>sqes[0]</code> (READ, fd, buf, len=4096, <code>user_data=0xA1</code>), writes <code>array[0]=0</code>, then <code>store_release(sq.tail, 1)</code>. Release ordering guarantees the kernel can't see the new tail before the SQE bytes. No syscall yet."},
+   {t:1,h:0,ct:0,ch:0,k:"io_uring_enter",cap:"<code>io_uring_enter(fd, to_submit=1, min_complete=1, GETEVENTS)</code>: the one syscall for the batch. The kernel takes <code>uring_lock</code>, reads <code>array[head]</code>, copies nothing yet, and walks <code>io_submit_sqes</code>."},
+   {t:1,h:1,ct:0,ch:0,k:"io_issue_sqe NONBLOCK",cap:"<code>io_queue_sqe</code> sets <code>issue_flags = NONBLOCK|COMPLETE_DEFER</code> and calls <code>io_issue_sqe()</code> inline in the submitter's context. The kernel advances <code>sq.head</code> (<code>smp_store_release</code>); the slot is reusable. A page-cache hit or a socket with data would finish right here with the CQE already posted."},
+   {t:1,h:1,ct:0,ch:0,k:"-EAGAIN: queue_async",cap:"Here it returns <code>-EAGAIN</code> (no data yet). <code>io_queue_async</code> <strong>copies the SQE</strong> (the slot is about to be reused) and calls <code>io_arm_poll_handler</code>. <span class=\"poll\">Socket: <code>APOLL_OK</code>, the request sleeps on the file's waitqueue, no thread.</span><span class=\"file\"> Buffered file: <code>APOLL_ABORTED</code>, so <code>io_queue_iowq</code> hands it to an <code>iou-wrk-*</code> worker that runs it blocking.</span>",branch:true,hot:true},
+   {t:1,h:1,ct:0,ch:0,k:"task_work",cap:"<span class=\"poll\">Data arrives, the waitqueue wakes, <code>io_poll_task_func</code> runs as <strong>task_work</strong> on the submitting task, rechecks with <code>vfs_poll</code>, reissues the read.</span><span class=\"file\"> The worker finishes its blocking read and completes via task_work back on the submitting task.</span> With DEFER_TASKRUN this runs only inside <code>io_uring_enter(GETEVENTS)</code>; plain <code>TWA_SIGNAL</code> would IPI userspace.",branch:true,hot:true},
+   {t:1,h:1,ct:1,ch:0,k:"CQE posted",cap:"The kernel writes <code>cqes[0] = {user_data=0xA1, res=4096, flags}</code> and <code>store_release(cq.tail, 1)</code>. <code>__io_submit_flush_completions</code> batches this for many requests."},
+   {t:1,h:1,ct:1,ch:1,k:"reaped",cap:"The app does <code>acquire(cq.tail) != cq.head</code>, reads <code>cqes[0]</code> (<code>res=4096</code>, <code>user_data=0xA1</code> tells it which request), then <code>store_release(cq.head, 1)</code>. Done: one syscall total for the batch."}
+  ];
+  var sI=0,all=$$("#mech-trace [data-s]"),cap=$("#mech-tcap"),cnt=$("#mech-tcount"),file=$("#mech-tfile"),kt=$("#mech-ktext");
+  function render(){
+    var s=steps[sI],n=sI+1,isFile=file.checked;
+    all.forEach(function(e){
+      var on=e.getAttribute("data-s").split(" ").indexOf(String(n))>=0;
+      if(e.id==="iowq"&&n>=4&&n<=5)on=isFile;
+      if(e.tagName==="g"&&e.querySelector(".ttl")&&e.querySelector(".ttl").textContent==="POLL WAITLIST"&&n>=4&&n<=5)on=!isFile;
+      e.classList.toggle("on",on);
+    });
+    $$("#mech-trace path.edge").forEach(function(p){
+      var on=p.getAttribute("data-s").split(" ").indexOf(String(n))>=0;
+      if(n===4){var d=p.getAttribute("d");if(d.indexOf("560 128")>0)on=!isFile;if(d.indexOf("560 232")>0)on=isFile}
+      p.classList.toggle("on",on);
+    });
+        sqT.setAttribute("transform","translate("+(sx+s.t*sw+(sw-4)/2)+","+(sy+34)+")");
+    sqH.setAttribute("transform","translate("+(sx+s.h*sw+(sw-4)/2)+","+(sy+34)+")");
+    cqT.setAttribute("transform","translate("+(sx+s.ct*sw+(sw-4)/2)+","+(cy+34)+")");
+    cqH.setAttribute("transform","translate("+(sx+s.ch*sw+(sw-4)/2)+","+(cy+34)+")");
+    sqe0.style.opacity=(s.t>s.h||n===2||n===3)?1:(s.t>0&&s.h>0?0.35:0);
+    cqe0.style.opacity=(s.ct>s.ch)?1:(s.ct>0?0.35:0);
+    kt.textContent=n>=2&&n<=5?"state: "+s.k:"";
+    cap.innerHTML=s.cap;
+    $$(".poll",cap).forEach(function(x){x.style.display=isFile?"none":"inline"});
+    $$(".file",cap).forEach(function(x){x.style.display=isFile?"inline":"none"});
+    cnt.textContent="Step "+n+" / "+steps.length;
+    $("#mech-tback").disabled=sI===0;$("#mech-tnext").disabled=sI===steps.length-1;
+  }
+  $("#mech-tnext").addEventListener("click",function(){if(sI<steps.length-1){sI++;render()}});
+  $("#mech-tback").addEventListener("click",function(){if(sI>0){sI--;render()}});
+  $("#mech-treset").addEventListener("click",function(){sI=0;render()});
+  file.addEventListener("change",render);
+  $("#mech-trace").addEventListener("keydown",function(e){if(e.key==="ArrowRight"&&!e.target.matches("input")){$("#mech-tnext").click()}else if(e.key==="ArrowLeft"&&!e.target.matches("input")){$("#mech-tback").click()}});
+  render();
+})();
+
+
+})();
+</script>
+</div>

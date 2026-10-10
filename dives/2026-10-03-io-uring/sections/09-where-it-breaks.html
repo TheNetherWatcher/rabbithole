@@ -1,0 +1,27 @@
+<h3>Security (the big one)</h3>
+<ul>
+<li>Google kCTF/VRP post (14 Jun 2023): "60% of the submissions exploited the io_uring component" (of 42 Linux kernel exploit submissions), "~1 million USD for io_uring alone". Disabled on ChromeOS, production servers; Android seccomp-blocks it for apps. Stance: safe only for trusted components. <span class="mini">[V]</span> <a href="https://security.googleblog.com/2023/06/learnings-from-kctf-vrps-42-linux.html" target="_blank" rel="noopener">read directly in this pass</a></li>
+<li>Bug classes = object-lifetime between ring-owned resources and user-visible mappings/fds, plus new opcodes reusing old fields:
+<ul>
+<li><strong>CVE-2021-41073</strong>: <code>PROVIDE_BUFFERS</code> puts a kernel <code>io_buffer*</code> in <code>req-&gt;rw.addr</code>; <code>loop_rw_iter</code> treats it as a user ptr; later <code>io_put_kbuf</code> frees attacker-adjacent memory (type confusion). 5.10&ndash;5.14.6.</li>
+<li><strong>CVE-2022-2602</strong>: race between registered files in flight and <strong>unix-socket GC</strong> &rarr; UAF.</li>
+<li><strong>CVE-2023-2598</strong>: OOB physical-page access in fixed-buffer registration (folio/compound page coalescing), 6.3-rc1&rarr;6.4-rc1, full LPE.</li>
+<li><strong>CVE-2024-0582</strong>: pbuf ring register &rarr; mmap &rarr; unregister leaves a mapping to freed pages. (NVD says "memory leak"; mechanism from write-ups, confirm.)</li>
+</ul></li>
+<li><strong>Monitoring blind spot</strong>: seccomp sees only <code>io_uring_setup/enter/register</code>, never the SQE opcodes. ARMO "Curing" rootkit PoC (2025) ran C2 + file ops via io_uring; Falco blind, Tetragon default policies miss, MS Defender didn't detect <span class="mini">[V]</span> ARMO. Ops run from io-wq/task_work context also dodge <code>sys_enter_*</code> tracing.</li>
+<li>Mitigations: <code>kernel.io_uring_disabled</code> sysctl (0 allow / 1 only <code>io_uring_group</code> or CAP_SYS_ADMIN, existing rings keep working / 2 <code>-EPERM</code> for all; 6.6 <span class="mini">[K]</span>); Docker default seccomp blocks it; containerd 2.0 removed from RuntimeDefault <span class="mini">[search-only]</span>.</li>
+</ul>
+
+<div class="callout mis measure"><b>Gotcha: seccomp sees three syscalls, not the ops</b>Everything an SQE does (<code>OPENAT</code>, <code>READ</code>, <code>SEND</code>, <code>CONNECT</code>) happens behind <code>io_uring_enter</code>. A syscall-keyed audit or EDR policy never sees it.</div>
+
+<h3>Correctness / perf pitfalls</h3>
+<ul>
+<li>Completions are unordered. <code>fsync</code> can complete <em>before</em> the write is issued unless linked (man page quote). <code>IOSQE_IO_DRAIN</code> = full barrier, expensive.</li>
+<li>Cancel: <code>ASYNC_CANCEL</code> yields 2 CQEs, order unspecified; in-flight disk I/O "typically cannot be canceled" (stray DMA risk). Tokio's drop-cancels-future model collides: a dropped future &ne; a stopped kernel write into your buffer &rarr; owned-buffer APIs (without.boats).</li>
+<li>io-wq thread explosion vs <code>RLIMIT_NPROC</code>/<code>pids.max</code>.</li>
+<li>Multishot: the ring of provided buffers runs dry &rArr; <code>-ENOBUFS</code>, multishot terminates <span class="mini">[K]</span>; absent <code>F_MORE</code> &rArr; re-arm.</li>
+<li>SEND_ZC: pin + extra notif CQE costs more than memcpy for small sends (~&lt;10 KB) <span class="mini">[K]</span>.</li>
+<li>io-wq/SQPOLL threads are real tasks &rArr; coredump/ptrace/freezer regressions <span class="mini">[search-only]</span>.</li>
+<li>Kernel-version fragmentation: 5.19&rarr;6.0&rarr;6.1&rarr;6.6&rarr;6.15&hellip; portable code needs fallbacks; nginx cited regressions + tuning cost, never merged.</li>
+</ul>
+<div class="callout gotcha measure"><b>Misconception</b>"io_uring = faster epoll." Jasny et al.: swapping interfaces naively &rarr; 1.06&times; / 1.10&times;.</div>
