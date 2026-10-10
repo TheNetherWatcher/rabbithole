@@ -1,0 +1,9 @@
+<blockquote>
+<p>"ML-KEM is a lattice-based KEM whose security comes from Module-LWE: a public key is As + e, and the small error e makes it hard to recover s."</p>
+</blockquote>
+<p>What that sentence leaves out:
+1. <strong>The error that protects the secret also corrupts the message.</strong> Why does decryption work anyway, and how was 2^-164.8 computed? (§6)
+2. <strong>The lattice core is only CPA-secure.</strong> On its own it falls to chosen-ciphertext key recovery. The <strong>Fujisaki–Okamoto</strong> transform with <em>re-encryption</em> and <em>implicit rejection</em> fixes that, and it also makes every side channel in decryption a key-recovery oracle. (§5, §7, §9)
+3. <strong>The NTT is part of the format, not just an optimization.</strong> The matrix A is sampled directly in the NTT domain, and q = 3329 was picked so a 7-layer <em>incomplete</em> NTT exists. (§5, §6)
+4. <strong>"Compression" removes ciphertext bits and adds noise on purpose.</strong> The noise budget is shared between sampled noise and rounding noise. (§6, §8)
+5. <strong>The shared key doesn't commit to everything you would assume.</strong> ML-KEM isn't MAL-BIND-K-CT (an attacker with a malicious key can make two ciphertexts give the same K), which is why hybrids hash the transcript. (§9, §11)</p>

@@ -1,0 +1,8 @@
+<ul>
+<li><strong>KEM (key encapsulation mechanism)</strong>: <code>KeyGen() → (ek, dk)</code>, <code>Encaps(ek) → (K, c)</code>, <code>Decaps(dk, c) → K</code>. It is not a two-sided DH exchange: only one party picks the secret. (<a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" target="_blank" rel="noopener">FIPS 203 §3</a>)</li>
+<li><strong>LWE (Learning With Errors)</strong>: given A and b = As + e with s and e small, finding s is believed hard even for quantum computers. Remove the e and Gaussian elimination solves it. (<a href="https://cims.nyu.edu/~regev/papers/qcrypto.pdf" target="_blank" rel="noopener">Regev 2005</a>)</li>
+<li><strong>Polynomial ring R_q = Z_q[X]/(X^256+1)</strong>: vectors of 256 integers mod q, multiplied as polynomials where X^256 wraps to −1 (a negacyclic convolution).</li>
+<li><strong>NTT (number-theoretic transform)</strong>: an FFT over Z_q. It turns that convolution into pointwise products. (<a href="https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" target="_blank" rel="noopener">FIPS 203 §4.3</a>)</li>
+<li><strong>IND-CPA vs IND-CCA2</strong>: IND-CPA means secure against eavesdroppers. IND-CCA2 means secure against someone who can submit ciphertexts of their choice and watch the result. Reusable keys need CCA2.</li>
+<li><strong>Random oracle model (ROM/QROM)</strong>: proofs treat hash functions as ideal random functions. The QROM version lets a quantum attacker query them in superposition.</li>
+</ul>

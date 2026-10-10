@@ -1,0 +1,128 @@
+<h3>Key equations</h3>
+<div class="eq">w = v′ − <b>s</b><sup>⊤</sup><b>u</b>′ = ⌈q/2⌋·m + <span style="white-space:nowrap">(<b>e</b><sup>⊤</sup><b>y</b> − <b>s</b><sup>⊤</sup>(<b>e</b><sub>1</sub> + <b>c</b><sub>u</sub>) + e<sub>2</sub> + c<sub>v</sub>)</span> = ⌈q/2⌋·m + n<sub>total</sub><small>→ in plain terms: the big term s<sup>⊤</sup>A<sup>⊤</sup>y cancels exactly. What remains is the message plus small noise, and decryption works while |n<sub>total</sub>| &lt; q/4 = 832.</small></div>
+<div class="eq">σ² ≈ kn(η<sub>1</sub>/2)² + kn·(η<sub>1</sub>/2)·(η<sub>2</sub>/2 + (q/2<sup>d<sub>u</sub></sup>)²/12) + η<sub>2</sub>/2 + (q/2<sup>d<sub>v</sub></sup>)²/12<small>→ in plain terms: ML-KEM-768 gives 768 + 1444 + 1 + 3608 ≈ 5821, so σ ≈ 76. Most of it comes from rounding v to 4 bits.</small></div>
+<div class="eq">Adv<sup>IND-CCA</sup> ≤ 2·Adv<sup>MLWE</sup><sub>k+1,k,η</sub> + Adv<sup>PRF</sup> + 4·q<sub>RO</sub>·δ<small>→ in plain terms: every hash query is a lottery ticket for a decryption failure. With 2<sup>64</sup> queries and δ = 2<sup>−164.8</sup> the term is 2<sup>−98.8</sup>.</small></div>
+<div class="eq">X<sup>256</sup> + 1 = ∏<sub>i=0</sub><sup>127</sup> (X² − ζ<sup>2·BitRev<sub>7</sub>(i)+1</sup>), &nbsp; ζ = 17, &nbsp; q = 3329 = 13·2<sup>8</sup> + 1<small>→ in plain terms: Z<sub>3329</sub> has 256th roots of unity but no 512th, so the NTT stops one layer early and multiplication works on 128 degree-1 pairs.</small></div>
+<div class="eq">Compress<sub>d</sub>(x) = ⌈(2<sup>d</sup>/q)·x⌋ mod 2<sup>d</sup>, &nbsp; Decompress<sub>d</sub>(y) = ⌈(q/2<sup>d</sup>)·y⌋<small>→ in plain terms: keep the top d bits. The round trip adds an error of up to ±q/2<sup>d+1</sup> (±104 for d = 4). The reference code computed this with a C <code>/</code>, which was KyberSlash.</small></div>
+<h3>6.1 Why decryption works: the cancellation</h3>
+<p>Write ρ_d(x) = x − Decompress_d(Compress_d(x)) for the rounding error. Let c_u = −ρ_du(u) and c_v = −ρ_dv(v) be the errors compression adds. Then the receiver sees</p>
+<p>u′ = Aᵀy + e₁ + c_u,  v′ = tᵀy + e₂ + ⌈q/2⌋·m + c_v,  with t = As + e.</p>
+<p>Compute w = v′ − sᵀu′:</p>
+<p>w = (As + e)ᵀy + e₂ + ⌈q/2⌋m + c_v − sᵀ(Aᵀy + e₁ + c_u)
+  = <strong>sᵀAᵀy</strong> + eᵀy + e₂ + ⌈q/2⌋m + c_v − <strong>sᵀAᵀy</strong> − sᵀe₁ − sᵀc_u</p>
+<p>→ in plain terms: the large, uniform-looking term sᵀAᵀy appears once from the sender's side and once from the receiver's side, so it <strong>cancels exactly</strong>. What remains is the message plus</p>
+<p><strong>n_total = eᵀy − sᵀ(e₁ + c_u) + e₂ + c_v</strong>,</p>
+<p>where every term is a product of small things or a bounded rounding error.</p>
+<p><strong>Correctness condition:</strong> ‖n_total‖_∞ &lt; ⌈q/4⌋ = 832. Why q/4: the two symbols sit at 0 and q/2, and the decision boundary is halfway between them.</p>
+<h3>6.2 How big is the noise? (variance)</h3>
+<p>One coefficient of a product of two polynomials in Z_q[X]/(X^256+1) is a signed sum of 256 coefficient products. The wraparound X^256 = −1 only flips signs. A dot product over a rank-k module therefore sums <strong>kn = 768</strong> such products for ML-KEM-768.</p>
+<ul>
+<li>CBD_η variance is η/2, so 1 for η = 2.</li>
+<li>eᵀy: 768 products of two variance-1 variables, giving variance 768.</li>
+<li>sᵀ(e₁ + c_u): c_u is roughly uniform with width q/2^du = 3.25, so Var(c_u) ≈ 3.25²/12 = 0.88. Variance = 768·(1 + 0.88) ≈ 1444.</li>
+<li>e₂: 1.</li>
+<li>c_v: width q/2^dv = 208, so Var = 208²/12 ≈ <strong>3608</strong>.</li>
+</ul>
+<p>σ² ≈ 768 + 1444 + 1 + 3608 = 5821, <strong>σ ≈ 76.3</strong></p>
+<p>→ in plain terms: the typical leftover wobble is about ±76 out of 3329. Measured over 51,200 coefficients with <code>experiments.py</code>, σ = 76.6 and the worst value was 292. Most of the noise, <strong>62% of the variance</strong>, comes from rounding v down to 4 bits, not from the sampled secrets. Kyber deliberately spends the noise budget on compression, because every bit saved there makes the ciphertext smaller.</p>
+<h3>6.3 Why the failure rate isn't what a Gaussian predicts</h3>
+<p>The threshold is 832 / 76.3 ≈ 10.9σ. A Gaussian tail for each of 256 coefficients gives</p>
+<p>P_fail ≈ 256 · erfc(10.9/√2) ≈ <strong>2^-81</strong>.</p>
+<p>FIPS 203 gives <strong>2^-164.8</strong>. Convolving the actual distributions exactly (<code>failure_prob.py</code>, the same method as the Kyber team's script) reproduces 2^-138.8, 2^-164.8 and 2^-174.8 for the three parameter sets.</p>
+<p>The 84-bit gap comes from a <strong>bounded</strong> term: |c_v| ≤ 104 always. To fail, the unbounded part eᵀy − sᵀ(e₁+c_u) has to supply at least 832 − 104 = 728 on its own. That part has σ ≈ √2213 ≈ 47, so 728 is about 15.5σ, far deeper in the tail. Even that part is a sum of products of <em>bounded</em> variables, so its tail is lighter than Gaussian too. (The decomposition is my own explanation; the numbers are from the scripts.)</p>
+<p>→ in plain terms: you can't estimate lattice-KEM failure rates with a CLT approximation. You have to convolve the real distributions.</p><div class="widget" id="math-lab" role="group" aria-label="Noise-budget lab">
+<style>
+#math-lab .sl{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 16px;margin:8px 0}
+#math-lab .sl label{display:flex;align-items:center;gap:8px;font-size:14px}
+#math-lab .sl input{flex:1;min-width:0;accent-color:var(--accent)}
+#math-lab .sl output{font:600 13px ui-monospace,monospace;width:1.5em}
+#math-lab .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+#math-lab .nums div{background:var(--code);border-radius:10px;padding:10px 12px}
+#math-lab .nums b{display:block;font-size:1.1rem;color:var(--accent)}
+#math-lab .nums span{font-size:12.5px;color:var(--mute)}
+#math-lab .verdict{padding:8px 12px;border-radius:8px;font-weight:600;background:var(--code);margin-top:10px}
+#math-lab .verdict.ok{color:var(--ok)}#math-lab .verdict.bad{color:var(--bad)}
+</style>
+<b>Noise-budget lab.</b> <span class="mini">Change the parameters. The page convolves the real noise distributions (as in <code>failure_prob.py</code>) and compares the exact failure rate with a Gaussian estimate.</span>
+<div class="ctl" style="margin-top:8px">
+<button class="btn" type="button" data-p="2,3,2,10,4">ML-KEM-512</button>
+<button class="btn" type="button" data-p="3,2,2,10,4" aria-pressed="true">ML-KEM-768</button>
+<button class="btn" type="button" data-p="4,2,2,11,5">ML-KEM-1024</button>
+</div>
+<div class="sl">
+<label>k (rank) <input id="math-lk" type="range" min="2" max="4" value="3"><output id="math-ok">3</output></label>
+<label>η₁ <input id="math-le1" type="range" min="1" max="3" value="2"><output id="math-oe1">2</output></label>
+<label>η₂ <input id="math-le2" type="range" min="1" max="3" value="2"><output id="math-oe2">2</output></label>
+<label>dᵤ <input id="math-ldu" type="range" min="8" max="11" value="10"><output id="math-odu">10</output></label>
+<label>dᵥ <input id="math-ldv" type="range" min="2" max="6" value="4"><output id="math-odv">4</output></label>
+</div>
+<svg id="math-varbar" viewBox="0 0 600 70" role="img" aria-label="Variance contributions" style="width:100%;height:auto;display:block"></svg>
+<div class="nums">
+<div><b id="math-rSig">–</b><span>σ of noise</span></div>
+<div><b id="math-rExact">–</b><span>exact δ (per ciphertext)</span></div>
+<div><b id="math-rGauss">–</b><span>Gaussian estimate</span></div>
+<div><b id="math-rCt">–</b><span>ciphertext / ek bytes</span></div>
+</div>
+<p id="math-rVerdict" class="verdict" aria-live="polite"></p>
+</div>
+<h3>6.4 Why δ must be about 2^-128 or lower: the CCA bound</h3>
+<p>In the classical ROM, the Kyber R3 spec (Theorem 2) gives</p>
+<p>Adv^{IND-CCA}<em>{ML-KEM} ≤ 2·Adv^{MLWE}</em>{k+1,k,η} + Adv^{PRF} + <strong>4·q_RO·δ</strong></p>
+<p>where q_RO is the number of hash queries. With q_RO = 2^64 and ML-KEM-768, 4·2^64·2^-164.8 = 2^-98.8, which is negligible. In the QROM the bound degrades to 4q_RO·√Adv^{MLWE} + 8q_RO²·δ. That square root is why QROM tightness is still open (§11b).</p>
+<p>→ in plain terms: each hash query is a lottery ticket for finding a ciphertext that fails to decrypt, and a failure leaks information about s. δ has to be small enough that 2^64 tickets win nothing.</p>
+<h3>6.5 Why the NTT has this form</h3>
+<p>q − 1 = 3328 = 2^8 · 13, so Z_3329 contains 256th roots of unity (ζ = 17: 17^128 ≡ −1) but <strong>no 512th roots</strong>. A full negacyclic NTT for X^256 + 1 would need a 512th root. So the polynomial splits only into 128 quadratics:</p>
+<p>X^256 + 1 = ∏_{i=0}^{127} (X² − ζ^{2·BitRev₇(i)+1})</p>
+<p>The NTT therefore has <strong>7 layers instead of 8</strong>, and "pointwise" multiplication is 128 products in Z_q[X]/(X² − γᵢ):</p>
+<p>(a₀ + a₁X)(b₀ + b₁X) = (a₀b₀ + a₁b₁γᵢ) + (a₀b₁ + a₁b₀)X</p>
+<p>→ in plain terms: one of the smaller primes would allow a full NTT but has too little room for noise. 3329 gives up one butterfly layer in exchange for a small modulus whose coefficients fit in 12 bits, and products of two fit in 32-bit lanes.</p>
+<p><strong>Cost.</strong> Schoolbook ring multiplication takes 256² = 65,536 multiplications. With the NTT it is about 7·128 = 896 butterfly multiplications per transform plus 128 base multiplications of about 5 multiplications each. A matrix–vector product Âᵀŷ needs k² = 9 base multiplications and only k transforms each way, because the operands are kept in the NTT domain.</p>
+<h3>6.6 Compression, exactly</h3>
+<p>Compress_d(x) = ⌈(2^d / q)·x⌋ mod 2^d,  Decompress_d(y) = ⌈(q / 2^d)·y⌋</p>
+<p>The round-trip error is nearly uniform on |·| ≤ ⌈q/2^{d+1}⌋: ±2 for d = 10, ±1 for d = 11, ±104 for d = 4, ±52 for d = 5. FIPS 203 says floating point <strong>shall not</strong> be used. The reference code computed ⌈2^d·x/q⌋ with a C <code>/</code> by q. That line was <strong>KyberSlash</strong> (§9).</p>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id);};
+// noise lab: exact convolution (dense arrays, offset-indexed)
+var Q=3329,N=256,WIN=1800;
+function binom(n,k){var r=1;for(var i=1;i<=k;i++)r=r*(n-k+i)/i;return r;}
+function cbd(eta){var m={};var tot=Math.pow(2,2*eta);for(var i=0;i<=2*eta;i++)m[i-eta]=binom(2*eta,i)/tot;return m;}
+function cerr(d){var m={};for(var x=0;x<Q;x++){var y=Math.floor(((x<<d)+(Q>>1))/Q)%(1<<d);var xr=(y*Q+(1<<(d-1)))>>d;var e=((xr-x+(Q>>1))%Q+Q)%Q-(Q>>1);m[e]=(m[e]||0)+1/Q;}return m;}
+function prod(a,b){var m={};for(var i in a)for(var j in b){var k=(+i)*(+j);m[k]=(m[k]||0)+a[i]*b[j];}return m;}
+function addD(a,b){var m={};for(var i in a)for(var j in b){var k=(+i)+(+j);m[k]=(m[k]||0)+a[i]*b[j];}return m;}
+function arr(m){var ks=Object.keys(m).map(Number);var lo=Math.min.apply(null,ks),hi=Math.max.apply(null,ks);var a=new Float64Array(hi-lo+1);ks.forEach(function(k){a[k-lo]=m[k];});return {a:a,lo:lo};}
+function conv(x,y){var n=x.a.length,m=y.a.length,o=new Float64Array(n+m-1);for(var i=0;i<n;i++){var xi=x.a[i];if(xi===0)continue;for(var j=0;j<m;j++)o[i+j]+=xi*y.a[j];}
+ var lo=x.lo+y.lo,r={a:o,lo:lo};return clip(r);}
+function clip(r){var lo=r.lo,a=r.a;var s=Math.max(0,-WIN-lo),e=Math.min(a.length,WIN-lo+1);if(s===0&&e===a.length)return r;var b=a.slice(s,e);return {a:b,lo:lo+s};}
+function pw(m,n){var res={a:new Float64Array([1]),lo:0},base=arr(m);while(n){if(n&1)res=conv(res,base);n>>=1;if(n)base=conv(base,base);}return res;}
+var memo={};function cached(key,f){if(!(key in memo))memo[key]=f();return memo[key];}
+function failure(k,e1,e2,du,dv){
+ var ey=cached('ey'+k+e1,function(){return pw(prod(cbd(e1),cbd(e1)),k*N);});
+ var se=cached('se'+[k,e1,e2,du],function(){return pw(prod(cbd(e1),addD(cbd(e2),cerr(du))),k*N);});
+ var tail=arr(addD(cbd(e2),cerr(dv)));
+ var t=conv(cached('es'+[k,e1,e2,du],function(){return conv(ey,se);}),tail);var pf=0,v=0,z=0;
+ for(var i=0;i<t.a.length;i++){var x=i+t.lo;z+=t.a[i];v+=t.a[i]*x*x;if(Math.abs(x)>=(Q>>2))pf+=t.a[i];}
+ return {sig:Math.sqrt(v/z),pc:Math.min(1,N*pf/z)};}
+function erfc(x){var t=1/(1+0.5*x);return t*Math.exp(-x*x-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));}
+function lg(x){return x<=0?'≈0':'2^'+(Math.log2(x)).toFixed(1);}
+var ids=['math-lk','math-le1','math-le2','math-ldu','math-ldv'],outs=['math-ok','math-oe1','math-oe2','math-odu','math-odv'],timer=null;
+function read(){return ids.map(function(i){return +$(i).value;});}
+function bar(p){var k=p[0],e1=p[1],e2=p[2],du=p[3],dv=p[4],kn=k*N;
+ var v=[kn*(e1/2)*(e1/2),kn*(e1/2)*(e2/2+Math.pow(Q/Math.pow(2,du),2)/12),e2/2,Math.pow(Q/Math.pow(2,dv),2)/12];
+ var tot=v.reduce(function(a,b){return a+b;},0),x=0,svg='',names=['eᵀy','sᵀ(e₁+c_u)','e₂','c_v (rounding v)'];
+ v.forEach(function(val,i){var w=580*val/tot;svg+='<rect class="'+['f-ok','f-acc2','f-mute','f-acc'][i]+'" x="'+(10+x)+'" y="8" width="'+Math.max(w,0.5)+'" height="24" rx="3"><title>'+names[i]+': '+val.toFixed(0)+'</title></rect>';
+  if(w>60)svg+='<text class="t-mute" x="'+(14+x)+'" y="50">'+names[i]+' '+Math.round(100*val/tot)+'%</text>';x+=w;});
+ $('math-varbar').innerHTML=svg;}
+function run(){var p=read();outs.forEach(function(o,i){$(o).textContent=p[i];});bar(p);
+ $('math-rExact').textContent='…';clearTimeout(timer);timer=setTimeout(function(){
+  var r=failure(p[0],p[1],p[2],p[3],p[4]);var g=Math.min(1,N*erfc((Q>>2)/r.sig/Math.SQRT2));
+  $('math-rSig').textContent=r.sig.toFixed(1);$('math-rExact').textContent=lg(r.pc);$('math-rGauss').textContent=lg(g);
+  $('math-rCt').textContent=(32*(p[3]*p[0]+p[4]))+' / '+(384*p[0]+32);
+  var ok=r.pc<Math.pow(2,-128);var vd=$('math-rVerdict');vd.className='verdict '+(ok?'ok':'bad');
+  vd.textContent=ok?'δ below 2^-128: failure-boosting attacks are out of reach for this level.':'δ above 2^-128: too many decryption failures for a CCA KEM with reusable keys.';
+  document.querySelectorAll('#math-lab button[data-p]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-p')===p.join(',')));});
+ },30);}
+if($('math-lab')){ids.forEach(function(i){$(i).addEventListener('input',run);});
+ document.querySelectorAll('#math-lab button[data-p]').forEach(function(b){b.addEventListener('click',function(){var v=b.getAttribute('data-p').split(',');ids.forEach(function(i,j){$(i).value=v[j];});run();});});run();}
+})();
+</script>

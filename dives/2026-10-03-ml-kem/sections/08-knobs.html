@@ -1,0 +1,86 @@
+<table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Values</th>
+<th>Increase it and…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>k (module rank)</td>
+<td>2/3/4</td>
+<td>lattice dimension kn grows (512/768/1024) → security ↑, ek and ct grow by about 384 B per step, noise variance grows linearly</td>
+</tr>
+<tr>
+<td>η₁ (secret / y noise)</td>
+<td>3/2/2</td>
+<td>hardness ↑, failure rate ↑. ML-KEM-512 uses η₁ = 3 because its smaller dimension needs more noise per coefficient</td>
+</tr>
+<tr>
+<td>η₂ (e₁, e₂)</td>
+<td>2</td>
+<td>as above, smaller effect</td>
+</tr>
+<tr>
+<td>du</td>
+<td>10/10/11</td>
+<td>ciphertext ↑, c_u noise ↓</td>
+</tr>
+<tr>
+<td>dv</td>
+<td>4/4/5</td>
+<td>ciphertext ↑ by 32 B per bit, c_v noise ↓ (the dominant term)</td>
+</tr>
+<tr>
+<td>q, n</td>
+<td>fixed 3329, 256</td>
+<td>not tunable: NTT and encoding are built around them</td>
+</tr>
+</tbody>
+</table>
+<p>Round-3 history (<a href="https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf" target="_blank" rel="noopener">R3 spec</a>): Kyber-512 moved η₁ from 2 to 3 and dv from 3 to 4. The ciphertext grew from 736 to 768 B in exchange for more security margin.</p>
+<p><strong>Alternatives:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Assumption</th>
+<th>pk / ct</th>
+<th>Why chosen / not chosen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FrodoKEM</strong></td>
+<td>plain LWE (no ring)</td>
+<td>≈15.6 KB / 15.6 KB (976)</td>
+<td>Most conservative lattice option, recommended by BSI. 10–15× bigger</td>
+</tr>
+<tr>
+<td><strong>NTRU / sntrup761</strong></td>
+<td>NTRU, prime-degree ring</td>
+<td>1158 / 1039 B (from memory)</td>
+<td>Avoids cyclotomic structure. OpenSSH's PQ default 2022–2025</td>
+</tr>
+<tr>
+<td><strong>HQC</strong></td>
+<td>quasi-cyclic codes</td>
+<td>2241 / 4433 B (HQC-1)</td>
+<td>NIST backup (Mar 2025), a different assumption family. Slower decaps (≈353k cycles)</td>
+</tr>
+<tr>
+<td><strong>Classic McEliece</strong></td>
+<td>Goppa codes (1978)</td>
+<td>≈261 KB / ≈96–208 B</td>
+<td>Decades of cryptanalysis. Only for pre-distributed long-term keys</td>
+</tr>
+<tr>
+<td><strong>Saber</strong></td>
+<td>Module-LWR (rounding instead of noise)</td>
+<td>similar to Kyber</td>
+<td>Power-of-two q, no NTT. Lost to Kyber in round 3</td>
+</tr>
+</tbody>
+</table>
+<p>Kyber won on balance: around 1 KB, CPU cost at or below X25519 (ML-KEM-768 AVX2 runs about 29k/30k/40k cycles for keygen/encaps/decaps on recent x86 (<a href="https://arxiv.org/pdf/2404.13544" target="_blank" rel="noopener">arXiv 2404.13544</a>); Cloudflare measured 29–45k ops/s against about 19k for X25519), and a single arithmetic core for every level.</p>

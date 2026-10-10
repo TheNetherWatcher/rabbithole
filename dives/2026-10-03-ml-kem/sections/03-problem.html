@@ -1,0 +1,50 @@
+<ul>
+<li><strong>The quantum threat is a deadline.</strong> Shor's algorithm turns every DH and RSA key exchange recorded today into plaintext once a cryptographically relevant quantum computer exists. Nobody knows when that will be, but migrating takes a decade.</li>
+<li><strong>Plain LWE is too big.</strong> An unstructured LWE public key is an n×n matrix of numbers mod q. FrodoKEM-976 has about 15.6 KB keys and ciphertexts. Ring-LWE puts structure in A (a single polynomial stands for a 256×256 matrix) and shrinks that 256-fold, but ties security to one ring.</li>
+<li><strong>Module-LWE is the compromise.</strong> A is a k×k matrix of ring elements, so you raise security by increasing k (2→3→4) without redesigning the arithmetic. The same NTT code and q serve every security level.</li>
+<li><strong>Constraints that set q.</strong> With n = 256 the scheme carries one message bit per coefficient, so 32 bytes per polynomial. A fast NTT needs n | (q−1). The smaller primes that qualify, 257 and 769, leave too little room between the noise and q/4 for a failure rate low enough for CCA security. 3329 = 13·2^8 + 1 is the next one (<a href="https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf" target="_blank" rel="noopener">Kyber R3 spec §1.4</a>).</li>
+<li><strong>What the CPA core alone allows.</strong> A static key used with the bare K-PKE falls to <strong>key-mismatch attacks</strong> that need only a few hundred to a few thousand queries (Qin et al.; 78 queries plus 2^32 lattice work in <a href="https://eprint.iacr.org/2024/810" target="_blank" rel="noopener">ePrint 2024/810</a>). Ring-LWE key exchanges with reused keys were broken the same way back in <a href="https://eprint.iacr.org/2016/085" target="_blank" rel="noopener">Fluhrer 2016</a>. CCA security isn't optional.</li>
+</ul>
+<p>Resulting sizes (FIPS 203 Table 3):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>ek</th>
+<th>dk (expanded)</th>
+<th>ciphertext</th>
+<th>K</th>
+<th>failure δ</th>
+<th>classical core-SVP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ML-KEM-512</td>
+<td>800</td>
+<td>1632</td>
+<td>768</td>
+<td>32</td>
+<td>2^-138.8</td>
+<td>118 (112 without the LWR-style argument)</td>
+</tr>
+<tr>
+<td>ML-KEM-768</td>
+<td>1184</td>
+<td>2400</td>
+<td>1088</td>
+<td>32</td>
+<td>2^-164.8</td>
+<td>183</td>
+</tr>
+<tr>
+<td>ML-KEM-1024</td>
+<td>1568</td>
+<td>3168</td>
+<td>1568</td>
+<td>32</td>
+<td>2^-174.8</td>
+<td>256</td>
+</tr>
+</tbody>
+</table>

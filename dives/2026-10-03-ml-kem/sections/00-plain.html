@@ -1,0 +1,29 @@
+<h3>Explain it simply</h3>
+<p>Two computers that have never met want to agree on a secret key while everyone on the network listens. For decades they did this with a trick (Diffie–Hellman) that a large quantum computer could undo. People are recording encrypted traffic today in case they can decrypt it later, so the replacement has to be in place before such a machine exists.</p>
+<p>ML-KEM works like a <strong>locked box mailed in one direction</strong>. You publish an open box with a special lock. I put a random 32-byte note inside, snap it shut and mail it back. Only you can open it, and we both turn the note into the session key. The odd part is how the lock works. Imagine a clock face with 3,329 ticks instead of 12. To write one bit of the note I set a hand to <strong>12 o'clock for 0 or 6 o'clock for 1</strong>, then bump it by a few hundred random ticks of "smudge", which hides it from eavesdroppers. You hold a secret that removes most of the smudge, though not all of it. What remains is still small enough that you can see whether the hand is nearer 12 or 6, and you round it. The scheme is tuned so the remaining smudge almost never pushes a hand past 3 or 9 o'clock. The chance of that happening is lower than guessing a 160-bit number.</p>
+<p>There is one more safety step. Once you have read my note, you <strong>rebuild the box yourself</strong> from the note, the same way I built it, and check it matches what arrived byte for byte. If it doesn't, someone tampered with it. You don't announce that. You quietly use a nonsense key, so the tamperer learns nothing from your reaction.</p><figure class="fig"><svg viewBox="0 0 300 300" role="img" aria-label="Dial with 3329 positions: hands near the top decode to 0, near the bottom to 1" style="max-width:300px;margin:0 auto;display:block">
+<circle cx="150" cy="150" r="110" fill="none" class="s-line" stroke-width="14"/>
+<path d="M260.0,150.2 A110,110 0 0 1 40.0,150.2" fill="none" class="s-acc2" stroke-width="14" opacity=".35"/>
+<line x1="150" y1="30" x2="150" y2="48" class="s-mute" stroke-width="2"/><line x1="150" y1="252" x2="150" y2="270" class="s-mute" stroke-width="2"/>
+<line x1="35" y1="150" x2="265" y2="150" class="s-mute" stroke-dasharray="4 4"/>
+<text x="150" y="22" text-anchor="middle" class="t-mute">0 / 3329 → bit 0</text>
+<text x="150" y="292" text-anchor="middle" class="t-mute">1665 → bit 1</text>
+<circle cx="149.7" cy="260.0" r="6" class="f-acc"><title>coefficient 0: w=1666, bit 1</title></circle>
+<circle cx="169.6" cy="41.8" r="6" class="f-acc2"><title>coefficient 1: w=95, bit 0</title></circle>
+<circle cx="153.6" cy="259.9" r="6" class="f-acc"><title>coefficient 2: w=1647, bit 1</title></circle>
+<circle cx="147.7" cy="40.0" r="6" class="f-acc2"><title>coefficient 3: w=3318, bit 0</title></circle>
+<circle cx="141.9" cy="40.3" r="6" class="f-acc2"><title>coefficient 4: w=3290, bit 0</title></circle>
+<circle cx="130.3" cy="258.2" r="6" class="f-acc"><title>coefficient 5: w=1760, bit 1</title></circle>
+<circle cx="125.1" cy="42.9" r="6" class="f-acc2"><title>coefficient 6: w=3208, bit 0</title></circle>
+<circle cx="126.0" cy="257.4" r="6" class="f-acc"><title>coefficient 7: w=1781, bit 1</title></circle>
+</svg><figcaption>The eight decoded hands from the example. Orange dots sit in the bottom half (bit 1), teal in the top half (bit 0). A mistake needs leftover smudge to push a hand across the horizontal line, 832 ticks away. The worst smudge here was 121.</figcaption></figure>
+<h3>Everyday example</h3>
+<p>Your laptop opens your bank's website.</p>
+<ol>
+<li>The laptop invents a fresh lock and sends the open box (1,184 bytes) inside its first "hello" message.</li>
+<li>The bank's server picks 32 random bytes as the note. It writes each of the 256 bits as a smudged clock hand and seals them into a reply box (1,088 bytes).</li>
+<li>The laptop removes its share of the smudge. The first eight hands come out at ticks 1666, 95, 1647, 3318, 3290, 1760, 3208 and 1781. Near 6 o'clock (1665) reads as 1; near 12 o'clock (0 or 3329) reads as 0. That gives 1, 0, 1, 0, 0, 1, 0, 1, which is exactly what the server wrote. The worst leftover smudge in this run was 121 ticks, and it would take 832 to cause a mistake.</li>
+<li>The laptop re-seals the note into a box of its own. It is identical to the one that arrived, so the laptop trusts it.</li>
+<li>Both sides now hold the same 32-byte key, and the rest of the session is encrypted with it.</li>
+</ol>
+<p>Someone who copied every byte of that exchange is left facing a "find the small smudge" puzzle in 768 dimensions. Nobody knows how to solve it, on a classical or a quantum computer.</p>

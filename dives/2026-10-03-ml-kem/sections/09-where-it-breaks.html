@@ -1,0 +1,45 @@
+<p>The math has held. Every practical key recovery so far came through <strong>implementations</strong> or <strong>composition</strong>, and the FO re-encryption step is what turns small leaks into full key recovery.</p>
+<p><strong>KyberSlash 1 &amp; 2 (Dec 2023 – Jan 2024; TCHES 2025, Best Paper).</strong>
+- The reference code computed <code>t = (((t &lt;&lt; 1) + KYBER_Q/2)/KYBER_Q) &amp; 1</code> in <code>poly_tomsg</code> (KyberSlash1, during decryption) and similar <code>/KYBER_Q</code> lines in <code>poly_compress</code>/<code>polyvec_compress</code> (KyberSlash2, during encryption, which decaps runs as re-encryption on the secret m′).
+- Whether this leaks depends on the compiler and CPU. <code>gcc -Os</code> on x86 emits DIV, and on Raspberry Pi 2 it calls <code>__divsi3</code>, which branches on its input. DIV latency depends on the operands: on Zen 2 it is 1 cycle slower once the numerator reaches 8192.
+- Chosen ciphertexts steer the secret numerator across those thresholds. KyberSlash2 recovered keys in minutes on a Cortex-M4; KyberSlash1 took hours on a Raspberry Pi 2.
+- Found by Cryspen while writing verified Rust, and independently by Bernstein via SUPERCOP.
+- The fix is a multiply-and-shift <code>t = ((t&lt;&lt;1)+1665)*80635 &gt;&gt; 28 &amp; 1</code>. <code>experiments.py</code> checks it equals the division for all 3329 inputs.
+- More than 15 libraries were patched (liboqs, AWS-LC, Botan, pqm4, PQClean, zig std, …). Never vulnerable: BoringSSL, Go's mlkem768, libjade, the pq-crystals AVX2 code.
+- Follow-up: the multiply-and-shift fix still leaks through <strong>power</strong>, giving SPA-assisted key recovery in about 30 s on a Cortex-M4 (<a href="https://eprint.iacr.org/2024/2051" target="_blank" rel="noopener">ePrint 2024/2051</a>).
+- Sources: <a href="https://kyberslash.cr.yp.to/faq.html" target="_blank" rel="noopener">kyberslash.cr.yp.to</a>, <a href="https://eprint.iacr.org/2024/1049" target="_blank" rel="noopener">ePrint 2024/1049</a>.</p>
+<p><strong>Clangover (Jun 2024, CVE-2024-37880).</strong>
+- <code>poly_frommsg</code> used the branch-free idiom <code>mask = -((msg[i]&gt;&gt;j)&amp;1)</code>. Clang 15–18 recognized that the value is 0 or 1 and compiled it into a branch on secret m′, at <code>-Os</code>, <code>-O1</code>, and <code>-O2/-O3</code> with <code>-fno-vectorize</code>.
+- That gives a timing plaintext-checking oracle and ML-KEM-512 key recovery in 5–10 minutes.
+- Fixed with an empty inline-asm value barrier. liboqs: CVE-2024-36405.
+- Lesson: <strong>constant-time C is not preserved by the compiler</strong>.
+- Source: <a href="https://github.com/antoonpurnal/clangover" target="_blank" rel="noopener">clangover</a>.</p>
+<p><strong>Re-encryption comparison oracles.</strong>
+- A <code>memcmp</code> that exits early in FO decaps leaks how many bytes matched. Guo–Johansson–Nilsson broke FrodoKEM with about 2^30 decapsulations this way (<a href="https://eprint.iacr.org/2020/743" target="_blank" rel="noopener">CRYPTO 2020</a>).
+- Power and EM leakage from the SHA-3 calls during re-encryption is a generic plaintext-checking oracle ("Curse of Re-encryption", <a href="https://eprint.iacr.org/2021/849" target="_blank" rel="noopener">TCHES 2022</a>).
+- Fault injection that skips one instruction in decoding recovered a Kyber512 key from about 6,500 faulty decapsulations (<a href="https://eprint.iacr.org/2021/064" target="_blank" rel="noopener">Pessl–Prokop TCHES 2021</a>).
+- <strong>2026 logic bug:</strong> wolfSSL's AVX2 <code>mlkem_cmp_avx2</code> compared only 1536 of the 1568 ciphertext bytes of ML-KEM-1024, so tampering with the last 32 bytes skipped implicit rejection. That is a plaintext-checking oracle needing about 350 queries and no timing at all. Reported as CVE-2026-10097 (<a href="https://app.opencve.io/cve/CVE-2026-10097" target="_blank" rel="noopener">OpenCVE</a>; I have only seen this in aggregator listings, not NVD).</p>
+<p><strong>Side channels on protected code (2025).</strong>
+- Chosen-ciphertext power attacks recover keys even from <strong>shuffled</strong> implementations: about 1,072 queries with an MLP classifier (<a href="https://eprint.iacr.org/2025/1956" target="_blank" rel="noopener">ePrint 2025/1956</a>).
+- Template attacks on base multiplication need at most 40 traces (<a href="https://eprint.iacr.org/2025/1577" target="_blank" rel="noopener">ePrint 2025/1577</a>).
+- Masking has to cover compress/decompress, the hashes and the comparison, not only the NTT.</p>
+<p><strong>Binding failures.</strong>
+- An expanded dk is (ŝ, ek, H(ek), z), and decaps doesn't check that these are consistent. With a malicious key you can make two different ciphertexts, or two public keys, decapsulate to the same K.
+- So ML-KEM is <strong>not MAL-BIND-K-CT / MAL-BIND-K-PK</strong> (<a href="https://eprint.iacr.org/2024/523" target="_blank" rel="noopener">Schmieg, ePrint 2024/523</a>; <a href="https://eprint.iacr.org/2023/1933" target="_blank" rel="noopener">Cremers–Dax–Medinger CCS 2024</a>). It is LEAK-BIND for honestly generated keys.
+- Fixes: seed-only private keys (64 B d‖z, now RFC 9935's recommendation) and protocols that hash ct and pk into the final key.</p>
+<p><strong>Conformance gaps.</strong>
+- Symbolic Software's 2026 "Crucible" suite found that pq-crystals ref, PQClean and pqcrypto skip the FIPS modulus check and accept coefficient 3329 (<a href="https://symbolic.software/blog/2026-03-23-crucible" target="_blank" rel="noopener">blog</a>).
+- Bouncy Castle 1.80 accepted a 2399-byte dk.</p>
+<p><strong>Deployment breakage.</strong>
+- The ClientHello with a hybrid share is larger than one MTU. Middleboxes and servers that call <code>read()</code> once and expect the whole ClientHello broke when Chrome 124 shipped Kyber (<a href="https://tldr.fail/" target="_blank" rel="noopener">tldr.fail</a>).
+- Go keeps <code>GODEBUG=tlsmlkem=0</code> as an escape hatch.</p>
+<blockquote class="callout mis">
+<p><strong>Misconceptions</strong></p>
+<ul>
+<li><em>"Kyber is quantum-proof."</em> It rests on the <em>assumption</em> that MLWE is hard. In April 2024 Yilei Chen's claimed polynomial-time quantum LWE algorithm caused real alarm until a bug in Step 9 was found and the claim was withdrawn on Apr 18 (<a href="https://eprint.iacr.org/2024/555" target="_blank" rel="noopener">ePrint 2024/555</a>). That episode is the argument for hybrids.</li>
+<li><em>"ML-KEM is a drop-in replacement for DH."</em> A KEM isn't a NIKE. There is no static-static agreement, no DH ratchet and no implicit authentication. Signal, Noise, WireGuard and EDHOC need redesigns (<a href="https://datatracker.ietf.org/doc/html/draft-sfluhrer-cfrg-ml-kem-security-considerations-00" target="_blank" rel="noopener">draft-sfluhrer-cfrg-ml-kem-security-considerations</a>).</li>
+<li><em>"Decryption failures don't matter at 2^-139."</em> Failures are why the parameters look the way they do. Failure boosting means finding the first one makes the next ones much cheaper (<a href="https://eprint.iacr.org/2019/1399" target="_blank" rel="noopener">D'Anvers et al. 2020</a>).</li>
+<li><em>"You can use K-PKE if you're careful."</em> FIPS 203 says it "shall not be used as a stand-alone scheme". With reused keys it leaks s.</li>
+<li><em>"Round-3 Kyber == ML-KEM."</em> They aren't wire-compatible: the FO variant changed, H(m) was removed and domain separation was added. That is why TLS needed a new codepoint.</li>
+</ul>
+</blockquote>

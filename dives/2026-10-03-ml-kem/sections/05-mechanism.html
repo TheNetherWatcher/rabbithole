@@ -1,0 +1,146 @@
+<p>One ML-KEM-768 encapsulation and decapsulation, with fixed seeds <code>d = 00…00</code>, <code>z = 01…01</code>, <code>m = a5 00 … 00</code>. All numbers come from <code>trace.py</code> in this folder. The same implementation round-trips against OpenSSL 3.6.</p>
+<pre><code> RECEIVER (KeyGen)                              SENDER (Encaps)
+ d,z ← 32B random each
+ (ρ,σ) = SHA3-512(d ‖ k)          ek (1184 B)
+ Â     = SampleNTT(ρ‖j‖i)   ─────────────────────────▶  modulus check on ek
+ s,e   ← CBD_η1(SHAKE256(σ‖N))                        m ← 32B random
+ t̂     = Â∘NTT(s) + NTT(e)                            (K, r) = SHA3-512(m ‖ H(ek))
+ ek = enc12(t̂) ‖ ρ                                    c = K-PKE.Encrypt(ek, m, r)
+ dk = enc12(ŝ) ‖ ek ‖ H(ek) ‖ z     c (1088 B)
+                                  ◀─────────────────────────  keeps K
+ m' = K-PKE.Decrypt(ŝ, c)
+ (K', r') = SHA3-512(m' ‖ H(ek))
+ c' = K-PKE.Encrypt(ek, m', r')     ← re-encryption (the FO check)
+ return  c' == c ? K' : SHAKE256(z ‖ c)   (constant-time select)
+
+</code></pre><div class="widget" role="group" aria-label="ML-KEM-768 exchange step-through">
+<svg id="mech-exch" viewBox="0 0 640 230" role="img" aria-label="Receiver and sender exchanging ek and c" style="width:100%;height:auto;display:block">
+<defs><marker id="mech-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10z" class="f-mute"/></marker></defs>
+<style>#mech-exch .hot{stroke:var(--accent);stroke-width:3}#mech-exch line.on{stroke:var(--accent);stroke-width:3}</style>
+<rect id="mech-nR" class="f-code s-line" stroke-width="1.5" x="10" y="20" width="210" height="190" rx="12"/>
+<text class="t-ink" x="115" y="46" text-anchor="middle" style="font-size:15px">Receiver (laptop)</text>
+<text class="t-mute" x="115" y="70" text-anchor="middle" style="font-size:12px">KeyGen · Decaps</text>
+<text id="mech-rTxt" class="t-ink" x="115" y="120" text-anchor="middle" style="font-size:12px">holds d‖z</text>
+<rect id="mech-nS" class="f-code s-line" stroke-width="1.5" x="420" y="20" width="210" height="190" rx="12"/>
+<text class="t-ink" x="525" y="46" text-anchor="middle" style="font-size:15px">Sender (server)</text>
+<text class="t-mute" x="525" y="70" text-anchor="middle" style="font-size:12px">Encaps</text>
+<text id="mech-sTxt" class="t-ink" x="525" y="120" text-anchor="middle" style="font-size:12px">—</text>
+<line id="mech-eEk" class="s-line" stroke-width="2" x1="225" y1="80" x2="412" y2="80" marker-end="url(#mech-ah)"/>
+<text class="t-mute" x="318" y="70" text-anchor="middle" style="font-size:12px">ek · 1184 B</text>
+<line id="mech-eCt" class="s-line" stroke-width="2" x1="415" y1="160" x2="228" y2="160" marker-end="url(#mech-ah)"/>
+<text class="t-mute" x="318" y="150" text-anchor="middle" style="font-size:12px">c · 1088 B</text>
+<text id="mech-kTxt" class="t-ink" x="320" y="215" text-anchor="middle" style="font-size:12px"></text>
+</svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" type="button" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" type="button" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-count" aria-live="polite"></span>
+  <div class="info" id="mech-text" aria-live="polite"></div>
+</div>
+<pre><code id="mech-data"></code></pre>
+</div>
+<p><strong>Step 1: KeyGen expands the seed.</strong> <code>(ρ, σ) = G(d ‖ 0x03)</code>. The <code>k</code> byte was added in the final FIPS so a seed can't be expanded under two parameter sets. ρ = <code>6d3ae406…</code>, σ = <code>47730327…</code>.</p>
+<p><strong>Step 2: Matrix Â from ρ.</strong> Each entry is SHAKE128(ρ‖j‖i), read in 12-bit chunks and kept if below 3329. 4096 − 3329 = 767, so about 18.7% of chunks are rejected. Â[0][0] begins <code>686, 85, 609, 2930</code>. These values are <strong>already in the NTT domain</strong>: nobody ever computes A in the coefficient domain. That is why FIPS 203 calls the NTT "integral" to the scheme.</p>
+<p><strong>Step 3: Small secrets via the centered binomial distribution.</strong> For η = 2, each coefficient is (b₀+b₁) − (b₂+b₃) over 4 pseudo-random bits, so it lies in {−2,…,2} with probabilities 1/16, 4/16, 6/16, 4/16, 1/16 and variance η/2 = 1. Here s[0] begins <code>1, 1, 0, 2, 0, 0, 0, 0</code> and e[0] begins <code>1, −1, 0, 2, 1, 2, 0, 0</code>. CBD replaced the discrete Gaussian because it needs only bit counting: no tables, no floating point, nothing to leak through timing.</p>
+<p><strong>Step 4: t̂ = Â∘ŝ + ê, stored uncompressed.</strong> t̂[0] begins <code>2597, 1940, 1400, 3176</code>. These look uniform, which is the MLWE assumption. ek = 3 × 384 bytes (256 coefficients × 12 bits) + 32-byte ρ = <strong>1184 B</strong>. dk = ŝ (1152) ‖ ek (1184) ‖ H(ek) (32) ‖ z (32) = <strong>2400 B</strong>. It can be regenerated from the <strong>64-byte seed d‖z</strong>, which is what RFC 9935 recommends storing.</p>
+<p><strong>Step 5: Encaps derandomizes.</strong> m = <code>a5 00…</code>. <code>(K, r) = G(m ‖ H(ek))</code>, with H(ek) = <code>07f81a8b…</code>, K = <code>23571523…</code>, r = <code>202f8989…</code>. <strong>All</strong> encryption randomness (y, e₁, e₂) is derived from r, so encryption is a deterministic function of (ek, m). That makes re-encryption possible.</p>
+<p><strong>Step 6: K-PKE.Encrypt.</strong></p>
+<pre><code>y, e1 ← CBD_2 (3 polys each);  e2 ← CBD_2
+u = NTT⁻¹(Âᵀ ∘ NTT(y)) + e1                    3 polys
+v = NTT⁻¹(t̂ᵀ ∘ NTT(y)) + e2 + Decompress_1(m)  each bit → 0 or 1665
+c1 = enc10(Compress_10(u))   3·256·10 bits = 960 B
+c2 = enc4(Compress_4(v))       256·4 bits  = 128 B        → c = 1088 B
+
+</code></pre>
+<p>Compression keeps only the top 10 bits of each u coefficient and the top <strong>4</strong> bits of each v coefficient. Rounding v to 16 levels adds up to ±104 of error per coefficient, the largest single noise source (§6).</p>
+<p><strong>Step 7: Decrypt.</strong> w = v′ − NTT⁻¹(ŝᵀ ∘ NTT(u′)):</p>
+<table>
+<thead>
+<tr>
+<th>coefficient</th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>m bit</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>w</td>
+<td>1666</td>
+<td>95</td>
+<td>1647</td>
+<td>3318</td>
+<td>3290</td>
+<td>1760</td>
+<td>3208</td>
+<td>1781</td>
+</tr>
+<tr>
+<td>noise = w − 1665·bit (centered)</td>
+<td>1</td>
+<td>95</td>
+<td>−18</td>
+<td>−11</td>
+<td>−39</td>
+<td>95</td>
+<td>−121</td>
+<td>116</td>
+</tr>
+<tr>
+<td>Compress_1(w)</td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Compress_1 rounds 2w/q. It returns 1 when w lies in [833, 2496], within q/4 of 1665. The noise is about ±100, nowhere near 832.</p>
+<p><strong>Step 8: FO re-encryption.</strong> Derive (K′, r′) = G(m′ ‖ h) using the h = H(ek) <strong>stored in dk</strong>, re-run Encrypt, and compare all 1088 bytes. They match, so return K′ = K.</p>
+<p><strong>Step 9: Tampered ciphertext.</strong> Flip one bit of c[0]. Decrypt probably still returns the same m′ (the bit flipped a u coefficient by about 3, which is in the noise), but re-encryption gives the <em>original</em> c, so c′ ≠ c_tampered. Decaps returns K̄ = SHAKE256(z ‖ c_tampered) = <code>f595db36…</code>. No error is raised, and the output is deterministic and pseudorandom. This is <strong>implicit rejection</strong>.</p>
+<p>Rejection is implicit because:
+- An explicit "invalid ciphertext" error is a one-bit oracle. Key-recovery attacks (decryption-failure and plaintext-checking attacks) need about 10³–10⁴ such bits.
+- Implicit rejection makes accept and reject look the same to anyone without z. The FIPS forbids exposing the reject flag at all.</p>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id);};
+var MS=[
+ {hot:'R',e:'',r:'d = 00…00',s:'—',k:'',t:'<b>KeyGen expands the seed.</b> (ρ, σ) = SHA3-512(d ‖ 0x03). The k byte stops one seed from being expanded under two parameter sets.',d:'d        = 0000…00   (32 B)\nz        = 0101…01   (32 B, kept for implicit rejection)\nρ        = 6d3ae406763c5045…   (public, matrix seed)\nσ        = 4773032792cfd2de…   (secret, noise seed)'},
+ {hot:'R',e:'',r:'Â ← SHAKE128(ρ‖j‖i)',s:'—',k:'',t:'<b>Matrix Â, sampled directly in the NTT domain.</b> SHAKE128 is read in 12-bit chunks and values ≥ 3329 are rejected (≈18.7%). Nobody ever computes A in the coefficient domain.',d:'Â[0][0] = [686, 85, 609, 2930, …]   (256 coeffs mod 3329)\nÂ is 3×3 of these → never stored, regenerated from ρ'},
+ {hot:'R',e:'',r:'s, e ← CBD₂',s:'—',k:'',t:'<b>Small secrets.</b> Centered binomial η = 2: (b₀+b₁) − (b₂+b₃) ∈ {−2..2}, variance 1. Only bit counting: no tables, no floating point.',d:'s[0][:8] = [1, 1, 0, 2, 0, 0, 0, 0]\ne[0][:8] = [1, −1, 0, 2, 1, 2, 0, 0]\nP(−2..2) = 1/16, 4/16, 6/16, 4/16, 1/16'},
+ {hot:'R',e:'ek',r:'t̂ = Â∘ŝ + ê',s:'receives ek',k:'',t:'<b>Publish ek.</b> t̂ looks uniform; that is the MLWE assumption. ek = 3×384 B + 32 B ρ = 1184 B. The private key can be stored as just the 64-byte seed d‖z.',d:'t̂[0][:4] = [2597, 1940, 1400, 3176]\nek = enc12(t̂) ‖ ρ                     = 1184 B\ndk = enc12(ŝ) ‖ ek ‖ H(ek) ‖ z         = 2400 B   (or seed: 64 B)'},
+ {hot:'S',e:'',r:'waits',s:'(K, r) = G(m‖H(ek))',k:'',t:'<b>Encaps derandomizes.</b> After the modulus check on ek, pick m at random. Every bit of encryption randomness comes from r = G(m ‖ H(ek)), so encryption is a deterministic function of (ek, m). That is what makes re-encryption possible later.',d:'m     = a5 00 00 … 00\nH(ek) = 07f81a8b0e266a3e…\nK     = 2357152347a7f0b1…   ← sender\'s shared secret\nr     = 202f89893517d53f…'},
+ {hot:'S',e:'ct',r:'receives c',s:'u, v → compress',k:'',t:'<b>Encrypt and compress.</b> u keeps 10 bits per coefficient, v only 4 bits. Rounding v to 16 levels adds up to ±104 of error per coefficient, the largest noise source.',d:'u: 3 polys → Compress₁₀ → 960 B   c1 = 66c4758e8bc0…\nv: 1 poly  → Compress₄  → 128 B   c2 = 063c38550a17…\nc = c1 ‖ c2 = 1088 B'},
+ {hot:'R',e:'',r:'w = v′ − sᵀu′',s:'—',k:'',t:'<b>Decrypt.</b> sᵀAᵀy cancels. Each w lands within ±(noise) of 0 (bit 0) or 1665 (bit 1). Compress₁ rounds; the decision boundary is 832 away.',d:'bit    1     0     1     0     0     1     0     1\nw    1666    95  1647  3318  3290  1760  3208  1781\nnoise   1    95   −18   −11   −39    95  −121   116\nout    1     0     1     0     0     1     0     1   ✓'},
+ {hot:'R',e:'',r:'c′ = Enc(ek, m′, r′)',s:'—',k:'K′ = K = 23571523…',t:'<b>FO re-encryption.</b> Recompute (K′, r′) = G(m′ ‖ h) with the h stored in dk, re-encrypt, and compare all 1088 bytes in constant time. They match, so return K′.',d:'c′ == c   → true (1088/1088 bytes)\nK′ = 2357152347a7f0b1…  == sender\'s K'},
+ {hot:'R',e:'ct',r:'c′ ≠ c_tampered',s:'—',k:'K̄ = J(z‖c) = f595db36…',t:'<b>Tampered ciphertext: implicit rejection.</b> Flip one bit of c. m′ probably doesn\'t change, but re-encryption reproduces the original c, so the comparison fails. Decaps returns SHAKE256(z ‖ c_tampered): no error, deterministic, pseudorandom. The attacker gets no 1-bit oracle.',d:'c_tampered[0] ^= 0x01\nc′ (re-encrypted) ≠ c_tampered\nreturn K̄ = J(z ‖ c_tampered) = f595db3605c7e7bb…\nreject flag: never exposed (FIPS 203 requirement)'}
+];
+var msi=0;
+function mrs(){var s=MS[msi];$('mech-count').textContent='STEP '+(msi+1)+' / '+MS.length;
+ $('mech-nR').classList.toggle('hot',s.hot==='R');$('mech-nS').classList.toggle('hot',s.hot==='S');
+ ['mech-eEk','mech-eCt'].forEach(function(id){var el=$(id);var on=(id==='mech-eEk'?s.e==='ek':s.e==='ct');el.classList.toggle('on',on);el.classList.toggle('flow',on);});
+ $('mech-rTxt').textContent=s.r;$('mech-sTxt').textContent=s.s;$('mech-kTxt').textContent=s.k;
+ $('mech-text').innerHTML=s.t;$('mech-data').textContent=s.d;$('mech-prev').disabled=msi===0;$('mech-next').disabled=msi===MS.length-1;}
+if($('mech-exch')){$('mech-prev').onclick=function(){if(msi>0){msi--;mrs();}};$('mech-next').onclick=function(){if(msi<MS.length-1){msi++;mrs();}};mrs();}
+})();
+</script>

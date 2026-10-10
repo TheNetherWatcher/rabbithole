@@ -1,0 +1,108 @@
+<h3>What it is, in one paragraph</h3>
+<p>ML-KEM (Module-Lattice-based Key-Encapsulation Mechanism) is NIST's standardized post-quantum KEM, published as <strong>FIPS 203 on Aug 13, 2024</strong>. It is CRYSTALS-Kyber with some changes. It has three parameter sets, ML-KEM-512, -768 and -1024, targeting NIST security categories 1, 3 and 5 (equivalent to AES-128, -192 and -256). NIST recommends <strong>ML-KEM-768 as the default</strong>. One party sends an encapsulation key, the other sends a ciphertext, and both end up with a 32-byte shared secret. Its security rests on the <strong>Module-LWE</strong> problem.</p>
+<h3>Why it exists</h3>
+<ul>
+<li><strong>Shor's algorithm</strong> breaks RSA, finite-field DH and elliptic-curve DH in polynomial time on a large enough quantum computer.</li>
+<li><strong>Harvest-now-decrypt-later</strong> means that key exchange performed today is already exposed if the recorded traffic still matters in 10–20 years. Authentication can wait until a quantum computer exists; confidentiality cannot. That is why KEMs are being migrated first and signatures (ML-DSA) lag behind.</li>
+<li><strong>NIST ran a competition</strong>: call for proposals Dec 2016, 69 round-1 submissions, Kyber selected Jul 5 2022, FIPS 203 published Aug 13 2024. HQC was added as a code-based backup on Mar 11 2025. (<a href="https://csrc.nist.gov/projects/post-quantum-cryptography/workshops-and-timeline" target="_blank" rel="noopener">NIST timeline</a>)</li>
+<li><strong>Why Kyber won</strong>: it is very fast (often faster than X25519 in CPU time) and its keys and ciphertexts are around 1 KB. Classic McEliece needs about 261 KB public keys and FrodoKEM about 15.6 KB.</li>
+</ul>
+<h3>Where it's used</h3>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TLS 1.3 / Chrome, Firefox, Safari</strong></td>
+<td>Hybrid group <code>X25519MLKEM768</code> (codepoint 0x11EC). On by default since Chrome 131 (Nov 2024), Firefox 132 and Apple OS 26 (Sep 2025). It replaced the draft <code>X25519Kyber768Draft00</code> (0x6399, Chrome 124) (<a href="https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html" target="_blank" rel="noopener">Google</a>, <a href="https://blog.cloudflare.com/pq-2025/" target="_blank" rel="noopener">Cloudflare</a>)</td>
+</tr>
+<tr>
+<td><strong>Cloudflare edge</strong></td>
+<td>More than 50% of human traffic used PQ key agreement by Oct 2025 and more than 65% by Apr 2026. Origin support lags: about 10% of origins by Feb 2026 (<a href="https://blog.cloudflare.com/pq-2025/" target="_blank" rel="noopener">pq-2025</a>, <a href="https://blog.cloudflare.com/post-quantum-roadmap/" target="_blank" rel="noopener">roadmap</a>)</td>
+</tr>
+<tr>
+<td><strong>OpenSSH 10.0</strong></td>
+<td><code>mlkem768x25519-sha256</code> has been the default key exchange since Apr 2025. It replaced <code>sntrup761x25519</code>, the default since 9.0 in 2022. Uses libcrux's formally verified C (<a href="https://www.openssh.com/txt/release-10.0" target="_blank" rel="noopener">release notes</a>)</td>
+</tr>
+<tr>
+<td><strong>Signal</strong></td>
+<td>PQXDH (Sep 2023) adds Kyber to X3DH. SPQR / Triple Ratchet (Oct 2025) runs an ML-KEM-768 "Braid" ratchet that sends erasure-coded chunks of keys and ciphertexts on ordinary messages (<a href="https://signal.org/blog/spqr/" target="_blank" rel="noopener">Signal</a>)</td>
+</tr>
+<tr>
+<td><strong>Apple iMessage PQ3</strong></td>
+<td>Kyber-1024 for the initial key, Kyber-768 for rekeying about every 50 messages (<a href="https://security.apple.com/blog/imessage-pq3/" target="_blank" rel="noopener">Apple</a>)</td>
+</tr>
+<tr>
+<td><strong>AWS KMS / ACM / Secrets Manager</strong></td>
+<td>Hybrid PQ TLS through s2n-tls and AWS-LC, which uses the formally verified mlkem-native. Cost: about 1600 extra bytes and 80–150 µs per handshake (<a href="https://aws.amazon.com/blogs/security/ml-kem-post-quantum-tls-now-supported-in-aws-kms-acm-and-secrets-manager/" target="_blank" rel="noopener">AWS</a>)</td>
+</tr>
+<tr>
+<td><strong>Go 1.24, OpenSSL 3.5, Java 24, Windows CNG</strong></td>
+<td>Standard-library ML-KEM. Go and OpenSSL enable hybrid TLS by default (<a href="https://go.dev/doc/go1.24" target="_blank" rel="noopener">Go 1.24</a>, <a href="https://openssl-library.org/news/openssl-3.5-notes" target="_blank" rel="noopener">OpenSSL 3.5</a>, <a href="https://openjdk.org/jeps/496" target="_blank" rel="noopener">JEP 496</a>)</td>
+</tr>
+<tr>
+<td><strong>Mullvad / Rosenpass (WireGuard)</strong></td>
+<td>ML-KEM alongside Classic McEliece to derive WireGuard's pre-shared key (<a href="https://mullvad.net/blog/quantum-resistant-tunnels-are-now-the-default-on-desktop" target="_blank" rel="noopener">Mullvad</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3>How it's used</h3>
+<p>Application code calls three functions. Go 1.24:</p>
+<pre><code class="language-go">import &quot;crypto/mlkem&quot;
+
+dk, _ := mlkem.GenerateKey768()                // receiver
+ekBytes := dk.EncapsulationKey().Bytes()        // 1184 B, send to peer
+
+ek, _ := mlkem.NewEncapsulationKey768(ekBytes)  // sender (runs the modulus check)
+ss, ct := ek.Encapsulate()                      // 32 B secret, 1088 B ciphertext; send ct
+
+ss2, _ := dk.Decapsulate(ct)                    // receiver: ss2 == ss
+seed := dk.Bytes()                              // 64-byte d||z: the recommended private-key format
+
+</code></pre>
+<p>OpenSSL 3.5+ CLI (in this folder I checked it interoperates byte for byte with <code>mlkem.py</code>):</p>
+<pre><code class="language-bash">openssl genpkey -algorithm ML-KEM-768 -out key.pem
+openssl pkeyutl -encap -inkey key.pem -secret ss.bin -out ct.bin
+openssl pkeyutl -decap -inkey key.pem -in ct.bin -secret ss2.bin
+
+</code></pre>
+<p>Typical integration is a <strong>hybrid</strong>: run X25519 and ML-KEM-768 side by side and feed both secrets to the KDF. TLS concatenates <code>ML-KEM ss ‖ X25519 ss</code> (64 bytes) into the key schedule. The client key share is 1216 bytes (1184 + 32) and the server share is 1120 bytes (1088 + 32). Clients usually send a plain X25519 share as well, so a server that doesn't support the hybrid doesn't force a HelloRetryRequest round trip.</p>
+<h3>When to use it, and when not</h3>
+<table>
+<thead>
+<tr>
+<th>Use ML-KEM when</th>
+<th>Skip it, or use something else, when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You need ephemeral key agreement in an interactive protocol (TLS, SSH, IKE, messaging handshakes)</td>
+<td>You need <strong>non-interactive</strong> DH: static-static agreement, the DH ratchet, implicit authentication in Noise or WireGuard. A KEM can't do that. Redesign the protocol or look at lattice NIKEs like SWOOSH (about 220 KB keys)</td>
+</tr>
+<tr>
+<td>The data must stay confidential for 10+ years</td>
+<td>You need authentication. ML-KEM authenticates nobody. Use signatures (ML-DSA) or KEM-based authentication</td>
+</tr>
+<tr>
+<td>Bandwidth is about 1 KB per side</td>
+<td>Payloads must fit 100-byte radio frames. Consider Classic McEliece (tiny ciphertext, huge pre-distributed key) or chunking like Signal</td>
+</tr>
+<tr>
+<td>You want a conservative choice: run it as a <strong>hybrid</strong> with X25519</td>
+<td>You distrust structured lattices: FrodoKEM (plain LWE) or HQC (codes), at 4–15 KB</td>
+</tr>
+</tbody>
+</table>
+<p>Signs you picked wrong: connections time out behind old middleboxes (ClientHello now spans two packets), or a protocol proof assumed "DH-like" properties that a KEM lacks.</p>
+<h3>Who should care</h3>
+<ul>
+<li><strong>Infra and backend</strong>: TLS terminators, load balancers and proxies have to read multi-packet ClientHellos (see <a href="https://tldr.fail/" target="_blank" rel="noopener">tldr.fail</a>).</li>
+<li><strong>Security and crypto engineers</strong>: side channels in decapsulation, binding, private-key formats.</li>
+<li><strong>Protocol designers</strong>: KEM ≠ DH.</li>
+<li><strong>Compliance</strong>: CNSA 2.0 wants ML-KEM-1024. BSI and ANSSI want hybrids.</li>
+</ul>

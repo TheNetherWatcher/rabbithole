@@ -1,0 +1,44 @@
+<p><strong>Core insight:</strong> the receiver doesn't undo the noise. It <strong>cancels the large term</strong> sᵀAᵀy algebraically and leaves noise that is a sum of products of small values. MLWE hides s because t = As + e looks uniform. Correctness only needs the <em>products</em> of small values to stay below q/4. Those two requirements push η in opposite directions, and k, η, du, dv are chosen at the point where both hold.</p>
+<p><strong>Ablations: remove each piece and see what breaks.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Remove</th>
+<th>What breaks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>e (the error in t)</td>
+<td>t = As is solvable by Gaussian elimination, so the key is recovered from ek alone</td>
+</tr>
+<tr>
+<td>The FO transform (use K-PKE directly)</td>
+<td>Static keys fall to key-mismatch or plaintext-checking attacks after a few hundred to a few thousand chosen ciphertexts</td>
+</tr>
+<tr>
+<td>Re-encryption (decrypt and hash, no comparison)</td>
+<td>Malformed ciphertexts are processed and their effect on m′ leaks s coefficient by coefficient. This is what a fault attack that skips the comparison achieves</td>
+</tr>
+<tr>
+<td>Implicit rejection (return ⊥ instead)</td>
+<td>Still IND-CCA in theory (FO^⊥ variants exist), but you get a clean oracle for any side-channel-assisted attack and worse QROM bounds. Implicit rejection also hides reject-path timing</td>
+</tr>
+<tr>
+<td>H(ek) in G(m ‖ H(ek))</td>
+<td>Multi-target attacks: precomputed failing ciphertexts would work against every key at once. Hashing ek ties r to one key</td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>Ciphertext grows from 1088 to 1536 B (3·384 + 384) with no security gain. Compression error is noise the design counts on</td>
+</tr>
+<tr>
+<td>The k byte in G(d ‖ k)</td>
+<td>The same seed at two parameter sets gives related keys, which complicates seed-only key storage</td>
+</tr>
+<tr>
+<td>The modulus check on ek</td>
+<td>Non-canonical ek (coefficient ≥ q) is interpreted differently by different implementations, so they derive different secrets. That is an interoperability and consistency gap</td>
+</tr>
+</tbody>
+</table>

@@ -1,0 +1,23 @@
+<p>Everything is in this folder and needs only Python 3 (+ numpy for <code>failure_prob.py</code>).</p>
+<pre><code class="language-bash">python3 mlkem.py         # all 3 parameter sets: sizes + round-trip + implicit-rejection demo
+python3 trace.py         # the section-5 trace with fixed seeds
+python3 experiments.py   # noise histogram (σ≈76, worst ≈290 of 832), KyberSlash fix check, rejection
+python3 failure_prob.py  # reproduces FIPS 203's 2^-138.8 / 2^-164.8 / 2^-174.8 vs Gaussian 2^-76/-81/-146
+
+</code></pre>
+<p><strong>Interoperability with OpenSSL 3.5+</strong> (checked here with OpenSSL 3.6):</p>
+<pre><code class="language-bash">SEED=$(python3 -c &quot;print(bytes(range(64)).hex())&quot;)
+openssl genpkey -algorithm ML-KEM-768 -pkeyopt hexseed:$SEED -out k.pem
+openssl pkey -in k.pem -pubout -outform DER -out pub.der
+openssl pkeyutl -encap -inkey k.pem -secret ss.bin -out ct.bin
+python3 -c &quot;
+import mlkem
+ek, dk = mlkem.keygen('ML-KEM-768', bytes(range(32)), bytes(range(32,64)))
+print('ek matches:', open('pub.der','rb').read().endswith(ek))
+print('decaps matches:', mlkem.decaps(dk, open('ct.bin','rb').read()) == open('ss.bin','rb').read())&quot;
+
+</code></pre>
+<p><strong>Things to try:</strong>
+1. Call <code>failure_prob.failure(3, 2, 2, 10, dv)</code> for dv = 3, 4, 5. Each bit of dv moves δ by tens of bits: 2^-123.5, 2^-164.8, 2^-187.0. At dv = 3 the Gaussian estimate says 2^-25, an even bigger gap, because the bounded c_v term (±208) now carries even more of the variance. Saving 32 bytes would cost about 41 bits of failure margin.
+2. In <code>experiments.py</code>, log <code>w</code> for a ciphertext whose <code>c2</code> you corrupt by +1 in one 4-bit nibble. The coefficient moves by 208. Find how many such corruptions flip a bit.
+3. Replace <code>ok = c == c2</code> in <code>decaps</code> with a byte loop that returns early, and time it with <code>time.perf_counter_ns</code> on flipped bytes at the start and at the end of c. This is the Guo–Johansson–Nilsson oracle in miniature. Python is far too noisy for a real attack, but the structure is the same.</p>

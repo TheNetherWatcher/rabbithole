@@ -1,0 +1,369 @@
+{
+ "meta": {
+  "title": "ML-KEM (Kyber): noisy lattices, the FO transform, and why the bugs are always in the implementation",
+  "short": "ML-KEM & noisy lattices",
+  "subject": "Cryptography",
+  "domain": "Post-quantum cryptography",
+  "topic": "ML-KEM / FIPS 203: Module-LWE, Fujisaki–Okamoto with implicit rejection, KyberSlash and binding",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "More than half of human traffic to Cloudflare now runs a key exchange whose security comes from a 256-coefficient polynomial deliberately <b>wrong by about ±76</b>. It still decrypts correctly, with failure probability <b>2<sup>-164.8</sup></b> for ML-KEM-768, and every practical break so far went through the code rather than the math.",
+ "why": "<b>Why it matters:</b> ML-KEM (FIPS 203) is already the default post-quantum key exchange in browsers, OpenSSH and Signal, so its implementation bugs reach everyday TLS and SSH connections.",
+ "stats": [
+  {
+   "v": "1184 B",
+   "l": "ML-KEM-768 public key"
+  },
+  {
+   "v": "1088 B",
+   "l": "ciphertext"
+  },
+  {
+   "v": "±76",
+   "l": "typical leftover noise, against q = 3329"
+  },
+  {
+   "v": "2^-164.8",
+   "l": "decryption failure rate, ML-KEM-768"
+  },
+  {
+   "v": "32 B",
+   "l": "shared secret"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A locked box whose lock is a noisy clock face",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>Two strangers agree on a secret by passing a locked box. Each bit hides in a clock hand set to 12 or 6 o'clock, under a few hundred ticks of random smudge. The key holder removes most of the smudge and rounds the rest, so both sides end with the same 32 bytes.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>KEM</b>: keygen, encaps, decaps. Only one side picks the secret.</li><li><b>LWE</b>: noisy linear equations, believed hard even for quantum computers.</li><li><b>Polynomial ring</b>: 256 coefficients mod q, wrapping with X<sup>256</sup> = −1.</li><li><b>NTT</b>: a fast polynomial transform over Z<sub>3329</sub>.</li><li><b>IND-CPA vs CCA2</b>: eavesdropper vs chosen-ciphertext attacker.</li><li><b>Random oracle model</b>: hashes treated as ideal functions in proofs.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Already on by default in browsers, SSH and Cloudflare",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Chrome, Firefox and Safari negotiate <code>X25519MLKEM768</code>. More than 65% of human traffic to Cloudflare used PQ key agreement by April 2026. OpenSSH 10.0 defaults to <code>mlkem768x25519-sha256</code>. Application code only calls three functions.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"A lattice KEM\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The error that protects the secret also corrupts the message. The lattice core alone falls to chosen-ciphertext attacks, so the Fujisaki–Okamoto transform is required. The NTT is part of the format. Compression adds noise on purpose. The shared key does not bind to the keys.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Plain lattice keys weigh 15 KB, so ML-KEM adds structure",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>FrodoKEM-976 keys are about 15.6 KB. Ring structure cuts that, but ties security to one ring. Module-LWE uses a k×k matrix of ring elements, so ML-KEM-768 keys are <b>1184 B</b> and security scales by changing k alone.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A noisy dial with a secret calibration, and where it breaks",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Each coefficient is a dial with <b>3329</b> positions. The public key looks random unless you know the small secret. The analogy fails in three places: the wobble is a sum of products, the receiver re-runs the sender, and rounding supplies most of the noise.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One exchange, step by step: the noise cancels, then FO checks it",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>With fixed seeds, the big term sᵀAᵀy cancels and the leftover noise stays near ±100, against a decision boundary at 832. A tampered ciphertext does not raise an error. It returns a pseudorandom key, which is implicit rejection.</p><p class=\"mini\">9-step interactive walkthrough inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Leftover noise is σ ≈ 76, and failure is 2^-164.8, not 2^-81",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>After cancellation the noise has σ ≈ 76 against a threshold of 832. A Gaussian tail says 2<sup>-81</sup>, but the exact convolution of bounded terms gives <b>2<sup>-164.8</sup></b> for ML-KEM-768. Rounding v to 4 bits supplies 62% of the variance.</p><p class=\"mini\">Noise-budget lab inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Remove any one piece and a named attack returns",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Without the error term, Gaussian elimination recovers the key. Without the FO re-encryption, chosen ciphertexts leak s. Without implicit rejection, every reject is a one-bit oracle. Each piece pays for its bytes by blocking one specific attack.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Rank, noise and rounding trade bytes against failure margin",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Dropping d<sub>v</sub> from 4 to 3 saves 32 bytes but costs about <b>41 bits</b> of failure margin. The contested level is 512: MATZOV estimates about 2<sup>137.5</sup> gates against a 2<sup>143</sup> floor, and the cost model is disputed. Deployments pick 768.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "The math held; every practical break went through code",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>KyberSlash exploited a secret-dependent division, found in the reference code. Clangover let Clang turn a branch-free mask into a branch. Early-exit comparisons and a truncated byte compare act as oracles. A KEM is also not a DH replacement: it cannot do static-static agreement.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Real libraries diverge from the textbook, and verify more",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>Production code uses Montgomery and Barrett reduction, merged NTT layers and AVX2. libcrux and mlkem-native are verified with hax/F*, CBMC and HOL Light. BoringSSL, Go and RFC 9935 store the 64-byte seed instead of the 2400-byte expanded key.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "Verified code, binding results and measured deployment since 2024",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>KyberSlash won a CHES 2025 best paper. Machine-checked IND-CCA arrived in EasyCrypt. ML-KEM is not MAL-BIND, a gap that hybrids close by hashing transcripts. By March 2026 about half of a stable domain panel defaulted to PQ key exchange.</p><p class=\"mini\">Two measured figures inside.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Parameter hardness, module structure and constant time stay open",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Whether refined attacks push ML-KEM-512 below category 1 depends on a cost model nobody agrees on. Module structure may or may not be exploitable. QROM bounds lose a square root, and constant time from spec to silicon is unproven.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From Ajtai's 1996 hardness result to FIPS 203 in 2024",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>Ajtai 1996 → Regev's LWE 2005 → Module-LWE → CRYSTALS-Kyber 2018 → NIST selection July 2022 → FIPS 203 published Aug 13 2024. Frodo is the parallel plain-LWE branch that trades size for conservatism.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Reproduce the failure rate and the trace in under 30 minutes",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p>Only Python 3 is needed, plus numpy for the failure-rate script. <code>failure_prob.py</code> reproduces 2<sup>-164.8</sup>, <code>experiments.py</code> the σ ≈ 76 histogram, and a three-line OpenSSL check confirms byte-for-byte interop.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>24 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three follow-ups: signatures, masking and sieving",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>ML-DSA (FIPS 204) uses rejection sampling to hide the secret in 2.4–4.6 KB signatures. Masking lattice KEMs covers the attacks on shuffled code. Lattice sieving carries the dual-attack dispute.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Standards, papers, code and deployment reports",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Every claim links to FIPS 203, the round-3 spec, the attack papers and the deployment reports. Figures 2a and 3 are CC BY 4.0 from the Mind the Gap study (arXiv 2607.29005).</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "In w = v′ − sᵀu′, which term cancels, and why does the receiver need s and not e to cancel it?",
+   "a": "<p>sᵀAᵀy. The sender's v contains tᵀy = (As+e)ᵀy = sᵀAᵀy + eᵀy. The receiver computes sᵀu′ = sᵀAᵀy + sᵀe₁ + sᵀc_u. Only the s-part of t needs cancelling, because the e-part eᵀy is already small. That is why the secret key is s alone.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why is Â sampled directly in the NTT domain, and what would change if FIPS 203 sampled A in the coefficient domain?",
+   "a": "<p>A uniform polynomial maps to a uniform NTT vector (the NTT is a bijection), so sampling Â directly is statistically identical and skips k² forward NTTs. If the standard defined A in the coefficient domain, every implementation would pay k² extra transforms, and test vectors would differ. FIPS 203 makes the NTT normative for exactly this reason.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Exactly which values in decapsulation depend on the secret, and which of them did KyberSlash1 and KyberSlash2 leak?",
+   "a": "<p>ŝ, the intermediate w = v′ − sᵀu′, the decoded m′, (K′, r′) = G(m′‖h), every value inside the re-encryption (y′, e₁′, e₂′, u, v before compression), the comparison result, and z. KyberSlash1 leaked through Compress_1(w) in poly_tomsg (division of a w-derived numerator by q). KyberSlash2 leaked through Compress_du/dv in poly_compress during re-encryption, where the inputs depend on m′ and r′.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does Decaps use the H(ek) stored in dk rather than recomputing it, and what goes wrong if the stored value is inconsistent?",
+   "a": "<p>For speed: hashing 1184 bytes on every decapsulation costs time. FIPS 203 requires a \"hash check\" on dk import (H(ek part) == stored h). Without that check a malicious or corrupted dk can carry an h unrelated to ek. Then K and r are derived from the wrong h, re-encryption fails or binds to the wrong key, and that is one ingredient of the MAL-BIND attacks. Seed-only keys rebuild everything, so this can't happen.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Walk through what happens to K when a single bit of c₂ is flipped.",
+   "a": "<p>One 4-bit nibble of v changes, moving one coefficient by 208 (or more if a high bit flipped). Decrypt may or may not still produce m′ (noise ±76 + 208 is usually still below 832, so m′ often doesn't change). Re-encryption from m′ then gives the original c, which differs from the tampered c in that bit, so Decaps returns J(z‖c_tampered): a pseudorandom key unrelated to K. The sender's K and the receiver's K disagree, and the handshake fails at key confirmation. No error comes from the KEM itself.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why q = 3329 and not 257 or 769, both of which also allow an NTT?",
+   "a": "<p>A fast NTT needs n | (q−1) with n = 256. The primes 257 and 769 qualify, but they leave too little room: q/4 would be about 64 or 192, smaller than the noise needed for security. Reaching δ ≈ 2^-128 or lower for CCA wouldn't work. 3329 is the next qualifying prime, fits 12 bits, and keeps products under 2^24. It only has 256th roots of unity (not 512th), hence the incomplete NTT.</p>",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does dv = 4 dominate the noise, and why is that a deliberate choice?",
+   "a": "<p>The rounding error for d bits is roughly uniform with width q/2^d. For d = 4 that is 208, variance about 3608, against about 2213 for all sampled noise combined. Kyber accepts this because each extra bit of dv costs 32 bytes of ciphertext, and the bounded, uniform rounding noise hurts the failure tail much less than the same variance of unbounded noise would (see Q8). Rounding noise is effectively cheap.</p>",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does the Gaussian estimate (2^-81) disagree with the exact convolution (2^-164.8) by about 84 bits?",
+   "a": "<p>The Gaussian treats the whole noise as unbounded with σ ≈ 76, putting failure at 10.9σ. In reality 62% of the variance (c_v) is bounded by ±104. Failure needs the remaining sum-of-products part (σ ≈ 47) to reach at least 728, which is 15.5σ, and that part is itself a sum of bounded products with sub-Gaussian tails. The exact convolution captures both effects.</p>",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why implicit rejection rather than returning an error?",
+   "a": "<p>An explicit ⊥ is a 1-bit oracle. Combined with even a weak side channel or a failure-boosting search, it speeds up key recovery and makes timing differences between paths easy to see. Returning J(z‖c) makes the reject path output look like a valid key, keeps the code path uniform (compute both, select in constant time), and gives tighter QROM proofs (FO with implicit rejection). The flag must never leave the function.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why does TLS still run X25519 alongside ML-KEM?",
+   "a": "<p>ML-KEM's hardness is a younger assumption than ECDH's. Chen's April 2024 scare showed how quickly confidence can wobble, and implementation bugs are still being found. A hybrid stays secure if <em>either</em> component holds, for about 32 extra bytes and microseconds. ANSSI and BSI require it. CNSA 2.0 accepts it.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If ML-KEM skipped re-encryption and returned H(m′, c), what attack becomes practical?",
+   "a": "<p>The attacker submits crafted (u, v) pairs, for example with v nudged near the decision boundary in one coefficient, and observes whether the derived key matches a guess (a plaintext-checking oracle via key confirmation). Each query reveals a linear inequality on s, and a few thousand queries recover s. This is exactly the key-mismatch attack on CPA Kyber.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If keys were only ever ephemeral (used once), which parts of ML-KEM could you drop, and why did NIST keep them anyway?",
+   "a": "<p>With truly one-time keys, chosen-ciphertext attacks get one query, so the FO transform and implicit rejection buy almost nothing, and a CPA KEM would do (as in TLS 1.3 ephemeral exchange). NIST kept full CCA because keys get reused in practice (caching, static server keys, HPKE, bugs), because one primitive for all uses is safer, and because re-encryption costs only one extra encryption.</p>",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If n were 512 with k = 1 (Ring-LWE), what would you gain and lose?",
+   "a": "<p>Gain: one big polynomial, slightly faster. Lose: each security level needs a different ring and NTT (n = 512 or 1024 and possibly a different q), and the scheme commits to a single ring structure (more algebraic structure per dimension). Module-LWE keeps one arithmetic core, and k scales security.</p>",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if the shared key were G(m ‖ H(ek)) without H(ek), as an attacker precomputing failures would like?",
+   "a": "<p>Then r depends only on m, and the same (m → ciphertext) map holds for every public key's randomness derivation. An attacker can precompute \"weak\" m values whose noise terms are large and use the work against <strong>all</strong> keys at once (multi-target failure search). It also weakens binding of K to the recipient. H(ek) makes the work per key.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Adversarial",
+   "q": "You can measure decapsulation time to 1 cycle precision on a Cortex-M4. Sketch how KyberSlash1 recovers s.",
+   "a": "<p>poly_tomsg divides (2w + 1665) by q, and the DIV timing jumps at numerator thresholds (for example 8192 on Zen 2). Craft ciphertexts with u = small multiples chosen so w's coefficients equal v − (coefficient of s) times a known value. Then whether a numerator crosses a threshold depends on one secret coefficient. Time thousands of decapsulations per ciphertext, classify slow vs fast, and solve for each coefficient of s in {−2..2}. Recovery took hours on a Raspberry Pi 2.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "An implementation compares only the first 1536 of 1568 ciphertext bytes. Build a plaintext-checking oracle from it.",
+   "a": "<p>Modify only the last 32 bytes, which are part of c₂ (v's encoding). Re-encryption from m′ gives c′. If m′ didn't change, c′ equals the original c, and the truncated comparison over bytes 0..1535 matches, so Decaps returns the <strong>real</strong> K′ instead of K̄. If your modification flipped a message bit, K′ changes. So \"does my modified ciphertext give the honest K?\" reveals whether a coefficient crossed the boundary, which is a plaintext-checking oracle. Choose modifications to binary-search each coefficient of the noise and hence s. The wolfSSL PoC needed about 350 queries.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "You control a victim's ML-KEM private key file (expanded format). How do you make two different ciphertexts decapsulate to the same K, and why does a seed-only key stop you?",
+   "a": "<p>In the expanded dk you can set ŝ, ek, h and z independently. For example, choose ek and h inconsistent with ŝ so that re-encryption always fails. Then every ciphertext takes the reject path, K = J(z‖c), and you control z, so outputs are predictable to you. Or construct cases where two ciphertexts both reject to keys you can relate. Schmieg gives explicit constructions for K-CT and K-PK collisions. A 64-byte seed forces honest derivation of every component, so these inconsistencies can't be represented.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "A middlebox drops ClientHellos larger than one packet. What does the client see, and how do Chrome and Go fall back?",
+   "a": "<p>The connection stalls or resets after the first packet: the server read one segment, failed to parse it, and closed or waited. Chrome added enterprise policies and a flag, Go kept <code>GODEBUG=tlsmlkem=0</code>, and clients often send an X25519-only share as well. The real fix is servers that loop on read until the record is complete (tldr.fail).</p>",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is FO re-encryption related to the \"decrypt then verify\" idea in authenticated encryption, and how is it different?",
+   "a": "<p>Both reject anything that wasn't produced honestly. AEAD does it with a MAC under a shared key. FO does it by recomputing the sender's deterministic encryption from the recovered m and checking for equality, which works without a shared secret because the randomness is a hash of the message. The difference: FO's check happens after decryption, so decryption itself must be side-channel safe, whereas AEAD verifies before decrypting.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Connection",
+   "q": "How does ML-KEM's compression relate to Learning With Rounding (LWR) and Saber?",
+   "a": "<p>Learning With Rounding replaces sampled error with deterministic rounding (b = ⌊(p/q)·As⌉). ML-KEM's ciphertext compression is a partial LWR step on u and v, adding rounding noise on top of sampled noise. Kyber512's 118-bit core-SVP figure counts on that rounding (\"akin to LWR\"); without it the figure is 112. Saber went fully LWR with a power-of-two modulus.</p>",
+   "sec": "knobs"
+  },
+  {
+   "type": "Connection",
+   "q": "Why can't Signal's Double Ratchet simply swap X25519 for ML-KEM, and what does SPQR do instead?",
+   "a": "<p>The DH ratchet works because each new public key, combined with the peer's last key, immediately gives a fresh shared secret (non-interactive). A KEM needs a round trip (ek one way, ct back) and about 2.3 KB. SPQR runs a separate ML-KEM Braid ratchet: send the 64-byte header early, stream erasure-coded chunks of ek and ct on ordinary messages, then mix the resulting key with the Double Ratchet output through a KDF.</p>",
+   "sec": "wild"
+  },
+  {
+   "type": "Open",
+   "q": "Is the module structure exploitable? What would a Cramer–Ducas–Wesolowski-style result for modules need?",
+   "a": "<p>CDW exploits the unit group and class group of a cyclotomic field to shorten principal or ideal lattice vectors. Module lattices of rank at least 2 don't reduce to ideals directly. An attack would need a module analogue: an efficient way to reduce module lattice bases using the ring structure, beating plain BKZ at Kyber's approximation factors. Results so far (for example module-LLL) help only at large approximation factors. Open.</p>",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "What is the \"right\" cost model for lattice sieving (gates vs memory access vs area-time), and how does the choice move ML-KEM-512 relative to category 1?",
+   "a": "<p>Sieving in dimension β needs about 2^{0.2075β} memory and accesses it randomly. If memory access is free (the gate model), MATZOV-style estimates put Kyber-512 near 2^137.5, below 2^143. If you charge for distance (area-time or physically realistic RAM), costs rise by about 2^20 or more. NIST took the latter position, Bernstein disputed the arithmetic, and Ducas–Pulles disputed the attack's success probability. No consensus, so practice avoids 512.</p>",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Can constant-time guarantees be established end to end, from spec to silicon?",
+   "a": "<p>Partly. Spec→code correctness (hax/F*, EasyCrypt) and code→assembly constant-time (Jasmin, HOL Light) are done for some implementations. The remaining gap is assembly→silicon: variable-time multipliers, power and EM leakage, and speculative execution. That needs hardware leakage contracts (ISA-level guarantees like Intel DIT / Arm DIT) and masking. Open.</p>",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "fig1": {
+   "file": "img/fig/mindgap-fig2a-provider-share.png",
+   "caption": "Cloudflare carries 57% of the domains that default to PQ TLS, so most of the measured adoption depends on one CDN.",
+   "source": {
+    "cite": "Mind the Gap: Policy vs Reality in PQ TLS, IMC 2026 (arXiv:2607.29005)",
+    "url": "https://arxiv.org/abs/2607.29005",
+    "figure": "Fig. 2a"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig2": {
+   "file": "img/fig/mindgap-fig-latency-delta.png",
+   "caption": "The middle half of domains see a handshake within ±5 ms of classical X25519, and only 7.8% fall outside ±50 ms.",
+   "source": {
+    "cite": "Mind the Gap: Policy vs Reality in PQ TLS, IMC 2026 (arXiv:2607.29005)",
+    "url": "https://arxiv.org/abs/2607.29005",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}
