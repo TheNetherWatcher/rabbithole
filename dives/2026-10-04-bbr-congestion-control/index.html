@@ -1491,8 +1491,11 @@ $('hands-buf').addEventListener('input',deb);$('hands-rtt').addEventListener('in
     requestAnimationFrame(function () {
       var y = window.scrollY;
       if (bar) bar.classList.toggle('scrolled', y > 40);
-      if (!reduce && y < 700) layers.forEach(function (g) {
-        g.style.translate = '0 ' + (y * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
+      // parallax measured from the hero's own position (a cold open may sit above it)
+      var art = layers.length && layers[0].closest('.hero-art');
+      var rel = art ? Math.min(700, Math.max(0, -art.getBoundingClientRect().top)) : 0;
+      if (!reduce) layers.forEach(function (g) {
+        g.style.translate = '0 ' + (rel * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
       });
       ticking = false;
     });
