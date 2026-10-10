@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,29 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:16px;margin-top:6px;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv-bar i{display:block;height:100%;background:var(--bad)}
+.cv-bar i.lo{background:var(--accent)}
+.js .cv-bar i{transform:scaleX(0);transform-origin:left;animation:cv-grow .9s var(--ease) forwards}
+@keyframes cv-grow{to{transform:none}}
+</style>
+<p class="cold-line">A 720p video clip has about 119,000 tokens.</p>
+<p class="cold-line sm">Every layer compares each token with every other one. That is <em>attention</em>, and at this length it takes over the layer's cost.</p>
+<div class="guess" data-g="cold" data-kind="range" data-min="0" data-max="100" data-lo="87" data-hi="87" data-tol="5" data-unit="%"><p class="g-q"><span class="g-tag">Guess first</span> At 720p video length, what share of one layer's cost is attention?</p><div class="g-ctl"><input type="range" min="0" max="100" step="1" value="40" aria-label="Your guess"><output>40%</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0%</span><span>100%</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 87%.</b> A 720p clip of 129 frames is about 119,000 tokens. Attention cost grows with the square of the token count, so it takes over. A 1024² image sits near 20%.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>1024² image: about 20% attention.</b>
+    <div class="cv-bar"><i class="lo" style="width:20%"></i></div></div>
+  <div class="cv-row"><b>720p video: about 87% attention.</b>
+    <div class="cv-bar"><i style="width:87%;animation-delay:.15s"></i></div></div>
+</div>
+</div><a class="cold-cue" href="#top">Diffusion backbones <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
 <g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
@@ -397,9 +511,120 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> the backbone runs steps × (2 for CFG) times per image, so its efficiency is the product's cost.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">−0.93</div><div class="l">correlation of DiT Gflops with FID</div></div><div class="stat rv" style="--i:1"><div class="v">1120 → 118.6</div><div class="l">Gflops, ADM pixel U-Net vs DiT-XL/2 latent</div></div><div class="stat rv" style="--i:2"><div class="v">12B</div><div class="l">FLUX.1 parameters (19 double + 38 single blocks)</div></div><div class="stat rv" style="--i:3"><div class="v">1.13</div><div class="l">ImageNet-256 FID, RAE with guidance</div></div><div class="stat rv" style="--i:4"><div class="v">87%</div><div class="l">attention share of one layer at 720p video</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~58 min deep</span>
+      <span>19 cards</span><span>· ~8 min skim</span><span>· ~58 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>One denoiser step, traced: why tokens and attention set the cost</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-hatch{stroke:none}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-ok{fill:var(--ok)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One DRAM bank: hammering two rows drains a victim row to the sense point and flips it. Then TRR tracks only a few rows, PRAC counts every row, and the headline numbers.">
+<defs></defs>
+<rect x="20" y="50" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="75" class="sf-lab" data-out="6">V−2</text>
+<rect x="130" y="63" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="63" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="100" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6" data-hl="2 3 4 5"/>
+<text x="32" y="125" class="sf-lab" data-out="6">A1 (V−1)</text>
+<rect x="130" y="113" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="113" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="150" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="175" class="sf-lab" data-out="6">V (victim)</text>
+<rect x="130" y="163" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="20" y="200" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6" data-hl="2 3 4 5"/>
+<text x="32" y="225" class="sf-lab" data-out="6">A2 (V+1)</text>
+<rect x="130" y="213" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="213" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="250" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="275" class="sf-lab" data-out="6">V+2</text>
+<rect x="130" y="263" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="263" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="130" y="163" width="170" height="14" rx="3" class="f-ok" data-in="1" data-out="2"/>
+<rect x="130" y="163" width="150" height="14" rx="3" class="f-ok" data-in="2" data-out="3"/>
+<rect x="130" y="163" width="115" height="14" rx="3" class="f-ok" data-in="3" data-out="4"/>
+<rect x="130" y="163" width="85" height="14" rx="3" class="f-ok" data-in="4" data-out="5"/>
+<rect x="130" y="163" width="30" height="14" rx="3" class="f-bad" data-in="5" data-out="6"/>
+<line x1="215" y1="44" x2="215" y2="294" class="s-mute" stroke-width="2" stroke-dasharray="4 4" data-out="6"/>
+<text x="215" y="312" class="sf-lab" text-anchor="middle" data-in="1" data-out="6">sense point</text>
+<text x="340" y="175" class="sf-lab" data-in="1" data-out="5">bit = 1</text>
+<text x="340" y="175" class="sf-lab sf-bad" data-in="5" data-out="6">bit = 0</text>
+<rect x="20" y="60" width="440" height="110" rx="8" class="f-panel s-line" stroke-width="1.5" data-in="6" data-out="8"/>
+<text x="32" y="80" class="sf-lab" data-in="6" data-out="8">TRR tracker: 4 entries</text>
+<rect x="32" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="80" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A1</text>
+<rect x="140" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="188" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A2</text>
+<rect x="248" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="296" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A3</text>
+<rect x="356" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="404" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A4</text>
+<text x="20" y="274" class="sf-lab" data-in="6" data-out="8">victim V</text>
+<rect x="100" y="260" width="350" height="18" rx="3" class="f-code" data-in="6" data-out="8"/>
+<rect x="100" y="260" width="350" height="18" rx="3" class="f-ok" data-in="6" data-out="7"/>
+<rect x="100" y="260" width="110" height="18" rx="3" class="f-bad" data-in="7" data-out="8"/>
+<rect x="20" y="182" width="440" height="40" rx="8" class="f-none s-bad" stroke-width="2" stroke-dasharray="6 4" data-in="7" data-out="8"/>
+<text x="32" y="207" class="sf-lab sf-bad" data-in="7" data-out="8">A5: not in the tracker, never refreshed</text>
+<text x="20" y="82" class="sf-lab" data-in="8" data-out="9">A1</text>
+<rect x="110" y="66" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="66" width="300" height="22" rx="4" class="f-bad" data-in="8" data-out="9"/>
+<text x="20" y="122" class="sf-lab" data-in="8" data-out="9">A2</text>
+<rect x="110" y="106" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="106" width="200" height="22" rx="4" class="f-acc" data-in="8" data-out="9"/>
+<text x="20" y="162" class="sf-lab" data-in="8" data-out="9">V+2</text>
+<rect x="110" y="146" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="146" width="40" height="22" rx="4" class="f-ok" data-in="8" data-out="9"/>
+<text x="374" y="50" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">threshold</text>
+<line x1="374" y1="56" x2="374" y2="172" class="s-bad" stroke-width="2" stroke-dasharray="4 4" data-in="8" data-out="9"/>
+<g data-in="9">
+<rect x="12" y="38" width="456" height="360" rx="14" class="f-bg" opacity=".97"/>
+<text x="240" y="74" class="sf-cap" text-anchor="middle">The numbers in this dive</text>
+<text x="60" y="114" class="sf-lab" data-in="9">DDR3 modules with bit flips, 2014</text>
+<rect x="60" y="124" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="124" width="307" height="18" rx="4" class="f-warn" data-in="9"/>
+<text x="60" y="166" class="sf-num" data-in="9">110 of 129</text>
+<text x="60" y="214" class="sf-lab" data-in="9">SK Hynix DDR5 DIMMs flipped by Phoenix, 2026</text>
+<rect x="60" y="224" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="224" width="360" height="18" rx="4" class="f-bad" data-in="9"/>
+<text x="60" y="266" class="sf-num" data-in="9">15 of 15</text>
+<text x="60" y="304" class="sf-lab" data-in="9">PRAC latency cost, as reported (up to)</text>
+<rect x="60" y="314" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="314" width="65" height="18" rx="4" class="f-acc2" data-in="9"/>
+<text x="60" y="356" class="sf-num" data-in="9">10–18%</text>
+<text x="240" y="388" class="sf-lab" text-anchor="middle" data-in="9">Details in the cards below</text>
+</g>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One DRAM bank: a bit is a little charge</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="6">Hammer the rows beside victim V</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="8">Defense 1, TRR: a short list of hot rows</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Defense 2, PRAC: an exact count per row</text>
+<text x="20" y="396" class="sf-lab" data-in="1" data-out="2">Refresh tops every row up within 64 ms.</text>
+<text x="20" y="396" class="sf-lab" data-in="2" data-out="3">A1 and A2 are read. V is never opened.</text>
+<text x="20" y="396" class="sf-lab" data-in="3" data-out="4">Each hammer bleeds a sliver of V's charge.</text>
+<text x="20" y="396" class="sf-lab" data-in="4" data-out="5">~9.6K total hammers: V reaches the sense point.</text>
+<text x="20" y="396" class="sf-lab sf-bad" data-in="5" data-out="6">Read V: it returns 0, and V was never opened.</text>
+<text x="20" y="396" class="sf-lab" data-in="6" data-out="7">Tracker: 4 rows. Their neighbours get refreshed.</text>
+<text x="20" y="396" class="sf-lab sf-bad" data-in="7" data-out="8">Untracked aggressor: 13 of 42 DDR4 DIMMs flipped.</text>
+<text x="20" y="396" class="sf-lab" data-in="8" data-out="9">Count crosses the threshold, so V is refreshed.</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every image starts as static. One <b>denoiser</b> cleans it up a little at a time, 28–50 times. Its inside is the <b>backbone</b>, and that is what this page follows.</p></div>
+<div class="step"><p><b>The naive way.</b> Treat every pixel as a token. Attention over a 256² image then means 65,536 tokens. ADM, a pixel U-Net, costs <b>1120 GFLOPs</b> per forward pass.</p></div>
+<div class="step"><p><b>The key idea.</b> Denoise a compressed latent instead. The VAE makes it 8× smaller on each side, and 2×2 patches turn it into tokens. A 1024² image becomes <b>4,096 tokens</b>.</p></div>
+<div class="step"><p><b>Text joins.</b> The prompt becomes about 512 text tokens. They sit in the same sequence as the image tokens, so attention sees <b>4,608</b> tokens in all.</p></div>
+<div class="step"><p><b>Double-stream blocks.</b> Flux runs 19 of these. Image and text keep separate weights, but their tokens attend over one shared sequence.</p></div>
+<div class="step"><p><b>Single-stream blocks.</b> Then 38 more blocks. By now text and image are aligned enough to share one set of weights for the rest of the stack.</p></div>
+<div class="step"><p><b>Output and loop.</b> The network predicts a velocity, and one small Euler step moves the static toward a picture. The whole stack runs again, 28–50 times per image.</p></div>
+<div class="step"><p><b>The catch.</b> Attention cost grows with the square of the token count. A 1024² image stays under the crossover. Video does not: a 720p clip has about 119,000 tokens, far past <i>T = 6d</i>.</p></div>
+<div class="step"><p><b>The headline numbers.</b> Transformer Gflops track FID closely. DiT-XL/2 costs 118.6 Gflops where the pixel U-Net costs 1120. The cards below show where each number comes from.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Restaurant tables, not one long bench"><span>Restaurant tables, not one long bench</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six ideas to hold before reading the architectures"><span>Six ideas to hold before reading the architectures</span></a><a href="#c-world" data-id="world" aria-label="Where the backbone runs, and which one to pick"><span>Where the backbone runs, and which one to pick</span></a><a href="#c-onel" data-id="onel" aria-label="Most of DiT&#x27;s win over ADM came from latent space, not the transformer"><span>Most of DiT&#x27;s win over ADM came from latent space, not the transformer</span></a><a href="#c-problem" data-id="problem" aria-label="Denoisers must serve global layout and fine texture with one weight set"><span>Denoisers must serve global layout and fine texture with one weight set</span></a><a href="#c-model" data-id="model" aria-label="A U-Net is a funnel with tubes; a DiT is a flat room of equals"><span>A U-Net is a funnel with tubes; a DiT is a flat room of equals</span></a><a href="#c-mech" data-id="mech" aria-label="One Flux step: 4,096 image tokens and 4,608 in joint attention"><span>One Flux step: 4,096 image tokens and 4,608 in joint attention</span></a><a href="#c-math" data-id="math" aria-label="Cost follows tokens, and attention takes over past T = 6d"><span>Cost follows tokens, and attention takes over past T = 6d</span></a><a href="#c-why" data-id="why" aria-label="A one-knob scaling law made DiT the default"><span>A one-knob scaling law made DiT the default</span></a><a href="#c-knobs" data-id="knobs" aria-label="Patch size, width and conditioning are the real design dials"><span>Patch size, width and conditioning are the real design dials</span></a><a href="#c-breaks" data-id="breaks" aria-label="Training diverges, subjects duplicate, and video is quadratic"><span>Training diverges, subjects duplicate, and video is quadratic</span></a><a href="#c-wild" data-id="wild" aria-label="Production models bend the papers in small, telling ways"><span>Production models bend the papers in small, telling ways</span></a><a href="#c-frontier" data-id="frontier" aria-label="Since 2024, ImageNet FID gains came from latent space and training signal"><span>Since 2024, ImageNet FID gains came from latent space and training signal</span></a><a href="#c-open" data-id="open" aria-label="Nine open questions, led by which latent space is best"><span>Nine open questions, led by which latent space is best</span></a><a href="#c-lineage" data-id="lineage" aria-label="Two lineages, U-Net and ViT, merged into the 2026 models"><span>Two lineages, U-Net and ViT, merged into the 2026 models</span></a><a href="#c-hands" data-id="hands" aria-label="Check the cost formula yourself, then time a backbone swap"><span>Check the cost formula yourself, then time a backbone swap</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself on the 22-question ladder"><span>Test yourself on the 22-question ladder</span></a><a href="#c-next" data-id="next" aria-label="Three threads to pull next"><span>Three threads to pull next</span></a><a href="#c-sources" data-id="sources" aria-label="Every number traces to a paper, repo or model card"><span>Every number traces to a paper, repo or model card</span></a></nav>
@@ -413,7 +638,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p>An image generator does not paint a picture in one go. It starts from pure TV static and cleans it up a little at a time, over 4–50 rounds, until a picture appears. Every round, the same "cleaner" looks at the current messy picture and says how to make it less messy. Everything you have heard about (Stable Diffusion, Flux, Sora) uses this same loop. What differs between them is mainly <b>how the cleaner is built inside</b>. That internal design is the "backbone", and it is what this dive is about.</p>
+<p class="dropcap">An image generator does not paint a picture in one go. It starts from pure TV static and cleans it up a little at a time, over 4–50 rounds, until a picture appears. Every round, the same "cleaner" looks at the current messy picture and says how to make it less messy. Everything you have heard about (Stable Diffusion, Flux, Sora) uses this same loop. What differs between them is mainly <b>how the cleaner is built inside</b>. That internal design is the "backbone", and it is what this dive is about.</p>
 <p>Think of the cleaner as a restoration workshop. The older design (the <b>U-Net</b>) works like one restorer who first zooms out to see the rough shapes, then zooms back in to fix fine detail, and keeps sticky notes from each zoom level so that no detail gets lost on the way back. The newer design (the <b>diffusion transformer</b>, DiT) cuts the picture into small tiles and gives each tile its own worker. In every round, each worker can talk to every other worker. This is simpler and gets steadily better as you hire more workers, but the room gets very noisy when there are many tiles. The newest image designs (<b>MMDiT</b>, used in Stable Diffusion 3 and Flux) also seat the people who read your text prompt at the same table as the tile workers, so words and picture parts can talk to each other directly instead of passing notes.</p>
 <h3>Everyday example</h3>
 <p>You type: <i>"a red fox reading a newspaper on a park bench, the headline says FOX NEWS"</i>.</p>
@@ -569,9 +794,10 @@ ImageNet-256 FID went 2.27 → 1.13 with roughly the same transformer.</li>
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="12" y="30" class="t-mute">contiguous</text><rect x="12" y="35" width="136" height="14" rx="3" class="f-warn" opacity=".3"/><rect x="12" y="35" width="44" height="14" rx="3" class="f-ok"/><text x="12" y="70" class="t-mute">paged</text><rect x="12" y="75" width="136" height="14" rx="3" class="f-line"/><rect x="12" y="75" width="131" height="14" rx="3" class="f-ok"/><text x="60" y="46" class="t-ink">~30%</text><text x="112" y="86" class="t-ink" style="fill:var(--panel)">96%</text></svg></div>
 <div class="card-body"><div class="kicker">§3 · The problem</div><h2>Denoisers must serve global layout and fine texture with one weight set</h2>
 <div class="brief"><p>At high noise the network must draw global layout; at low noise it must restore texture, at every step, with shared weights. Pixel-space attention at 256² means 65,536 tokens. ADM costs 1120 GFLOPs per forward, and AdaGN alone cut ImageNet-128 FID from 15.08 to 13.06.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>1120</b><span>GFLOPs for one forward pass of ADM, a pixel-space U-Net, at 256²</span></div>
 <p>A denoiser must predict a dense, image-shaped output from a noisy input, <b>at every noise level t, with one shared set of weights</b>. That imposes four constraints:</p>
 <ul>
 <li><b>Two jobs at different scales.</b>
@@ -853,10 +1079,10 @@ conv_out -&gt; ε̂ 4×64×64       (t enters every ResBlock as an added embeddi
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-why" data-id="why">
+<article class="card rv gated" id="c-why" data-id="why">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="50" r="20" class="f-panel s-acc" stroke-width="2"/><circle cx="80" cy="50" r="20" class="f-panel s-acc2" stroke-width="2"/><circle cx="120" cy="50" r="20" class="f-panel s-ok" stroke-width="2"/><text x="30" y="54" class="t-mute">LLM</text><text x="70" y="54" class="t-mute">tools</text><text x="110" y="54" class="t-mute">scale</text><path d="M60 50 H60" class="s-mute"/></svg></div>
 <div class="card-body"><div class="kicker">§7 · Why it works</div><h2>A one-knob scaling law made DiT the default</h2>
-<div class="brief"><p>Transformer Gflops predict FID with correlation <b>−0.93</b>, so depth, width and patch size reduce to one number. LLM tooling transfers: FlashAttention, FSDP, fp8. Joint attention beat cross-attention on SD3's CC12M tests. Remove adaLN-Zero gating and convergence is about 2× slower.</p></div>
+<div class="guess" data-g="why" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Remove adaLN-Zero's gating from a DiT. How much slower does training converge?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About the same</button><button class="g-opt" type="button" data-k="1">About 2× slower</button><button class="g-opt" type="button" data-k="2">About 10× slower</button><button class="g-opt" type="button" data-k="3">It never converges</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 2× slower.</b> Without the adaLN-Zero gating, convergence takes about twice as long. That is one of the small design choices that makes DiT train cleanly at scale.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Transformer Gflops predict FID with correlation <b>−0.93</b>, so depth, width and patch size reduce to one number. LLM tooling transfers: FlashAttention, FSDP, fp8. Joint attention beat cross-attention on SD3's CC12M tests. Remove adaLN-Zero gating and convergence is about 2× slower.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
@@ -941,10 +1167,10 @@ conv_out -&gt; ε̂ 4×64×64       (t enters every ResBlock as an added embeddi
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M12 80 L30 30 L46 70 L62 22 L80 74 L96 28 L112 66 L130 20 L148 60" class="s-bad draw" fill="none" stroke-width="2"/><path d="M12 88 H148" class="s-mute"/><text x="12" y="16" class="t-mute">where it breaks</text></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Training diverges, subjects duplicate, and video is quadratic</h2>
-<div class="brief"><p>Without QK-norm, bf16 training diverges at high resolution. Off-resolution images duplicate subjects. Higher-dimensional VAE latents reconstruct better but generate worse (gFID 16.24 → 36.83). In HunyuanVideo, 800 of 945 seconds is attention. Over 1,000 training images have been extracted from SD and Imagen.</p></div>
+<div class="guess" data-g="breaks" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> In HunyuanVideo, what share of generation time goes to attention?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 15%</button><button class="g-opt" type="button" data-k="1">About 40%</button><button class="g-opt" type="button" data-k="2">About 85%</button><button class="g-opt" type="button" data-k="3">About 99%</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 85%.</b> In HunyuanVideo, 800 of 945 seconds went to attention. Video is quadratic in tokens, so the time sits in the attention layers.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Without QK-norm, bf16 training diverges at high resolution. Off-resolution images duplicate subjects. Higher-dimensional VAE latents reconstruct better but generate worse (gFID 16.24 → 36.83). In HunyuanVideo, 800 of 945 seconds is attention. Over 1,000 training images have been extracted from SD and Imagen.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -998,10 +1224,10 @@ conv_out -&gt; ε̂ 4×64×64       (t enters every ResBlock as an added embeddi
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="16" width="120" height="22" rx="5" class="f-panel s-line"/><rect x="26" y="42" width="120" height="22" rx="5" class="f-panel s-line"/><rect x="32" y="68" width="120" height="22" rx="5" class="f-panel s-line"/><circle cx="34" cy="27" r="4" class="f-acc"/><circle cx="40" cy="53" r="4" class="f-acc2"/><circle cx="46" cy="79" r="4" class="f-ok"/></svg></div>
 <div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Production models bend the papers in small, telling ways</h2>
-<div class="brief"><p>Flux adds 3-axis RoPE and a guidance embedding, so its dev guidance is not real CFG. SANA has no positional encoding at all. Wan 2.2 routes experts by timestep, not token. DeepCache needs a U-Net hierarchy, while TeaCache skips whole DiT forwards for up to 4.41×.</p></div>
+<div class="guess" data-g="wild" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> TeaCache skips whole DiT forward passes. How much faster can it make a DiT run?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 1.5×</button><button class="g-opt" type="button" data-k="1">About 2×</button><button class="g-opt" type="button" data-k="2">Up to 4.41×</button><button class="g-opt" type="button" data-k="3">Up to 10×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Up to 4.41×.</b> The skip works on whole DiT forwards. DeepCache, by contrast, needs a U-Net's hierarchy to work.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Flux adds 3-axis RoPE and a guidance embedding, so its dev guidance is not real CFG. SANA has no positional encoding at all. Wan 2.2 routes experts by timestep, not token. DeepCache needs a U-Net hierarchy, while TeaCache skips whole DiT forwards for up to 4.41×.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -1612,13 +1838,45 @@ for repo in ["stable-diffusion-v1-5/stable-diffusion-v1-5", "PixArt-alpha/PixArt
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1638,11 +1896,63 @@ for repo in ["stable-diffusion-v1-5/stable-diffusion-v1-5", "PixArt-alpha/PixArt
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');

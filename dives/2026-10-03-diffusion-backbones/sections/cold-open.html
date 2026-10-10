@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:16px;margin-top:6px;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv-bar i{display:block;height:100%;background:var(--bad)}
+.cv-bar i.lo{background:var(--accent)}
+.js .cv-bar i{transform:scaleX(0);transform-origin:left;animation:cv-grow .9s var(--ease) forwards}
+@keyframes cv-grow{to{transform:none}}
+</style>
+<p class="cold-line">A 720p video clip has about 119,000 tokens.</p>
+<p class="cold-line sm">Every layer compares each token with every other one. That is <em>attention</em>, and at this length it takes over the layer's cost.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>1024² image: about 20% attention.</b>
+    <div class="cv-bar"><i class="lo" style="width:20%"></i></div></div>
+  <div class="cv-row"><b>720p video: about 87% attention.</b>
+    <div class="cv-bar"><i style="width:87%;animation-delay:.15s"></i></div></div>
+</div>

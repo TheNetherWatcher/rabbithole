@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "One denoiser step, traced: why tokens and attention set the cost"
+ },
  "tldr": "Image and video generators run one denoiser 28–50 times per picture, and its inside is the <b>backbone</b>. The U-Net funnel with skip tubes led until 2022. DiT, then MMDiT in SD3 and Flux, won by scaling cleanly: transformer Gflops predict FID with r = <b>−0.93</b>. Most 2024–26 quality gains came from the latent space and training target, not the block.",
  "why": "<b>Why it matters:</b> the backbone runs steps × (2 for CFG) times per image, so its efficiency is the product's cost.",
  "stats": [
@@ -106,6 +112,7 @@
    "id": "why",
    "kicker": "§7 · Why it works",
    "title": "A one-knob scaling law made DiT the default",
+   "guess": "why",
    "visual": "img/why.svg",
    "brief": "<p>Transformer Gflops predict FID with correlation <b>−0.93</b>, so depth, width and patch size reduce to one number. LLM tooling transfers: FlashAttention, FSDP, fp8. Joint attention beat cross-attention on SD3's CC12M tests. Remove adaLN-Zero gating and convergence is about 2× slower.</p>",
    "file": "sections/07-why-it-works.html"
@@ -122,6 +129,7 @@
    "id": "breaks",
    "kicker": "§9 · Where it breaks",
    "title": "Training diverges, subjects duplicate, and video is quadratic",
+   "guess": "breaks",
    "visual": "img/breaks.svg",
    "brief": "<p>Without QK-norm, bf16 training diverges at high resolution. Off-resolution images duplicate subjects. Higher-dimensional VAE latents reconstruct better but generate worse (gFID 16.24 → 36.83). In HunyuanVideo, 800 of 945 seconds is attention. Over 1,000 training images have been extracted from SD and Imagen.</p>",
    "file": "sections/09-where-it-breaks.html"
@@ -130,6 +138,7 @@
    "id": "wild",
    "kicker": "§10 · In the wild",
    "title": "Production models bend the papers in small, telling ways",
+   "guess": "wild",
    "visual": "img/wild.svg",
    "brief": "<p>Flux adds 3-axis RoPE and a guidance embedding, so its dev guidance is not real CFG. SANA has no positional encoding at all. Wan 2.2 routes experts by timestep, not token. DeepCache needs a U-Net hierarchy, while TeaCache skips whole DiT forwards for up to 4.41×.</p>",
    "file": "sections/10-in-the-wild.html"
@@ -194,6 +203,52 @@
    "file": "sections/99-sources.html"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "At 720p video length, what share of one layer's cost is attention?",
+   "min": 0,
+   "max": 100,
+   "step": 1,
+   "unit": "%",
+   "answer": 87,
+   "start": 40,
+   "tol": 5,
+   "reveal": "<p><b>About 87%.</b> A 720p clip of 129 frames is about 119,000 tokens. Attention cost grows with the square of the token count, so it takes over. A 1024² image sits near 20%.</p>"
+  },
+  "why": {
+   "q": "Remove adaLN-Zero's gating from a DiT. How much slower does training converge?",
+   "options": [
+    "About the same",
+    "About 2× slower",
+    "About 10× slower",
+    "It never converges"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>About 2× slower.</b> Without the adaLN-Zero gating, convergence takes about twice as long. That is one of the small design choices that makes DiT train cleanly at scale.</p>"
+  },
+  "breaks": {
+   "q": "In HunyuanVideo, what share of generation time goes to attention?",
+   "options": [
+    "About 15%",
+    "About 40%",
+    "About 85%",
+    "About 99%"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 85%.</b> In HunyuanVideo, 800 of 945 seconds went to attention. Video is quadratic in tokens, so the time sits in the attention layers.</p>"
+  },
+  "wild": {
+   "q": "TeaCache skips whole DiT forward passes. How much faster can it make a DiT run?",
+   "options": [
+    "About 1.5×",
+    "About 2×",
+    "Up to 4.41×",
+    "Up to 10×"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Up to 4.41×.</b> The skip works on whole DiT forwards. DeepCache, by contrast, needs a U-Net's hierarchy to work.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",
