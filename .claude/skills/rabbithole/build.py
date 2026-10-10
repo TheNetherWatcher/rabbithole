@@ -88,6 +88,20 @@ OPEN_LICENSES = ("CC BY", "CC BY-SA", "CC0", "Public domain", "Apache-2.0", "MIT
 
 
 def check_figure(fid, f, dive):
+    if f.get("original"):
+        # our own SVG diagram: no license needed; optional source = what it is adapted from
+        for k in ("file", "caption"):
+            if not f.get(k):
+                sys.exit(f"figure '{fid}': missing '{k}'")
+        p = dive / f["file"]
+        if p.suffix != ".svg" or not p.exists() or b"<svg" not in p.read_bytes()[:2000]:
+            sys.exit(f"figure '{fid}': an original figure must be an existing .svg file ({p})")
+        if re.search(r"#[0-9a-fA-F]{3,6}\b", re.sub(r'url\(#[^)]*\)|href="#[^"]*"', "", read(p))):
+            sys.exit(f"figure '{fid}': use palette classes, not hex colors, in {p.name}")
+        src = f.get("source")
+        if src and (not src.get("cite") or not src.get("url")):
+            sys.exit(f"figure '{fid}': source needs 'cite' and 'url'")
+        return
     for k in ("file", "caption", "license"):
         if not f.get(k):
             sys.exit(f"figure '{fid}': missing '{k}'")
@@ -133,6 +147,15 @@ class Figures:
                 self.order.append(fid)
             n = self.order.index(fid) + 1
             p = self.dive / f["file"]
+            if f.get("original"):
+                src = f.get("source")
+                cite = "Original diagram"
+                if src:
+                    cite += (f' · adapted from <a href="{esc(src["url"])}" target="_blank" rel="noopener">{esc(src["cite"])}</a>'
+                             f'{" · " + esc(src["figure"]) if src.get("figure") else ""}')
+                return (f'<figure class="fig fig-own" id="fig-{esc(fid)}"><div class="fig-svg" role="img" '
+                        f'aria-label="{esc(f.get("alt", re.sub(r"<[^>]+>", "", f["caption"])))}">{scope_ids(svg_inline(p), fid)}</div>'
+                        f'<figcaption><b>Figure {n}.</b> {f["caption"]}<span class="fig-cite">{cite}</span></figcaption></figure>')
             mime = RASTER.get(p.suffix, "image/svg+xml")
             data = base64.b64encode(p.read_bytes()).decode()
             src = f["source"]
@@ -154,14 +177,22 @@ class Figures:
             return ""
         items = []
         for n, fid in enumerate(self.order, 1):
-            f, src = self.figs[fid], self.figs[fid]["source"]
+            f, src = self.figs[fid], self.figs[fid].get("source")
+            if f.get("original"):
+                if src:
+                    items.append(f'<li><a href="#fig-{esc(fid)}">Figure {n}</a>: original diagram, adapted from '
+                                 f'<a href="{esc(src["url"])}" target="_blank" rel="noopener">{esc(src["cite"])}</a>'
+                                 f'{", " + esc(src["figure"]) if src.get("figure") else ""}.</li>')
+                continue
             lic = f'<a href="{esc(f["license_url"])}" target="_blank" rel="noopener">{esc(f["license"])}</a>' \
                 if f.get("license_url") else esc(f["license"])
             items.append(f'<li><a href="#fig-{esc(fid)}">Figure {n}</a>: <a href="{esc(src["url"])}" target="_blank" rel="noopener">'
                          f'{esc(src["cite"])}</a>{", " + esc(src["figure"]) if src.get("figure") else ""}. {lic}.'
                          f'{" " + esc(f["modified"]).capitalize() + "." if f.get("modified") else ""}</li>')
-        return ('<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced under their open licenses; '
-                'changes limited to what is noted.</p><ol class="credits">' + "".join(items) + "</ol>")
+        if not items:
+            return ""
+        return ('<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced figures are used under their open licenses, '
+                'with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits">' + "".join(items) + "</ol>")
 
 
 CHECK_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>'

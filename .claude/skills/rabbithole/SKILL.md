@@ -230,7 +230,7 @@ The hero, card visuals and your own diagrams are hand-authored inline SVG: no AI
 
 Inside the deep layer, real figures from the sources make a section concrete: the paper's own architecture diagram next to your step-through, the headline result plot next to the numbers. Aim for 6–16 per dive, placed where the text discusses them, never as a gallery. Card visuals and the hero stay hand-drawn SVG.
 
-**License gate (hard rule).** Citing is not permission. Embed a figure only when its source carries an open license: CC BY, CC BY-SA, CC0, public domain, or a permissive code/docs license (Apache-2.0, MIT, BSD) for figures in a repo or its docs. CC BY-NC is allowed in this private repo but must never go into blog posts. Do NOT embed ND-licensed figures (no modified copies), arXiv's default "non-exclusive license to distribute", publisher PDFs (ACM/IEEE/Springer copyright), vendor blogs, or anything with an unstated license. For those, link to the figure ("see Fig. 3 of [paper]") or draw your own SVG of the idea and caption it "adapted from Fig. N of …". `build.py` enforces this: it refuses non-open licenses and ND, and every figure needs a caption, cite, URL and license.
+**License gate (hard rule).** Citing is not permission. Embed a figure only when its source carries an open license: CC BY, CC BY-SA, CC0, public domain, or a permissive code/docs license (Apache-2.0, MIT, BSD) for figures in a repo or its docs. CC BY-NC is allowed in this private repo but must never go into blog posts. Do NOT embed ND-licensed figures (no modified copies), arXiv's default "non-exclusive license to distribute", publisher PDFs (ACM/IEEE/Springer copyright), vendor blogs, or anything with an unstated license. For those, link to the figure ("see Fig. 3 of [paper]") or redraw the idea as an original diagram (below) whose source says what it is adapted from. `build.py` enforces this: it refuses non-open licenses and ND, and every figure needs a caption, cite, URL and license.
 
 Check the license on the source itself: the arXiv abs page names it in the sidebar (`curl -sL https://arxiv.org/abs/<id> | grep -oE 'licenses/[a-z-]+/[0-9.]+|nonexclusive-distrib'`); repos have a LICENSE file; docs sites state it in the footer or repo.
 
@@ -242,6 +242,8 @@ Check the license on the source itself: the arXiv abs page names it in the sideb
 **Preparing it**: `python3 <skill-dir>/fig.py <src.pdf|png|jpg> dives/<folder>/img/fig/<source>-fig<N>-<what>.png [--trim L,B,R,T]` renders PDFs, applies a LaTeX-style trim, strips white margins, caps width at 1400 px and writes a palette PNG (20–80 KB). Look at every result (Read the PNG) before using it; re-crop if it carries a stray caption or whitespace.
 
 **Placing it**: register it under `figures` in `dive.json`, then drop `<figure data-fig="<id>"></figure>` into the section HTML where the text refers to it. Two side by side: wrap them in `<div class="fig-pair">…</div>`. Precede a figure with a sentence that says what to look at. `build.py` turns each placeholder into a numbered figure (page order) with the image, your caption, a "Source: … · Fig. N · license · modifications" line, click-to-zoom, and appends a "Figure credits" list to the sources card (or the card with `"credits": true`). Captions are your own words, not the paper's caption copied.
+
+**Original diagrams** (always allowed, and the fallback when no source is openly licensed): draw your own SVG at `img/fig/own-<what>.svg` (viewBox ~640–900 wide, palette classes only, no hex colors, labels ≥12 px, real values from the dive, ≤12 KB) and register it with `"original": true` and no license: `{"original": true, "file": "img/fig/own-x.svg", "caption": "…", "source": {"cite": "…", "url": "…", "figure": "Fig. N"}}`. Give `source` only when the drawing is adapted from a specific figure or article; the page then credits it "Original diagram · adapted from …". Original SVGs are inlined, so they follow the light/dark theme, and they are numbered with the other figures. Preview them by rendering a copy with a `<style>` block that maps the palette classes to colors (`rsvg-convert` or `qlmanage -t`), and look at the result. A dive with no openly licensed sources should still get 4–8 original diagrams.
 
 ### Build and verify
 
@@ -267,10 +269,10 @@ Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverabl
 
 ## Skill sync (when the skill itself changes)
 
-The skill (`SKILL.md`, `config.json`, `build.py`, `fig.py`, `template/`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit:
-1. Run `.claude/skills/rabbithole/sync.sh` (mirrors this folder, minus `sync.sh`, into the claude-skills repo and prints `git status` there).
-2. Commit it in both repos separately (`skill: <change>` here, `update rabbithole skill` there; no attribution lines), then push both.
-Never edit the claude-skills copy directly.
+The skill (`SKILL.md`, `config.json`, `build.py`, `fig.py`, `template/`) lives only here (`.claude/skills/rabbithole/`). The claude-skills repo links to this repo as the `rabbithole-repo` git submodule, with `rabbithole` symlinked to `rabbithole-repo/.claude/skills/rabbithole`, so there is no copy to keep in sync, only a pinned commit to bump. After any edit:
+1. Commit here (`skill: <change>`, no attribution lines) and push.
+2. Run `.claude/skills/rabbithole/sync.sh`: it moves the claude-skills submodule to the pushed `origin/main` and prints `git status` there.
+3. Commit the new pointer in claude-skills (`update rabbithole skill`, no attribution lines) and push.
 
 ## Blog mode (`/rabbithole blog [slug]`)
 

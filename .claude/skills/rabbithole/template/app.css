@@ -212,6 +212,8 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
 :root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
 .fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
 .fig figcaption b{color:var(--ink)}
 .fig-cite{display:block;font-size:12px;margin-top:2px}
