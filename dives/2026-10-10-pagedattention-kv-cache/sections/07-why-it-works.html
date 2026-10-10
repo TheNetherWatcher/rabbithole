@@ -1,0 +1,12 @@
+<p><b>Core insight:</b> the KV cache only grows at the end and is read in order, so it needs neither contiguity nor reservation. It needs a cheap index from logical position to physical location, and chunked softmax.</p>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td>Block table</td><td>Back to contiguous: 20–38% utilization</td></tr>
+<tr><td>On-demand allocation</td><td>Reservation waste; you'd need the output length up front</td></tr>
+<tr><td>Fixed block size</td><td>External fragmentation returns</td></tr>
+<tr><td>Refcounts</td><td>No sharing; beam-search savings of 37.6–66.3% lost</td></tr>
+<tr><td>Copy-on-write</td><td>Writes to a shared tail block corrupt the sibling sample</td></tr>
+<tr><td>Online-softmax merge</td><td>Must materialize contiguous K/V, a copy every step</td></tr>
+<tr><td>Preemption</td><td>OOM or deadlock when every sequence needs one more block</td></tr>
+</tbody></table>
+<figure data-fig="fig9"></figure>
+<p>Fixed-size blocks end external fragmentation: every allocation asks for exactly one unit, so any free block satisfies it.</p>

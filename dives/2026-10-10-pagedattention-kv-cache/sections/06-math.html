@@ -1,0 +1,45 @@
+<h3>6.1 Footprint and batch size</h3>
+<div class="eq">T = M / b, &nbsp; N<sub>contig</sub> = ⌊T / L<sub>max</sub>⌋, &nbsp; N<sub>paged</sub> ≈ T / E[ B·⌈ℓ/B⌉ ]<small>→ in plain terms: contiguous pays for the worst case; paging pays for the actual average plus at most one block per sequence.</small></div>
+<p>Back-of-envelope (not measured): A100-80GB, Llama-3-8B FP16, utilization 0.92, ~16 GB weights, ~2 GB activations, so M ≈ 55 GB and T ≈ 420k slots. With L<sub>max</sub> = 8192, contiguous fits <b>51</b> sequences; paged at mean length 700 fits about <b>590</b>, before compute and <code>max_num_seqs</code> caps kick in.</p>
+<h3>6.2 Internal fragmentation</h3>
+<div class="eq">w = B·⌈ℓ/B⌉ − ℓ ∈ [0, B−1], &nbsp; E[w] = (B−1)/2, &nbsp; waste ≈ (B−1) / (2·E[ℓ])<small>→ in plain terms: B = 16 with 600-token sequences wastes about 1.25%; B = 512 wastes about 42%.</small></div>
+<p>Why not B = 1: per-block overhead (an indirect lookup, less coalescing) scales with ℓ/B. Total cost is roughly α(B−1)/2 + βℓ/B, minimized near B* ≈ √(2βℓ/α). This cost model is illustrative, not from the paper. The paper's empirical best was 16–128 on ShareGPT, with 16 as the default.</p>
+
+<div class="widget" role="group" aria-label="Block size explorer">
+<b>Block-size explorer</b>
+<div class="ctl"><label for="bs">Block size B = <b id="bsv">16</b></label><input type="range" id="bs" min="0" max="9" value="4" step="1"></div>
+<div class="ctl"><label for="ml">Mean sequence length = <b id="mlv">600</b></label><input type="range" id="ml" min="50" max="4000" value="600" step="50"></div>
+<div class="ctl"><label for="mx">L<sub>max</sub> = <b id="mxv">8192</b></label><input type="range" id="mx" min="1024" max="32768" value="8192" step="1024"></div>
+<p style="margin:8px 0 2px">Paged utilization (tail waste only): <b id="o-pu"></b></p><div class="bar"><i id="b-pu"></i></div>
+<p style="margin:8px 0 2px">Contiguous max-reserve utilization: <b id="o-cu"></b></p><div class="bar"><i id="b-cu" style="background:var(--warn)"></i></div>
+<p class="mini" id="o-n"></p>
+</div>
+
+<p>The paper's own sweep shows the same U-shape: too-small blocks pay kernel overhead, too-large blocks pay tail waste and lose sharing.</p>
+<figure data-fig="fig18b"></figure>
+<h3>6.3 Block-wise softmax is exact</h3>
+<div class="eq">o = (Σ<sub>t</sub> e<sup>s<sub>t</sub></sup> v<sub>t</sub>) / (Σ<sub>t</sub> e<sup>s<sub>t</sub></sup>), &nbsp; s<sub>t</sub> = q·k<sub>t</sub>/√d<small>→ in plain terms: the output is a weighted average of values, and the normalizer runs over all tokens.</small></div>
+<p>Per block j, keep m<sub>j</sub> = max s, l<sub>j</sub> = Σ e<sup>s−m<sub>j</sub></sup> and a<sub>j</sub> = Σ e<sup>s−m<sub>j</sub></sup> v. Merging two blocks:</p>
+<div class="eq">m = max(m<sub>1</sub>, m<sub>2</sub>); &nbsp; l = e<sup>m<sub>1</sub>−m</sup> l<sub>1</sub> + e<sup>m<sub>2</sub>−m</sup> l<sub>2</sub>; &nbsp; a = e<sup>m<sub>1</sub>−m</sup> a<sub>1</sub> + e<sup>m<sub>2</sub>−m</sup> a<sub>2</sub>; &nbsp; o = a / l<small>→ in plain terms: each block reports its local max, local sum and local weighted value; rescaling puts them on a common scale, so the result equals contiguous attention up to float rounding. Paging is lossless.</small></div>
+<p>Why this form: per-block softmaxes can't be averaged because the normalizer is global. Subtracting the max prevents FP16 overflow (e<sup>11.1</sup> &gt; 65504). The paper's Eq. 4 writes the global denominator; FlashAttention and FlashInfer kernels use the running-max form.</p>
+<h3>6.4 Swap vs recompute</h3>
+<div class="eq">t<sub>swap</sub> ≈ 2ℓb / BW<sub>pcie</sub> + (per-transfer overhead × blocks); &nbsp; t<sub>recompute</sub> ≈ 2Pℓ / F<sub>eff</sub><small>→ in plain terms: swap pays PCIe bytes plus a fixed cost per block; recompute pays prefill FLOPs.</small></div>
+<p>Back-of-envelope for Llama-3-8B with ℓ = 1000: 131 MB, about 5 ms each way at ~25 GB/s, vs 1.6e13 FLOP, about 50–100 ms. Swap looks cheaper per byte, but per-block overhead dominates at small B. Paper (Fig. 19, OPT-13B): swap is bad at small blocks, recompute is flat across block sizes, the two are comparable at B = 16–64, and recompute never cost more than about 20% over swap. vLLM V1 defaults to recompute.</p>
+<figure data-fig="fig19b"></figure>
+<script>
+(function(){
+// block size explorer
+  var BS=[1,2,4,8,16,32,64,128,256,512];
+  var bs=document.getElementById('bs'),ml=document.getElementById('ml'),mx=document.getElementById('mx');
+  function upd(){
+    var B=BS[+bs.value],L=+ml.value,M=+mx.value;
+    document.getElementById('bsv').textContent=B;document.getElementById('mlv').textContent=L;document.getElementById('mxv').textContent=M;
+    var pu=L/(L+(B-1)/2), cu=Math.min(1,L/M);
+    document.getElementById('o-pu').textContent=(pu*100).toFixed(1)+'%';document.getElementById('b-pu').style.width=(pu*100)+'%';
+    document.getElementById('o-cu').textContent=(cu*100).toFixed(1)+'%';document.getElementById('b-cu').style.width=(cu*100)+'%';
+    var T=420000;
+    document.getElementById('o-n').textContent='With a ~420k-slot pool (A100-80GB, Llama-3-8B estimate): contiguous fits '+Math.floor(T/M)+' sequences, paged fits ~'+Math.floor(T/(L+(B-1)/2))+' (before compute or max_num_seqs caps). Uses E[waste] = (B−1)/2 per sequence.';
+  }
+  [bs,ml,mx].forEach(function(e){e.addEventListener('input',upd)});upd();
+})();
+</script>

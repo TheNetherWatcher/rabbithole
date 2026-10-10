@@ -1,0 +1,525 @@
+{
+ "meta": {
+  "title": "PagedAttention: KV-cache block tables, fragmentation, copy-on-write, preemption",
+  "short": "PagedAttention & the KV cache",
+  "subject": "Computer science",
+  "domain": "LLM systems",
+  "topic": "PagedAttention and KV-cache memory management",
+  "depth": "hard",
+  "date": "2026-10-10"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "An LLM's KV cache grows one row per token and nobody knows the final length. Old servers reserved a max-length slab per request and used only <b>20–38%</b> of it. PagedAttention cuts the cache into fixed <b>16-token blocks</b> placed anywhere in GPU memory, tracked by a per-request <b>block table</b>, allocated on demand and shared copy-on-write.",
+ "why": "<b>Why it matters:</b> decode is memory-bound, so throughput scales with how many sequences fit. Packing KV well gave vLLM <b>2–4×</b> throughput, and every major open serving engine now pages its KV cache.",
+ "stats": [
+  {
+   "v": "96.3%",
+   "l": "KV memory holding real tokens (vLLM)"
+  },
+  {
+   "v": "20–38%",
+   "l": "same, in contiguous systems"
+  },
+  {
+   "v": "2–4×",
+   "l": "throughput vs FasterTransformer / Orca"
+  },
+  {
+   "v": "16",
+   "l": "tokens per block (vLLM default)"
+  },
+  {
+   "v": "128 KiB",
+   "l": "KV per token, Llama-3-8B FP16"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "Restaurant tables, not one long bench",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A cautious host reserves 20 bench seats for a party of 3, and the room fills with empty seats. PagedAttention gives each party small 4-seat tables, handed out as needed, anywhere in the room. A card records which tables are theirs.</p><p>Nearly every seat gets used, so one GPU serves 2–4× more conversations.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>KV cache</b>: past tokens' keys/values, one row per token per layer.</li><li><b>Decode is memory-bound</b>: throughput comes from big batches.</li><li><b>OS paging</b>: page tables, copy-on-write, swap. The whole idea is borrowed from here.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Where it runs and what you actually touch",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Default in <b>vLLM</b>, <b>TensorRT-LLM</b>, <b>TGI</b>, <b>SGLang</b>. You never touch the block table; you set <code>--gpu-memory-utilization</code>, <code>--max-model-len</code>, <code>--block-size</code> and prefix caching. Watch the startup log line <i># GPU blocks</i>.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"Virtual memory for the KV cache\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The attention kernel itself changes. Fragmentation drops but doesn't vanish. On-demand allocation can run out mid-answer. Sharing is a second win <i>and</i> a security hole. And no hardware MMU is involved.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Contiguous reservation wastes 60–80% of KV memory",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>Output length is unknown, so old servers reserved <code>max_len</code> per request. Three kinds of waste: reservation, internal and external fragmentation. Even an oracle that knows every length loses to paging by <b>1.7–2.7×</b>.</p><p class=\"mini\">Includes an interactive pool visualizer.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "OS paging, and where the analogy breaks",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Request = process, block = page, block table = page table, parallel samples = <code>fork()</code>. But there's no MMU or TLB, every step reads <i>every</i> block, and KV can be recomputed instead of swapped.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One prompt, block by block",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>7-token prompt, B = 4 → blocks <code>[7, 1]</code>. Token 9 fills #1, so allocate #3 → table <code>[7, 1, 3]</code>. A second request shares #7 and #1 (refcount 2); the first write copies only the tail block.</p><p class=\"mini\">7-step interactive walkthrough inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Waste is bounded by one block, and softmax merges exactly",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Expected tail waste is <b>(B−1)/2</b> slots per sequence: about 1.25% at B = 16. Per-block softmax partials (max, sum, weighted value) merge with rescaling, so paged attention is <b>bit-for-bit the same math</b> as contiguous.</p><p class=\"mini\">Block-size explorer inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Append-only + read-in-order = no contiguity needed",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Remove any piece and something breaks: no block table → back to 20–38%; no refcounts → no sharing; no CoW → siblings corrupt each other; no preemption → OOM. Fixed-size blocks make external fragmentation impossible.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Block size, memory fraction, preemption mode",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Small blocks mean less waste but more indirection; vLLM picks 16, TRT-LLM 128. Alternatives: <b>vAttention</b> (hardware virtual memory, unmodified kernels), <b>SGLang</b> radix trees, and lossy KV compression.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Preemption thrash and timing side channels",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Many sequences need a block at once → the newest is evicted, recomputed, evicted again. Shared prefix caches leak other users' prompts through time-to-first-token; 7 API providers shared caches globally (ICML'25).</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "How real engines deviate from the paper",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>vLLM V1: recompute (not swap), prefix caching on by default, chunked prefill. TRT-LLM: 128-token blocks, reuse only after the producer finishes. Mooncake / LMCache move blocks across GPU, DRAM and SSD.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "From packing KV to placing, pruning and protecting it",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>vAttention (ASPLOS'25), DistServe (OSDI'24), Mooncake, KIVI 2-bit KV, SnapKV, StreamingLLM, LMCache, PagedEviction. Packing is solved; the fight moved to <i>where</i> KV lives and <i>who may share it</i>.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "What nobody has solved yet",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Admission without thrash under unknown lengths. Prefix sharing that's provably private. Whether hardware VM retires software block tables. No head-to-head measurement on real public traces.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Atlas paging (1962) → vLLM (2023) → today",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>Virtual memory → Orca's iteration batching → PagedAttention → radix-tree reuse, prefix caching, vAttention, disaggregation, lossy KV.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Simulate a KV pool in 30 seconds",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p><code>python3 kv_alloc_sim.py</code>: contiguous/max hits 32% utilization, paged/16 hits 96.9%, matching the paper's 96.3%. Then try a watermark and watch preemptions drop.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>22 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Chunked prefill (Sarathi-Serve) · prefill/decode disaggregation · KV-cache timing side channels.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and docs",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>19 papers, 8 code/doc references, plus the list of claims I couldn't verify.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What does the kernel load, in order, for token 9 in the trace?",
+   "a": "It reads the table [7, 1, 3] and seq_len 9: physical #7 (4 tokens), #1 (4 tokens), then #3 with 1 valid token. It computes block-local max and sum and merges them with online-softmax rescaling. Loads are coalesced within a block; only the jumps between blocks are indirect.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "When does vLLM allocate a new physical block?",
+   "a": "At prefill, ⌈prompt/B⌉ blocks. During decode, only when the last block is full and a token must be written. It pops any free block id and appends it to the table. If none is free, the scheduler preempts first.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "n=4 samples, prompt 30, B=16: blocks copied on the first decode?",
+   "a": "Block 0 is full and block 1 is partial (14 tokens), both refcount 4. The first three writers to block 1 see refcount &gt; 1 and copy; the fourth writes in place. <b>3 copies</b>, and block 0 is never copied.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Finished blocks with prefix caching on vs off?",
+   "a": "Off: refcount 0, blocks go to the free pool with meaningless contents. On: full blocks keep their hash in an LRU free queue, reusable by a matching hash chain or evicted under pressure. Tail blocks evict first.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why do fixed-size blocks eliminate external fragmentation?",
+   "a": "Every allocation asks for exactly one block, so any free block satisfies it. \"Enough free memory, but no hole big enough\" can't happen.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why does an oracle contiguous allocator still lose?",
+   "a": "External fragmentation (79% of free memory outside the largest hole in the simulation), head-of-line blocking, and no sharing of prompt blocks.",
+   "sec": "problem"
+  },
+  {
+   "type": "Why",
+   "q": "Why B = 16?",
+   "a": "Tail waste of about (B−1)/2 favors small B; coalescing, fewer lookups and fewer tiny swaps favor large B. The paper's sweep found 16–128 best on ShareGPT and 16–32 on Alpaca. TRT-LLM picks 128 for its kernels.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why is preemption all-or-nothing per group?",
+   "a": "Every step reads every block, so there's no cold subset, and a sequence missing any block can't run. Group members share blocks, so they're gang-scheduled and preempted together.",
+   "sec": "model"
+  },
+  {
+   "type": "Why",
+   "q": "Why hash only full blocks, and why chain the parent?",
+   "a": "A partial block's contents still change. KV at position t depends on every earlier token, so identical 16 tokens after a different prefix have different K,V. The parent hash encodes the whole prefix.",
+   "sec": "mech"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "Remove refcounts but keep block tables?",
+   "a": "The packing benefit stays, but sharing is unsafe because you can't know when to free or copy. You lose parallel-sampling and beam savings (37.6–66.3% for beams) and prefix caching.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If output lengths were known exactly, is paging still worth it?",
+   "a": "Yes, though less so. External fragmentation (unless you compact by copying) and lack of sharing remain. vLLM's gain shrinks from 2.7–8× (vs Orca-Max) to 1.7–2.7× (vs Orca-Oracle).",
+   "sec": "problem"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "With a cheap hardware MMU for GPU memory?",
+   "a": "Software tables and kernel indirection disappear (vAttention-like). On-demand mapping, refcounts or CoW, preemption policy and prefix hashing remain.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How do you extract another tenant's prompt from a shared prefix cache?",
+   "a": "Probe guessed prefixes and measure TTFT; a fast response means a hit. Extend block by block or token by token (Early Bird). Larger B means more candidates per step. Defenses: salts, isolation, noise.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Design a workload that maximizes thrash.",
+   "a": "Bursts of short prompts with long outputs, high <code>max_num_seqs</code>, no watermark. Sequences cross block boundaries together, the pool empties, the newest are recomputed and evicted again. Each cycle costs a full prefill.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How can a prefix-hash collision fail?",
+   "a": "Request B reuses A's KV: wrong outputs conditioned on A's text, and possible leakage of A's content. That's why the default is SHA-256 with a warning about xxhash.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "Relation to fork() and where it fails?",
+   "a": "Samples are forked processes sharing refcounted pages copied on write. There are no MMU faults (the scheduler checks refcounts), no locality-driven paging, and contents can be recomputed.",
+   "sec": "model"
+  },
+  {
+   "type": "Connection",
+   "q": "How does disaggregation depend on blocks?",
+   "a": "KV moves between prefill and decode nodes and tiers (RDMA, DRAM, SSD) as fixed-size blocks, mapped into the decoder's table without contiguity.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Connection",
+   "q": "How does KIVI compose with paging?",
+   "a": "They're orthogonal: fewer bytes per token, so more tokens per pool. Key quantization works on token groups, which interacts with block boundaries and the full-precision residual tail.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Connection",
+   "q": "Online softmax and FlashAttention?",
+   "a": "Same running max and sum merge. FlashAttention tiles for SRAM; paged variants just take tiles from table-indexed blocks.",
+   "sec": "math"
+  },
+  {
+   "type": "Open",
+   "q": "Near-100% utilization with no preemption under unknown lengths?",
+   "a": "Open. It's a trade between over-reservation and preemption risk, with no guarantee under heavy-tailed lengths.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Provably safe prefix sharing with most of the benefit?",
+   "a": "Open. k-tenant thresholds, noise, salts and constant-time responses all cost hit rate or latency, and formal guarantees are rare.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Will hardware VM replace software block tables?",
+   "a": "Open. vAttention is competitive, but page granularity and the lack of hardware CoW limit it. Software tables remain the default in vLLM, TRT-LLM and SGLang as of 2026.",
+   "sec": "knobs"
+  }
+ ],
+ "figures": {
+  "fig1a": {
+   "file": "img/fig/vllm-fig1a-memory-layout.png",
+   "caption": "Memory layout serving a 13B model on an A100-40GB: weights take 65%, the KV cache over 30%.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 1 (left)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig1b": {
+   "file": "img/fig/vllm-fig1b-memory-vs-batch.png",
+   "caption": "Memory and throughput vs batch size. Existing systems run out of KV memory at ~8 requests; vLLM keeps batching to ~40.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 1 (right)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig2": {
+   "file": "img/fig/vllm-fig2-waste.png",
+   "caption": "Where KV memory goes. Orca variants hold real token state in only 20.4–38.2% of it; vLLM reaches 96.3%.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 2"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig3": {
+   "file": "img/fig/vllm-fig3-contiguous-waste.png",
+   "caption": "The three kinds of waste in contiguous allocation: reserved slots, internal fragmentation, external fragmentation.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig4": {
+   "file": "img/fig/vllm-fig4-system.png",
+   "caption": "vLLM's architecture: a central scheduler and KV cache manager own the block tables; GPU workers run the model shards.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 4"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig5": {
+   "file": "img/fig/vllm-fig5-pagedattention.png",
+   "caption": "The query attends over key/value blocks that sit in non-contiguous memory.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 5"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig6": {
+   "file": "img/fig/vllm-fig6-block-table.png",
+   "caption": "Block table translation: logical blocks of one request map to scattered physical blocks, with a fill count per entry.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 6"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig7": {
+   "file": "img/fig/vllm-fig7-two-requests.png",
+   "caption": "Two requests interleaved in the same physical pool, each with its own block table.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 7"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig8": {
+   "file": "img/fig/vllm-fig8-parallel-sampling.png",
+   "caption": "Parallel sampling: shared prompt blocks carry a reference count, and a write to a shared block triggers copy-on-write.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 8"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig9": {
+   "file": "img/fig/vllm-fig9-beam-search.png",
+   "caption": "Beam search: candidates share blocks as a tree; pruned branches free their blocks.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 9"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig10": {
+   "file": "img/fig/vllm-fig10-shared-prefix.png",
+   "caption": "Shared prefix: two translation requests reuse the same cached few-shot prompt.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 10"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig18a": {
+   "file": "img/fig/vllm-fig18a-kernel-latency.png",
+   "caption": "Attention kernel latency: vLLM's paged kernel is slower than FasterTransformer's contiguous kernel at the op level.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 18a"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig18b": {
+   "file": "img/fig/vllm-fig18b-block-size.png",
+   "caption": "End-to-end latency vs block size: 16–128 is the sweet spot on ShareGPT; short Alpaca sequences suffer above 32.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 18b"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig19b": {
+   "file": "img/fig/vllm-fig19b-recompute-vs-swap.png",
+   "caption": "Recompute vs swap end to end: swap is worse at small blocks, the two are close at 16–64.",
+   "source": {
+    "cite": "Kwon et al., \"Efficient Memory Management for Large Language Model Serving with PagedAttention\", SOSP 2023",
+    "url": "https://arxiv.org/abs/2309.06180",
+    "figure": "Fig. 19b"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "vatt-two-layers": {
+   "file": "img/fig/vattention-fig-two-layers.png",
+   "caption": "PagedAttention adds a second layer of address translation (block tables) on top of the OS page tables.",
+   "source": {
+    "cite": "Prabhu et al., \"vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention\", ASPLOS 2025",
+    "url": "https://arxiv.org/abs/2405.04437",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "vatt-dynamic": {
+   "file": "img/fig/vattention-fig-dynamic-alloc.png",
+   "caption": "vAttention: each request's KV tensor is contiguous in virtual memory, and physical pages are mapped in as it grows and released when it exits.",
+   "source": {
+    "cite": "Prabhu et al., \"vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention\", ASPLOS 2025",
+    "url": "https://arxiv.org/abs/2405.04437",
+    "figure": "Fig. 5"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

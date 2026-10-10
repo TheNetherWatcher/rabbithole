@@ -1,0 +1,9 @@
+<div class="callout gotcha"><b>Preemption thrash.</b> Admission is based on prompt blocks, and growth is on demand. Under load many sequences need a block at once, and the newest is evicted, recomputed and evicted again. The toy simulation (§13) shows 818 preemptions at B = 16 with greedy admission. Mitigations are watermarks and <code>max_num_seqs</code>. I found no published measurement of thrash itself.</div>
+<ul>
+<li><b>Output-length uncertainty</b> remains the root problem; paging turns waste into preemption risk (<a href="https://arxiv.org/abs/2607.16892" target="_blank" rel="noopener">2607.16892</a>, Azure LLM 2024 trace).</li>
+<li><b>Head-of-line blocking</b> from long prefills. Chunked prefill (Sarathi-Serve: 2.6× capacity for Mistral-7B, up to 5.6× for Falcon-180B vs vLLM) is on by default in vLLM V1.</li>
+<li><b>Hash collisions</b> in prefix caching would serve another prompt's KV. vLLM defaults to SHA-256 and warns about xxhash in multi-tenant setups.</li>
+<li><b>Kernel overhead</b> (20–26% at op level) matters at small batch.</li>
+</ul>
+<div class="callout gotcha"><b>Cross-tenant timing side channel.</b> Cache hits lower time-to-first-token. <i>Early Bird</i> (Song et al., IEEE TIFS) recovers other users' prompts token by token from KV-cache timing, with black-box tests on online services. Gu et al. (ICML'25) found global cross-user prompt-cache sharing at 7 API providers, including OpenAI. Mitigations: per-tenant <code>cache_salt</code> or per-user isolation, both of which give up reuse.</div>
+<div class="callout mis"><b>Misconceptions.</b> "Saves memory like quantization": no, it stores exactly the same KV and output is identical. "Zero fragmentation": only external fragmentation is zero; tail waste is up to B−1 slots. "Uses hardware page faults": no, the lookup is a load inside the kernel. "Prefix caching is free": it costs hashing, LRU bookkeeping and a security boundary.</div>

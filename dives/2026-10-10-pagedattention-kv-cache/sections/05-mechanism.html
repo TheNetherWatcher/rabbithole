@@ -1,0 +1,120 @@
+<style>
+#bt .blk{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+#bt .blk.a{fill:var(--plain);stroke:var(--ok)}
+#bt .blk.b{fill:var(--hl);stroke:var(--warn)}
+#bt .blk.s{fill:var(--hl);stroke:var(--accent);stroke-width:2.5}
+#bt .blk.new{stroke:var(--accent);stroke-width:3}
+#bt .tk{fill:var(--ink);font:11px ui-monospace,monospace}
+#bt .pv{fill:var(--accent);font:600 12px ui-monospace,monospace}
+#bt .arrow{stroke:var(--accent2);stroke-width:1.6;fill:none;opacity:.85}
+#bt .arrow.b{stroke:var(--warn)}
+#bt .s-lab{fill:var(--mute);font:12px system-ui}
+#bt .s-txt{fill:var(--ink);font:13px ui-monospace,monospace}
+#bt{color:var(--mute)}
+#bt g{animation:bt-in .35s cubic-bezier(.2,.7,.2,1) both}
+@keyframes bt-in{from{opacity:.2}}
+</style>
+<p>The paper's Fig. 6 example, block size B = 4: Maya's 7-token prompt, then decode, then a second request with <code>n=2</code>.</p>
+<div class="widget" role="group" aria-label="Block table step-through">
+<svg id="bt" viewBox="0 0 650 300" role="img" aria-label="Logical blocks mapped to physical blocks"></svg>
+<div class="stepbar">
+  <button class="btn" id="bt-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="bt-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="bt-n" aria-live="polite"></span>
+  <div class="info" id="bt-info" aria-live="polite"></div>
+</div>
+</div>
+<p>The same walkthrough as the paper draws it, for one request and then two requests sharing the pool:</p>
+<figure data-fig="fig6"></figure>
+<figure data-fig="fig7"></figure>
+<p>Parallel sampling: both samples point at the same prompt blocks until one writes, then only the tail block is copied.</p>
+<figure data-fig="fig8"></figure>
+<h3>Attention over scattered blocks</h3>
+<figure data-fig="fig5"></figure>
+<pre><code>m, l, acc = -inf, 0.0, zeros(d)
+for j, phys in enumerate(block_table):        # [7, 1, 3]
+    K = kv_pool.K[layer, phys]                # (B, d), contiguous inside the block
+    V = kv_pool.V[layer, phys]
+    n = min(B, seq_len - j*B)                 # last block partially filled
+    s = K[:n] @ q / sqrt(d)
+    m_new = max(m, s.max())
+    scale = exp(m - m_new)
+    p = exp(s - m_new)
+    l = l * scale + p.sum()
+    acc = acc * scale + p @ V[:n]
+    m = m_new
+out = acc / l</code></pre>
+<p>Each warp reads one block, so loads are coalesced inside a block and only the jump between blocks is indirect.</p>
+<h3>Preemption and prefix caching</h3>
+<p>When the pool is full and a sequence needs a block, vLLM (FCFS) preempts the <b>most recently arrived</b> sequence group. <b>Recompute</b> (V1 default) frees all of its blocks and requeues it with <code>prompt + generated</code>. <b>Swap</b> (original paper) copies its blocks to a CPU block pool over PCIe. Groups are preempted together because they share blocks.</p>
+<p>With automatic prefix caching, a finished request's full blocks keep their hash in an LRU free queue:</p>
+<pre><code>hash(block_k) = H(hash(block_{k-1}), token_ids_in_block_k, extra_keys)
+extra_keys: LoRA id, multimodal hashes, cache_salt</code></pre>
+<p>Only full blocks are hashed, so a 7-token match reuses 4 tokens, not 7.</p>
+<p>The paper's motivating case for prefix sharing: few-shot translation prompts that share a long instruction prefix.</p>
+<figure data-fig="fig10"></figure>
+<script>
+(function(){
+// block table step-through
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('bt');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  // phys pool: 8 blocks; state per step
+  var steps=[
+    {info:'<b>Prefill.</b> 7-token prompt, B = 4, so ⌈7/4⌉ = 2 blocks. The allocator hands out any free blocks: #7, then #1. Table A = [7, 1]. Block #1 holds 3 of 4.',
+     A:[7,1],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','']},own:{7:'a',1:'a'},ref:{7:1,1:1},hl:[7,1]},
+    {info:'<b>Decode token 8 ("Soft").</b> The last block has a free slot, so it writes into #1 with no allocation.',
+     A:[7,1],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8']},own:{7:'a',1:'a'},ref:{7:1,1:1},hl:[1]},
+    {info:'<b>Decode token 9 ("drops").</b> #1 is full, so it allocates a new block. The free pool gives #3. Table A = [7, 1, 3]. Waste: 3 slots, only in the last block.',
+     A:[7,1,3],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8'],3:['t9','','','']},own:{7:'a',1:'a',3:'a'},ref:{7:1,1:1,3:1},newb:3,hl:[3]},
+    {info:'<b>Attention for token 9.</b> The kernel walks the table: #7 → #1 → #3 (masking 3 empty slots), merging per-block softmax with running max and sum. The output is identical to contiguous attention.',
+     A:[7,1,3],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8'],3:['t9','','','']},own:{7:'a',1:'a',3:'a'},ref:{7:1,1:1,3:1},hl:[7,1,3],walk:true},
+    {info:'<b>New request, n = 2 samples, same 7-token prompt.</b> (Shown on a fresh pool for clarity.) Both samples map to the same physical blocks #7 and #1, refcount 2 each, with zero copies.',
+     A:[7,1],Bt:[7,1],phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','']},own:{7:'s',1:'s'},ref:{7:2,1:2},hl:[7,1]},
+    {info:'<b>Copy-on-write.</b> Sample A writes token 8 into #1, but refcount 2 &gt; 1, so it copies #1 to free block #4. A = [7, 4], refcount(#1) drops to 1. Sample B writes into #1 in place. One block copied, not the whole prompt.',
+     A:[7,4],Bt:[7,1],phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','b8'],4:['t5','t6','t7','a8']},own:{7:'s',1:'b',4:'a'},ref:{7:2,1:1,4:1},newb:4,hl:[4,1]},
+    {info:'<b>Finish and prefix cache.</b> Sample B ends: #1 drops to refcount 0 and returns to the pool. Full block #7 keeps hash H(∅, t1..t4) in the LRU queue, so a future prompt starting with t1..t4 reuses it and skips that prefill.',
+     A:[7,4],Bt:null,phys:{7:['t1','t2','t3','t4'],4:['t5','t6','t7','a8']},own:{7:'a',4:'a'},ref:{7:1,4:1},hl:[7]}
+  ];
+  var cur=0;
+  function px(p){return 150+(p%4)*120}function py(p){return p<4?150:225}
+  function draw(){
+    var s=steps[cur];svg.innerHTML='';
+    svg.appendChild(el('text',{x:10,y:20,'class':'s-lab'},'Block tables (logical → physical)'));
+    svg.appendChild(el('text',{x:150,y:130,'class':'s-lab'},'Physical KV pool (8 blocks × 4 slots)'));
+    function table(row,arr,label,cls,x0){
+      svg.appendChild(el('text',{x:x0-80,y:row+18,'class':'s-txt'},label));
+      arr.forEach(function(p,j){
+        var x=x0+j*70;
+        svg.appendChild(el('rect',{x:x,y:row,width:60,height:28,rx:5,'class':'blk '+cls}));
+        svg.appendChild(el('text',{x:x+30,y:row+18,'text-anchor':'middle','class':'pv'},'L'+j+'→#'+p));
+        var tx=px(p)+50,ty=py(p),off=(cls==='b'?6:0),d;
+        if(p<4){d='M'+(x+30)+' '+(row+28)+' L'+(x+30)+' '+(row+40+off)+' L'+(tx+off)+' '+(row+40+off)+' L'+(tx+off)+' '+(ty-4)}
+        else{var gx=px(p)+110+off/2;d='M'+(x+30)+' '+(row+28)+' L'+(x+30)+' '+(row+40+off)+' L'+gx+' '+(row+40+off)+' L'+gx+' '+(ty-12-off)+' L'+(tx+off)+' '+(ty-12-off)+' L'+(tx+off)+' '+(ty-4)}
+        svg.appendChild(el('path',{d:d,'class':'arrow'+(cls==='b'?' b':''),'marker-end':'url(#ah)'}));
+      });
+    }
+    var defs=el('defs',{});var mk=el('marker',{id:'ah',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});
+    mk.appendChild(el('path',{d:'M0 0 L10 5 L0 10 z',fill:'currentColor'}));defs.appendChild(mk);svg.appendChild(defs);
+    table(32,s.A,s.Bt?'Sample A':'Seq A','a',90);
+    if(s.Bt)table(32,s.Bt,'Sample B','b',410);
+    for(var p=0;p<8;p++){
+      var x=px(p),y=py(p),own=s.own[p],cls='blk'+(own==='a'?' a':own==='b'?' b':own==='s'?' s':'')+(s.newb===p?' new':'');
+      var g=el('g',{});
+      g.appendChild(el('rect',{x:x,y:y,width:100,height:48,rx:6,'class':cls,'stroke-dasharray':s.hl.indexOf(p)>=0?'':'0'}));
+      g.appendChild(el('text',{x:x+4,y:y+14,'class':'pv'},'#'+p+(s.ref[p]?'  rc='+s.ref[p]:'')));
+      var toks=s.phys[p]||['','','',''];
+      toks.forEach(function(t,k){g.appendChild(el('rect',{x:x+4+k*23,y:y+20,width:21,height:22,rx:3,fill:'none',stroke:'currentColor','stroke-opacity':.25}));
+        if(t)g.appendChild(el('text',{x:x+14.5+k*23,y:y+35,'text-anchor':'middle','class':'tk'},t))});
+      if(s.hl.indexOf(p)>=0)g.appendChild(el('rect',{x:x-3,y:y-3,width:106,height:54,rx:8,fill:'none',stroke:'var(--accent)','stroke-width':2}));
+      svg.appendChild(g);
+    }
+    if(s.walk){svg.appendChild(el('text',{x:150,y:292,'class':'s-lab'},'read order: #7 → #1 → #3 (online softmax merge)'))}
+    document.getElementById('bt-info').innerHTML=s.info;
+    document.getElementById('bt-n').textContent='STEP '+(cur+1)+' / '+steps.length;
+    document.getElementById('bt-prev').disabled=cur===0;document.getElementById('bt-next').disabled=cur===steps.length-1;
+  }
+  document.getElementById('bt-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('bt-next').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+})();
+</script>

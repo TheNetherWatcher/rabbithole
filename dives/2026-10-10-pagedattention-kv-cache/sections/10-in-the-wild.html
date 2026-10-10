@@ -1,0 +1,7 @@
+<ul>
+<li><b>vLLM V1.</b> Block 16. <code>gpu_memory_utilization</code> is 0.92 in code (older docs say 0.9). Prefix caching on with hash chains and LRU that evicts the tail block first. Recompute preemption, chunked prefill on with decodes first, append-only block tables. Deviates from the paper, which defaulted to swap and pre-reserved shared prefixes explicitly.</li>
+<li><b>TensorRT-LLM.</b> 128 tokens per block, fixed at build. Reuse on by default, but blocks become reusable only after the producing request terminates. Host secondary cache.</li>
+<li><b>TGI.</b> vLLM kernels plus a block table; prefix-cache policy not documented (unverified).</li>
+<li><b>SGLang.</b> Radix-tree reuse. Up to 6.4× throughput, but that's the whole runtime, not RadixAttention alone. Page-size default unverified.</li>
+<li><b>Mooncake / LMCache / CachedAttention.</b> Blocks move across HBM, DRAM, SSD and machines. Mooncake: up to 525% (simulated), +75% requests in production.</li>
+</ul>

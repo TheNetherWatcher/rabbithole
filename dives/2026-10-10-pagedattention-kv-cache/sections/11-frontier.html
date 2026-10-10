@@ -1,0 +1,11 @@
+<table><thead><tr><th>Year · Venue</th><th>Work</th><th>Contribution</th></tr></thead><tbody>
+<tr><td>2025 · ASPLOS</td><td><a href="https://arxiv.org/abs/2405.04437" target="_blank" rel="noopener">vAttention</a></td><td>CUDA VMM demand paging behind contiguous virtual KV; unmodified kernels; up to 1.23× over paged kernels</td></tr>
+<tr><td>2024 · OSDI</td><td><a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener">DistServe</a></td><td>Prefill/decode disaggregation; 7.4× more requests or 12.6× tighter SLO</td></tr>
+<tr><td>2024–25 · arXiv/FAST'25</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener">Mooncake</a></td><td>KV-centric disaggregated architecture; up to 525% (simulated), +75% requests</td></tr>
+<tr><td>2024 · ICML</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank" rel="noopener">KIVI</a></td><td>2-bit KV quantization; 2.6× less peak memory, 4× batch, 2.35–3.47× throughput</td></tr>
+<tr><td>2024 · arXiv</td><td><a href="https://arxiv.org/abs/2404.14469" target="_blank" rel="noopener">SnapKV</a></td><td>Prefill-time KV selection; 3.6× speed, 8.2× memory at 16K; 380K context on one A100</td></tr>
+<tr><td>2024 · ICLR</td><td><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener">StreamingLLM</a></td><td>Attention sinks; stable to 4M tokens; 22.2× faster than sliding-window recompute</td></tr>
+<tr><td>2025 · arXiv</td><td><a href="https://arxiv.org/abs/2510.09665" target="_blank" rel="noopener">LMCache</a></td><td>KV cache layer for cross-engine sharing and offload</td></tr>
+<tr><td>2025 · arXiv</td><td><a href="https://arxiv.org/abs/2509.04377" target="_blank" rel="noopener">PagedEviction</a></td><td>Block-wise KV pruning inside vLLM's paged layout, no kernel changes</td></tr>
+</tbody></table>
+<p>Trend: from <em>packing</em> KV (solved) to <em>where</em> it lives (disaggregation, tiers), <em>whether</em> to keep it (eviction, quantization) and <em>who may share it</em> (side channels).</p>

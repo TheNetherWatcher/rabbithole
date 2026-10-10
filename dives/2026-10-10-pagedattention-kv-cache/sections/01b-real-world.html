@@ -1,0 +1,39 @@
+<h3>What it is</h3>
+<p>PagedAttention stores the KV cache in fixed-size <b>blocks</b> (16 tokens by default in vLLM) that can sit anywhere in GPU memory. A per-request <b>block table</b> maps logical blocks to physical ones, and the attention kernel follows it. Blocks are allocated one at a time as the sequence grows. They are refcounted so requests can share them (prefixes, parallel samples, beams) and copied only on write. It is OS paging applied to the KV cache, introduced by Kwon et al. at SOSP 2023 (<a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">arXiv 2309.06180</a>).</p>
+<figure data-fig="fig4"></figure>
+<h3>Why it exists</h3>
+<ul>
+<li><b>The pain.</b> FasterTransformer and Orca stored each request's KV as one contiguous tensor pre-allocated for max length. Measured utilization was 20.4%–38.2%; vLLM reached 96.3%.</li>
+<li><b>Why it matters.</b> Decode is memory-bound, so throughput is roughly proportional to batch size, and wasted KV memory means a smaller batch.</li>
+<li><b>Payoff.</b> 2–4× throughput at the same latency, with bigger gains for long sequences, big models and complex decoding.</li>
+</ul>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="gc"><b>vLLM</b>Reference implementation. V1: block 16, <code>gpu_memory_utilization</code> 0.92, prefix caching on by default, recompute preemption.</div>
+<div class="gc"><b>TensorRT-LLM</b><code>tokens_per_block</code> = 128 (power of 2, set at build), block reuse on by default, LRU, host offload.</div>
+<div class="gc"><b>HF TGI</b>Uses vLLM's PagedAttention CUDA kernels, block table, KV sharing for parallel sampling.</div>
+<div class="gc"><b>SGLang</b>RadixAttention: paged KV indexed by a radix tree of token prefixes for automatic reuse.</div>
+<div class="gc"><b>FlashAttention / FlashInfer</b>Paged-KV attention kernels that engines call.</div>
+<div class="gc"><b>Mooncake (Kimi)</b>Disaggregated, KV-centric serving; block-granular KV moved across GPU, DRAM and SSD.</div>
+<div class="gc"><b>LMCache</b>KV layer capturing engine blocks, then offloading and sharing them across engines and queries.</div>
+</div>
+<h3>How it's used</h3>
+<pre><code>vllm serve meta-llama/Llama-3.1-8B-Instruct \
+  --gpu-memory-utilization 0.90 \   # weights + activations + KV pool
+  --max-model-len 8192 \            # longest sequence; caps blocks/request
+  --block-size 16 \                 # tokens per KV block (default 16)
+  --enable-prefix-caching \         # hash full blocks, reuse across requests (V1 default on)
+  --kv-cache-dtype fp8              # halve KV bytes per token (optional)</code></pre>
+<pre><code>from vllm import LLM, SamplingParams
+llm = LLM(model="meta-llama/Llama-3.1-8B-Instruct",
+          gpu_memory_utilization=0.9, max_model_len=8192)
+# n=4 samples share the prompt's blocks via refcounts; only the tail block is copied
+outs = llm.generate(["Write a haiku about rain."], SamplingParams(n=4, max_tokens=64))</code></pre>
+<p>Typical values: block 16 (vLLM) or 64–128 (TRT-LLM), memory utilization 0.85–0.95. At startup the engine profiles memory, then turns what's left into a fixed pool of KV blocks. The startup log line "# GPU blocks" is the capacity number to watch.</p>
+<h3>When to use it, when not to</h3>
+<div class="two">
+<div class="use"><b>Use it</b><ul><li>Many concurrent, variable-length generations: chat, agents, batch inference, RAG.</li><li>Parallel sampling, beam search, shared system prompts.</li><li>It's the default everywhere, so the real choice is block size and prefix-cache policy.</li></ul></div>
+<div class="skip"><b>Skip / reconsider</b><ul><li>Single-stream batch-1 latency, where fragmentation is irrelevant and a dense contiguous kernel can win.</li><li>vAttention: contiguous virtual memory with on-demand physical pages through CUDA VMM, unmodified kernels, up to 1.23× throughput.</li><li>Warning signs: frequent preemption, low prefix-hit rate at block 128, KV full while compute sits idle.</li></ul></div>
+</div>
+<h3>Who should care</h3>
+<p><b>ML infra / serving</b>: capacity, block size, preemption tuning. <b>Backend</b>: put stable prompt content first so prefix caching hits. <b>Security</b>: shared prefix caches are a cross-tenant timing channel. <b>Kernel authors</b>: every attention kernel must handle indirect, non-contiguous KV.</p>

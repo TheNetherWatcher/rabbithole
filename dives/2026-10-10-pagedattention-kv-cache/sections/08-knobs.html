@@ -1,0 +1,18 @@
+<table><thead><tr><th>Knob</th><th>Small</th><th>Large</th></tr></thead><tbody>
+<tr><td>Block size B</td><td>Less tail waste, finer prefix hits; more indirection, tiny swaps</td><td>Better kernels; up to B−1 waste per sequence, prefix hits in multiples of B</td></tr>
+<tr><td>gpu_memory_utilization</td><td>Headroom for activation spikes</td><td>More blocks, OOM risk on long prefill</td></tr>
+<tr><td>max_num_seqs / batched tokens</td><td>Less preemption, better inter-token latency</td><td>Throughput, more preemption under bursts</td></tr>
+<tr><td>Preemption mode</td><td>Recompute: costs FLOPs</td><td>Swap: costs PCIe, needs a pinned host pool</td></tr>
+<tr><td>Prefix caching</td><td>Off: no reuse, no timing channel</td><td>On: skip prefill, LRU churn, side channel unless salted</td></tr>
+<tr><td>KV dtype</td><td>FP16/BF16 exact</td><td>FP8 / INT4 / 2-bit: 2–8× tokens, accuracy cost</td></tr>
+</tbody></table>
+<figure data-fig="fig18a"></figure>
+<ul>
+<li><b>Contiguous + length prediction</b>: mispredictions plus external fragmentation. Lost even with a perfect oracle.</li>
+<li><b>vAttention</b> (ASPLOS'25): virtually contiguous, physically demand-paged through CUDA VMM. Unmodified kernels, up to 1.23×. Constrained by driver page granularity, and sharing is less natural.</li>
+<li><b>SGLang RadixAttention</b>: pages indexed by a radix tree, with cache-aware scheduling for branching programs.</li>
+<li><b>Compression</b> (StreamingLLM, H2O, SnapKV, KIVI): shrinks the KV itself. Orthogonal to paging, but lossy.</li>
+</ul>
+<p>vAttention's argument in two pictures: PagedAttention stacks a user-space block table on top of the OS page table, while vAttention keeps the KV tensor virtually contiguous and maps physical pages into it on demand.</p>
+<figure data-fig="vatt-two-layers"></figure>
+<figure data-fig="vatt-dynamic"></figure>

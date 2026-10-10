@@ -1,0 +1,17 @@
+<p><code>kv_alloc_sim.py</code> (in this folder) simulates a 32,768-slot pool with max_len 2048 and 3000 synthetic lognormal requests under FCFS admission.</p>
+<pre><code>python3 kv_alloc_sim.py</code></pre>
+<pre><code>pool=32768 slots, max_len=2048, 3000 requests, mean prompt=231, mean output=433
+
+allocator                   KV util  concurrent  ext frag  preempts
+contiguous / max             32.0%        16.0     0.1%         -
+contiguous / oracle          50.3%        24.7    78.9%         -
+paged / block=1              97.8%        50.3      0.0%       881
+paged / block=16             96.9%        49.8      0.0%       818
+paged / block=128            89.7%        45.2      0.0%       463
+paged / block=512            72.0%        34.6      0.0%        82</code></pre>
+<ul>
+<li>Contiguous/max at 32% falls inside the paper's 20.4–38.2% band.</li>
+<li>Oracle reaches only 50%: 79% of its free memory sits outside the largest hole.</li>
+<li>Paged/16 at 96.9% matches the paper's 96.3%, with three times the concurrency.</li>
+<li>Utilization falls as B grows, per (B−1)/(2E[ℓ]). Preemptions are the price of greedy admission; add a watermark and watch them drop.</li>
+</ul>

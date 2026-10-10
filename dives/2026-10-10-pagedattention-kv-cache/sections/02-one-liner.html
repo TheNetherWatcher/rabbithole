@@ -1,0 +1,8 @@
+<blockquote>"PagedAttention is virtual memory for the KV cache. It cuts fragmentation so you can batch more."</blockquote>
+<ol>
+<li><b>The kernel changes.</b> Softmax over scattered keys is computed block by block with exact global renormalization. The paper's kernel was 20–26% slower in isolation.</li>
+<li><b>Fragmentation drops but doesn't vanish.</b> Internal waste is bounded to the last block, which trades block size against kernel efficiency and sharing granularity.</li>
+<li><b>On-demand allocation can run out mid-generation</b>, which forces preemption (swap or recompute).</li>
+<li><b>Sharing is the second win</b> (refcounts plus copy-on-write), and it's also a security hole.</li>
+<li><b>No MMU involved.</b> Translation is a software table lookup inside the kernel, which is why vAttention exists.</li>
+</ol>

@@ -1,0 +1,60 @@
+<style>
+.pool{display:grid;grid-template-columns:repeat(32,1fr);gap:2px;margin:6px 0 10px}
+.pool i{display:block;aspect-ratio:1;border-radius:2px;background:var(--code);border:1px solid var(--line);transition:background .25s}
+.pool i.u{background:var(--ok);border-color:var(--ok)}
+.pool i.r{background:var(--warn);border-color:var(--warn);opacity:.55}
+.pool i.w{background:var(--bad);border-color:var(--bad);opacity:.55}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--mute)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+</style>
+<div class="eq">bytes/token = 2 · L · H<sub>kv</sub> · d<sub>head</sub> · s<small>→ in plain terms: K and V, for every layer, every KV head and every head dimension, at s bytes each.</small></div>
+<ul>
+<li><b>OPT-13B</b> (paper example; MHA, hidden 5120, 40 layers, FP16): <b>800 KB/token</b>, so 2048 tokens ≈ 1.6 GB.</li>
+<li><b>Llama-2-7B</b> (MHA): 2·32·32·128·2 = <b>512 KiB/token</b>.</li>
+<li><b>Llama-3-8B</b> (GQA, 8 KV heads): 2·32·8·128·2 = <b>128 KiB/token</b>.</li>
+</ul>
+
+<div class="fig-pair"><figure data-fig="fig1a"></figure><figure data-fig="fig1b"></figure></div><table><thead><tr><th>Waste</th><th>Cause</th><th>Paper's example (Fig. 3)</th></tr></thead><tbody>
+<tr><td><b>Reservation</b></td><td>Future-token slots held for the request's lifetime</td><td>Slot for token 500 reserved at step 1</td></tr>
+<tr><td><b>Internal</b></td><td>Reserved for max length, request ends early</td><td>A reserves 2048, prompt 7, so up to 2038 unused; B wastes 507</td></tr>
+<tr><td><b>External</b></td><td>Holes between variable-size chunks</td><td>Buddy-allocator gaps</td></tr>
+</tbody></table>
+<figure data-fig="fig3"></figure>
+<figure data-fig="fig2"></figure>
+<p><b>Forcing constraint:</b> output length is unknown at admission. Even "Orca (Oracle)", which knows true output lengths, loses to vLLM by 1.7–2.7× on ShareGPT, because external fragmentation and the lack of sharing remain.</p>
+
+<div class="widget" role="group" aria-label="Pool visualizer">
+<b>Pool visualizer: contiguous vs paged.</b> <span class="mini">256 cells = one KV pool. Same 6 requests (current lengths in cells), toggle the allocator.</span>
+<div class="ctl" style="margin-top:8px">
+  <button class="btn" id="pv-c" aria-pressed="true">Contiguous (max reserve)</button>
+  <button class="btn" id="pv-p" aria-pressed="false">Paged (block = 4)</button>
+</div>
+<div class="pool" id="pool" aria-hidden="true"></div>
+<div class="legend"><span style="--c:var(--ok)">real KV</span><span style="--c:var(--warn)">reserved / tail waste</span><span style="--c:var(--code)">free</span></div>
+<p class="mini" id="pv-txt"></p>
+</div>
+<script>
+(function(){
+// pool visualizer: 256 cells, 6 requests
+  var reqs=[11,30,6,22,17,9], MAXR=40, BLK=4;
+  var poolEl=document.getElementById('pool'),pvTxt=document.getElementById('pv-txt');
+  function drawPool(paged){
+    var cells=[],i,used=0,admitted=0;
+    if(!paged){
+      reqs.forEach(function(l){if(cells.length+MAXR<=256){admitted++;used+=l;for(i=0;i<MAXR;i++)cells.push(i<l?'u':'r')}});
+    }else{
+      reqs.forEach(function(l){var nb=Math.ceil(l/BLK);admitted++;used+=l;for(i=0;i<nb*BLK;i++)cells.push(i<l?'u':'w')});
+    }
+    var tot=cells.length;
+    while(cells.length<256)cells.push('');
+    poolEl.innerHTML=cells.map(function(c){return '<i class="'+c+'"></i>'}).join('');
+    pvTxt.textContent=(paged?'Paged: ':'Contiguous: ')+admitted+' requests, '+used+' real cells of '+tot+' allocated ('+Math.round(100*used/tot)+'% useful), '+(256-tot)+' cells free for more requests.'
+      +(paged?' Blocks are drawn adjacent here for clarity; physically they can sit anywhere.':' Each request reserves '+MAXR+' cells (max length).');
+    document.getElementById('pv-c').setAttribute('aria-pressed',!paged);
+    document.getElementById('pv-p').setAttribute('aria-pressed',paged);
+  }
+  document.getElementById('pv-c').onclick=function(){drawPool(false)};
+  document.getElementById('pv-p').onclick=function(){drawPool(true)};
+  drawPool(false);
+})();
+</script>

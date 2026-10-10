@@ -1,0 +1,8 @@
+<ul>
+<li><b>Autoregressive decoding.</b> One token per forward pass; each attends to all previous tokens. (<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani 2017</a>)</li>
+<li><b>KV cache.</b> Per-layer key/value vectors of past tokens, cached so they aren't recomputed. Grows one row per token. (<a href="https://huggingface.co/docs/transformers/main/en/kv_cache" target="_blank" rel="noopener">HF docs</a>)</li>
+<li><b>Prefill vs decode.</b> Prefill is the whole prompt in parallel and compute-bound. Decode is one token at a time and memory-bandwidth-bound, so throughput comes from batching. (<a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener">DistServe</a>)</li>
+<li><b>Continuous batching.</b> Requests join and leave the batch at every step. (<a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noopener">Orca, OSDI'22</a>)</li>
+<li><b>OS virtual memory.</b> Pages, page tables, copy-on-write <code>fork()</code>, swapping. (<a href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf" target="_blank" rel="noopener">OSTEP</a>)</li>
+<li><b>GQA.</b> Several query heads share one K/V head, which shrinks the KV cache. (<a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener">Ainslie 2023</a>)</li>
+</ul>
