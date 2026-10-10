@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PagedAttention &amp; the KV Cache — Rabbithole</title>
+<style>
+:root{
+  --bg:#fbfaf7;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;--accent:#b4411f;--accent2:#1f6f8b;
+  --ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;--code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--panel:#1c1b17;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;--accent:#ff8a5c;--accent2:#6cc4e0;
+  --ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;--code:#23211b;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent2)}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:0 32px;padding:0 16px}
+nav.toc{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:24px 8px 24px 0;font-size:14px}
+nav.toc h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:0 0 8px}
+nav.toc a{display:block;padding:3px 8px;border-left:2px solid var(--line);color:var(--mute);text-decoration:none}
+nav.toc a.on{color:var(--ink);border-left-color:var(--accent);font-weight:600}
+nav.toc .div{margin:10px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+main{min-width:0;max-width:78ch;padding:24px 0 80px}
+header.card{padding:8px 0 16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-size:clamp(26px,5vw,38px);line-height:1.15;margin:.2em 0 .3em}
+h2{font-size:24px;margin:2.2em 0 .5em;scroll-margin-top:16px;border-top:1px solid var(--line);padding-top:1em}
+h3{font-size:18px;margin:1.6em 0 .3em}
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+.hero b.k{color:var(--accent)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.num{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.num .v{font-size:22px;font-weight:700;color:var(--accent)}
+.num .l{font-size:12px;color:var(--mute);line-height:1.3}
+.plain{background:var(--plain);border:1px solid var(--plainline);border-radius:14px;padding:6px 20px 14px;margin:18px 0}
+.plain h2{border:0;margin-top:.6em;padding-top:0}
+.bridge{font-weight:600;border-left:4px solid var(--accent);padding-left:12px;margin:18px 0}
+.divider{margin:48px 0 0;padding:14px 0;border-top:3px solid var(--accent);border-bottom:1px solid var(--line);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-size:14px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer}
+.eq{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--panel);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover,button.btn:focus-visible{border-color:var(--accent);outline:2px solid transparent}
+button.btn:disabled{opacity:.4;cursor:default}
+.widget{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0}
+.s-box{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+.s-box.hl{fill:var(--hl);stroke:var(--accent)}
+.s-txt{fill:var(--ink);font:13px ui-monospace,monospace}
+.s-lab{fill:var(--mute);font:12px system-ui}
+.s-edge{stroke:var(--mute);stroke-width:1.5;opacity:.45}
+.s-edge.on{stroke:var(--accent);opacity:1;stroke-width:2.5}
+.s-edge.dead{stroke-dasharray:3 4;opacity:.25}
+.s-key{fill:var(--panel);stroke:var(--accent2);stroke-width:2}
+.s-key.dead{stroke:var(--mute);opacity:.5}
+.s-key.hl{fill:var(--hl);stroke:var(--accent)}
+@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}nav.toc{display:none}}
+main,.widget,.hero{overflow-wrap:anywhere}
+.toplink{display:none}
+@media(max-width:900px){.toplink{display:block;font-size:14px;margin:8px 0}}
+.mini{font-size:13px;color:var(--mute)}
+</style>
+<style>
+.pool{display:grid;grid-template-columns:repeat(32,1fr);gap:2px;margin:6px 0 10px}
+.pool i{display:block;aspect-ratio:1;border-radius:2px;background:var(--code);border:1px solid var(--line)}
+.pool i.u{background:var(--ok);border-color:var(--ok)}
+.pool i.r{background:var(--warn);border-color:var(--warn);opacity:.55}
+.pool i.w{background:var(--bad);border-color:var(--bad);opacity:.55}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--mute)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.blk{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+.blk.a{fill:var(--plain);stroke:var(--ok)}
+.blk.b{fill:var(--hl);stroke:var(--warn)}
+.blk.s{fill:var(--hl);stroke:var(--accent);stroke-width:2.5}
+.blk.new{stroke:var(--accent);stroke-width:3}
+.tk{fill:var(--ink);font:11px ui-monospace,monospace}
+.pv{fill:var(--accent);font:600 12px ui-monospace,monospace}
+.arrow{stroke:var(--accent2);stroke-width:1.6;fill:none;opacity:.85}
+.arrow.b{stroke:var(--warn)}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Table of contents">
+  <h2>Contents</h2>
+  <div class="div">Plain English</div>
+  <a href="#plain">Explain it simply</a>
+  <a href="#example">Everyday example</a>
+  <div class="div">Context</div>
+  <a href="#ctx">1 · Minimum context</a>
+  <a href="#world">1b · Real-world context</a>
+  <div class="div">Technical deep dive</div>
+  <a href="#onel">2 · The one-liner</a>
+  <a href="#problem">3 · The problem</a>
+  <a href="#model">4 · Mental model</a>
+  <a href="#mech">5 · Mechanism, traced</a>
+  <a href="#math">6 · The math</a>
+  <a href="#why">7 · Why it works</a>
+  <a href="#knobs">8 · Knobs &amp; alternatives</a>
+  <a href="#breaks">9 · Where it breaks</a>
+  <a href="#wild">10 · In the wild</a>
+  <a href="#frontier">11 · Frontier</a>
+  <a href="#open">11b · Open problems</a>
+  <a href="#lineage">12 · Lineage</a>
+  <a href="#hands">13 · Hands-on</a>
+  <a href="#ladder">14 · Question ladder</a>
+  <a href="#next">15 · Go deeper</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<main>
+<header class="card">
+  <div class="chips">
+    <span class="chip">Computer science</span><span class="chip">LLM systems</span>
+    <span class="chip">Depth: hard</span><span class="chip">2026-10-10</span>
+  </div>
+  <h1>PagedAttention: KV-cache block tables, fragmentation, copy-on-write, preemption</h1>
+  <div class="hero">
+    <p><b class="k">TL;DR.</b> An LLM's KV cache grows by one row per generated token, and nobody knows in advance how long the output will be. Pre-2023 servers reserved a contiguous max-length slab per request and used only 20–38% of it. PagedAttention splits the cache into fixed 16-token blocks placed anywhere in GPU memory, tracked by a per-request block table, allocated on demand, refcounted and copied only on write. The attention kernel follows the table and merges per-block softmax results exactly, so the output is unchanged and 96% of the memory holds real data.</p>
+    <p><b class="k">Why it matters.</b> Decode is memory-bandwidth-bound, so throughput scales with how many sequences fit in the batch. Packing KV well gave vLLM 2–4× throughput at the same latency, and every major open serving engine now pages its KV cache.</p>
+  </div>
+  <div class="strip">
+    <div class="num"><div class="v">20–38%</div><div class="l">KV memory actually used, contiguous systems (vLLM paper)</div></div>
+    <div class="num"><div class="v">96.3%</div><div class="l">KV memory used by vLLM</div></div>
+    <div class="num"><div class="v">2–4×</div><div class="l">throughput vs FasterTransformer / Orca</div></div>
+    <div class="num"><div class="v">16</div><div class="l">tokens per block (vLLM default; TRT-LLM: 128)</div></div>
+    <div class="num"><div class="v">128 KiB</div><div class="l">KV per token, Llama-3-8B FP16 (GQA)</div></div>
+    <div class="num"><div class="v">20–26%</div><div class="l">paged kernel slowdown vs FasterTransformer (op level)</div></div>
+  </div>
+  <a class="toplink" href="#sources">Jump to sources ↓</a>
+</header>
+
+<section class="plain" aria-labelledby="plain">
+<h2 id="plain">Explain it simply</h2>
+<p>Picture a busy restaurant with one long bench. When a party walks in, the host doesn't know how long they'll stay or how many friends will join later. So the cautious host blocks off enough bench for the biggest party that could possibly arrive, maybe 20 seats for a group of 3. The bench fills with empty "reserved" seats, and new guests wait outside while the room is two-thirds empty.</p>
+<p>A large language model has the same problem with its working memory. While it writes an answer, it keeps a running notebook of everything said so far (the "KV cache"), and that notebook grows by one line per word. Older servers set aside one solid stretch of GPU memory per conversation, sized for the longest possible answer, and most of it sat empty. PagedAttention swaps the bench for small four-seat tables. A party gets one table, takes another when it fills up, and the tables don't have to be next to each other. A little card (the "block table") records which tables belong to which party. Nearly every seat ends up in use, so the GPU serves two to four times as many conversations at once.</p>
+<h3 id="example">Everyday example</h3>
+<p>Maya asks a chatbot: "Write a haiku about rain." That's 7 words of question. Tables seat 4, so her notebook needs 2 tables: table #7 holds words 1–4 and table #1 holds words 5–7, with one seat free. The model writes "Soft", which lands in that free seat. Now table #1 is full. When it writes "drops", the host grabs any free table (#3, across the room). Maya's card reads <code>7 → 1 → 3</code>.</p>
+<p>A minute later Maya's friend asks the <em>same</em> question with "give me two versions". Both versions share tables #7 and #1. Only when version 2 needs to write somewhere different does it get its own copy of the last table. When Maya finishes, her tables are wiped and handed to the next guest straight away.</p>
+</section>
+<p class="bridge">Now the same thing, technically.</p>
+
+<h2 id="ctx">1 · Bare-minimum context</h2>
+<ul>
+<li><b>Autoregressive decoding.</b> One token per forward pass; each attends to all previous tokens. (<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani 2017</a>)</li>
+<li><b>KV cache.</b> Per-layer key/value vectors of past tokens, cached so they aren't recomputed. Grows one row per token. (<a href="https://huggingface.co/docs/transformers/main/en/kv_cache" target="_blank" rel="noopener">HF docs</a>)</li>
+<li><b>Prefill vs decode.</b> Prefill is the whole prompt in parallel and compute-bound. Decode is one token at a time and memory-bandwidth-bound, so throughput comes from batching. (<a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener">DistServe</a>)</li>
+<li><b>Continuous batching.</b> Requests join and leave the batch at every step. (<a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noopener">Orca, OSDI'22</a>)</li>
+<li><b>OS virtual memory.</b> Pages, page tables, copy-on-write <code>fork()</code>, swapping. (<a href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf" target="_blank" rel="noopener">OSTEP</a>)</li>
+<li><b>GQA.</b> Several query heads share one K/V head, which shrinks the KV cache. (<a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener">Ainslie 2023</a>)</li>
+</ul>
+
+<h2 id="world">1b · Real-world context</h2>
+<h3>What it is</h3>
+<p>PagedAttention stores the KV cache in fixed-size <b>blocks</b> (16 tokens by default in vLLM) that can sit anywhere in GPU memory. A per-request <b>block table</b> maps logical blocks to physical ones, and the attention kernel follows it. Blocks are allocated one at a time as the sequence grows. They are refcounted so requests can share them (prefixes, parallel samples, beams) and copied only on write. It is OS paging applied to the KV cache, introduced by Kwon et al. at SOSP 2023 (<a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">arXiv 2309.06180</a>).</p>
+<h3>Why it exists</h3>
+<ul>
+<li><b>The pain.</b> FasterTransformer and Orca stored each request's KV as one contiguous tensor pre-allocated for max length. Measured utilization was 20.4%–38.2%; vLLM reached 96.3%.</li>
+<li><b>Why it matters.</b> Decode is memory-bound, so throughput is roughly proportional to batch size, and wasted KV memory means a smaller batch.</li>
+<li><b>Payoff.</b> 2–4× throughput at the same latency, with bigger gains for long sequences, big models and complex decoding.</li>
+</ul>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="gc"><b>vLLM</b>Reference implementation. V1: block 16, <code>gpu_memory_utilization</code> 0.92, prefix caching on by default, recompute preemption.</div>
+<div class="gc"><b>TensorRT-LLM</b><code>tokens_per_block</code> = 128 (power of 2, set at build), block reuse on by default, LRU, host offload.</div>
+<div class="gc"><b>HF TGI</b>Uses vLLM's PagedAttention CUDA kernels, block table, KV sharing for parallel sampling.</div>
+<div class="gc"><b>SGLang</b>RadixAttention: paged KV indexed by a radix tree of token prefixes for automatic reuse.</div>
+<div class="gc"><b>FlashAttention / FlashInfer</b>Paged-KV attention kernels that engines call.</div>
+<div class="gc"><b>Mooncake (Kimi)</b>Disaggregated, KV-centric serving; block-granular KV moved across GPU, DRAM and SSD.</div>
+<div class="gc"><b>LMCache</b>KV layer capturing engine blocks, then offloading and sharing them across engines and queries.</div>
+</div>
+<h3>How it's used</h3>
+<pre><code>vllm serve meta-llama/Llama-3.1-8B-Instruct \
+  --gpu-memory-utilization 0.90 \   # weights + activations + KV pool
+  --max-model-len 8192 \            # longest sequence; caps blocks/request
+  --block-size 16 \                 # tokens per KV block (default 16)
+  --enable-prefix-caching \         # hash full blocks, reuse across requests (V1 default on)
+  --kv-cache-dtype fp8              # halve KV bytes per token (optional)</code></pre>
+<pre><code>from vllm import LLM, SamplingParams
+llm = LLM(model="meta-llama/Llama-3.1-8B-Instruct",
+          gpu_memory_utilization=0.9, max_model_len=8192)
+# n=4 samples share the prompt's blocks via refcounts; only the tail block is copied
+outs = llm.generate(["Write a haiku about rain."], SamplingParams(n=4, max_tokens=64))</code></pre>
+<p>Typical values: block 16 (vLLM) or 64–128 (TRT-LLM), memory utilization 0.85–0.95. At startup the engine profiles memory, then turns what's left into a fixed pool of KV blocks. The startup log line "# GPU blocks" is the capacity number to watch.</p>
+<h3>When to use it, when not to</h3>
+<div class="two">
+<div class="use"><b>Use it</b><ul><li>Many concurrent, variable-length generations: chat, agents, batch inference, RAG.</li><li>Parallel sampling, beam search, shared system prompts.</li><li>It's the default everywhere, so the real choice is block size and prefix-cache policy.</li></ul></div>
+<div class="skip"><b>Skip / reconsider</b><ul><li>Single-stream batch-1 latency, where fragmentation is irrelevant and a dense contiguous kernel can win.</li><li>vAttention: contiguous virtual memory with on-demand physical pages through CUDA VMM, unmodified kernels, up to 1.23× throughput.</li><li>Warning signs: frequent preemption, low prefix-hit rate at block 128, KV full while compute sits idle.</li></ul></div>
+</div>
+<h3>Who should care</h3>
+<p><b>ML infra / serving</b>: capacity, block size, preemption tuning. <b>Backend</b>: put stable prompt content first so prefix caching hits. <b>Security</b>: shared prefix caches are a cross-tenant timing channel. <b>Kernel authors</b>: every attention kernel must handle indirect, non-contiguous KV.</p>
+
+<div class="divider">Technical deep dive</div>
+
+<h2 id="onel">2 · The one-liner, and what it hides</h2>
+<blockquote>"PagedAttention is virtual memory for the KV cache. It cuts fragmentation so you can batch more."</blockquote>
+<ol>
+<li><b>The kernel changes.</b> Softmax over scattered keys is computed block by block with exact global renormalization. The paper's kernel was 20–26% slower in isolation.</li>
+<li><b>Fragmentation drops but doesn't vanish.</b> Internal waste is bounded to the last block, which trades block size against kernel efficiency and sharing granularity.</li>
+<li><b>On-demand allocation can run out mid-generation</b>, which forces preemption (swap or recompute).</li>
+<li><b>Sharing is the second win</b> (refcounts plus copy-on-write), and it's also a security hole.</li>
+<li><b>No MMU involved.</b> Translation is a software table lookup inside the kernel, which is why vAttention exists.</li>
+</ol>
+
+<h2 id="problem">3 · The problem</h2>
+<div class="eq">bytes/token = 2 · L · H<sub>kv</sub> · d<sub>head</sub> · s<small>→ in plain terms: K and V, for every layer, every KV head and every head dimension, at s bytes each.</small></div>
+<ul>
+<li><b>OPT-13B</b> (paper example; MHA, hidden 5120, 40 layers, FP16): <b>800 KB/token</b>, so 2048 tokens ≈ 1.6 GB.</li>
+<li><b>Llama-2-7B</b> (MHA): 2·32·32·128·2 = <b>512 KiB/token</b>.</li>
+<li><b>Llama-3-8B</b> (GQA, 8 KV heads): 2·32·8·128·2 = <b>128 KiB/token</b>.</li>
+</ul>
+<table><thead><tr><th>Waste</th><th>Cause</th><th>Paper's example (Fig. 3)</th></tr></thead><tbody>
+<tr><td><b>Reservation</b></td><td>Future-token slots held for the request's lifetime</td><td>Slot for token 500 reserved at step 1</td></tr>
+<tr><td><b>Internal</b></td><td>Reserved for max length, request ends early</td><td>A reserves 2048, prompt 7, so up to 2038 unused; B wastes 507</td></tr>
+<tr><td><b>External</b></td><td>Holes between variable-size chunks</td><td>Buddy-allocator gaps</td></tr>
+</tbody></table>
+<p><b>Forcing constraint:</b> output length is unknown at admission. Even "Orca (Oracle)", which knows true output lengths, loses to vLLM by 1.7–2.7× on ShareGPT, because external fragmentation and the lack of sharing remain.</p>
+
+<div class="widget" role="group" aria-label="Pool visualizer">
+<b>Pool visualizer: contiguous vs paged.</b> <span class="mini">256 cells = one KV pool. Same 6 requests (current lengths in cells), toggle the allocator.</span>
+<div class="ctl" style="margin-top:8px">
+  <button class="btn" id="pv-c" aria-pressed="true">Contiguous (max reserve)</button>
+  <button class="btn" id="pv-p" aria-pressed="false">Paged (block = 4)</button>
+</div>
+<div class="pool" id="pool" aria-hidden="true"></div>
+<div class="legend"><span style="--c:var(--ok)">real KV</span><span style="--c:var(--warn)">reserved / tail waste</span><span style="--c:var(--code)">free</span></div>
+<p class="mini" id="pv-txt"></p>
+</div>
+
+<h2 id="model">4 · Mental model</h2>
+<p><b>OS paging.</b> Request = process. Token = byte. KV block = page. Block table = page table. Free pool = frame allocator. Parallel samples = <code>fork()</code> with copy-on-write. Preemption = swap-out.</p>
+<div class="callout mis"><b>Where it breaks.</b> (1) No MMU or TLB: the kernel loads <code>block_table[j]</code> and computes addresses itself. (2) Every step reads <em>every</em> block, so there's no working set and you evict whole sequences, all or nothing. (3) KV can be <em>recomputed</em> instead of swapped (vLLM V1's default). (4) Blocks are append-only, so the last block is the only fragmentation.</div>
+
+<h2 id="mech">5 · The mechanism, traced</h2>
+<p>The paper's Fig. 6 example, block size B = 4: Maya's 7-token prompt, then decode, then a second request with <code>n=2</code>.</p>
+<div class="widget" role="group" aria-label="Block table step-through">
+<svg id="bt" viewBox="0 0 650 300" role="img" aria-label="Logical blocks mapped to physical blocks"></svg>
+<div class="stepbar">
+  <button class="btn" id="bt-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="bt-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="bt-n" aria-live="polite"></span>
+  <div class="info" id="bt-info" aria-live="polite"></div>
+</div>
+</div>
+<h3>Attention over scattered blocks</h3>
+<pre><code>m, l, acc = -inf, 0.0, zeros(d)
+for j, phys in enumerate(block_table):        # [7, 1, 3]
+    K = kv_pool.K[layer, phys]                # (B, d), contiguous inside the block
+    V = kv_pool.V[layer, phys]
+    n = min(B, seq_len - j*B)                 # last block partially filled
+    s = K[:n] @ q / sqrt(d)
+    m_new = max(m, s.max())
+    scale = exp(m - m_new)
+    p = exp(s - m_new)
+    l = l * scale + p.sum()
+    acc = acc * scale + p @ V[:n]
+    m = m_new
+out = acc / l</code></pre>
+<p>Each warp reads one block, so loads are coalesced inside a block and only the jump between blocks is indirect.</p>
+<h3>Preemption and prefix caching</h3>
+<p>When the pool is full and a sequence needs a block, vLLM (FCFS) preempts the <b>most recently arrived</b> sequence group. <b>Recompute</b> (V1 default) frees all of its blocks and requeues it with <code>prompt + generated</code>. <b>Swap</b> (original paper) copies its blocks to a CPU block pool over PCIe. Groups are preempted together because they share blocks.</p>
+<p>With automatic prefix caching, a finished request's full blocks keep their hash in an LRU free queue:</p>
+<pre><code>hash(block_k) = H(hash(block_{k-1}), token_ids_in_block_k, extra_keys)
+extra_keys: LoRA id, multimodal hashes, cache_salt</code></pre>
+<p>Only full blocks are hashed, so a 7-token match reuses 4 tokens, not 7.</p>
+
+<h2 id="math">6 · The math</h2>
+<h3>6.1 Footprint and batch size</h3>
+<div class="eq">T = M / b, &nbsp; N<sub>contig</sub> = ⌊T / L<sub>max</sub>⌋, &nbsp; N<sub>paged</sub> ≈ T / E[ B·⌈ℓ/B⌉ ]<small>→ in plain terms: contiguous pays for the worst case; paging pays for the actual average plus at most one block per sequence.</small></div>
+<p>Back-of-envelope (not measured): A100-80GB, Llama-3-8B FP16, utilization 0.92, ~16 GB weights, ~2 GB activations, so M ≈ 55 GB and T ≈ 420k slots. With L<sub>max</sub> = 8192, contiguous fits <b>51</b> sequences; paged at mean length 700 fits about <b>590</b>, before compute and <code>max_num_seqs</code> caps kick in.</p>
+<h3>6.2 Internal fragmentation</h3>
+<div class="eq">w = B·⌈ℓ/B⌉ − ℓ ∈ [0, B−1], &nbsp; E[w] = (B−1)/2, &nbsp; waste ≈ (B−1) / (2·E[ℓ])<small>→ in plain terms: B = 16 with 600-token sequences wastes about 1.25%; B = 512 wastes about 42%.</small></div>
+<p>Why not B = 1: per-block overhead (an indirect lookup, less coalescing) scales with ℓ/B. Total cost is roughly α(B−1)/2 + βℓ/B, minimized near B* ≈ √(2βℓ/α). This cost model is illustrative, not from the paper. The paper's empirical best was 16–128 on ShareGPT, with 16 as the default.</p>
+
+<div class="widget" role="group" aria-label="Block size explorer">
+<b>Block-size explorer</b>
+<div class="ctl"><label for="bs">Block size B = <b id="bsv">16</b></label><input type="range" id="bs" min="0" max="9" value="4" step="1"></div>
+<div class="ctl"><label for="ml">Mean sequence length = <b id="mlv">600</b></label><input type="range" id="ml" min="50" max="4000" value="600" step="50"></div>
+<div class="ctl"><label for="mx">L<sub>max</sub> = <b id="mxv">8192</b></label><input type="range" id="mx" min="1024" max="32768" value="8192" step="1024"></div>
+<p style="margin:8px 0 2px">Paged utilization (tail waste only): <b id="o-pu"></b></p><div class="bar"><i id="b-pu"></i></div>
+<p style="margin:8px 0 2px">Contiguous max-reserve utilization: <b id="o-cu"></b></p><div class="bar"><i id="b-cu" style="background:var(--warn)"></i></div>
+<p class="mini" id="o-n"></p>
+</div>
+
+<h3>6.3 Block-wise softmax is exact</h3>
+<div class="eq">o = (Σ<sub>t</sub> e<sup>s<sub>t</sub></sup> v<sub>t</sub>) / (Σ<sub>t</sub> e<sup>s<sub>t</sub></sup>), &nbsp; s<sub>t</sub> = q·k<sub>t</sub>/√d<small>→ in plain terms: the output is a weighted average of values, and the normalizer runs over all tokens.</small></div>
+<p>Per block j, keep m<sub>j</sub> = max s, l<sub>j</sub> = Σ e<sup>s−m<sub>j</sub></sup> and a<sub>j</sub> = Σ e<sup>s−m<sub>j</sub></sup> v. Merging two blocks:</p>
+<div class="eq">m = max(m<sub>1</sub>, m<sub>2</sub>); &nbsp; l = e<sup>m<sub>1</sub>−m</sup> l<sub>1</sub> + e<sup>m<sub>2</sub>−m</sup> l<sub>2</sub>; &nbsp; a = e<sup>m<sub>1</sub>−m</sup> a<sub>1</sub> + e<sup>m<sub>2</sub>−m</sup> a<sub>2</sub>; &nbsp; o = a / l<small>→ in plain terms: each block reports its local max, local sum and local weighted value; rescaling puts them on a common scale, so the result equals contiguous attention up to float rounding. Paging is lossless.</small></div>
+<p>Why this form: per-block softmaxes can't be averaged because the normalizer is global. Subtracting the max prevents FP16 overflow (e<sup>11.1</sup> &gt; 65504). The paper's Eq. 4 writes the global denominator; FlashAttention and FlashInfer kernels use the running-max form.</p>
+<h3>6.4 Swap vs recompute</h3>
+<div class="eq">t<sub>swap</sub> ≈ 2ℓb / BW<sub>pcie</sub> + (per-transfer overhead × blocks); &nbsp; t<sub>recompute</sub> ≈ 2Pℓ / F<sub>eff</sub><small>→ in plain terms: swap pays PCIe bytes plus a fixed cost per block; recompute pays prefill FLOPs.</small></div>
+<p>Back-of-envelope for Llama-3-8B with ℓ = 1000: 131 MB, about 5 ms each way at ~25 GB/s, vs 1.6e13 FLOP, about 50–100 ms. Swap looks cheaper per byte, but per-block overhead dominates at small B. Paper (Fig. 19, OPT-13B): swap is bad at small blocks, recompute is flat across block sizes, the two are comparable at B = 16–64, and recompute never cost more than about 20% over swap. vLLM V1 defaults to recompute.</p>
+
+<h2 id="why">7 · Why it works</h2>
+<p><b>Core insight:</b> the KV cache only grows at the end and is read in order, so it needs neither contiguity nor reservation. It needs a cheap index from logical position to physical location, and chunked softmax.</p>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td>Block table</td><td>Back to contiguous: 20–38% utilization</td></tr>
+<tr><td>On-demand allocation</td><td>Reservation waste; you'd need the output length up front</td></tr>
+<tr><td>Fixed block size</td><td>External fragmentation returns</td></tr>
+<tr><td>Refcounts</td><td>No sharing; beam-search savings of 37.6–66.3% lost</td></tr>
+<tr><td>Copy-on-write</td><td>Writes to a shared tail block corrupt the sibling sample</td></tr>
+<tr><td>Online-softmax merge</td><td>Must materialize contiguous K/V, a copy every step</td></tr>
+<tr><td>Preemption</td><td>OOM or deadlock when every sequence needs one more block</td></tr>
+</tbody></table>
+<p>Fixed-size blocks end external fragmentation: every allocation asks for exactly one unit, so any free block satisfies it.</p>
+
+<h2 id="knobs">8 · Design knobs &amp; alternatives</h2>
+<table><thead><tr><th>Knob</th><th>Small</th><th>Large</th></tr></thead><tbody>
+<tr><td>Block size B</td><td>Less tail waste, finer prefix hits; more indirection, tiny swaps</td><td>Better kernels; up to B−1 waste per sequence, prefix hits in multiples of B</td></tr>
+<tr><td>gpu_memory_utilization</td><td>Headroom for activation spikes</td><td>More blocks, OOM risk on long prefill</td></tr>
+<tr><td>max_num_seqs / batched tokens</td><td>Less preemption, better inter-token latency</td><td>Throughput, more preemption under bursts</td></tr>
+<tr><td>Preemption mode</td><td>Recompute: costs FLOPs</td><td>Swap: costs PCIe, needs a pinned host pool</td></tr>
+<tr><td>Prefix caching</td><td>Off: no reuse, no timing channel</td><td>On: skip prefill, LRU churn, side channel unless salted</td></tr>
+<tr><td>KV dtype</td><td>FP16/BF16 exact</td><td>FP8 / INT4 / 2-bit: 2–8× tokens, accuracy cost</td></tr>
+</tbody></table>
+<ul>
+<li><b>Contiguous + length prediction</b>: mispredictions plus external fragmentation. Lost even with a perfect oracle.</li>
+<li><b>vAttention</b> (ASPLOS'25): virtually contiguous, physically demand-paged through CUDA VMM. Unmodified kernels, up to 1.23×. Constrained by driver page granularity, and sharing is less natural.</li>
+<li><b>SGLang RadixAttention</b>: pages indexed by a radix tree, with cache-aware scheduling for branching programs.</li>
+<li><b>Compression</b> (StreamingLLM, H2O, SnapKV, KIVI): shrinks the KV itself. Orthogonal to paging, but lossy.</li>
+</ul>
+
+<h2 id="breaks">9 · Where it breaks</h2>
+<div class="callout gotcha"><b>Preemption thrash.</b> Admission is based on prompt blocks, and growth is on demand. Under load many sequences need a block at once, and the newest is evicted, recomputed and evicted again. The toy simulation (§13) shows 818 preemptions at B = 16 with greedy admission. Mitigations are watermarks and <code>max_num_seqs</code>. I found no published measurement of thrash itself.</div>
+<ul>
+<li><b>Output-length uncertainty</b> remains the root problem; paging turns waste into preemption risk (<a href="https://arxiv.org/abs/2607.16892" target="_blank" rel="noopener">2607.16892</a>, Azure LLM 2024 trace).</li>
+<li><b>Head-of-line blocking</b> from long prefills. Chunked prefill (Sarathi-Serve: 2.6× capacity for Mistral-7B, up to 5.6× for Falcon-180B vs vLLM) is on by default in vLLM V1.</li>
+<li><b>Hash collisions</b> in prefix caching would serve another prompt's KV. vLLM defaults to SHA-256 and warns about xxhash in multi-tenant setups.</li>
+<li><b>Kernel overhead</b> (20–26% at op level) matters at small batch.</li>
+</ul>
+<div class="callout gotcha"><b>Cross-tenant timing side channel.</b> Cache hits lower time-to-first-token. <i>Early Bird</i> (Song et al., IEEE TIFS) recovers other users' prompts token by token from KV-cache timing, with black-box tests on online services. Gu et al. (ICML'25) found global cross-user prompt-cache sharing at 7 API providers, including OpenAI. Mitigations: per-tenant <code>cache_salt</code> or per-user isolation, both of which give up reuse.</div>
+<div class="callout mis"><b>Misconceptions.</b> "Saves memory like quantization": no, it stores exactly the same KV and output is identical. "Zero fragmentation": only external fragmentation is zero; tail waste is up to B−1 slots. "Uses hardware page faults": no, the lookup is a load inside the kernel. "Prefix caching is free": it costs hashing, LRU bookkeeping and a security boundary.</div>
+
+<h2 id="wild">10 · In the wild</h2>
+<ul>
+<li><b>vLLM V1.</b> Block 16. <code>gpu_memory_utilization</code> is 0.92 in code (older docs say 0.9). Prefix caching on with hash chains and LRU that evicts the tail block first. Recompute preemption, chunked prefill on with decodes first, append-only block tables. Deviates from the paper, which defaulted to swap and pre-reserved shared prefixes explicitly.</li>
+<li><b>TensorRT-LLM.</b> 128 tokens per block, fixed at build. Reuse on by default, but blocks become reusable only after the producing request terminates. Host secondary cache.</li>
+<li><b>TGI.</b> vLLM kernels plus a block table; prefix-cache policy not documented (unverified).</li>
+<li><b>SGLang.</b> Radix-tree reuse. Up to 6.4× throughput, but that's the whole runtime, not RadixAttention alone. Page-size default unverified.</li>
+<li><b>Mooncake / LMCache / CachedAttention.</b> Blocks move across HBM, DRAM, SSD and machines. Mooncake: up to 525% (simulated), +75% requests in production.</li>
+</ul>
+
+<h2 id="frontier">11 · Frontier</h2>
+<table><thead><tr><th>Year · Venue</th><th>Work</th><th>Contribution</th></tr></thead><tbody>
+<tr><td>2025 · ASPLOS</td><td><a href="https://arxiv.org/abs/2405.04437" target="_blank" rel="noopener">vAttention</a></td><td>CUDA VMM demand paging behind contiguous virtual KV; unmodified kernels; up to 1.23× over paged kernels</td></tr>
+<tr><td>2024 · OSDI</td><td><a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener">DistServe</a></td><td>Prefill/decode disaggregation; 7.4× more requests or 12.6× tighter SLO</td></tr>
+<tr><td>2024–25 · arXiv/FAST'25</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener">Mooncake</a></td><td>KV-centric disaggregated architecture; up to 525% (simulated), +75% requests</td></tr>
+<tr><td>2024 · ICML</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank" rel="noopener">KIVI</a></td><td>2-bit KV quantization; 2.6× less peak memory, 4× batch, 2.35–3.47× throughput</td></tr>
+<tr><td>2024 · arXiv</td><td><a href="https://arxiv.org/abs/2404.14469" target="_blank" rel="noopener">SnapKV</a></td><td>Prefill-time KV selection; 3.6× speed, 8.2× memory at 16K; 380K context on one A100</td></tr>
+<tr><td>2024 · ICLR</td><td><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener">StreamingLLM</a></td><td>Attention sinks; stable to 4M tokens; 22.2× faster than sliding-window recompute</td></tr>
+<tr><td>2025 · arXiv</td><td><a href="https://arxiv.org/abs/2510.09665" target="_blank" rel="noopener">LMCache</a></td><td>KV cache layer for cross-engine sharing and offload</td></tr>
+<tr><td>2025 · arXiv</td><td><a href="https://arxiv.org/abs/2509.04377" target="_blank" rel="noopener">PagedEviction</a></td><td>Block-wise KV pruning inside vLLM's paged layout, no kernel changes</td></tr>
+</tbody></table>
+<p>Trend: from <em>packing</em> KV (solved) to <em>where</em> it lives (disaggregation, tiers), <em>whether</em> to keep it (eviction, quantization) and <em>who may share it</em> (side channels).</p>
+
+<h2 id="open">11b · Open problems</h2>
+<ul>
+<li><b>Admission under unknown output length.</b> Keeping utilization high without thrash. Predictors are noisy, and watermarks bring the waste back.</li>
+<li><b>Sharing vs privacy.</b> Global caches leak and per-user caches lose reuse. Middle grounds: k-anonymous sharing, TTFT noise, per-org salts. Recent contention work (2608.09225, 2609.06853) is unverified.</li>
+<li><b>Lossy compression vs retrieval.</b> SnapKV stays within about 1.5% on LongBench at 10% retention (FastKV), but needle-style retrieval breaks and low budgets can lengthen reasoning traces.</li>
+<li><b>Speculative decoding + paging + preemption</b>: interaction unmeasured.</li>
+<li><b>Software tables vs hardware VM</b>: unresolved.</li>
+<li><b>Head-to-head contiguous vs paged on the public Azure LLM trace</b>: not found.</li>
+</ul>
+
+<h2 id="lineage">12 · Lineage</h2>
+<pre><code>Atlas paging (1962) → copy-on-write fork, swapping
+FasterTransformer (contiguous KV) → Orca (OSDI'22, iteration batching)
+  → vLLM / PagedAttention (SOSP'23)
+    → SGLang RadixAttention (2023–24) · vLLM automatic prefix caching
+    → vAttention (ASPLOS'25)
+    → DistServe (OSDI'24) · Mooncake (FAST'25) · LMCache (2025)
+    → StreamingLLM (ICLR'24) · KIVI (ICML'24) · SnapKV (2024) · PagedEviction (2025)</code></pre>
+
+<h2 id="hands">13 · Hands-on (≤30 min)</h2>
+<p><code>kv_alloc_sim.py</code> (in this folder) simulates a 32,768-slot pool with max_len 2048 and 3000 synthetic lognormal requests under FCFS admission.</p>
+<pre><code>python3 kv_alloc_sim.py</code></pre>
+<pre><code>pool=32768 slots, max_len=2048, 3000 requests, mean prompt=231, mean output=433
+
+allocator                   KV util  concurrent  ext frag  preempts
+contiguous / max             32.0%        16.0     0.1%         -
+contiguous / oracle          50.3%        24.7    78.9%         -
+paged / block=1              97.8%        50.3      0.0%       881
+paged / block=16             96.9%        49.8      0.0%       818
+paged / block=128            89.7%        45.2      0.0%       463
+paged / block=512            72.0%        34.6      0.0%        82</code></pre>
+<ul>
+<li>Contiguous/max at 32% falls inside the paper's 20.4–38.2% band.</li>
+<li>Oracle reaches only 50%: 79% of its free memory sits outside the largest hole.</li>
+<li>Paged/16 at 96.9% matches the paper's 96.3%, with three times the concurrency.</li>
+<li>Utilization falls as B grows, per (B−1)/(2E[ℓ]). Preemptions are the price of greedy admission; add a watermark and watch them drop.</li>
+</ul>
+
+<h2 id="ladder">14 · Question ladder</h2>
+<p><button class="btn" id="reveal">Reveal all answers</button></p>
+<div id="qs">
+<h3>Mechanism</h3>
+<details><summary>1. What does the kernel load, in order, for token 9 in the trace?</summary><p>It reads the table [7, 1, 3] and seq_len 9: physical #7 (4 tokens), #1 (4 tokens), then #3 with 1 valid token. It computes block-local max and sum and merges them with online-softmax rescaling. Loads are coalesced within a block; only the jumps between blocks are indirect.</p></details>
+<details><summary>2. When does vLLM allocate a new physical block?</summary><p>At prefill, ⌈prompt/B⌉ blocks. During decode, only when the last block is full and a token must be written. It pops any free block id and appends it to the table. If none is free, the scheduler preempts first.</p></details>
+<details><summary>3. n=4 samples, prompt 30, B=16: blocks copied on the first decode?</summary><p>Block 0 is full and block 1 is partial (14 tokens), both refcount 4. The first three writers to block 1 see refcount &gt; 1 and copy; the fourth writes in place. <b>3 copies</b>, and block 0 is never copied.</p></details>
+<details><summary>4. Finished blocks with prefix caching on vs off?</summary><p>Off: refcount 0, blocks go to the free pool with meaningless contents. On: full blocks keep their hash in an LRU free queue, reusable by a matching hash chain or evicted under pressure. Tail blocks evict first.</p></details>
+<h3>Why</h3>
+<details><summary>5. Why do fixed-size blocks eliminate external fragmentation?</summary><p>Every allocation asks for exactly one block, so any free block satisfies it. "Enough free memory, but no hole big enough" can't happen.</p></details>
+<details><summary>6. Why does an oracle contiguous allocator still lose?</summary><p>External fragmentation (79% of free memory outside the largest hole in the simulation), head-of-line blocking, and no sharing of prompt blocks.</p></details>
+<details><summary>7. Why B = 16?</summary><p>Tail waste of about (B−1)/2 favors small B; coalescing, fewer lookups and fewer tiny swaps favor large B. The paper's sweep found 16–128 best on ShareGPT and 16–32 on Alpaca. TRT-LLM picks 128 for its kernels.</p></details>
+<details><summary>8. Why is preemption all-or-nothing per group?</summary><p>Every step reads every block, so there's no cold subset, and a sequence missing any block can't run. Group members share blocks, so they're gang-scheduled and preempted together.</p></details>
+<details><summary>9. Why hash only full blocks, and why chain the parent?</summary><p>A partial block's contents still change. KV at position t depends on every earlier token, so identical 16 tokens after a different prefix have different K,V. The parent hash encodes the whole prefix.</p></details>
+<h3>Counterfactual</h3>
+<details><summary>10. Remove refcounts but keep block tables?</summary><p>The packing benefit stays, but sharing is unsafe because you can't know when to free or copy. You lose parallel-sampling and beam savings (37.6–66.3% for beams) and prefix caching.</p></details>
+<details><summary>11. If output lengths were known exactly, is paging still worth it?</summary><p>Yes, though less so. External fragmentation (unless you compact by copying) and lack of sharing remain. vLLM's gain shrinks from 2.7–8× (vs Orca-Max) to 1.7–2.7× (vs Orca-Oracle).</p></details>
+<details><summary>12. With a cheap hardware MMU for GPU memory?</summary><p>Software tables and kernel indirection disappear (vAttention-like). On-demand mapping, refcounts or CoW, preemption policy and prefix hashing remain.</p></details>
+<h3>Adversarial</h3>
+<details><summary>13. How do you extract another tenant's prompt from a shared prefix cache?</summary><p>Probe guessed prefixes and measure TTFT; a fast response means a hit. Extend block by block or token by token (Early Bird). Larger B means more candidates per step. Defenses: salts, isolation, noise.</p></details>
+<details><summary>14. Design a workload that maximizes thrash.</summary><p>Bursts of short prompts with long outputs, high <code>max_num_seqs</code>, no watermark. Sequences cross block boundaries together, the pool empties, the newest are recomputed and evicted again. Each cycle costs a full prefill.</p></details>
+<details><summary>15. How can a prefix-hash collision fail?</summary><p>Request B reuses A's KV: wrong outputs conditioned on A's text, and possible leakage of A's content. That's why the default is SHA-256 with a warning about xxhash.</p></details>
+<h3>Connection</h3>
+<details><summary>16. Relation to fork() and where it fails?</summary><p>Samples are forked processes sharing refcounted pages copied on write. There are no MMU faults (the scheduler checks refcounts), no locality-driven paging, and contents can be recomputed.</p></details>
+<details><summary>17. How does disaggregation depend on blocks?</summary><p>KV moves between prefill and decode nodes and tiers (RDMA, DRAM, SSD) as fixed-size blocks, mapped into the decoder's table without contiguity.</p></details>
+<details><summary>18. How does KIVI compose with paging?</summary><p>They're orthogonal: fewer bytes per token, so more tokens per pool. Key quantization works on token groups, which interacts with block boundaries and the full-precision residual tail.</p></details>
+<details><summary>19. Online softmax and FlashAttention?</summary><p>Same running max and sum merge. FlashAttention tiles for SRAM; paged variants just take tiles from table-indexed blocks.</p></details>
+<h3>Open</h3>
+<details><summary>20. Near-100% utilization with no preemption under unknown lengths?</summary><p>Open. It's a trade between over-reservation and preemption risk, with no guarantee under heavy-tailed lengths.</p></details>
+<details><summary>21. Provably safe prefix sharing with most of the benefit?</summary><p>Open. k-tenant thresholds, noise, salts and constant-time responses all cost hit rate or latency, and formal guarantees are rare.</p></details>
+<details><summary>22. Will hardware VM replace software block tables?</summary><p>Open. vAttention is competitive, but page granularity and the lack of hardware CoW limit it. Software tables remain the default in vLLM, TRT-LLM and SGLang as of 2026.</p></details>
+</div>
+
+<h2 id="next">15 · Go deeper next</h2>
+<ol>
+<li><b>Chunked prefill / Sarathi-Serve:</b> stall-free batching and decode-first scheduling.</li>
+<li><b>Prefill/decode disaggregation:</b> DistServe, Mooncake, KV over RDMA, goodput.</li>
+<li><b>KV-cache timing side channels:</b> prompt extraction and defenses.</li>
+</ol>
+
+<h2 id="sources">Sources</h2>
+<h3>Papers</h3>
+<ul>
+<li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">Kwon et al., PagedAttention / vLLM, SOSP 2023</a> · <a href="https://doi.org/10.1145/3600006.3613165" target="_blank" rel="noopener">DOI</a></li>
+<li><a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noopener">Yu et al., Orca, OSDI 2022</a></li>
+<li><a href="https://arxiv.org/abs/2312.07104" target="_blank" rel="noopener">Zheng et al., SGLang</a></li>
+<li><a href="https://arxiv.org/abs/2405.04437" target="_blank" rel="noopener">Prabhu et al., vAttention, ASPLOS 2025</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener">Zhong et al., DistServe, OSDI 2024</a></li>
+<li><a href="https://arxiv.org/abs/2403.02310" target="_blank" rel="noopener">Agrawal et al., Sarathi-Serve</a></li>
+<li><a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener">Qin et al., Mooncake</a></li>
+<li><a href="https://arxiv.org/abs/2402.02750" target="_blank" rel="noopener">Liu et al., KIVI, ICML 2024</a></li>
+<li><a href="https://arxiv.org/abs/2404.14469" target="_blank" rel="noopener">Li et al., SnapKV</a></li>
+<li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener">Xiao et al., StreamingLLM, ICLR 2024</a></li>
+<li><a href="https://arxiv.org/abs/2510.09665" target="_blank" rel="noopener">Cheng et al., LMCache</a></li>
+<li><a href="https://arxiv.org/abs/2403.19708" target="_blank" rel="noopener">Gao et al., CachedAttention</a></li>
+<li><a href="https://arxiv.org/abs/2509.04377" target="_blank" rel="noopener">PagedEviction</a></li>
+<li><a href="https://arxiv.org/abs/2409.20002" target="_blank" rel="noopener">Song et al., The Early Bird Catches the Leak, IEEE TIFS</a></li>
+<li><a href="https://arxiv.org/abs/2502.07776" target="_blank" rel="noopener">Gu et al., Auditing Prompt Caching in LM APIs, ICML 2025</a></li>
+<li><a href="https://arxiv.org/abs/2607.16892" target="_blank" rel="noopener">Robust KV Cache Management under Output Length Uncertainty</a></li>
+<li><a href="https://arxiv.org/abs/2502.01068" target="_blank" rel="noopener">FastKV</a></li>
+<li><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener">Ainslie et al., GQA</a></li>
+<li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani et al., Attention Is All You Need</a></li>
+</ul>
+<h3>Code / docs</h3>
+<ul>
+<li><a href="https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/config/cache.py" target="_blank" rel="noopener">vLLM CacheConfig</a></li>
+<li><a href="https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/engine/arg_utils.py" target="_blank" rel="noopener">vLLM engine args</a></li>
+<li><a href="https://raw.githubusercontent.com/vllm-project/vllm/main/docs/design/prefix_caching.md" target="_blank" rel="noopener">vLLM prefix caching design</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/configuration/optimization/" target="_blank" rel="noopener">vLLM optimization docs</a></li>
+<li><a href="https://nvidia.github.io/TensorRT-LLM/advanced/kv-cache-reuse.html" target="_blank" rel="noopener">TensorRT-LLM KV cache reuse</a></li>
+<li><a href="https://huggingface.co/docs/text-generation-inference/en/conceptual/paged_attention" target="_blank" rel="noopener">TGI PagedAttention</a></li>
+<li><a href="https://huggingface.co/docs/transformers/main/en/kv_cache" target="_blank" rel="noopener">HF KV cache docs</a></li>
+<li><a href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf" target="_blank" rel="noopener">OSTEP paging</a></li>
+</ul>
+<div class="callout flag"><b>Unverified / flagged:</b> SGLang page-size default; whether swap preemption still exists in vLLM V1; arXiv 2608.09225 and 2609.06853. The A100 capacity numbers in §6.1 and the swap/recompute timings in §6.4 are back-of-envelope estimates.</div>
+</main>
+</div>
+
+<script>
+(function(){
+  // copy buttons
+  document.querySelectorAll('pre').forEach(function(p){
+    var b=document.createElement('button');b.className='copy';b.type='button';b.textContent='Copy';
+    b.onclick=function(){var t=p.querySelector('code').innerText;
+      (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='Copied'},function(){b.textContent='Select + ⌘C'});
+      setTimeout(function(){b.textContent='Copy'},1400)};
+    p.appendChild(b);
+  });
+  // scroll-spy
+  var links=[].slice.call(document.querySelectorAll('nav.toc a')),map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(a){a.classList.remove('on')});var a=map[e.target.id];if(a)a.classList.add('on')}})},{rootMargin:'0px 0px -75% 0px'});
+    Object.keys(map).forEach(function(id){var el=document.getElementById(id);if(el)io.observe(el)});
+  }
+  // reveal all
+  var rv=document.getElementById('reveal'),open=false;
+  rv.onclick=function(){open=!open;document.querySelectorAll('#qs details').forEach(function(d){d.open=open});rv.textContent=open?'Hide all answers':'Reveal all answers'};
+
+  // pool visualizer: 256 cells, 6 requests
+  var reqs=[11,30,6,22,17,9], MAXR=40, BLK=4;
+  var poolEl=document.getElementById('pool'),pvTxt=document.getElementById('pv-txt');
+  function drawPool(paged){
+    var cells=[],i,used=0,admitted=0;
+    if(!paged){
+      reqs.forEach(function(l){if(cells.length+MAXR<=256){admitted++;used+=l;for(i=0;i<MAXR;i++)cells.push(i<l?'u':'r')}});
+    }else{
+      reqs.forEach(function(l){var nb=Math.ceil(l/BLK);admitted++;used+=l;for(i=0;i<nb*BLK;i++)cells.push(i<l?'u':'w')});
+    }
+    var tot=cells.length;
+    while(cells.length<256)cells.push('');
+    poolEl.innerHTML=cells.map(function(c){return '<i class="'+c+'"></i>'}).join('');
+    pvTxt.textContent=(paged?'Paged: ':'Contiguous: ')+admitted+' requests, '+used+' real cells of '+tot+' allocated ('+Math.round(100*used/tot)+'% useful), '+(256-tot)+' cells free for more requests.'
+      +(paged?' Blocks are drawn adjacent here for clarity; physically they can sit anywhere.':' Each request reserves '+MAXR+' cells (max length).');
+    document.getElementById('pv-c').setAttribute('aria-pressed',!paged);
+    document.getElementById('pv-p').setAttribute('aria-pressed',paged);
+  }
+  document.getElementById('pv-c').onclick=function(){drawPool(false)};
+  document.getElementById('pv-p').onclick=function(){drawPool(true)};
+  drawPool(false);
+
+  // block size explorer
+  var BS=[1,2,4,8,16,32,64,128,256,512];
+  var bs=document.getElementById('bs'),ml=document.getElementById('ml'),mx=document.getElementById('mx');
+  function upd(){
+    var B=BS[+bs.value],L=+ml.value,M=+mx.value;
+    document.getElementById('bsv').textContent=B;document.getElementById('mlv').textContent=L;document.getElementById('mxv').textContent=M;
+    var pu=L/(L+(B-1)/2), cu=Math.min(1,L/M);
+    document.getElementById('o-pu').textContent=(pu*100).toFixed(1)+'%';document.getElementById('b-pu').style.width=(pu*100)+'%';
+    document.getElementById('o-cu').textContent=(cu*100).toFixed(1)+'%';document.getElementById('b-cu').style.width=(cu*100)+'%';
+    var T=420000;
+    document.getElementById('o-n').textContent='With a ~420k-slot pool (A100-80GB, Llama-3-8B estimate): contiguous fits '+Math.floor(T/M)+' sequences, paged fits ~'+Math.floor(T/(L+(B-1)/2))+' (before compute or max_num_seqs caps). Uses E[waste] = (B−1)/2 per sequence.';
+  }
+  [bs,ml,mx].forEach(function(e){e.addEventListener('input',upd)});upd();
+
+  // block table step-through
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('bt');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  // phys pool: 8 blocks; state per step
+  var steps=[
+    {info:'<b>Prefill.</b> 7-token prompt, B = 4, so ⌈7/4⌉ = 2 blocks. The allocator hands out any free blocks: #7, then #1. Table A = [7, 1]. Block #1 holds 3 of 4.',
+     A:[7,1],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','']},own:{7:'a',1:'a'},ref:{7:1,1:1},hl:[7,1]},
+    {info:'<b>Decode token 8 ("Soft").</b> The last block has a free slot, so it writes into #1 with no allocation.',
+     A:[7,1],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8']},own:{7:'a',1:'a'},ref:{7:1,1:1},hl:[1]},
+    {info:'<b>Decode token 9 ("drops").</b> #1 is full, so it allocates a new block. The free pool gives #3. Table A = [7, 1, 3]. Waste: 3 slots, only in the last block.',
+     A:[7,1,3],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8'],3:['t9','','','']},own:{7:'a',1:'a',3:'a'},ref:{7:1,1:1,3:1},newb:3,hl:[3]},
+    {info:'<b>Attention for token 9.</b> The kernel walks the table: #7 → #1 → #3 (masking 3 empty slots), merging per-block softmax with running max and sum. The output is identical to contiguous attention.',
+     A:[7,1,3],Bt:null,phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','t8'],3:['t9','','','']},own:{7:'a',1:'a',3:'a'},ref:{7:1,1:1,3:1},hl:[7,1,3],walk:true},
+    {info:'<b>New request, n = 2 samples, same 7-token prompt.</b> (Shown on a fresh pool for clarity.) Both samples map to the same physical blocks #7 and #1, refcount 2 each, with zero copies.',
+     A:[7,1],Bt:[7,1],phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','']},own:{7:'s',1:'s'},ref:{7:2,1:2},hl:[7,1]},
+    {info:'<b>Copy-on-write.</b> Sample A writes token 8 into #1, but refcount 2 &gt; 1, so it copies #1 to free block #4. A = [7, 4], refcount(#1) drops to 1. Sample B writes into #1 in place. One block copied, not the whole prompt.',
+     A:[7,4],Bt:[7,1],phys:{7:['t1','t2','t3','t4'],1:['t5','t6','t7','b8'],4:['t5','t6','t7','a8']},own:{7:'s',1:'b',4:'a'},ref:{7:2,1:1,4:1},newb:4,hl:[4,1]},
+    {info:'<b>Finish and prefix cache.</b> Sample B ends: #1 drops to refcount 0 and returns to the pool. Full block #7 keeps hash H(∅, t1..t4) in the LRU queue, so a future prompt starting with t1..t4 reuses it and skips that prefill.',
+     A:[7,4],Bt:null,phys:{7:['t1','t2','t3','t4'],4:['t5','t6','t7','a8']},own:{7:'a',4:'a'},ref:{7:1,4:1},hl:[7]}
+  ];
+  var cur=0;
+  function px(p){return 150+(p%4)*120}function py(p){return p<4?150:225}
+  function draw(){
+    var s=steps[cur];svg.innerHTML='';
+    svg.appendChild(el('text',{x:10,y:20,'class':'s-lab'},'Block tables (logical → physical)'));
+    svg.appendChild(el('text',{x:150,y:130,'class':'s-lab'},'Physical KV pool (8 blocks × 4 slots)'));
+    function table(row,arr,label,cls,x0){
+      svg.appendChild(el('text',{x:x0-80,y:row+18,'class':'s-txt'},label));
+      arr.forEach(function(p,j){
+        var x=x0+j*70;
+        svg.appendChild(el('rect',{x:x,y:row,width:60,height:28,rx:5,'class':'blk '+cls}));
+        svg.appendChild(el('text',{x:x+30,y:row+18,'text-anchor':'middle','class':'pv'},'L'+j+'→#'+p));
+        var tx=px(p)+50,ty=py(p),off=(cls==='b'?6:0),d;
+        if(p<4){d='M'+(x+30)+' '+(row+28)+' L'+(x+30)+' '+(row+40+off)+' L'+(tx+off)+' '+(row+40+off)+' L'+(tx+off)+' '+(ty-4)}
+        else{var gx=px(p)+110+off/2;d='M'+(x+30)+' '+(row+28)+' L'+(x+30)+' '+(row+40+off)+' L'+gx+' '+(row+40+off)+' L'+gx+' '+(ty-12-off)+' L'+(tx+off)+' '+(ty-12-off)+' L'+(tx+off)+' '+(ty-4)}
+        svg.appendChild(el('path',{d:d,'class':'arrow'+(cls==='b'?' b':''),'marker-end':'url(#ah)'}));
+      });
+    }
+    var defs=el('defs',{});var mk=el('marker',{id:'ah',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});
+    mk.appendChild(el('path',{d:'M0 0 L10 5 L0 10 z',fill:'currentColor'}));defs.appendChild(mk);svg.appendChild(defs);
+    table(32,s.A,s.Bt?'Sample A':'Seq A','a',90);
+    if(s.Bt)table(32,s.Bt,'Sample B','b',410);
+    for(var p=0;p<8;p++){
+      var x=px(p),y=py(p),own=s.own[p],cls='blk'+(own==='a'?' a':own==='b'?' b':own==='s'?' s':'')+(s.newb===p?' new':'');
+      var g=el('g',{});
+      g.appendChild(el('rect',{x:x,y:y,width:100,height:48,rx:6,'class':cls,'stroke-dasharray':s.hl.indexOf(p)>=0?'':'0'}));
+      g.appendChild(el('text',{x:x+4,y:y+14,'class':'pv'},'#'+p+(s.ref[p]?'  rc='+s.ref[p]:'')));
+      var toks=s.phys[p]||['','','',''];
+      toks.forEach(function(t,k){g.appendChild(el('rect',{x:x+4+k*23,y:y+20,width:21,height:22,rx:3,fill:'none',stroke:'currentColor','stroke-opacity':.25}));
+        if(t)g.appendChild(el('text',{x:x+14.5+k*23,y:y+35,'text-anchor':'middle','class':'tk'},t))});
+      if(s.hl.indexOf(p)>=0)g.appendChild(el('rect',{x:x-3,y:y-3,width:106,height:54,rx:8,fill:'none',stroke:'var(--accent)','stroke-width':2}));
+      svg.appendChild(g);
+    }
+    if(s.walk){svg.appendChild(el('text',{x:150,y:292,'class':'s-lab'},'read order: #7 → #1 → #3 (online softmax merge)'))}
+    document.getElementById('bt-info').innerHTML=s.info;
+    document.getElementById('bt-n').textContent='STEP '+(cur+1)+' / '+steps.length;
+    document.getElementById('bt-prev').disabled=cur===0;document.getElementById('bt-next').disabled=cur===steps.length-1;
+  }
+  document.getElementById('bt-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('bt-next').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+})();
+</script>
+</body>
+</html>
