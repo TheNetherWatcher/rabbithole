@@ -1,0 +1,20 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cx-row{margin:0 0 12px}
+.cx-row b{color:var(--ink)}
+.cx-track{height:22px;border-radius:4px;background:var(--code);border:1px solid var(--line);margin:6px 0 0;overflow:hidden}
+.cx-fill{height:100%;width:var(--w);border-radius:3px;background:var(--c);transform-origin:left;}
+.js .cx-fill{transform:scaleX(0);animation:cx-grow .8s var(--ease) forwards;animation-delay:var(--o,0s)}
+@keyframes cx-grow{to{transform:scaleX(1)}}
+</style>
+<p class="cold-line">A 1% Bloom filter needs 9.6 bits per key.</p>
+<p class="cold-line sm">Information theory says far fewer would do. The gap comes from inserting keys one at a time. A <em>static filter</em>, built once, skips that cost.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cx-row"><b>Minimum: 6.64 bits per key.</b>
+    <div class="cx-track"><div class="cx-fill" style="--w:69%;--c:var(--ok)"></div></div></div>
+  <div class="cx-row"><b>Bloom at 1%: 9.6 bits per key, about 44% above the minimum.</b>
+    <div class="cx-track"><div class="cx-fill" style="--w:100%;--c:var(--warn);--o:.4s"></div></div></div>
+</div>

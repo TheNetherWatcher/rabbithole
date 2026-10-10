@@ -9,6 +9,12 @@
   "date": "2026-10-04"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Peel one guest at a time, then fill the board backwards"
+ },
  "tldr": "A static filter for a fixed key set stores one fingerprint per key in a table where three cells XOR to that fingerprint. Solving the table is a peeling game on a random 3-uniform hypergraph, and it succeeds only above <b>1.22 slots per key</b>. Binary fuse windows push this to <b>1.125</b>, and Ribbon trades hypergraphs for banded Gaussian elimination to reach <b>under 10%</b> overhead.",
  "why": "<b>Why it matters:</b> LSM trees keep filters in RAM for hours, so every saved bit is paid again and again. RocksDB and Firefox certificate revocation now run on these structures.",
  "stats": [
@@ -97,10 +103,11 @@
   {
    "id": "math",
    "kicker": "§6 · The math",
-   "title": "Peeling holds at 1.2218 slots per key, and the Bloom gap is 1.44 bits",
+   "title": "Peeling has a sharp slot threshold, and the Bloom gap is a fixed ratio",
    "visual": "img/math.svg",
    "brief": "<p>The information bound is n·log₂(1/ε) bits. Bloom needs 1.44·log₂(1/ε). A random 3-hypergraph peels only above c* = 0.8185, so 1.2218 slots per key. XOR's FPR is exactly 2<sup>-f</sup>.</p><p class=\"mini\">Plots of the theory and the peeling success rate inside.</p>",
-   "file": "sections/06-math.html"
+   "file": "sections/06-math.html",
+   "guess": "thresh"
   },
   {
    "id": "why",
@@ -124,7 +131,8 @@
    "title": "Construction failures, duplicates and seed-aware attackers",
    "visual": "img/breaks.svg",
    "brief": "<p>Near threshold, builds fail often, so the library retries up to 100 seeds. Duplicate keys form a 2-core that peeling cannot clear. An attacker who knows the seed can force a failure, so use a secret 64-bit seed. Updates mean a full rebuild.</p>",
-   "file": "sections/09-where-it-breaks.html"
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "dup"
   },
   {
    "id": "wild",
@@ -132,7 +140,8 @@
    "title": "RocksDB's hybrid, CRLite's cascade and the library deviations",
    "visual": "img/wild.svg",
    "brief": "<p>RocksDB uses Ribbon for compaction output and Bloom for flushes, with one filter per SST file. Firefox's CRLite uses a two-level Ribbon cascade rebuilt on a schedule. The fuse code sorts into segment buckets and uses mulhi, which the paper's textbook peeling does not.</p>",
-   "file": "sections/10-in-the-wild.html"
+   "file": "sections/10-in-the-wild.html",
+   "guess": "rocks"
   },
   {
    "id": "frontier",
@@ -141,7 +150,8 @@
    "visual": "img/frontier.svg",
    "brief": "<p>ZOR (2026) abandons under 1% of keys into a side structure instead of restarting, landing within 1% of the bound. Dynamic filters cost n·log ε⁻¹ + Ω(n) bits, a provable gap to static. Grafite and Memento extend the idea to range filters.</p>",
    "group": "Research edge",
-   "file": "sections/11-frontier.html"
+   "file": "sections/11-frontier.html",
+   "guess": "zor"
   },
   {
    "id": "open",
@@ -194,6 +204,72 @@
    "file": "sections/99-sources.html"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "How far above the information minimum does a 1% Bloom filter sit?",
+   "min": 0,
+   "max": 100,
+   "step": 1,
+   "unit": "%",
+   "answer": [
+    40,
+    48
+   ],
+   "start": 10,
+   "tol": 4,
+   "reveal": "<p><b>About 44%.</b> The ratio is log₂e ≈ 1.44. A Bloom filter needs 1.44·log₂(1/ε) bits per key, against a minimum of log₂(1/ε), at every error rate. At 1% that is 9.6 bits against 6.64.</p>"
+  },
+  "dup": {
+   "q": "A key is inserted twice. Does peeling still succeed?",
+   "options": [
+    "Yes, the second copy takes a spare slot",
+    "Yes, it only costs one extra slot",
+    "No: two identical keys form a 2-core that peeling cannot clear",
+    "Only if the seed is secret"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>No.</b> Two identical keys share the same three slots, so those slots never drop below degree 2 and peeling stalls. The current C binary-fuse code removes duplicates when a round fails. Deduplicate first.</p>"
+  },
+  "thresh": {
+   "q": "At what slots-per-key ratio does a random 3-way hypergraph start to peel?",
+   "min": 1,
+   "max": 2,
+   "step": 0.01,
+   "unit": "slots per key",
+   "answer": [
+    1.2,
+    1.25
+   ],
+   "start": 1.6,
+   "tol": 0.04,
+   "reveal": "<p><b>About 1.22.</b> The peeling threshold is c* = 0.8185 keys per slot, so 1/c* = 1.2218 slots per key. Above that the build succeeds with high probability. Below it a dense knot of keys survives and the build fails.</p>"
+  },
+  "zor": {
+   "q": "ZOR (2026) avoids restarts. What share of keys does it move to a side structure?",
+   "options": [
+    "About half of the keys",
+    "About 25% of the keys",
+    "Under 1% of the keys",
+    "Every key that fails to peel"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Under 1%.</b> ZOR (Limasset, arXiv:2602.03525) abandons those keys into a small side structure instead of restarting. The result lands within 1% of the information bound, with fuse-like query speed.</p>"
+  },
+  "rocks": {
+   "q": "How much less filter RAM does RocksDB's Ribbon setting use than Bloom?",
+   "min": 0,
+   "max": 60,
+   "step": 1,
+   "unit": "%",
+   "answer": [
+    25,
+    35
+   ],
+   "start": 5,
+   "tol": 4,
+   "reveal": "<p><b>About 30%.</b> The RocksDB blog compares about 7 bits per key with Bloom's typical 10. The price is about 4.4× the construction CPU and about 20% more query CPU.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

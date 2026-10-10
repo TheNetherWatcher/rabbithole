@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,28 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cx-row{margin:0 0 12px}
+.cx-row b{color:var(--ink)}
+.cx-track{height:22px;border-radius:4px;background:var(--code);border:1px solid var(--line);margin:6px 0 0;overflow:hidden}
+.cx-fill{height:100%;width:var(--w);border-radius:3px;background:var(--c);transform-origin:left;}
+.js .cx-fill{transform:scaleX(0);animation:cx-grow .8s var(--ease) forwards;animation-delay:var(--o,0s)}
+@keyframes cx-grow{to{transform:scaleX(1)}}
+</style>
+<p class="cold-line">A 1% Bloom filter needs 9.6 bits per key.</p>
+<p class="cold-line sm">Information theory says far fewer would do. The gap comes from inserting keys one at a time. A <em>static filter</em>, built once, skips that cost.</p>
+<div class="guess" data-g="cold" data-kind="range" data-min="0" data-max="100" data-lo="40" data-hi="48" data-tol="4" data-unit="%"><p class="g-q"><span class="g-tag">Guess first</span> How far above the information minimum does a 1% Bloom filter sit?</p><div class="g-ctl"><input type="range" min="0" max="100" step="1" value="10" aria-label="Your guess"><output>10%</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0%</span><span>100%</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 44%.</b> The ratio is log₂e ≈ 1.44. A Bloom filter needs 1.44·log₂(1/ε) bits per key, against a minimum of log₂(1/ε), at every error rate. At 1% that is 9.6 bits against 6.64.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cx-row"><b>Minimum: 6.64 bits per key.</b>
+    <div class="cx-track"><div class="cx-fill" style="--w:69%;--c:var(--ok)"></div></div></div>
+  <div class="cx-row"><b>Bloom at 1%: 9.6 bits per key, about 44% above the minimum.</b>
+    <div class="cx-track"><div class="cx-fill" style="--w:100%;--c:var(--warn);--o:.4s"></div></div></div>
+</div>
+</div><a class="cold-cue" href="#top">XOR, fuse &amp; Ribbon filters <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs><g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g><g class="layer" data-depth="0.14"><rect x="150" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="216" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="282" y="80" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="348" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="414" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="480" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="546" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="612" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="678" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="744" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="810" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="876" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="942" y="80" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="1008" y="80" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="150" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="216" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="282" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="348" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="414" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="480" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="546" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="612" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="678" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="744" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="810" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="876" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="942" y="128" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="1008" y="128" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="150" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="216" y="176" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="282" y="176" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="348" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="414" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="480" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="546" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="612" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="678" y="176" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="744" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="810" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="876" y="176" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="942" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="1008" y="176" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="150" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="216" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="282" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="348" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="414" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="480" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="546" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="612" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="678" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="744" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="810" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="876" y="224" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="942" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="1008" y="224" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="150" y="272" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="216" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="282" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="348" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="414" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="480" y="272" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="546" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="612" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="678" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="744" y="272" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="810" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="876" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/><rect x="942" y="272" width="46" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/><rect x="1008" y="272" width="46" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/></g><g class="layer" data-depth="0.22"><path d="M120 120 C201.0 120, 201.0 191, 305 191" fill="none" class="s-acc" stroke-width="1.4" opacity=".7"/><path d="M120 120 C564.0 120, 564.0 287, 1031 287" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M120 120 C201.0 120, 201.0 143, 305 143" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M120 200 C300.0 200, 300.0 239, 503 239" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M120 200 C267.0 200, 267.0 287, 437 287" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M120 200 C399.0 200, 399.0 95, 701 95" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 150 C648.0 150, 648.0 95, 239 95" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 150 C747.0 150, 747.0 287, 437 287" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 150 C780.0 150, 780.0 191, 503 191" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 230 C648.0 230, 648.0 191, 239 191" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 230 C945.0 230, 945.0 143, 833 143" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><path d="M1080 230 C747.0 230, 747.0 287, 437 287" fill="none" class="s-line" stroke-width="1.4" opacity=".7"/><circle cx="120" cy="120" r="11" class="f-panel s-acc2" stroke-width="2"/><circle cx="120" cy="200" r="11" class="f-panel s-acc2" stroke-width="2"/><circle cx="1080" cy="150" r="11" class="f-panel s-acc2" stroke-width="2"/><circle cx="1080" cy="230" r="11" class="f-panel s-acc2" stroke-width="2"/><circle cx="120" cy="120" r="5" class="f-acc"/></g><g class="layer" data-depth="0.32"><path d="M120 120 C300 120, 360 40, 480 40" fill="none" class="s-ok flow" stroke-width="2.4" stroke-dasharray="6 6"/><circle cx="600" cy="170" r="7" class="f-ok pulse"/></g></svg></div>
   <div class="hero-text wrap">
     <div class="chips rv"><span class="chip">Computer science</span><span class="chip">Algorithms &amp; data structures</span><span class="chip">Depth: hard</span><span class="chip">2026-10-04</span></div>
@@ -307,12 +420,86 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> LSM trees keep filters in RAM for hours, so every saved bit is paid again and again. RocksDB and Firefox certificate revocation now run on these structures.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">1.23</div><div class="l">slots per key, the XOR peeling threshold (3-uniform)</div></div><div class="stat rv" style="--i:1"><div class="v">1.125</div><div class="l">slots per key, 3-wise binary fuse at large n</div></div><div class="stat rv" style="--i:2"><div class="v">0.39%</div><div class="l">false-positive rate of an 8-bit fingerprint</div></div><div class="stat rv" style="--i:3"><div class="v">3</div><div class="l">memory reads per query for XOR and fuse</div></div><div class="stat rv" style="--i:4"><div class="v">30%</div><div class="l">less filter RAM than Bloom in RocksDB's Ribbon setting</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~35 min deep</span>
+      <span>19 cards</span><span>· ~9 min skim</span><span>· ~35 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
 </section>
 
-<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A guest list kept as a board of numbered slots"><span>A guest list kept as a board of numbered slots</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six things to know first"><span>Six things to know first</span></a><a href="#c-world" data-id="world" aria-label="Where it runs: RocksDB, Firefox CRLite and the xor libraries"><span>Where it runs: RocksDB, Firefox CRLite and the xor libraries</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;A precomputed table where three cells XOR to the fingerprint&quot; hides five things"><span>&quot;A precomputed table where three cells XOR to the fingerprint&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Bloom filters waste 44% over the information minimum"><span>Bloom filters waste 44% over the information minimum</span></a><a href="#c-model" data-id="model" aria-label="A bulletin board of sticky notes solved all at once"><span>A bulletin board of sticky notes solved all at once</span></a><a href="#c-mech" data-id="mech" aria-label="Peeling three keys by hand, then filling the board backwards"><span>Peeling three keys by hand, then filling the board backwards</span></a><a href="#c-math" data-id="math" aria-label="Peeling holds at 1.2218 slots per key, and the Bloom gap is 1.44 bits"><span>Peeling holds at 1.2218 slots per key, and the Bloom gap is 1.44 bits</span></a><a href="#c-why" data-id="why" aria-label="Sparse random equations are solvable by one greedy pass"><span>Sparse random equations are solvable by one greedy pass</span></a><a href="#c-knobs" data-id="knobs" aria-label="Fingerprint width, arity, window size and Ribbon&#x27;s band set the tradeoff"><span>Fingerprint width, arity, window size and Ribbon&#x27;s band set the tradeoff</span></a><a href="#c-breaks" data-id="breaks" aria-label="Construction failures, duplicates and seed-aware attackers"><span>Construction failures, duplicates and seed-aware attackers</span></a><a href="#c-wild" data-id="wild" aria-label="RocksDB&#x27;s hybrid, CRLite&#x27;s cascade and the library deviations"><span>RocksDB&#x27;s hybrid, CRLite&#x27;s cascade and the library deviations</span></a><a href="#c-frontier" data-id="frontier" aria-label="Deterministic, restart-free peeling is the new race"><span>Deterministic, restart-free peeling is the new race</span></a><a href="#c-open" data-id="open" aria-label="Fast construction near the bound is still unsolved"><span>Fast construction near the bound is still unsolved</span></a><a href="#c-lineage" data-id="lineage" aria-label="Bloom 1970, XOR 2019, binary fuse 2022, ZOR 2026"><span>Bloom 1970, XOR 2019, binary fuse 2022, ZOR 2026</span></a><a href="#c-hands" data-id="hands" aria-label="Watch the peeling threshold appear in 30 seconds"><span>Watch the peeling threshold appear in 30 seconds</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three dives that build on this"><span>Three dives that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and docs"><span>Papers, code and docs</span></a></nav>
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Peel one guest at a time, then fill the board backwards</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 16px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-bad{fill:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three guests and six slots. Each guest is peeled onto a stack through a slot only it touches, then the slots are filled in reverse.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Three guests, six slots, one XOR check each</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Random guesses pass each guest 1 time in 8</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="6">Peel: park a guest who owns a slot alone</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="8">Fill in reverse: last parked goes first</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Check every guest against its code</text>
+<rect x="52" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="5 6"/>
+<text x="58" y="111" class="sf-id">A0</text>
+<rect x="112" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="4 7"/>
+<text x="118" y="111" class="sf-id">A1</text>
+<rect x="184" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="190" y="111" class="sf-id">B0</text>
+<rect x="244" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="6"/>
+<text x="250" y="111" class="sf-id">B1</text>
+<rect x="316" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="3 7"/>
+<text x="322" y="111" class="sf-id">C0</text>
+<rect x="376" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="6"/>
+<text x="382" y="111" class="sf-id">C1</text>
+<text x="78.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">3</text>
+<text x="210.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="270.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="402.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="138.0" y="132" class="sf-cell" text-anchor="middle" data-in="7" data-out="9">6</text>
+<text x="342.0" y="132" class="sf-cell" text-anchor="middle" data-in="7" data-out="9">6</text>
+<text x="52" y="180" class="sf-lab" data-in="1" data-out="9">Ana: A0 ⊕ B0 ⊕ C0 = 5</text>
+<text x="52" y="204" class="sf-lab" data-in="1" data-out="9">Ben: A0 ⊕ B1 ⊕ C1 = 3</text>
+<text x="52" y="228" class="sf-lab" data-in="1" data-out="9">Cy: A1 ⊕ B0 ⊕ C1 = 6</text>
+<text x="52" y="256" class="sf-lab" data-in="3" data-out="9">Stack, bottom to top</text>
+<g data-in="3" data-out="9"><rect x="52" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="62" y="284" class="sf-lab">1st: Ana via C0</text></g>
+<g data-in="4" data-out="9"><rect x="190" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="200" y="284" class="sf-lab">2nd: Cy via A1</text></g>
+<g data-in="5" data-out="9"><rect x="328" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="338" y="284" class="sf-lab">3rd: Ben via A0</text></g>
+<text x="20" y="392" class="sf-lab" data-in="1" data-out="2">Ana, Ben and Cy each need three slots to XOR</text>
+<text x="20" y="414" class="sf-lab" data-in="1" data-out="2">to their code. Solve all three at once.</text>
+<text x="20" y="392" class="sf-lab" data-in="2" data-out="3">Guess values at random and each guest passes 1 time in 8.</text>
+<text x="20" y="414" class="sf-lab" data-in="2" data-out="3">Setting one guest’s slots breaks another’s.</text>
+<text x="20" y="392" class="sf-lab" data-in="3" data-out="4">C0 is touched by Ana alone. Park Ana.</text>
+<text x="20" y="414" class="sf-lab" data-in="3" data-out="4">Her code is set later, from the slots the others leave.</text>
+<text x="20" y="392" class="sf-lab" data-in="4" data-out="5">A1 is touched by Cy alone. Park Cy.</text>
+<text x="20" y="414" class="sf-lab" data-in="4" data-out="5">Ben is left. Nothing unparked touches his slots.</text>
+<text x="20" y="392" class="sf-lab" data-in="5" data-out="6">Park Ben too. All three guests are on the stack.</text>
+<text x="20" y="414" class="sf-lab" data-in="5" data-out="6">The stack gives the order, so the table exists.</text>
+<text x="20" y="392" class="sf-lab" data-in="6" data-out="7">Pop Ben first: A0 = 3. B0, B1 and C1 stay 0.</text>
+<text x="20" y="414" class="sf-lab" data-in="6" data-out="7">His slots now XOR to his code, 3.</text>
+<text x="20" y="392" class="sf-lab" data-in="7" data-out="8">Pop Cy: A1 = 6. Then Ana: C0 = 6.</text>
+<text x="20" y="414" class="sf-lab" data-in="7" data-out="8">Each slot is set once, so earlier guests stay correct.</text>
+<text x="20" y="392" class="sf-lab" data-in="8" data-out="9">Check Ana: 3 ⊕ 0 ⊕ 6 = 5. Ben and Cy pass too.</text>
+<text x="20" y="414" class="sf-lab" data-in="8" data-out="9">A stranger passes by luck 1 time in 256 (8 bits).</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">What the peel costs</text><text x="60" y="160" class="sf-num">1.23</text><text x="60" y="186" class="sf-lab">slots per key, XOR filter (peeling threshold)</text><text x="60" y="246" class="sf-num">1.125</text><text x="60" y="272" class="sf-lab">slots per key, binary fuse (3-wise windows)</text><text x="60" y="332" class="sf-num">0.39%</text><text x="60" y="358" class="sf-lab">false positives with an 8-bit fingerprint</text><text x="40" y="398" class="sf-big">Below 1.22 slots per key the peel stalls. Retry.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Three guests are on a list, and each one gets three slots on a board of six. Each guest's three slots must XOR to a short code. The job is to solve all three at once, without trying every combination. The way in is <b>peeling</b>.</p></div>
+<div class="step"><p><b>The naive way.</b> Guess slot values at random. A guest's check then passes by luck 1 time in 8, for 3-bit codes. Worse, Ana and Ben share slot A0, so fixing one guest breaks the other.</p></div>
+<div class="step"><p><b>Key idea: find a lonely slot.</b> C0 is touched by Ana alone. Park Ana on a stack and set her aside. Her slot C0 will absorb her code later.</p></div>
+<div class="step"><p><b>Peel again.</b> With Ana parked, A1 is touched by Cy alone, so Cy goes on the stack. Ben is the last guest left, and no unparked guest touches his slots.</p></div>
+<div class="step"><p><b>All three are parked.</b> The stack gives the order, so the table can be solved. Each guest leaves through a slot that no guest still on the board uses.</p></div>
+<div class="step"><p><b>Fill in reverse.</b> Ben, parked last, goes first. His slot A0 becomes 3, his code, because his other two slots are 0.</p></div>
+<div class="step"><p><b>Then Cy and Ana.</b> Cy's A1 becomes 6. Ana's C0 becomes 6, so her three slots XOR to 5. Each slot is written once, so the guests already set keep working.</p></div>
+<div class="step"><p><b>Check.</b> Ana: 3 ⊕ 0 ⊕ 6 = 5. Ben and Cy pass too. A stranger lands on a random value, so an 8-bit code lets one through 1 time in 256.</p></div>
+<div class="step"><p><b>The numbers at scale.</b> A random 3-way hypergraph peels only above <b>1.22 slots per key</b>, so an XOR filter uses about 1.23. Binary fuse windows cut that to 1.125. The cards below cover the math, the knobs and where it breaks.</p></div>
+</div>
+</div>
+</section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A guest list kept as a board of numbered slots"><span>A guest list kept as a board of numbered slots</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six things to know first"><span>Six things to know first</span></a><a href="#c-world" data-id="world" aria-label="Where it runs: RocksDB, Firefox CRLite and the xor libraries"><span>Where it runs: RocksDB, Firefox CRLite and the xor libraries</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;A precomputed table where three cells XOR to the fingerprint&quot; hides five things"><span>&quot;A precomputed table where three cells XOR to the fingerprint&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Bloom filters waste 44% over the information minimum"><span>Bloom filters waste 44% over the information minimum</span></a><a href="#c-model" data-id="model" aria-label="A bulletin board of sticky notes solved all at once"><span>A bulletin board of sticky notes solved all at once</span></a><a href="#c-mech" data-id="mech" aria-label="Peeling three keys by hand, then filling the board backwards"><span>Peeling three keys by hand, then filling the board backwards</span></a><a href="#c-math" data-id="math" aria-label="Peeling has a sharp slot threshold, and the Bloom gap is a fixed ratio"><span>Peeling has a sharp slot threshold, and the Bloom gap is a fixed ratio</span></a><a href="#c-why" data-id="why" aria-label="Sparse random equations are solvable by one greedy pass"><span>Sparse random equations are solvable by one greedy pass</span></a><a href="#c-knobs" data-id="knobs" aria-label="Fingerprint width, arity, window size and Ribbon&#x27;s band set the tradeoff"><span>Fingerprint width, arity, window size and Ribbon&#x27;s band set the tradeoff</span></a><a href="#c-breaks" data-id="breaks" aria-label="Construction failures, duplicates and seed-aware attackers"><span>Construction failures, duplicates and seed-aware attackers</span></a><a href="#c-wild" data-id="wild" aria-label="RocksDB&#x27;s hybrid, CRLite&#x27;s cascade and the library deviations"><span>RocksDB&#x27;s hybrid, CRLite&#x27;s cascade and the library deviations</span></a><a href="#c-frontier" data-id="frontier" aria-label="Deterministic, restart-free peeling is the new race"><span>Deterministic, restart-free peeling is the new race</span></a><a href="#c-open" data-id="open" aria-label="Fast construction near the bound is still unsolved"><span>Fast construction near the bound is still unsolved</span></a><a href="#c-lineage" data-id="lineage" aria-label="Bloom 1970, XOR 2019, binary fuse 2022, ZOR 2026"><span>Bloom 1970, XOR 2019, binary fuse 2022, ZOR 2026</span></a><a href="#c-hands" data-id="hands" aria-label="Watch the peeling threshold appear in 30 seconds"><span>Watch the peeling threshold appear in 30 seconds</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three dives that build on this"><span>Three dives that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and docs"><span>Papers, code and docs</span></a></nav>
 
 <main class="wrap">
 <div class="group rv">Plain English</div>
@@ -323,7 +510,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p><b>Explain it simply.</b> Picture a bouncer at a club with a guest list of a million names. The list is too big to carry, so the bouncer carries a small cheat-sheet instead: a board of numbered slots with a number in each. To check a visitor, the bouncer hashes the name into three slot numbers, adds up (XORs) the three numbers on the board, and compares the result to a short "secret code" derived from the name. If they match, the visitor is waved through. Everyone on the list <i>always</i> matches. A stranger matches only by luck: with an 8-bit code, 1 in 256.</p>
+<p class="dropcap"><b>Explain it simply.</b> Picture a bouncer at a club with a guest list of a million names. The list is too big to carry, so the bouncer carries a small cheat-sheet instead: a board of numbered slots with a number in each. To check a visitor, the bouncer hashes the name into three slot numbers, adds up (XORs) the three numbers on the board, and compares the result to a short "secret code" derived from the name. If they match, the visitor is waved through. Everyone on the list <i>always</i> matches. A stranger matches only by luck: with an 8-bit code, 1 in 256.</p>
 <p>The clever part is how the board is filled in. We need, for every guest, "slot a + slot b + slot c = my code", all at the same time. That is a big puzzle. The trick: find a guest who owns one slot <i>alone</i> (nobody else touches it), park that guest on a stack, forget about them for now, and repeat. Eventually every guest is on the stack. Then fill the board in reverse: the last guest parked gets their lonely slot set to whatever makes their sum work; each earlier guest has already-fixed neighbours when their turn comes. The board only needs about 1.23 slots per guest for this to work out almost every time. Ribbon filters solve the same puzzle differently: as a school-style system of equations where every equation only touches a short nearby stretch of slots, so it can be solved in one pass, with as little as 5 to 10% spare room.</p>
 <p><b>Everyday example.</b> Three guests (Ana, Ben, Cy) and a board of six slots in three pairs (A0 A1 | B0 B1 | C0 C1). Ana → A0, B0, C0 and code 5. Ben → A0, B1, C1 and code 3. Cy → A1, B0, C1 and code 6. Slot C0 is touched only by Ana, A1 only by Cy, and after those two are parked, A0 is touched only by Ben. Park Ana, Cy, Ben (in that order). Fill backwards: Ben first (set A0 to 3), then Cy (set A1 to 6), then Ana (set C0 so the sum is 5, which turns out to be 6). Board: A0=3, A1=6, B0=0, B1=0, C0=6, C1=0. Ana: 3+0+6 → 5 ✓. A stranger who hashes to A1, B1, C0 sums to 0 and is rejected unless their own code is 0.</p>
 <p class="mini">Bridge: now the same thing, technically, in the cards that follow.</p>
@@ -412,6 +599,7 @@ table_options.filter_policy.reset(rocksdb::NewRibbonFilterPolicy(10.0));
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>44%</b><span>extra bits a Bloom filter spends over the information minimum, because its bit array must accept keys one at a time.</span></div>
 <p>A Bloom filter at ε = 1% needs about 9.6 bits per key with the optimal number of probes (k ≈ 7) into a large bit array, and each probe is a likely cache miss. The information minimum is log₂(100) ≈ 6.64 bits per key. For ε = 2<sup>-8</sup>, Bloom needs about 11.5 bits against an 8-bit minimum. In a 10-billion-key LSM tree, 3 bits per key is 3.75 GB of RAM.</p>
 <p><b>Forcing constraint:</b> static sets do not need Bloom's incremental insertability. The requirement that keys be insertable one at a time is what costs the 44%.</p>
 
@@ -534,10 +722,10 @@ return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 80 Q40 20 80 60 T146 30" fill="none" class="s-acc draw" stroke-width="2"/><circle cx="78" cy="62" r="3" class="f-ok"/><text x="14" y="94" class="t-mute" font-size="9">min at the threshold</text></svg></div>
-<div class="card-body"><div class="kicker">§6 · The math</div><h2>Peeling holds at 1.2218 slots per key, and the Bloom gap is 1.44 bits</h2>
-<div class="brief"><p>The information bound is n·log₂(1/ε) bits. Bloom needs 1.44·log₂(1/ε). A random 3-hypergraph peels only above c* = 0.8185, so 1.2218 slots per key. XOR's FPR is exactly 2<sup>-f</sup>.</p><p class="mini">Plots of the theory and the peeling success rate inside.</p></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>Peeling has a sharp slot threshold, and the Bloom gap is a fixed ratio</h2>
+<div class="guess" data-g="thresh" data-kind="range" data-min="1" data-max="2" data-lo="1.2" data-hi="1.25" data-tol="0.04" data-unit="slots per key"><p class="g-q"><span class="g-tag">Guess first</span> At what slots-per-key ratio does a random 3-way hypergraph start to peel?</p><div class="g-ctl"><input type="range" min="1" max="2" step="0.01" value="1.6" aria-label="Your guess"><output>1.6slots per key</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>1slots per key</span><span>2slots per key</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 1.22.</b> The peeling threshold is c* = 0.8185 keys per slot, so 1/c* = 1.2218 slots per key. Above that the build succeeds with high probability. Below it a dense knot of keys survives and the build fails.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>The information bound is n·log₂(1/ε) bits. Bloom needs 1.44·log₂(1/ε). A random 3-hypergraph peels only above c* = 0.8185, so 1.2218 slots per key. XOR's FPR is exactly 2<sup>-f</sup>.</p><p class="mini">Plots of the theory and the peeling success rate inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>6 min · 4 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -602,10 +790,10 @@ return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M12 80 L30 20 L46 80 L62 20 L78 80 L94 20 L110 80 L126 20 L146 80" fill="none" class="s-bad" stroke-width="1.8"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Construction failures, duplicates and seed-aware attackers</h2>
-<div class="brief"><p>Near threshold, builds fail often, so the library retries up to 100 seeds. Duplicate keys form a 2-core that peeling cannot clear. An attacker who knows the seed can force a failure, so use a secret 64-bit seed. Updates mean a full rebuild.</p></div>
+<div class="guess" data-g="dup" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> A key is inserted twice. Does peeling still succeed?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Yes, the second copy takes a spare slot</button><button class="g-opt" type="button" data-k="1">Yes, it only costs one extra slot</button><button class="g-opt" type="button" data-k="2">No: two identical keys form a 2-core that peeling cannot clear</button><button class="g-opt" type="button" data-k="3">Only if the seed is secret</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>No.</b> Two identical keys share the same three slots, so those slots never drop below degree 2 and peeling stalls. The current C binary-fuse code removes duplicates when a round fails. Deduplicate first.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Near threshold, builds fail often, so the library retries up to 100 seeds. Duplicate keys form a 2-core that peeling cannot clear. An attacker who knows the seed can force a failure, so use a secret 64-bit seed. Updates mean a full rebuild.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -622,10 +810,10 @@ return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="20" width="60" height="26" rx="5" class="f-panel s-line"/><rect x="86" y="20" width="60" height="26" rx="5" class="f-panel s-line"/><rect x="14" y="58" width="132" height="26" rx="5" class="f-line s-line"/><path d="M44 46 L44 58 M116 46 L116 58" class="s-acc" fill="none" stroke-width="1.5"/></svg></div>
 <div class="card-body"><div class="kicker">§10 · In the wild</div><h2>RocksDB&#x27;s hybrid, CRLite&#x27;s cascade and the library deviations</h2>
-<div class="brief"><p>RocksDB uses Ribbon for compaction output and Bloom for flushes, with one filter per SST file. Firefox's CRLite uses a two-level Ribbon cascade rebuilt on a schedule. The fuse code sorts into segment buckets and uses mulhi, which the paper's textbook peeling does not.</p></div>
+<div class="guess" data-g="rocks" data-kind="range" data-min="0" data-max="60" data-lo="25" data-hi="35" data-tol="4" data-unit="%"><p class="g-q"><span class="g-tag">Guess first</span> How much less filter RAM does RocksDB's Ribbon setting use than Bloom?</p><div class="g-ctl"><input type="range" min="0" max="60" step="1" value="5" aria-label="Your guess"><output>5%</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0%</span><span>60%</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 30%.</b> The RocksDB blog compares about 7 bits per key with Bloom's typical 10. The price is about 4.4× the construction CPU and about 20% more query CPU.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>RocksDB uses Ribbon for compaction output and Bloom for flushes, with one filter per SST file. Firefox's CRLite uses a two-level Ribbon cascade rebuilt on a schedule. The fuse code sorts into segment buckets and uses mulhi, which the paper's textbook peeling does not.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -639,10 +827,10 @@ return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
 <div class="group rv">Research edge</div>
-<article class="card rv" id="c-frontier" data-id="frontier">
+<article class="card rv gated" id="c-frontier" data-id="frontier">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 70 L40 70 L40 50 L70 50 L70 30 L100 30 L100 24 L146 24" fill="none" class="s-ok draw" stroke-width="2"/><text x="14" y="90" class="t-mute" font-size="9">fewer bits, faster build</text></svg></div>
 <div class="card-body"><div class="kicker">§11 · Frontier</div><h2>Deterministic, restart-free peeling is the new race</h2>
-<div class="brief"><p>ZOR (2026) abandons under 1% of keys into a side structure instead of restarting, landing within 1% of the bound. Dynamic filters cost n·log ε⁻¹ + Ω(n) bits, a provable gap to static. Grafite and Memento extend the idea to range filters.</p></div>
+<div class="guess" data-g="zor" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> ZOR (2026) avoids restarts. What share of keys does it move to a side structure?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About half of the keys</button><button class="g-opt" type="button" data-k="1">About 25% of the keys</button><button class="g-opt" type="button" data-k="2">Under 1% of the keys</button><button class="g-opt" type="button" data-k="3">Every key that fails to peel</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Under 1%.</b> ZOR (Limasset, arXiv:2602.03525) abandons those keys into a small side structure instead of restarting. The result lands within 1% of the information bound, with fuse-like query speed.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>ZOR (2026) abandons under 1% of keys into a side structure instead of restarting, landing within 1% of the bound. Dynamic filters cost n·log ε⁻¹ + Ω(n) bits, a provable gap to static. Grafite and Memento extend the idea to range filters.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
@@ -1001,13 +1189,45 @@ Ribbon w=64 r=8, n=20000: m/n 1.02 -&gt; 0/10, 1.05 -&gt; 7/10, 1.10 -&gt; 10/10
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1027,11 +1247,63 @@ Ribbon w=64 r=8, n=20000: m/n 1.02 -&gt; 0/10, 1.05 -&gt; 7/10, 1.10 -&gt; 10/10
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');

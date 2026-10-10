@@ -1,0 +1,71 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 16px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-bad{fill:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three guests and six slots. Each guest is peeled onto a stack through a slot only it touches, then the slots are filled in reverse.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Three guests, six slots, one XOR check each</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Random guesses pass each guest 1 time in 8</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="6">Peel: park a guest who owns a slot alone</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="8">Fill in reverse: last parked goes first</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Check every guest against its code</text>
+<rect x="52" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="5 6"/>
+<text x="58" y="111" class="sf-id">A0</text>
+<rect x="112" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="4 7"/>
+<text x="118" y="111" class="sf-id">A1</text>
+<rect x="184" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="190" y="111" class="sf-id">B0</text>
+<rect x="244" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="6"/>
+<text x="250" y="111" class="sf-id">B1</text>
+<rect x="316" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="3 7"/>
+<text x="322" y="111" class="sf-id">C0</text>
+<rect x="376" y="96" width="52" height="52" rx="6" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="6"/>
+<text x="382" y="111" class="sf-id">C1</text>
+<text x="78.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">3</text>
+<text x="210.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="270.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="402.0" y="132" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">0</text>
+<text x="138.0" y="132" class="sf-cell" text-anchor="middle" data-in="7" data-out="9">6</text>
+<text x="342.0" y="132" class="sf-cell" text-anchor="middle" data-in="7" data-out="9">6</text>
+<text x="52" y="180" class="sf-lab" data-in="1" data-out="9">Ana: A0 ⊕ B0 ⊕ C0 = 5</text>
+<text x="52" y="204" class="sf-lab" data-in="1" data-out="9">Ben: A0 ⊕ B1 ⊕ C1 = 3</text>
+<text x="52" y="228" class="sf-lab" data-in="1" data-out="9">Cy: A1 ⊕ B0 ⊕ C1 = 6</text>
+<text x="52" y="256" class="sf-lab" data-in="3" data-out="9">Stack, bottom to top</text>
+<g data-in="3" data-out="9"><rect x="52" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="62" y="284" class="sf-lab">1st: Ana via C0</text></g>
+<g data-in="4" data-out="9"><rect x="190" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="200" y="284" class="sf-lab">2nd: Cy via A1</text></g>
+<g data-in="5" data-out="9"><rect x="328" y="262" width="134" height="34" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="338" y="284" class="sf-lab">3rd: Ben via A0</text></g>
+<text x="20" y="392" class="sf-lab" data-in="1" data-out="2">Ana, Ben and Cy each need three slots to XOR</text>
+<text x="20" y="414" class="sf-lab" data-in="1" data-out="2">to their code. Solve all three at once.</text>
+<text x="20" y="392" class="sf-lab" data-in="2" data-out="3">Guess values at random and each guest passes 1 time in 8.</text>
+<text x="20" y="414" class="sf-lab" data-in="2" data-out="3">Setting one guest’s slots breaks another’s.</text>
+<text x="20" y="392" class="sf-lab" data-in="3" data-out="4">C0 is touched by Ana alone. Park Ana.</text>
+<text x="20" y="414" class="sf-lab" data-in="3" data-out="4">Her code is set later, from the slots the others leave.</text>
+<text x="20" y="392" class="sf-lab" data-in="4" data-out="5">A1 is touched by Cy alone. Park Cy.</text>
+<text x="20" y="414" class="sf-lab" data-in="4" data-out="5">Ben is left. Nothing unparked touches his slots.</text>
+<text x="20" y="392" class="sf-lab" data-in="5" data-out="6">Park Ben too. All three guests are on the stack.</text>
+<text x="20" y="414" class="sf-lab" data-in="5" data-out="6">The stack gives the order, so the table exists.</text>
+<text x="20" y="392" class="sf-lab" data-in="6" data-out="7">Pop Ben first: A0 = 3. B0, B1 and C1 stay 0.</text>
+<text x="20" y="414" class="sf-lab" data-in="6" data-out="7">His slots now XOR to his code, 3.</text>
+<text x="20" y="392" class="sf-lab" data-in="7" data-out="8">Pop Cy: A1 = 6. Then Ana: C0 = 6.</text>
+<text x="20" y="414" class="sf-lab" data-in="7" data-out="8">Each slot is set once, so earlier guests stay correct.</text>
+<text x="20" y="392" class="sf-lab" data-in="8" data-out="9">Check Ana: 3 ⊕ 0 ⊕ 6 = 5. Ben and Cy pass too.</text>
+<text x="20" y="414" class="sf-lab" data-in="8" data-out="9">A stranger passes by luck 1 time in 256 (8 bits).</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">What the peel costs</text><text x="60" y="160" class="sf-num">1.23</text><text x="60" y="186" class="sf-lab">slots per key, XOR filter (peeling threshold)</text><text x="60" y="246" class="sf-num">1.125</text><text x="60" y="272" class="sf-lab">slots per key, binary fuse (3-wise windows)</text><text x="60" y="332" class="sf-num">0.39%</text><text x="60" y="358" class="sf-lab">false positives with an 8-bit fingerprint</text><text x="40" y="398" class="sf-big">Below 1.22 slots per key the peel stalls. Retry.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Three guests are on a list, and each one gets three slots on a board of six. Each guest's three slots must XOR to a short code. The job is to solve all three at once, without trying every combination. The way in is <b>peeling</b>.</p></div>
+<div class="step"><p><b>The naive way.</b> Guess slot values at random. A guest's check then passes by luck 1 time in 8, for 3-bit codes. Worse, Ana and Ben share slot A0, so fixing one guest breaks the other.</p></div>
+<div class="step"><p><b>Key idea: find a lonely slot.</b> C0 is touched by Ana alone. Park Ana on a stack and set her aside. Her slot C0 will absorb her code later.</p></div>
+<div class="step"><p><b>Peel again.</b> With Ana parked, A1 is touched by Cy alone, so Cy goes on the stack. Ben is the last guest left, and no unparked guest touches his slots.</p></div>
+<div class="step"><p><b>All three are parked.</b> The stack gives the order, so the table can be solved. Each guest leaves through a slot that no guest still on the board uses.</p></div>
+<div class="step"><p><b>Fill in reverse.</b> Ben, parked last, goes first. His slot A0 becomes 3, his code, because his other two slots are 0.</p></div>
+<div class="step"><p><b>Then Cy and Ana.</b> Cy's A1 becomes 6. Ana's C0 becomes 6, so her three slots XOR to 5. Each slot is written once, so the guests already set keep working.</p></div>
+<div class="step"><p><b>Check.</b> Ana: 3 ⊕ 0 ⊕ 6 = 5. Ben and Cy pass too. A stranger lands on a random value, so an 8-bit code lets one through 1 time in 256.</p></div>
+<div class="step"><p><b>The numbers at scale.</b> A random 3-way hypergraph peels only above <b>1.22 slots per key</b>, so an XOR filter uses about 1.23. Binary fuse windows cut that to 1.125. The cards below cover the math, the knobs and where it breaks.</p></div>
+</div>
+</div>
