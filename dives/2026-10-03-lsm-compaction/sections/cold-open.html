@@ -1,0 +1,19 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:10px;width:var(--w);background:var(--c,var(--accent));border-radius:3px;margin-top:4px}
+</style>
+<p class="cold-line">Merging sorted files rewrites the same bytes again and again.</p>
+<p class="cold-line sm">This is <em>compaction</em>, the background merge inside LSM stores such as RocksDB. The merge policy sets how many times each byte gets rewritten: the <em>write amplification</em>.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Leveling: 17.09×</b> rewrites per entry (T = 10, 3 levels)
+    <div class="cv-bar" style="--w:85%"></div></div>
+  <div class="cv-row"><b>Lazy leveling: 8.40×</b>
+    <div class="cv-bar" style="--w:42%;--c:var(--accent2)"></div></div>
+  <div class="cv-row"><b>Tiering: 4.00×</b>
+    <div class="cv-bar" style="--w:20%;--c:var(--ok)"></div></div>
+</div>

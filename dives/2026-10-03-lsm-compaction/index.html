@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,27 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:10px;width:var(--w);background:var(--c,var(--accent));border-radius:3px;margin-top:4px}
+</style>
+<p class="cold-line">Merging sorted files rewrites the same bytes again and again.</p>
+<p class="cold-line sm">This is <em>compaction</em>, the background merge inside LSM stores such as RocksDB. The merge policy sets how many times each byte gets rewritten: the <em>write amplification</em>.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> In a simulated leveling store (size ratio 10, 3 levels), how many times is each entry written over its life?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 2×</button><button class="g-opt" type="button" data-k="1">About 4×</button><button class="g-opt" type="button" data-k="2">About 17×</button><button class="g-opt" type="button" data-k="3">About 100×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 17×.</b> The count-based simulator measures 17.09 under leveling and 4.00 under tiering at T = 10, L = 3. The formula predicts 13.50 for leveling, and the measured number sits above it.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Leveling: 17.09×</b> rewrites per entry (T = 10, 3 levels)
+    <div class="cv-bar" style="--w:85%"></div></div>
+  <div class="cv-row"><b>Lazy leveling: 8.40×</b>
+    <div class="cv-bar" style="--w:42%;--c:var(--accent2)"></div></div>
+  <div class="cv-row"><b>Tiering: 4.00×</b>
+    <div class="cv-bar" style="--w:20%;--c:var(--ok)"></div></div>
+</div>
+</div><a class="cold-cue" href="#top">LSM compaction policies <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><pattern id="lsm-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
 <g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#lsm-dots)"/></g>
@@ -329,12 +441,86 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> compaction decides write throughput, read latency, disk usage and when a database stalls; RocksDB, Cassandra, ScyllaDB and CockroachDB all expose this choice.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">1.11×</div><div class="l">space amp with dynamic level bytes, T = 10</div></div><div class="stat rv" style="--i:1"><div class="v">3.5×</div><div class="l">MyRocks instance vs uncompressed InnoDB</div></div><div class="stat rv" style="--i:2"><div class="v">20</div><div class="l">L0 files before RocksDB slows writes (default)</div></div><div class="stat rv" style="--i:3"><div class="v">8×</div><div class="l">CAMAL's reported best over prior RocksDB configs (abstract)</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~4 min skim</span><span>· ~38 min deep</span>
+      <span>19 cards</span><span>· ~7 min skim</span><span>· ~38 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
 </section>
 
-<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Compaction is a dial between eager merging and lazy piles"><span>Compaction is a dial between eager merging and lazy piles</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six terms cover the whole policy debate"><span>Six terms cover the whole policy debate</span></a><a href="#c-world" data-id="world" aria-label="Every major LSM store ships a compaction policy"><span>Every major LSM store ships a compaction policy</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Leveling = fast reads, slow writes&quot; hides five things"><span>&quot;Leveling = fast reads, slow writes&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Batching writes creates runs that lookups must pay for"><span>Batching writes creates runs that lookups must pay for</span></a><a href="#c-model" data-id="model" aria-label="Laundry baskets, where lookups must probe every basket"><span>Laundry baskets, where lookups must probe every basket</span></a><a href="#c-mech" data-id="mech" aria-label="Leveling rewrites resident data; tiering writes each entry once per level"><span>Leveling rewrites resident data; tiering writes each entry once per level</span></a><a href="#c-math" data-id="math" aria-label="Leveling re-merges each entry (T−1)/2 times per level"><span>Leveling re-merges each entry (T−1)/2 times per level</span></a><a href="#c-why" data-id="why" aria-label="Read cost follows the last level; write cost follows every level"><span>Read cost follows the last level; write cost follows every level</span></a><a href="#c-knobs" data-id="knobs" aria-label="One dial from leveling to tiering, plus filter allocation"><span>One dial from leveling to tiering, plus filter allocation</span></a><a href="#c-breaks" data-id="breaks" aria-label="Stalls, tombstones and range deletes are where compaction bites"><span>Stalls, tombstones and range deletes are where compaction bites</span></a><a href="#c-wild" data-id="wild" aria-label="RocksDB defaults to leveled, Cassandra to size-tiered"><span>RocksDB defaults to leveled, Cassandra to size-tiered</span></a><a href="#c-frontier" data-id="frontier" aria-label="Tuners and offload now attack compaction cost directly"><span>Tuners and offload now attack compaction cost directly</span></a><a href="#c-open" data-id="open" aria-label="No policy wins everywhere, and switching policy costs rewrites"><span>No policy wins everywhere, and switching policy costs rewrites</span></a><a href="#c-lineage" data-id="lineage" aria-label="From O&#x27;Neil&#x27;s 1996 merge to learned tuners in thirty years"><span>From O&#x27;Neil&#x27;s 1996 merge to learned tuners in thirty years</span></a><a href="#c-hands" data-id="hands" aria-label="A simulator reproduces the leveling-tiering ordering"><span>A simulator reproduces the leveling-tiering ordering</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three threads to pull next"><span>Three threads to pull next</span></a><a href="#c-sources" data-id="sources" aria-label="Sources, with a verification note on every number"><span>Sources, with a verification note on every number</span></a></nav>
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Leveling re-merges the same bytes; tiering piles runs up, then merges once</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .s-acc{stroke:var(--accent)}#story-fig .s-ok{stroke:var(--ok)}
+#story-fig .f-acc{fill:var(--accent)}#story-fig .f-acc2{fill:var(--accent2)}#story-fig .f-ok{fill:var(--ok)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two lanes of LSM runs traced over nine steps: leveling re-merges one run per level, tiering stacks T runs and merges them once, and a final panel shows the simulator write amplification for leveling, lazy leveling and tiering.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Each flush lands as one sorted run (T = 3)</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="7">Leveling: one run per level</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="9">Tiering: up to T runs per level</text>
+<text x="20" y="26" class="sf-cap" data-in="9">Simulator, T = 10, 3 levels: write amp</text>
+<text x="20" y="100" class="sf-lab">Leveling</text>
+<text x="20" y="220" class="sf-lab">Tiering</text>
+<rect x="110" y="72" width="150" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="290" y="72" width="170" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<text x="110" y="66" class="sf-id">L0</text>
+<text x="290" y="66" class="sf-id">L1</text>
+<rect x="110" y="192" width="150" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="290" y="192" width="170" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<text x="110" y="186" class="sf-id">L0</text>
+<text x="290" y="186" class="sf-id">L1</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="2" data-out="3"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="2" data-out="3">1</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="3" data-out="4"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">2</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="4" data-out="5"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="4" data-out="5">3</text>
+<text x="110" y="146" class="sf-lab" data-in="3" data-out="4">flush 2 rewrote 1</text>
+<text x="110" y="146" class="sf-lab" data-in="4" data-out="5">flush 3 rewrote 2</text>
+<text x="110" y="146" class="sf-lab" data-in="5" data-out="6">flush 4 pushed down, rewrote 3</text>
+<rect x="298" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="5" data-out="7" data-hl="5"/>
+<text x="318" y="100" class="sf-cell" text-anchor="middle" data-in="5" data-out="7">4</text>
+<rect x="118" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="138" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="162" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="182" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="206" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="226" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="298" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="318" y="220" class="sf-cell" text-anchor="middle" data-in="8" data-out="9">3</text>
+<text x="110" y="262" class="sf-lab" data-in="8" data-out="9">three runs merged once into L1</text>
+<text x="20" y="412" class="sf-lab" data-in="2" data-out="7">Each arrival merges into the resident run.</text>
+<text x="20" y="412" class="sf-lab" data-in="7" data-out="8">Runs wait until T = 3 of them arrive.</text>
+<text x="20" y="412" class="sf-lab" data-in="8" data-out="9">Then they merge once into the next level.</text>
+<rect x="20" y="40" width="440" height="352" rx="10" class="f-bg" opacity=".97" data-in="9"/>
+<rect x="63" y="206.4" width="64" height="143.6" rx="4" class="f-acc" stroke-width="0" data-in="9"/>
+<text x="95" y="198.4" class="sf-num" text-anchor="middle" data-in="9">17.09×</text>
+<text x="95" y="372" class="sf-lab" text-anchor="middle" data-in="9">leveling</text>
+<rect x="208" y="279.4" width="64" height="70.6" rx="4" class="f-acc2" stroke-width="0" data-in="9"/>
+<text x="240" y="271.4" class="sf-num" text-anchor="middle" data-in="9">8.40×</text>
+<text x="240" y="372" class="sf-lab" text-anchor="middle" data-in="9">lazy leveling</text>
+<rect x="353" y="316.4" width="64" height="33.6" rx="4" class="f-ok" stroke-width="0" data-in="9"/>
+<text x="385" y="308.4" class="sf-num" text-anchor="middle" data-in="9">4.00×</text>
+<text x="385" y="372" class="sf-lab" text-anchor="middle" data-in="9">tiering</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every flush writes its buffer to disk as one sorted run. A merge rule decides when those runs combine. Both rules below start from the same trace, with size ratio <b>T = 3</b>.</p></div>
+<div class="step"><p><b>Leveling, the naive way.</b> Each flush merges into the one run that sits on L0. Reads stay quick because there is only one run to check, but the old data gets copied every time.</p></div>
+<div class="step"><p><b>Flush 2 rewrites 1 unit.</b> The resident run is read and written again just to absorb one new unit of data.</p></div>
+<div class="step"><p><b>Flush 3 rewrites 2 units.</b> The run keeps growing, and every arrival pays to copy all of it again.</p></div>
+<div class="step"><p><b>Flush 4 pushes the run down.</b> The run passes L0's limit and moves to L1. That merge rewrote <b>3 units</b>, and the bytes it moved were already sorted once.</p></div>
+<div class="step"><p><b>The rule.</b> Under leveling, each entry is re-merged about <b>(T−1)/2</b> times per level. At T = 3 that is one time. The count grows with T, so bigger ratios make leveling costlier to write.</p></div>
+<div class="step"><p><b>Tiering waits.</b> Each level holds up to T runs instead of one. Runs stack on L0, and nothing is rewritten until the third one arrives.</p></div>
+<div class="step"><p><b>Then one merge.</b> The three runs merge once into L1, so each entry is written about <b>once per level</b>. The price moves to reads: a lookup may probe up to T − 1 = 2 runs per level, unless a Bloom filter says no.</p></div>
+<div class="step"><p><b>Measured, not just predicted.</b> At T = 10 with 3 levels, the simulator rewrites each entry <b>17.09 times</b> under leveling, <b>8.40 times</b> under lazy leveling and <b>4.00 times</b> under tiering. The cards below show the math, the knobs and what breaks.</p></div>
+</div>
+</div>
+</section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Compaction is a dial between eager merging and lazy piles"><span>Compaction is a dial between eager merging and lazy piles</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six terms cover the whole policy debate"><span>Six terms cover the whole policy debate</span></a><a href="#c-world" data-id="world" aria-label="Every major LSM store ships a compaction policy"><span>Every major LSM store ships a compaction policy</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Leveling = fast reads, slow writes&quot; hides five things"><span>&quot;Leveling = fast reads, slow writes&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Batching writes creates runs that lookups must pay for"><span>Batching writes creates runs that lookups must pay for</span></a><a href="#c-model" data-id="model" aria-label="Laundry baskets, where lookups must probe every basket"><span>Laundry baskets, where lookups must probe every basket</span></a><a href="#c-mech" data-id="mech" aria-label="Leveling rewrites resident data; tiering writes each entry once per level"><span>Leveling rewrites resident data; tiering writes each entry once per level</span></a><a href="#c-math" data-id="math" aria-label="Re-merge counts per level follow from T and the policy"><span>Re-merge counts per level follow from T and the policy</span></a><a href="#c-why" data-id="why" aria-label="Read cost follows the last level; write cost follows every level"><span>Read cost follows the last level; write cost follows every level</span></a><a href="#c-knobs" data-id="knobs" aria-label="One dial from leveling to tiering, plus filter allocation"><span>One dial from leveling to tiering, plus filter allocation</span></a><a href="#c-breaks" data-id="breaks" aria-label="Stalls, tombstones and range deletes are where compaction bites"><span>Stalls, tombstones and range deletes are where compaction bites</span></a><a href="#c-wild" data-id="wild" aria-label="Two popular stores ship with different default policies"><span>Two popular stores ship with different default policies</span></a><a href="#c-frontier" data-id="frontier" aria-label="Tuners and offload now attack compaction cost directly"><span>Tuners and offload now attack compaction cost directly</span></a><a href="#c-open" data-id="open" aria-label="No policy wins everywhere, and switching policy costs rewrites"><span>No policy wins everywhere, and switching policy costs rewrites</span></a><a href="#c-lineage" data-id="lineage" aria-label="From O&#x27;Neil&#x27;s 1996 merge to learned tuners in thirty years"><span>From O&#x27;Neil&#x27;s 1996 merge to learned tuners in thirty years</span></a><a href="#c-hands" data-id="hands" aria-label="A simulator reproduces the leveling-tiering ordering"><span>A simulator reproduces the leveling-tiering ordering</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three threads to pull next"><span>Three threads to pull next</span></a><a href="#c-sources" data-id="sources" aria-label="Sources, with a verification note on every number"><span>Sources, with a verification note on every number</span></a></nav>
 
 <main class="wrap">
 <div class="group rv">Plain English</div>
@@ -345,7 +531,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p><strong>Explain it simply.</strong> Imagine a librarian who receives new books all day. Shelving each book in exactly the right alphabetical spot costs a walk across the library every time. So instead the librarian drops new books on a "recent" cart. When the cart is full, the whole cart is sorted once and shelved as a neat batch. Over time, you have many sorted batches, and finding a book means checking every batch. So the librarian periodically <em>merges</em> batches into bigger sorted batches. That merging is compaction.</p>
+<p class="dropcap"><strong>Explain it simply.</strong> Imagine a librarian who receives new books all day. Shelving each book in exactly the right alphabetical spot costs a walk across the library every time. So instead the librarian drops new books on a "recent" cart. When the cart is full, the whole cart is sorted once and shelved as a neat batch. Over time, you have many sorted batches, and finding a book means checking every batch. So the librarian periodically <em>merges</em> batches into bigger sorted batches. That merging is compaction.</p>
 <p>The big question is <em>how eagerly to merge</em>. Merge constantly and finding a book is easy (few batches) but the librarian re-handles the same books over and over. Merge lazily and shelving is cheap but searching means checking many batches, and old, replaced copies pile up. Every database built this way (RocksDB, Cassandra, and others) is choosing a point on that dial.</p>
 <p><strong>Everyday example.</strong> A shop logs sales. Each day's 100 sales get sorted and stored as a "daily pile". Rule A (eager): when a new daily pile arrives, immediately merge it into the one big "history pile". Finding a sale means checking one pile, but every day you re-copy the entire history. Rule B (lazy): keep the daily piles; once you have 10, merge them into one "ten-day pile"; once you have 10 of those, merge into a "hundred-day pile". Copying is far less, but looking up a sale means checking up to ~10 piles per tier. Rule C (hybrid): lazy for the small recent tiers, eager for the single giant bottom pile, so old stuff stays tidy while recent writes stay cheap.</p>
 <p><strong>Bridge:</strong> now the same thing, technically.</p>
@@ -440,6 +626,7 @@ o.bottommost_compression = rocksdb::kZSTD;
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>~40×</b><span>Rough B-tree write amplification for a 100-byte entry in a 4 KB page. Illustrative arithmetic, not a measurement.</span></div>
 <p>A random 4 KB update to a B-tree touches a leaf page: ~1 random read + 1 random write, with write amp up to page-size / entry-size from rewriting whole pages (illustrative arithmetic: 4096 / 100 ≈ 40×; not a measured figure). An LSM instead batches: buffer <i>B·P</i> entries, write once sequentially. But now a key's versions can be in the memtable and in <i>any</i> run. Without merging, runs grow without bound and lookup cost grows with them; obsolete versions and tombstones never die. Compaction bounds that, at the price of rewriting data.</p>
 <div class="callout flag"><b>The question:</b> how many times should each byte be rewritten, and how many runs may a lookup face?</div>
 
@@ -563,10 +750,10 @@ TIERING (up to T runs per level; merge all when T arrive):
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M14 14 V86 H150" class="s-mute" fill="none" stroke-width="1.5"/><path d="M22 22 C40 70 60 80 80 62 S120 30 146 26" class="s-acc draw" fill="none" stroke-width="2.5"/><circle cx="80" cy="62" r="4" class="f-ok"/></svg></div>
-<div class="card-body"><div class="kicker">§6 · The math</div><h2>Leveling re-merges each entry (T−1)/2 times per level</h2>
-<div class="brief"><p>Update cost is <b>W = (L/B)·((T−1)/2)·(1+φ)</b> under leveling and <b>(L/B)·((T−1)/T)·(1+φ)</b> under tiering. Monkey's filter allocation removes the factor L from lookup cost, and lazy leveling keeps leveling's lookups with cheaper updates.</p></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>Re-merge counts per level follow from T and the policy</h2>
+<div class="guess" data-g="rewrite" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> At size ratio T = 10, how many times does leveling re-merge an entry within one level, on average?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1</button><button class="g-opt" type="button" data-k="1">2</button><button class="g-opt" type="button" data-k="2">4.5</button><button class="g-opt" type="button" data-k="3">10</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>4.5.</b> Leveling re-merges an entry about (T−1)/2 times per level: 9 ÷ 2. Tiering writes it about once per level instead.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Update cost is <b>W = (L/B)·((T−1)/2)·(1+φ)</b> under leveling and <b>(L/B)·((T−1)/T)·(1+φ)</b> under tiering. Monkey's filter allocation removes the factor L from lookup cost, and lazy leveling keeps leveling's lookups with cheaper updates.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>4 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -688,10 +875,10 @@ TIERING (up to T runs per level; merge all when T arrive):
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 84 H40 V70 H66 V56 H92 V42 H118 V28 H146" class="s-mute" fill="none" stroke-width="2"/><path d="M12 14 H146" class="s-bad" stroke-width="1.5" stroke-dasharray="4 4"/><rect x="12" y="88" width="134" height="4" rx="2" class="f-bad" opacity=".5"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Stalls, tombstones and range deletes are where compaction bites</h2>
-<div class="brief"><p>Write stalls are deliberate backpressure: RocksDB slows writes at 20 L0 files and stops them at 36. Deletes stay on disk until the tombstone reaches the bottom level, and Cassandra can resurrect rows if repair misses <code>gc_grace</code>.</p></div>
+<div class="guess" data-g="stop" data-kind="range" data-min="0" data-max="60" data-lo="36" data-hi="36" data-tol="3" data-unit="L0 files"><p class="g-q"><span class="g-tag">Guess first</span> By default, at how many L0 files does RocksDB stop accepting writes?</p><div class="g-ctl"><input type="range" min="0" max="60" step="1" value="10" aria-label="Your guess"><output>10L0 files</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0L0 files</span><span>60L0 files</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>36.</b> RocksDB slows writes at 20 L0 files and stops them at 36. The stall is deliberate backpressure: writers wait until compaction catches up.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Write stalls are deliberate backpressure: RocksDB slows writes at 20 L0 files and stops them at 36. Deletes stay on disk until the tombstone reaches the bottom level, and Cassandra can resurrect rows if repair misses <code>gc_grace</code>.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -718,10 +905,10 @@ TIERING (up to T runs per level; merge all when T arrive):
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="18" y="30" width="36" height="56" rx="4" class="f-acc"/><rect x="72" y="60" width="18" height="26" rx="3" class="f-panel s-line"/><rect x="94" y="46" width="18" height="40" rx="3" class="f-panel s-line"/><rect x="116" y="32" width="18" height="54" rx="3" class="f-panel s-line"/><path d="M60 58 H70" class="s-mute" stroke-width="1.5"/></svg></div>
-<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>RocksDB defaults to leveled, Cassandra to size-tiered</h2>
-<div class="brief"><p>RocksDB has used leveled compaction with dynamic level bytes since v8.4. Cassandra's default is STCS, and UCS in 5.0 unifies tiered and leveled. ScyllaDB's incremental compaction cuts ~200 GB of temporary space to ~2 GB.</p></div>
+<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Two popular stores ship with different default policies</h2>
+<div class="guess" data-g="default" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Cassandra's default compaction strategy is which of these?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Leveled</button><button class="g-opt" type="button" data-k="1">Size-tiered (STCS)</button><button class="g-opt" type="button" data-k="2">Lazy leveling</button><button class="g-opt" type="button" data-k="3">Time-window</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Size-tiered (STCS).</b> RocksDB, by contrast, has used leveled compaction with dynamic level bytes since v8.4. Cassandra 5.0's UCS aims to unify tiered and leveled.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>RocksDB has used leveled compaction with dynamic level bytes since v8.4. Cassandra's default is STCS, and UCS in 5.0 unifies tiered and leveled. ScyllaDB's incremental compaction cuts ~200 GB of temporary space to ~2 GB.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -737,10 +924,10 @@ TIERING (up to T runs per level; merge all when T arrive):
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
 <div class="group rv">Research edge</div>
-<article class="card rv" id="c-frontier" data-id="frontier">
+<article class="card rv gated" id="c-frontier" data-id="frontier">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 62 H148" class="s-mute" stroke-width="2"/><circle cx="24" cy="62" r="4" class="f-line s-line"/><circle cx="56" cy="62" r="4" class="f-line s-line"/><circle cx="88" cy="62" r="4" class="f-line s-line"/><circle cx="120" cy="62" r="4" class="f-line s-line"/><circle cx="140" cy="62" r="7" class="f-acc pulse"/><path d="M24 40 L56 40 L88 40 L120 40" class="s-acc draw" fill="none" stroke-width="2"/></svg></div>
 <div class="card-body"><div class="kicker">§11 · Frontier</div><h2>Tuners and offload now attack compaction cost directly</h2>
-<div class="brief"><p>Learned tuners (CAMAL reports up to 8× in RocksDB), hybrid growth (Vertiorizon), kernel offload (RESYSTANCE: 50% faster compaction), and KV-separated GC (Scavenger). Most numbers come from abstracts or the authors' own benchmarks.</p><p class="mini">Figures inside.</p></div>
+<div class="guess" data-g="offload" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> How much faster does RESYSTANCE's kernel offload make compaction, as reported?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">10% faster</button><button class="g-opt" type="button" data-k="1">25% faster</button><button class="g-opt" type="button" data-k="2">50% faster</button><button class="g-opt" type="button" data-k="3">Twice as fast</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>50% faster.</b> RESYSTANCE moves compaction reads into the kernel with eBPF and io_uring, with no change to the algorithm. The figure is the paper's own report.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Learned tuners (CAMAL reports up to 8× in RocksDB), hybrid growth (Vertiorizon), kernel offload (RESYSTANCE: 50% faster compaction), and KV-separated GC (Scavenger). Most numbers come from abstracts or the authors' own benchmarks.</p><p class="mini">Figures inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>5 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
@@ -1087,13 +1274,45 @@ lazy             7.25         1         13       4.50</code></pre>
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1113,11 +1332,63 @@ lazy             7.25         1         13       4.50</code></pre>
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');

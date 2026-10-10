@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Leveling re-merges the same bytes; tiering piles runs up, then merges once"
+ },
  "tldr": "Every LSM store trades write amplification against read amplification through its <b>compaction policy</b>. Leveling keeps one sorted run per level, so lookups are fast but each entry is rewritten about <b>(T−1)/2</b> times per level. Tiering lets <b>T</b> runs pile up before merging, writing each entry once per level but making lookups probe many runs. Lazy leveling mixes the two, and Monkey's Bloom-filter allocation keeps lookup cost flat as levels grow.",
  "why": "<b>Why it matters:</b> compaction decides write throughput, read latency, disk usage and when a database stalls; RocksDB, Cassandra, ScyllaDB and CockroachDB all expose this choice.",
  "stats": [
@@ -93,10 +99,11 @@
   {
    "id": "math",
    "kicker": "§6 · The math",
-   "title": "Leveling re-merges each entry (T−1)/2 times per level",
+   "title": "Re-merge counts per level follow from T and the policy",
    "visual": "img/math.svg",
    "file": "sections/06-math.html",
-   "brief": "<p>Update cost is <b>W = (L/B)·((T−1)/2)·(1+φ)</b> under leveling and <b>(L/B)·((T−1)/T)·(1+φ)</b> under tiering. Monkey's filter allocation removes the factor L from lookup cost, and lazy leveling keeps leveling's lookups with cheaper updates.</p>"
+   "brief": "<p>Update cost is <b>W = (L/B)·((T−1)/2)·(1+φ)</b> under leveling and <b>(L/B)·((T−1)/T)·(1+φ)</b> under tiering. Monkey's filter allocation removes the factor L from lookup cost, and lazy leveling keeps leveling's lookups with cheaper updates.</p>",
+   "guess": "rewrite"
   },
   {
    "id": "why",
@@ -120,15 +127,17 @@
    "title": "Stalls, tombstones and range deletes are where compaction bites",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>Write stalls are deliberate backpressure: RocksDB slows writes at 20 L0 files and stops them at 36. Deletes stay on disk until the tombstone reaches the bottom level, and Cassandra can resurrect rows if repair misses <code>gc_grace</code>.</p>"
+   "brief": "<p>Write stalls are deliberate backpressure: RocksDB slows writes at 20 L0 files and stops them at 36. Deletes stay on disk until the tombstone reaches the bottom level, and Cassandra can resurrect rows if repair misses <code>gc_grace</code>.</p>",
+   "guess": "stop"
   },
   {
    "id": "wild",
    "kicker": "§10 · In the wild",
-   "title": "RocksDB defaults to leveled, Cassandra to size-tiered",
+   "title": "Two popular stores ship with different default policies",
    "visual": "img/wild.svg",
    "file": "sections/10-in-the-wild.html",
-   "brief": "<p>RocksDB has used leveled compaction with dynamic level bytes since v8.4. Cassandra's default is STCS, and UCS in 5.0 unifies tiered and leveled. ScyllaDB's incremental compaction cuts ~200 GB of temporary space to ~2 GB.</p>"
+   "brief": "<p>RocksDB has used leveled compaction with dynamic level bytes since v8.4. Cassandra's default is STCS, and UCS in 5.0 unifies tiered and leveled. ScyllaDB's incremental compaction cuts ~200 GB of temporary space to ~2 GB.</p>",
+   "guess": "default"
   },
   {
    "id": "frontier",
@@ -137,7 +146,8 @@
    "title": "Tuners and offload now attack compaction cost directly",
    "visual": "img/frontier.svg",
    "file": "sections/11-frontier.html",
-   "brief": "<p>Learned tuners (CAMAL reports up to 8× in RocksDB), hybrid growth (Vertiorizon), kernel offload (RESYSTANCE: 50% faster compaction), and KV-separated GC (Scavenger). Most numbers come from abstracts or the authors' own benchmarks.</p><p class=\"mini\">Figures inside.</p>"
+   "brief": "<p>Learned tuners (CAMAL reports up to 8× in RocksDB), hybrid growth (Vertiorizon), kernel offload (RESYSTANCE: 50% faster compaction), and KV-separated GC (Scavenger). Most numbers come from abstracts or the authors' own benchmarks.</p><p class=\"mini\">Figures inside.</p>",
+   "guess": "offload"
   },
   {
    "id": "open",
@@ -190,6 +200,63 @@
    "brief": "<p>Primary papers (O'Neil, Monkey, Dostoevsky, Dong et al., Lethe, Sarkar et al.), the RocksDB wiki and source, and frontier arXiv abstracts. Tags mark anything seen only secondhand or not confirmed.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "In a simulated leveling store (size ratio 10, 3 levels), how many times is each entry written over its life?",
+   "options": [
+    "About 2×",
+    "About 4×",
+    "About 17×",
+    "About 100×"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 17×.</b> The count-based simulator measures 17.09 under leveling and 4.00 under tiering at T = 10, L = 3. The formula predicts 13.50 for leveling, and the measured number sits above it.</p>"
+  },
+  "rewrite": {
+   "q": "At size ratio T = 10, how many times does leveling re-merge an entry within one level, on average?",
+   "options": [
+    "1",
+    "2",
+    "4.5",
+    "10"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>4.5.</b> Leveling re-merges an entry about (T−1)/2 times per level: 9 ÷ 2. Tiering writes it about once per level instead.</p>"
+  },
+  "stop": {
+   "q": "By default, at how many L0 files does RocksDB stop accepting writes?",
+   "min": 0,
+   "max": 60,
+   "step": 1,
+   "unit": "L0 files",
+   "answer": 36,
+   "start": 10,
+   "tol": 3,
+   "reveal": "<p><b>36.</b> RocksDB slows writes at 20 L0 files and stops them at 36. The stall is deliberate backpressure: writers wait until compaction catches up.</p>"
+  },
+  "default": {
+   "q": "Cassandra's default compaction strategy is which of these?",
+   "options": [
+    "Leveled",
+    "Size-tiered (STCS)",
+    "Lazy leveling",
+    "Time-window"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>Size-tiered (STCS).</b> RocksDB, by contrast, has used leveled compaction with dynamic level bytes since v8.4. Cassandra 5.0's UCS aims to unify tiered and leveled.</p>"
+  },
+  "offload": {
+   "q": "How much faster does RESYSTANCE's kernel offload make compaction, as reported?",
+   "options": [
+    "10% faster",
+    "25% faster",
+    "50% faster",
+    "Twice as fast"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>50% faster.</b> RESYSTANCE moves compaction reads into the kernel with eBPF and io_uring, with no change to the algorithm. The figure is the paper's own report.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

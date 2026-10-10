@@ -1,0 +1,71 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .s-acc{stroke:var(--accent)}#story-fig .s-ok{stroke:var(--ok)}
+#story-fig .f-acc{fill:var(--accent)}#story-fig .f-acc2{fill:var(--accent2)}#story-fig .f-ok{fill:var(--ok)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two lanes of LSM runs traced over nine steps: leveling re-merges one run per level, tiering stacks T runs and merges them once, and a final panel shows the simulator write amplification for leveling, lazy leveling and tiering.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Each flush lands as one sorted run (T = 3)</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="7">Leveling: one run per level</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="9">Tiering: up to T runs per level</text>
+<text x="20" y="26" class="sf-cap" data-in="9">Simulator, T = 10, 3 levels: write amp</text>
+<text x="20" y="100" class="sf-lab">Leveling</text>
+<text x="20" y="220" class="sf-lab">Tiering</text>
+<rect x="110" y="72" width="150" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="290" y="72" width="170" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<text x="110" y="66" class="sf-id">L0</text>
+<text x="290" y="66" class="sf-id">L1</text>
+<rect x="110" y="192" width="150" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="290" y="192" width="170" height="50" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<text x="110" y="186" class="sf-id">L0</text>
+<text x="290" y="186" class="sf-id">L1</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="2" data-out="3"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="2" data-out="3">1</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="3" data-out="4"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">2</text>
+<rect x="118" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="4" data-out="5"/>
+<text x="138" y="100" class="sf-cell" text-anchor="middle" data-in="4" data-out="5">3</text>
+<text x="110" y="146" class="sf-lab" data-in="3" data-out="4">flush 2 rewrote 1</text>
+<text x="110" y="146" class="sf-lab" data-in="4" data-out="5">flush 3 rewrote 2</text>
+<text x="110" y="146" class="sf-lab" data-in="5" data-out="6">flush 4 pushed down, rewrote 3</text>
+<rect x="298" y="80" width="40" height="30" rx="4" class="f-code s-acc" stroke-width="1.5" data-in="5" data-out="7" data-hl="5"/>
+<text x="318" y="100" class="sf-cell" text-anchor="middle" data-in="5" data-out="7">4</text>
+<rect x="118" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="138" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="162" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="182" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="206" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="226" y="220" class="sf-cell" text-anchor="middle" data-in="7" data-out="8">1</text>
+<rect x="298" y="200" width="40" height="30" rx="4" class="f-code s-ok" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="318" y="220" class="sf-cell" text-anchor="middle" data-in="8" data-out="9">3</text>
+<text x="110" y="262" class="sf-lab" data-in="8" data-out="9">three runs merged once into L1</text>
+<text x="20" y="412" class="sf-lab" data-in="2" data-out="7">Each arrival merges into the resident run.</text>
+<text x="20" y="412" class="sf-lab" data-in="7" data-out="8">Runs wait until T = 3 of them arrive.</text>
+<text x="20" y="412" class="sf-lab" data-in="8" data-out="9">Then they merge once into the next level.</text>
+<rect x="20" y="40" width="440" height="352" rx="10" class="f-bg" opacity=".97" data-in="9"/>
+<rect x="63" y="206.4" width="64" height="143.6" rx="4" class="f-acc" stroke-width="0" data-in="9"/>
+<text x="95" y="198.4" class="sf-num" text-anchor="middle" data-in="9">17.09×</text>
+<text x="95" y="372" class="sf-lab" text-anchor="middle" data-in="9">leveling</text>
+<rect x="208" y="279.4" width="64" height="70.6" rx="4" class="f-acc2" stroke-width="0" data-in="9"/>
+<text x="240" y="271.4" class="sf-num" text-anchor="middle" data-in="9">8.40×</text>
+<text x="240" y="372" class="sf-lab" text-anchor="middle" data-in="9">lazy leveling</text>
+<rect x="353" y="316.4" width="64" height="33.6" rx="4" class="f-ok" stroke-width="0" data-in="9"/>
+<text x="385" y="308.4" class="sf-num" text-anchor="middle" data-in="9">4.00×</text>
+<text x="385" y="372" class="sf-lab" text-anchor="middle" data-in="9">tiering</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every flush writes its buffer to disk as one sorted run. A merge rule decides when those runs combine. Both rules below start from the same trace, with size ratio <b>T = 3</b>.</p></div>
+<div class="step"><p><b>Leveling, the naive way.</b> Each flush merges into the one run that sits on L0. Reads stay quick because there is only one run to check, but the old data gets copied every time.</p></div>
+<div class="step"><p><b>Flush 2 rewrites 1 unit.</b> The resident run is read and written again just to absorb one new unit of data.</p></div>
+<div class="step"><p><b>Flush 3 rewrites 2 units.</b> The run keeps growing, and every arrival pays to copy all of it again.</p></div>
+<div class="step"><p><b>Flush 4 pushes the run down.</b> The run passes L0's limit and moves to L1. That merge rewrote <b>3 units</b>, and the bytes it moved were already sorted once.</p></div>
+<div class="step"><p><b>The rule.</b> Under leveling, each entry is re-merged about <b>(T−1)/2</b> times per level. At T = 3 that is one time. The count grows with T, so bigger ratios make leveling costlier to write.</p></div>
+<div class="step"><p><b>Tiering waits.</b> Each level holds up to T runs instead of one. Runs stack on L0, and nothing is rewritten until the third one arrives.</p></div>
+<div class="step"><p><b>Then one merge.</b> The three runs merge once into L1, so each entry is written about <b>once per level</b>. The price moves to reads: a lookup may probe up to T − 1 = 2 runs per level, unless a Bloom filter says no.</p></div>
+<div class="step"><p><b>Measured, not just predicted.</b> At T = 10 with 3 levels, the simulator rewrites each entry <b>17.09 times</b> under leveling, <b>8.40 times</b> under lazy leveling and <b>4.00 times</b> under tiering. The cards below show the math, the knobs and what breaks.</p></div>
+</div>
+</div>
