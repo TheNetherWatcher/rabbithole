@@ -1,0 +1,8 @@
+<ul>
+<li><strong>SAT</strong>: given a boolean formula in CNF (AND of clauses, each an OR of literals), find a true/false assignment satisfying all clauses, or prove none exists. NP-complete.</li>
+<li><strong>Unit propagation (BCP)</strong>: if a clause has all literals false except one unassigned, that one must be true. Repeat to fixpoint.</li>
+<li><strong>DPLL</strong>: pick a variable, branch true/false, propagate, backtrack on conflict (1962).</li>
+<li><strong>Resolution</strong>: from <code>(A ∨ x)</code> and <code>(B ∨ ¬x)</code> derive <code>(A ∨ B)</code>. Sound, and refutation-complete.</li>
+<li><strong>Decision level</strong>: number of decisions on the trail up to a literal; propagated literals inherit the level of the decision that triggered them.</li>
+<li><strong>DIMACS CNF</strong>: <code>p cnf nvars nclauses</code>, then one clause per line, ints, terminated by <code>0</code>.</li>
+</ul>

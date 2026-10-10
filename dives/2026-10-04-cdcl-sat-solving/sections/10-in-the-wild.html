@@ -1,0 +1,7 @@
+<ul>
+<li><strong>MiniSat</strong>: ~2k LOC; <code>propagate()</code> walks watch lists, <code>analyze()</code> does 1-UIP + recursive minimization, <code>cancelUntil()</code> backjumps, <code>pickBranchLit()</code> pops a heap by activity; <code>var_decay</code>=0.95, <code>clause_decay</code>=0.999, Luby restarts by default.</li>
+<li><strong>Blocking literals</strong>: each watch entry stores <code>(clause ref, blocker)</code>; if the blocker is already true the clause is not even loaded (cache win). Deviation from the textbook two-watch story.</li>
+<li><strong>Glucose</strong>: LBD-based deletion and dynamic restarts. <strong>CaDiCaL</strong> (Biere): fully incremental with inprocessing; CaDiCaL 2.0 (CAV 2024) adds backtrackable inprocessing, user propagator, FRAT/LRAT/VeriPB proof output. <strong>Kissat</strong>: C reimplementation, no incremental interface, compact clause headers, aggressive inprocessing; 2022 and 2024 SAT Competition winner lineage.</li>
+<li><strong>Z3 / CVC5 / Yices</strong>: CDCL(T): theory propagators and lemmas feed the same trail.</li>
+<li><strong>Cube-and-conquer</strong> for the Pythagorean triples and Schur-5 results; proofs verified by formally verified checkers.</li>
+</ul>

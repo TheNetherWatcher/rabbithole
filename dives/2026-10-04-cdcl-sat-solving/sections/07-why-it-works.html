@@ -1,0 +1,8 @@
+<ul>
+<li><strong>Learning</strong> turns each failure into a permanent pruning rule. Every learned clause cuts off an entire family of assignments (all those containing the culprit combination).</li>
+<li><strong>Non-chronological backjump</strong> skips decision levels irrelevant to the conflict.</li>
+<li><strong>1-UIP</strong> makes the learned clause <em>asserting immediately</em> and typically short.</li>
+<li><strong>Two watched literals</strong> make propagation cost proportional to <em>relevant</em> clauses and make backtracking free.</li>
+<li><strong>VSIDS</strong> builds focus on the "hard core" using only conflict feedback; <strong>phase saving</strong> + <strong>restarts</strong> keep that focus after throwing away the trail.</li>
+</ul>
+<p>Ablation: remove learning → back to DPLL, exponential repeats. Remove restarts → heavy-tailed runtimes, stuck on bad early decisions (and the resolution-simulation theorem weakens). Remove watched literals → propagation dominates, backtracking cost O(n). Remove clause deletion → memory and propagation slow down (learned DB grows without bound). Remove minimization → clauses 30%-ish longer on average (reported in implementation notes; figure not independently verified).</p>

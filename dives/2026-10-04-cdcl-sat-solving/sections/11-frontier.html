@@ -1,0 +1,25 @@
+<p><em>Verified by me this session (page fetched):</em></p>
+<ol>
+<li><strong>Generalizing CDCL with Graph Backtracking</strong>, Coutelier, Hader, Kovács, SAT 2026, arXiv 2605.28220: use implication-graph structure to decide exactly which assignments to undo, generalizing chronological and non-chronological backtracking; fewer re-propagations. https://arxiv.org/abs/2605.28220</li>
+<li><strong>Lazy Reimplication in Chronological Backtracking</strong>, Coutelier, Fleury, Kovács, SAT 2024: re-imply literals on demand rather than eagerly; works in CaDiCaL and Glucose. https://arxiv.org/abs/2501.07457</li>
+<li><strong>Understanding CDCL Solvers via Scalability Studies and Proofdoors</strong>, Zhang, Xia, Li, Li, Vardi, Ganesh, arXiv 2605.15506 (May 2026, revised Aug 2026): analysis of 76,000+ BMC instances; "proofdoor" (interpolant-sequence parameter) explains scaling where classical parameters don't. https://arxiv.org/abs/2605.15506</li>
+<li><strong>SAT Competition 2024</strong>: Kissat took all three main-track golds. https://cca.informatik.uni-freiburg.de/sat24medals/</li>
+<li><strong>CaDiCaL 2.0</strong>, Biere, Faller, Fazekas, Fleury, Froleyks, Pollitt, CAV 2024 (per research notes; paper link: https://link.springer.com/content/pdf/10.1007/978-3-031-65627-9_7.pdf, not opened by me).</li>
+</ol>
+<p><em>Reported by research agent, </em><em>not independently verified</em><em> (treat as leads):</em></p>
+<ul>
+<li>Extending CDCL to disjunctions of parity equations (arXiv 2605.15002, SAT 2026 per agent).</li>
+<li>Learning to Rank Initial Branching Order of SAT Solvers (arXiv 2603.07176); One-shot SAT guidance with GNNs (arXiv 2505.16053); Neural approaches to SAT: design choices &amp; interpretability (arXiv 2504.01173).</li>
+<li>AlphaMapleSAT: MCTS cube-and-conquer (arXiv 2401.13770, 2024).</li>
+<li>Practically feasible proof logging for pseudo-Boolean optimization (CP 2025, VeriPB/CakePB); Streaming LRAT certificates into Lean (arXiv 2607.00815).</li>
+<li>SAT Competition 2025: agent reports MallobSat (parallel track) and AE-Kissat-MAB as winners; not checked.</li>
+</ul>
+<p><strong>Themes</strong>: cheaper backtracking, learned/ML branching (still not displacing VSIDS/VMTF in top solvers as far as I could verify), stronger proof logging (DRAT → LRAT/FRAT → VeriPB, plus formally verified checkers), XOR/Gauss reasoning, parallel cube-and-conquer, LLM-assisted modeling.</p>
+
+<p>Three open-licensed figures from the two 2026 papers above, placed where they support the claim. The first two come from the graph-backtracking paper: propagation counts per backtracking variant, then a cactus plot of time against instances solved.</p>
+<figure data-fig="fig1"></figure>
+<p>The propagation boxplots show graph backtracking doing fewer propagations than NCB and CB across the 3-colouring set, with and without Luby restarts. The median drops, and so does the upper quartile.</p>
+<figure data-fig="fig2"></figure>
+<p>Solve time is a different story. Plain graph backtracking trails NCB at the easy end of the curve, and the ECM variant recovers the lead in the tail. So the propagation saving does not translate into a uniform speedup.</p>
+<p>The proofdoor study's exponential family is the other side of the frontier: solving time climbs steeply once the clause count passes about 2.5 million.</p>
+<figure data-fig="fig3"></figure>

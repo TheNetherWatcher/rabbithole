@@ -1,0 +1,20 @@
+<style>
+#hands-chart svg text{fill:var(--ink);font:12px system-ui}
+#hands-chart h4{margin:0 0 6px;font-size:15px}
+</style>
+<div class="widget" id="hands-chart"></div>
+<script>
+(function(){
+var el=document.getElementById('hands-chart');if(!el)return;
+var D=[[5,137],[6,994],[7,6383],[8,37288],[9,319668],[10,2657952]];
+var W=520,H=210,pl=48,pb=34,max=Math.log10(3e6),min=Math.log10(100);
+var x=function(n){return pl+(n-5)/5*(W-pl-20)},y=function(v){return H-pb-(Math.log10(v)-min)/(max-min)*(H-pb-14)};
+var g='';[1e2,1e3,1e4,1e5,1e6].forEach(function(v){g+='<line x1="'+pl+'" x2="'+(W-14)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="currentColor" opacity=".15"/><text x="'+(pl-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+(v>=1e6?'1M':v>=1e3?v/1e3+'k':v)+'</text>'});
+var pts=D.map(function(d){return x(d[0])+','+y(d[1])}).join(' ');
+el.innerHTML='<h4>Measured: CaDiCaL conflicts on PHP(n+1→n), log scale</h4><svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Conflicts grow about 7-8x per extra hole">'+g+'<polyline points="'+pts+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>'+D.map(function(d){return '<circle cx="'+x(d[0])+'" cy="'+y(d[1])+'" r="4" fill="var(--accent)"/><text x="'+x(d[0])+'" y="'+(H-12)+'" text-anchor="middle">n='+d[0]+'</text>'}).join('')+'</svg><p class="mini">A straight line on a log axis means exponential growth: roughly ×7–8 per extra hole. This is Haken\'s 1985 resolution lower bound showing up in a real solver. Reproduce with <code>php_blowup.py</code>.</p>';})();
+</script>
+<ol>
+<li><code>python3 cdcl.py</code>: prints the traced run above and fuzzes 2000 random formulas against brute force (0 mismatches when I ran it). Modify the formula so the UIP is the decision (e.g. drop C1/C3 structure) and watch the learned clause change.</li>
+<li><code>python3 php_blowup.py</code> (needs <code>pip install python-sat</code>): reproduces the conflict blow-up table in §9. Predict n=11 before running (≈ ×8 → ~20M conflicts, several minutes).</li>
+<li>Proof check: use <code>cadical input.cnf proof.drat</code> then <code>drat-trim input.cnf proof.drat</code> on any small UNSAT CNF; try deleting a line from the proof and see the checker reject it.</li>
+</ol>

@@ -1,0 +1,65 @@
+<style>
+#mech-stepper .trail{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;margin:10px 0}
+#mech-stepper .lit{padding:3px 9px;border-radius:999px;font:600 13px ui-monospace,monospace;border:1px solid var(--line);background:var(--code)}
+#mech-stepper .lit.dec{background:var(--accent);color:#fff;border-color:var(--accent)}
+#mech-stepper .lit.imp{border-color:var(--accent2);color:var(--accent2)}
+#mech-stepper .lit.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+#mech-stepper .lit small{opacity:.7;font-weight:400;margin-left:3px}
+#mech-stepper .msg{min-height:3.4em;font-size:14.5px}
+#mech-stepper .msg b{color:var(--accent)}
+#mech-stepper .learnt{font:600 14px ui-monospace,monospace;color:var(--ok)}
+#mech-stepper h4{margin:0 0 6px;font-size:15px}
+</style>
+<div class="widget" role="group" aria-label="Conflict step-through"><div id="mech-stepper"></div></div>
+<script>
+(function(){
+var el=document.getElementById('mech-stepper');if(!el)return;
+var S=[
+{t:[],m:'Formula: <b>C1</b> (¬3∨4) · <b>C2</b> (¬4∨5) · <b>C3</b> (¬4∨6) · <b>C4</b> (¬5∨¬6∨¬2) · <b>C5</b> (1∨2∨3∨7). Empty trail.'},
+{t:[['+1','dec',1]],m:'Decide <b>x1=T</b> at level 1. Nothing is forced.'},
+{t:[['+1','dec',1],['+2','dec',2]],m:'Decide <b>x2=T</b> at level 2. Still nothing forced.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3]],m:'Decide <b>x3=T</b> at level 3.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3]],m:'C1 (¬3∨4): ¬3 is false, so <b>x4=T</b> is forced (reason C1).'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','imp',3],['+6','imp',3]],m:'C2 forces <b>x5=T</b>, C3 forces <b>x6=T</b>.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','bad',3],['+6','bad',3]],m:'<b>Conflict:</b> C4 (¬5∨¬6∨¬2) has all three literals false.'},
+{t:[['+1','dec',1],['+2','dec',2],['+3','dec',3],['+4','imp',3],['+5','bad',3],['+6','bad',3]],learn:'(¬5 ∨ ¬6 ∨ ¬2)  →  resolve on 6 with C3  →  (¬5 ∨ ¬2 ∨ ¬4)  →  resolve on 5 with C2  →  (¬2 ∨ ¬4)',m:'<b>1-UIP analysis.</b> Resolve away level-3 literals from the newest backward until one remains. That literal (¬4) is the UIP: every path from decision x3 to the conflict passes through x4.'},
+{t:[['+1','dec',1],['+2','dec',2],['-4','imp',2]],learn:'learned: (¬2 ∨ ¬4)',m:'<b>Backjump to level 2</b> (highest level among the other literals, x2). The clause is now unit and asserts <b>x4=F</b>.'},
+{t:[['+1','dec',1],['+2','dec',2],['-4','imp',2],['-3','imp',2]],learn:'learned: (¬2 ∨ ¬4)',m:'C1 (¬3∨4) with x4=F forces <b>x3=F</b>. One conflict ruled out x3=T without ever trying it again.'}];
+var i=0;
+function r(){var s=S[i];el.innerHTML='<h4>Step-through: the traced conflict <span style="color:var(--mute);font-weight:400">('+(i+1)+'/'+S.length+')</span></h4><div class="trail" aria-label="assignment trail">'+(s.t.length?s.t.map(function(x){return '<span class="lit '+x[1]+'">'+x[0].replace('-','¬x').replace('+','x')+'<small>L'+x[2]+'</small></span>'}).join(''):'<span style="color:var(--mute)">trail empty</span>')+'</div>'+(s.learn?'<div class="learnt">'+s.learn+'</div>':'')+'<p class="msg">'+s.m+'</p><div class="stepbar"><button class="btn" id="mech-bk">← Back</button> <button class="btn" id="mech-nx">Next →</button> <button class="btn" id="mech-rs">Reset</button></div>';
+document.getElementById('mech-bk').onclick=function(){i=Math.max(0,i-1);r()};
+document.getElementById('mech-nx').onclick=function(){i=Math.min(S.length-1,i+1);r()};
+document.getElementById('mech-rs').onclick=function(){i=0;r()}}
+r();})();
+</script>
+<p>Verified run of <a href="cdcl.py" target="_blank" rel="noopener"><code>cdcl.py</code></a> on</p>
+<pre><code>C1 (¬3 ∨ 4)   C2 (¬4 ∨ 5)   C3 (¬4 ∨ 6)   C4 (¬5 ∨ ¬6 ∨ ¬2)   C5 (1 ∨ 2 ∨ 3 ∨ 7)
+</code></pre>
+<pre><code>L1: decide +1
+L2: decide +2
+L3: decide +3
+  L3: propagate +4 because [-3, 4]
+  L3: propagate +5 because [-4, 5]
+  L3: propagate +6 because [-4, 6]
+CONFLICT [-5, -6, -2] @L3 -&gt; learn [-2, -4], backjump to L2
+  L2: assert -4 from learnt clause
+  L2: propagate -3 because [-3, 4]
+L3: decide +5
+  L3: propagate -6 because [-5, -6, -2]
+L4: decide +7
+result: SAT
+</code></pre>
+<p>Implication graph at the conflict (level 3 only; levels 1,2 are fixed):</p>
+<pre><code>x3 (decision) ──C1──▶ x4 ──C2──▶ x5 ──┐
+                       └──C3──▶ x6 ──┼──▶ ⊥  (C4 also uses x2 from level 2)
+                                x2@L2 ┘
+</code></pre>
+<p><strong>1-UIP derivation</strong> (backward over the trail, resolving away level-3 literals until exactly one remains):</p>
+<ol>
+<li>Start: conflict clause <code>(¬5 ∨ ¬6 ∨ ¬2)</code>. Level-3 literals: ¬5, ¬6 (two). ¬2 is level 2.</li>
+<li>Last-assigned level-3 literal on trail is <code>x6</code>; reason <code>C3 = (¬4 ∨ 6)</code>. Resolve on 6: <code>(¬5 ∨ ¬2 ∨ ¬4)</code>. Level-3 literals: ¬5, ¬4.</li>
+<li>Next is <code>x5</code>; reason <code>C2 = (¬4 ∨ 5)</code>. Resolve on 5: <code>(¬2 ∨ ¬4)</code>. One level-3 literal left (¬4). <strong>Stop.</strong></li>
+<li>Learned: <code>(¬2 ∨ ¬4)</code>. <strong>x4 is the UIP</strong>: every path from decision x3 to ⊥ goes through x4. The decision x3 is a <em>later</em> UIP; 1-UIP picks the one nearest the conflict.</li>
+<li>Backjump level = highest level among the <em>other</em> literals = level(x2) = 2. Undo levels 3. Now <code>¬2</code> is false, so the clause is unit and asserts <code>¬4</code>. Immediately C1 then forces <code>¬3</code>: we learned x3 is impossible without ever trying a different branch under it.</li>
+</ol>
+<p>The clause is also <strong>RUP</strong> (reverse unit propagation): assume <code>2, 4</code>, propagate <code>5</code> (C2), <code>6</code> (C3), then C4 is falsified. That check is exactly what DRAT checkers run.</p>

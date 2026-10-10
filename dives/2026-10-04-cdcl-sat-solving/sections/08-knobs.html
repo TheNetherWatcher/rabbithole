@@ -1,0 +1,47 @@
+<table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Options</th>
+<th>Tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Branching</td>
+<td>VSIDS/EVSIDS, VMTF (move-to-front queue), CHB, LRB (bandit, Liang et al. 2016)</td>
+<td>VMTF is cheap and strong when restarting often; VSIDS better in long "stable" runs</td>
+</tr>
+<tr>
+<td>Restarts</td>
+<td>Luby, geometric, glucose-style EMA</td>
+<td>Aggressive restarts help UNSAT; fewer help SAT</td>
+</tr>
+<tr>
+<td>Mode switching</td>
+<td>Kissat/CaDiCaL alternate <em>focused</em> (VMTF, many restarts) and <em>stable</em> (VSIDS-like, few restarts, target phases)</td>
+<td>Gets both SAT and UNSAT strengths</td>
+</tr>
+<tr>
+<td>Clause DB</td>
+<td>LBD tiers, activity, size cap</td>
+<td>Memory vs. reuse</td>
+</tr>
+<tr>
+<td>Minimization</td>
+<td>local, recursive (MiniSat), binary-implication-based</td>
+<td>Shorter clauses, small CPU cost</td>
+</tr>
+<tr>
+<td>Inprocessing</td>
+<td>bounded variable elimination, subsumption, vivification, probing</td>
+<td>Big wins but complicates proofs and incrementality</td>
+</tr>
+<tr>
+<td>Backtracking</td>
+<td>non-chronological (default), chronological (Nadel-Ryvchin 2018 and since), graph-based (2026 paper below)</td>
+<td>Chrono saves re-propagation on huge trails</td>
+</tr>
+</tbody>
+</table>
+<p>Alternatives: DPLL(T)/SMT (theories), local search (ProbSAT, great on random SAT, cannot prove UNSAT), cube-and-conquer (lookahead splits + CDCL leaves), BDDs (memory blow-up), cutting-planes/pseudo-Boolean solvers (stronger proof system; RoundingSat), XOR-aware solvers (CryptoMiniSat).</p>

@@ -1,0 +1,9 @@
+<p>"CDCL = DPLL + learn a clause from each conflict." Hidden:</p>
+<ol>
+<li><em>Which</em> clause? (1-UIP over the implication graph, not just "negate the decisions")</li>
+<li>Why is the learned clause <strong>implied</strong> (not a guess)?</li>
+<li>Why does learning cost so little in practice? (watched literals)</li>
+<li>How does it choose variables with no look-ahead? (VSIDS bumping from conflicts)</li>
+<li>Why restart if restarting "throws work away"? (it keeps clauses, scores, saved phases)</li>
+<li>What does it <em>prove</em> when it answers UNSAT, and can you trust it? (resolution proof; DRAT)</li>
+</ol>

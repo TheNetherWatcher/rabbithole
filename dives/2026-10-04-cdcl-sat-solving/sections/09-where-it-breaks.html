@@ -1,0 +1,8 @@
+<ul>
+<li><strong>Pigeonhole/counting.</strong> I measured CaDiCaL 1.5.3 (via PySAT, 2026-10-04 run, laptop) on PHP(n+1→n): n=5: 137 conflicts; 6: 994; 7: 6,383; 8: 37,288; 9: 319,668; 10: 2,657,952 (26.9 s). Each extra hole multiplies conflicts by about 7–8. A human proves it in one sentence.</li>
+<li><strong>Parity/XOR chains, Tseitin on expanders</strong>: exponential in resolution; need Gaussian elimination (CryptoMiniSat, newer XOR work).</li>
+<li><strong>Random 3-SAT near ratio ~4.27</strong>: hard for everyone; phase-transition behavior.</li>
+<li><strong>Preprocessing can lose proof power</strong> (variable elimination, blocked-clause elimination remove clauses; proof reconstruction can be exponentially larger).</li>
+<li><strong>Bugs</strong>: solvers <em>have</em> returned wrong answers; fuzzing (Brummayer-Lonsing-Biere 2010) finds them. SAT competitions disqualify solvers for invalid models or wrong UNSAT; certified UNSAT proofs became mandatory in the main track years ago (check the current rules, I did not verify the exact year).</li>
+<li><strong>Misconceptions</strong>: (a) "Clever data structures are the secret": real wins come from learning + propagation + heuristics together. (b) "Learned clauses are heuristics": they're proven consequences. (c) "Industrial instances are easy because of community structure": correlation is documented (Ansótegui et al., Newsham et al.), mechanism is unproven. (d) "Preprocessing is always safe for proof size."</li>
+</ul>

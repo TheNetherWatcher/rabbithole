@@ -1,0 +1,22 @@
+<p><strong>What it is.</strong> CDCL (conflict-driven clause learning) is DPLL plus: analyze each conflict into a new implied clause, jump back non-chronologically, and keep the learned clause. Add cheap data structures (two watched literals), an adaptive branching heuristic (VSIDS), and restarts, and you get the engine in nearly every modern SAT solver.</p>
+<p><strong>Why it exists.</strong> Plain DPLL on industrial formulas (millions of clauses) thrashes: it re-derives the same contradiction under every permutation of irrelevant decisions. GRASP (Marques-Silva &amp; Sakallah, 1996/1999) introduced conflict analysis + learning + non-chronological backtracking; Chaff (Moskewicz et al., DAC 2001) made it fast with two-watched-literals and VSIDS, giving 1-2 orders of magnitude over predecessors; MiniSat (Eén &amp; Sörensson, SAT 2003) made it small and hackable.</p>
+<p><strong>Where it's used</strong> (each verified in research unless marked):</p>
+<ul>
+<li><strong>Hardware verification</strong>: bounded model checking and IC3/PDR in chip design flows reduce to repeated SAT calls (SAT BMC beat BDD model checking on an Alpha memory-subsystem study, CAV 2001 era).</li>
+<li><strong>SMT solvers</strong>: Z3, CVC5, Yices use a CDCL core in the DPLL(T) architecture; theory solvers (arithmetic, bit-vectors, arrays) plug into CDCL via lemmas.</li>
+<li><strong>Package managers</strong>: libsolv (DNF, Zypper, Conda/Mamba) is CDCL with watched literals; PubGrub (Dart pub, Poetry, uv via pubgrub-rs) is a CDCL-flavoured algorithm over version ranges, notable for human-readable failure explanations. Cargo's resolver is <em>not</em> full SAT.</li>
+<li><strong>Mathematics</strong>: Boolean Pythagorean triples (Heule-Kullmann-Marek 2016: {1..7824} 2-colorable, 7825 not; ~200 TB proof, cube-and-conquer) and Schur number five = 160 (Heule, AAAI 2018; ~2 PB proof).</li>
+<li><strong>Cryptanalysis</strong>: algebraic attacks on small stream ciphers (Bivium/Trivium/Grain-style) encoded to CNF, often with XOR/Gauss extensions.</li>
+<li><strong>Competitions as a driver</strong>: Kissat won all three main-track gold medals (SAT, UNSAT, SAT+UNSAT) at SAT Competition 2024.</li>
+</ul>
+<p><strong>How it's used.</strong></p>
+<pre><code class="language-python">from pysat.solvers import Cadical153
+s = Cadical153(bootstrap_with=[[-1, 2], [-2, 3], [1, -3, 4]])   # DIMACS-style int literals
+print(s.solve())                  # True
+print(s.get_model())              # e.g. [-1, -2, -3, 4]
+print(s.solve(assumptions=[1, -4]))   # incremental: solve under assumptions -&gt; False
+print(s.get_core())               # subset of assumptions responsible (UNSAT core)
+</code></pre>
+<p>CLI: <code>kissat input.cnf</code> or <code>cadical input.cnf proof.drat</code> (CaDiCaL logs a DRAT proof for UNSAT; check with <code>drat-trim input.cnf proof.drat</code>). Typical integration: encode problem to CNF (Tseitin transform for circuits, cardinality encodings for "at most k"), call solver, decode model; use assumptions for incremental queries.</p>
+<p><strong>When to use / not.</strong> Use for finite, boolean-encodable constraint problems where structure is rich (verification, planning, configuration, scheduling feasibility). Use <strong>SMT</strong> if you need arithmetic/arrays/strings natively; <strong>CP-SAT / MaxSAT / MIP</strong> if you need optimization; <strong>ASP</strong> for all-models/negation-as-failure modelling. Warning signs you picked wrong: parity/XOR-heavy or counting/pigeonhole-style constraints (see §9), or purely numeric/continuous structure.</p>
+<p><strong>Who should care.</strong> Verification/EDA engineers, build-and-dependency tooling authors, security researchers (symbolic execution backends), anyone calling Z3.</p>

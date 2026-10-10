@@ -1,0 +1,365 @@
+{
+ "meta": {
+  "title": "CDCL SAT solving: 1-UIP learning, backjumping, VSIDS, restarts, DRAT proofs",
+  "short": "CDCL SAT solving",
+  "subject": "Computer science",
+  "domain": "Formal methods",
+  "topic": "CDCL SAT solving",
+  "depth": "hard",
+  "date": "2026-10-04"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "A CDCL solver turns every conflict into a <b>learned clause</b>, jumps back past the innocent decisions, and keeps the clause forever. Learned clauses are implied, so they never change the answer, only the speed. Kissat-class solvers now run this loop on <b>millions of variables</b>, and an UNSAT answer can ship a <b>DRAT proof</b> that an independent checker verifies.",
+ "why": "<b>Why it matters:</b> hardware checking, SMT solvers, package managers and math proofs (Boolean Pythagorean triples) all reduce to a CDCL core, and it still fails on pigeonhole-style counting, where conflicts grow about <b>7–8×</b> per extra hole.",
+ "stats": [
+  {
+   "v": "2.66M",
+   "l": "conflicts, CaDiCaL on pigeonhole n=10 (measured)"
+  },
+  {
+   "v": "×7–8",
+   "l": "more conflicts per extra pigeonhole hole"
+  },
+  {
+   "v": "~200 TB",
+   "l": "uncompressed proof, Boolean Pythagorean triples"
+  },
+  {
+   "v": "2000",
+   "l": "random formulas fuzzed against brute force, 0 mismatches"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A planner that writes down why it failed, then never repeats the mistake",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A seating planner hits a clash, undoes only the choice that caused it, and writes the clash down as a rule it keeps. CDCL does the same to a Boolean formula: every conflict becomes a learned clause, and the search jumps back past innocent choices.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six definitions first: CNF, unit propagation, decision levels",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>CNF</b>: an AND of ORs, and SAT asks for one satisfying assignment.</li><li><b>Unit propagation</b>: a clause with one open literal forces it.</li><li><b>Decision level</b>: the number of decisions on the trail so far.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Chip checking, SMT solvers, package managers and Schur 5 all run this loop",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Hardware model checking, Z3/CVC5, libsolv and the Pythagorean-triples proof all sit on a CDCL core. Kissat won all three main-track golds at SAT Competition 2024. You rarely write the solver; you encode the problem.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"DPLL plus learning\" hides six design decisions",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>Which clause to learn (1-UIP), why it is implied, why watched literals make it cheap, how VSIDS picks variables without look-ahead, why restarts do not waste it, and what an UNSAT answer proves.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Chronological backtracking re-derives the same contradiction exponentially often",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>DPLL undoes the newest decision even when it is irrelevant to the conflict, so the same dead sub-structure is rediscovered. CDCL moved the frontier from hundreds of variables to millions, on structured instances, not on random or crafted ones.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A detective's case board, where each learned note is a proof step",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Decisions are hypotheses and propagation is deduction. A conflict is a contradiction, and conflict analysis traces it back to a minimal set of hypotheses, then pins \"these cannot all hold\" to the board. The whole run is a resolution proof.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One conflict at level 3 learns (¬2 ∨ ¬4) and rules out x3 for good",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>A verified run of <code>cdcl.py</code>: the 1-UIP is x4, the learned clause is (¬2 ∨ ¬4), and the backjump lands on level 2. C1 then forces x3 false without ever retrying it.</p><p class=\"mini\">10-step walkthrough inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Learned clauses are implied, so keeping or deleting them never changes the answer",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Resolution is sound, so every learned clause is a consequence of the formula. A 1-UIP clause is asserting: after backjumping to level b it is unit and forces its literal. VSIDS bumps are O(1) with a growing increment.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Learning, backjumping, watched literals and VSIDS each remove a failure mode",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Each learned clause cuts off a whole family of assignments. Backjumping skips irrelevant levels, and two watched literals make propagation proportional to relevant clauses and backtracking free. Remove learning and you are back to exponential DPLL.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Branching, restarts and clause deletion are the knobs that move runtime",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>VSIDS, VMTF, CHB and LRB pick variables; Luby and LBD-driven restarts pace them. Kissat and CaDiCaL alternate focused and stable modes, so one solver gets both SAT and UNSAT strength.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Pigeonhole conflicts grow about 7–8× per extra hole, forever",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Measured CaDiCaL on PHP(n+1→n): 137 conflicts at n=5 and 2.66 M at n=10. A human proves it in one sentence. Parity chains are exponential for resolution, and random 3-SAT near ratio 4.27 is hard for every solver.</p><p class=\"mini\">Measured curve inside the hands-on section.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Real solvers are a small core plus decades of heuristics",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>MiniSat is about 2k lines: <code>propagate()</code>, <code>analyze()</code>, <code>cancelUntil()</code> and <code>pickBranchLit()</code> are the engine. Blocking literals, LBD deletion, Z3's theory lemmas and CaDiCaL's inprocessing supply the rest.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "Graph backtracking and proof logs are the 2024–2026 frontier",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>Graph backtracking (SAT 2026) decides exactly which assignments to undo, with fewer re-propagations. Lazy reimplication (2024) defers work until needed. Proof output has moved from DRAT toward LRAT, FRAT and VeriPB.</p><p class=\"mini\">Three reference figures inside.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "No theorem yet explains why VSIDS finds short proofs",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Why CDCL works on industrial instances has no mechanism-level theorem. Whether deterministic CDCL simulates resolution is open, and no practical solver finds extended-resolution proofs for pigeonhole-like families at scale.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From DPLL (1962) to Kissat in six steps",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>DPLL 1962 → GRASP 1996 (learning) → Chaff 2001 (two watched literals, VSIDS) → MiniSat 2003 → Glucose 2009 (LBD) → CaDiCaL and Kissat (inprocessing, mode switching).</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on (≤30 min)",
+   "title": "Watch a learned clause appear, fuzz the solver and reject a bad proof",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p><code>cdcl.py</code> fuzzes 2000 random formulas against brute force, with 0 mismatches. <code>php_blowup.py</code> reproduces the conflict table, and <code>drat-trim</code> rejects a tampered proof.</p><p class=\"mini\">Measured pigeonhole chart inside.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself on 22 questions",
+   "visual": "img/quiz.svg",
+   "brief": "<p>22 questions in six groups: mechanism, why, counterfactual, adversarial, connection, open. Answer in your head, then reveal.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper",
+   "title": "Three threads to pull next: proof systems, cube-and-conquer, SMT lemmas",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>DRAT, LRAT, FRAT, VeriPB and verified checkers; how the Pythagorean and Schur results were split and certified; and how theory conflicts enter the CDCL trail.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources & corrections",
+   "title": "Every claim traces to a paper, a page or a stated run",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Papers, code and frontier pages, plus a log of claims the research notes made that I could not verify and left out.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "In the traced run, why is <code>¬2</code> kept in the learned clause but <code>¬3</code>, <code>¬5</code>, <code>¬6</code> are not?",
+   "a": "Level-3 literals are resolved away until only the UIP (¬4) remains at the conflict level. ¬2 is at a lower level so is never resolved; it stays as the \"context\" that made C4 dangerous.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "How does a solver pick the backjump level?",
+   "a": "Highest decision level among the learned clause's literals other than the asserting one (0 if unit). Ensures the clause becomes unit after the jump.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Walk one propagation with two watched literals when a watched literal becomes false.",
+   "a": "Visit that literal's watch list. For each clause: if the other watch is true (or blocker true) skip; else look for a non-false replacement literal and move the watch; if none, the other watch is forced true (unit) or the clause is conflicting if it's false.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What exactly does EVSIDS do instead of decaying all scores?",
+   "a": "Grows the bump increment by 1/ρ each conflict; relative order identical; rescale when floats overflow.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What is checked by RUP?",
+   "a": "Assume the negation of the clause, unit-propagate on the formula (plus earlier proof lines); a conflict means the clause is implied.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why 1-UIP rather than learning the decision-only clause?",
+   "a": "Decision-only clauses are long and rarely reusable; 1-UIP clauses are asserting, typically shorter, and abstract away irrelevant intermediate propagations.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why does backtracking cost nothing with two watched literals?",
+   "a": "The invariant only constrains watches relative to *current* assignments; unassigning variables can only make more literals non-false, so the invariant still holds with no updates.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why can deleting learned clauses never make the solver wrong?",
+   "a": "They're implied by F; removing them removes only redundant constraints (completeness still holds provided termination is preserved, e.g. don't delete clauses that are reasons of current assignments and keep growth of the kept set).",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why do restarts help when the trail is thrown away?",
+   "a": "Heavy-tailed runtimes: bad early decisions trap the search; learned clauses, scores, and saved phases persist so restarting costs little and escapes the trap.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why is Luby sequence a sensible default with unknown runtime distribution?",
+   "a": "It is within a logarithmic factor of the optimal universal schedule (Luby-Sinclair-Zuckerman).",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if you learn the clause from the first-decision cut (all decisions)?",
+   "a": "Still sound, but longer clauses, weaker pruning; backjump is often just one level.",
+   "sec": "mech"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if VSIDS were static (scores fixed at start)?",
+   "a": "Loses dynamic focus on the current hard core; research notes and the literature treat static heuristics as clearly inferior on industrial instances.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if restarts are allowed only after exponentially growing intervals?",
+   "a": "That's geometric restarts: fine, but less adaptive than Luby/glucose; theory-wise the resolution-simulation proof needs enough restarts.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Construct a family CDCL provably can't solve fast.",
+   "a": "Pigeonhole or Tseitin-on-expander formulas: resolution lower bounds apply to every CDCL run.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you make a solver answer UNSAT wrongly?",
+   "a": "Bug in analysis/inprocessing (e.g. unsound elimination); this is why DRAT/LRAT proofs and independent checkers exist.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How can preprocessing hurt a proof?",
+   "a": "Variable/blocked-clause elimination removes clauses that short proofs need; reconstructing in resolution can blow up.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How does CDCL relate to SMT?",
+   "a": "CDCL(T): theory solvers detect theory conflicts, return lemma clauses; the SAT core learns/backjumps on them like any clause.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is PubGrub like CDCL?",
+   "a": "Learns \"incompatibilities\" from conflicts, backjumps, and keeps them; derivation tree gives readable error messages; domain is version ranges not booleans.",
+   "sec": "world"
+  },
+  {
+   "type": "Connection",
+   "q": "Relationship between conflict analysis and resolution proofs?",
+   "a": "Each learned clause is a resolution derivation; the entire UNSAT run is a DAG of such derivations ending in the empty clause.",
+   "sec": "math"
+  },
+  {
+   "type": "Open",
+   "q": "Can any practical solver find short extended-resolution proofs for pigeonhole-like formulas automatically?",
+   "a": "Open in practice; BVA-style preprocessing recovers some structure, but no general method.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Is there a theorem explaining VSIDS on structured instances?",
+   "a": "No; only empirical correlations with community structure and decay-rate analyses.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Can ML-based branching beat VSIDS/VMTF in a competition-grade solver?",
+   "a": "Unsettled. Reported results are promising on benchmark slices; I did not verify that any top competition solver ships a learned heuristic.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "fig1": {
+   "file": "img/fig/gb-fig-propagations-boxplot.png",
+   "caption": "Propagations per solved 3-colouring instance for NCB and CB against graph backtracking (GB) and its variants, without restarts (left) and with Luby restarts (right). Every GB variant sits lower than NCB and CB, and the add-on variants (BB, ECM, LCM) stay close to plain GB.",
+   "source": {
+    "cite": "Coutelier, Hader and Kovács, \"Generalizing CDCL with Graph Backtracking\", SAT 2026",
+    "url": "https://arxiv.org/abs/2605.28220",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig2": {
+   "file": "img/fig/gb-fig-cactus-time.png",
+   "caption": "Instances solved against time for NCB, CB and graph backtracking with its ECM and LCM variants, on the 650-vertex 3-colouring set. Plain GB trails NCB at the easy end; the ECM variant is fastest in the tail.",
+   "source": {
+    "cite": "Coutelier, Hader and Kovács, \"Generalizing CDCL with Graph Backtracking\", SAT 2026",
+    "url": "https://arxiv.org/abs/2605.28220",
+    "figure": "Fig. 4 (time panel, appendix)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig3": {
+   "file": "img/fig/proofdoor-fig-solvetime-exp.png",
+   "caption": "Solving time against clause count for an exponentially scaling family of BMC instances, with an exponential fit. Proofdoor analysis aims to explain scaling of this kind.",
+   "source": {
+    "cite": "Zhang, Xia, Li, Li, Vardi and Ganesh, \"Understanding CDCL Solvers via Scalability Studies and Proofdoors\", arXiv 2026",
+    "url": "https://arxiv.org/abs/2605.15506",
+    "figure": "Fig. 2 (panel b)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

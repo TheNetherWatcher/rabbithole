@@ -1,0 +1,8 @@
+<ol>
+<li><strong>Why does CDCL work on industrial instances?</strong> No theorem links instance structure to short proofs <em>and</em> to the heuristic finding them. Proposed correlates: modularity/community structure (Ansótegui et al.), hierarchical community structure metrics, backdoors/proofdoors. These explain correlation, not mechanism.</li>
+<li><strong>Does CDCL (as actually run, with deterministic heuristics) p-simulate resolution?</strong> The known simulation needs adversarial decisions and many restarts; the realistic case is open.</li>
+<li><strong>Proof complexity of inprocessing</strong>: how much extra power do elimination/vivification/BVA add, and when is it lost on proof reconstruction?</li>
+<li><strong>Beyond resolution in practice</strong>: extended resolution (DRAT/RAT lets you add definitions) and cutting planes are provably stronger; no CDCL-style system automatically finds such proofs on pigeonhole-like families at scale.</li>
+<li><strong>Theory of restarts and clause deletion</strong>: both are empirically essential, theoretically thin.</li>
+<li><strong>Verified solvers at competition speed</strong>: verified CDCL cores exist (Isabelle/IsaSAT line by Fleury, Blanchette, Lammich; Dafny work); the research notes claim "2x slower", which I could not verify. Proof checkers (cake_lpr, verified LRAT checking) cover trust more cheaply.</li>
+</ol>
