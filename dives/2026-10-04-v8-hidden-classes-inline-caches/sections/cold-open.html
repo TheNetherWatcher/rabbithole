@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv2-row{margin:0 0 14px}
+.cv2-row b{color:var(--ink)}
+.cv2-track{height:16px;margin:6px 0 0;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv2-track i{display:block;height:100%;width:0;border-radius:3px}
+.js .guess.done ~ .cold-viz .cv2-track i{animation:cv2-grow .7s var(--ease) forwards}
+@keyframes cv2-grow{from{width:0}}
+</style>
+<p class="cold-line">Reading <code>p.x</code> in JavaScript can take under a nanosecond.</p>
+<p class="cold-line sm">V8 tags each object with a hidden class, its <em>Map</em>. A read that sees one Map is a compare and a load. Four Maps at one site break that.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv2-row"><b>One shape: 0.99 ns per read.</b>
+    <div class="cv2-track"><i style="width:20%;background:var(--ok)"></i></div></div>
+  <div class="cv2-row"><b>Four shapes: 4.06 ns per read.</b>
+    <div class="cv2-track"><i style="width:83%;background:var(--warn)"></i></div>
+    <p class="mini">Same scale, 0 to 4.9 ns. One noisy run.</p></div>
+</div>

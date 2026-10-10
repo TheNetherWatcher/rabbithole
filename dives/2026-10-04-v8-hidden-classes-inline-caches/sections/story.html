@@ -1,0 +1,100 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-sm{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-hdr{fill:var(--bg);font:700 14px var(--mono)}
+#story-fig .sf-cell{fill:var(--ink);font:600 14px var(--mono)}
+#story-fig .sf-code{fill:var(--ink);font:14px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-ok{fill:var(--ok)}
+#story-fig .sf-bad{fill:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One V8 read site o.x over four object shapes: a naive search, then an inline cache that remembers the Map, a deopt to a polymorphic slot, and the headline timings">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">An object is a tag plus its fields.</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Naive read: search the keys every time.</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Key idea: each read site remembers one Map.</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">First call misses, then stores the answer.</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Next call hits: compare the Map, load.</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Hot code bets on M2: one compare, one load.</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">The bet loses: deopt, then the IC goes poly.</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Every extra shape adds a cost. Cap: 4.</text>
+<text x="20" y="26" class="sf-cap" data-in="9">Headline numbers, one site, one run.</text>
+<g>
+<rect x="20" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="26" y="62" width="128" height="22" rx="6" class="f-acc"/>
+<text x="32" y="78" class="sf-hdr">map M2</text>
+<rect x="26" y="90" width="128" height="22" rx="6" class="f-code" data-hl="2 3"/>
+<text x="32" y="106" class="sf-cell">x = 1</text>
+<rect x="26" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="32" y="134" class="sf-cell">y = 2</text>
+</g>
+<g>
+<rect x="170" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="176" y="62" width="128" height="22" rx="6" class="f-acc" data-hl="5 6"/>
+<text x="182" y="78" class="sf-hdr">map M2</text>
+<rect x="176" y="90" width="128" height="22" rx="6" class="f-code"/>
+<text x="182" y="106" class="sf-cell">x = 3</text>
+<rect x="176" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="182" y="134" class="sf-cell">y = 4</text>
+</g>
+<g data-in="7">
+<rect x="320" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="326" y="62" width="128" height="22" rx="6" class="f-acc2" data-hl="7 8"/>
+<text x="332" y="78" class="sf-hdr">map M3</text>
+<rect x="326" y="90" width="128" height="22" rx="6" class="f-code"/>
+<text x="332" y="106" class="sf-cell">y = 5</text>
+<rect x="326" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="332" y="134" class="sf-cell">x = 6</text>
+</g>
+<text x="20" y="205" class="sf-lab" data-in="1" data-out="2">Objects built the same way share M2.</text>
+<text x="20" y="205" class="sf-lab" data-in="2" data-out="3">Search: compare key names until x turns up.</text>
+<text x="20" y="205" class="sf-lab" data-in="3" data-out="4">Remember: slot 3 keeps the last Map seen.</text>
+<text x="20" y="205" class="sf-lab" data-in="4" data-out="5">Miss: look up x once, then store the answer.</text>
+<text x="20" y="205" class="sf-lab" data-in="5" data-out="6">Hit: the Map matches, so load +12 at once.</text>
+<text x="20" y="205" class="sf-lab" data-in="6" data-out="7">The compiler reads the slot while it builds code.</text>
+<text x="20" y="205" class="sf-lab" data-in="7" data-out="8">Object with M3 arrives: CheckMaps fails.</text>
+<text x="20" y="205" class="sf-lab" data-in="8" data-out="9">Poly: one compare per Map, at most 4 of them.</text>
+<rect x="20" y="236" width="440" height="60" rx="8" class="f-panel s-line" stroke-width="2" data-in="3" data-hl="4 5 6 7"/>
+<text x="30" y="252" class="sf-sm" data-in="3">read site o.x, feedback slot 3</text>
+<text x="30" y="284" class="sf-big" data-in="3" data-out="4">UNINITIALIZED</text>
+<text x="30" y="284" class="sf-big" data-in="4" data-out="7">MONO: (M2, field at +12)</text>
+<text x="30" y="284" class="sf-big sf-bad" data-in="7" data-out="8">POLY: [M2, M3]</text>
+<text x="30" y="284" class="sf-big sf-bad" data-in="8" data-out="9">MEGA: global stub cache</text>
+<rect x="20" y="306" width="440" height="56" rx="8" class="f-code s-line" data-in="6" data-out="8"/>
+<text x="30" y="326" class="sf-code" data-in="6" data-out="7">cmp map, M2     jne deopt</text>
+<text x="30" y="326" class="sf-code sf-bad" data-in="7" data-out="8">deopt: back to Ignition</text>
+<text x="30" y="348" class="sf-code" data-in="6" data-out="8">mov r, [o+12]</text>
+<text x="20" y="372" class="sf-lab" data-in="1" data-out="2">Each object carries its Map, a layout tag.</text>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Objects built the same way share one Map.</text>
+<text x="20" y="372" class="sf-lab" data-in="2" data-out="3">Search costs several dependent loads.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Tens of nanoseconds per access, every object.</text>
+<text x="20" y="372" class="sf-lab" data-in="3" data-out="4">The read site keeps one slot for its last Map.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">Empty at first: UNINITIALIZED.</text>
+<text x="20" y="372" class="sf-lab" data-in="4" data-out="5">The slot now holds M2 and the offset of x.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">The next read with M2 skips the search.</text>
+<text x="20" y="372" class="sf-lab" data-in="5" data-out="6">One compare, one load, no descriptor lookup.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Same Map, same fixed offset, every time.</text>
+<text x="20" y="372" class="sf-lab" data-in="6" data-out="7">Optimized code: one compare, one load.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">It also depends on M2 staying stable.</text>
+<text x="20" y="372" class="sf-lab" data-in="7" data-out="8">The IC keeps M2 and adds M3. Now POLY.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Two checks, still no search. Never goes back.</text>
+<text x="20" y="372" class="sf-lab" data-in="8" data-out="9">Past 4 Maps the site uses a global stub cache.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">In my run: 4.06 ns at 4 shapes, 4.90 at 8.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="82" class="sf-cap" text-anchor="middle">One read site, ns per read (one run)</text><text x="60" y="130" class="sf-lab">1 shape (mono)</text><text x="420" y="130" class="sf-big" text-anchor="end">0.99 ns</text><rect x="60" y="136" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="136" width="73" height="22" rx="6" class="f-ok"/><text x="60" y="192" class="sf-lab">4 shapes (poly)</text><text x="420" y="192" class="sf-big" text-anchor="end">4.06 ns</text><rect x="60" y="198" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="198" width="298" height="22" rx="6" class="f-warn"/><text x="60" y="254" class="sf-lab">8 shapes (mega)</text><text x="420" y="254" class="sf-big" text-anchor="end">4.90 ns</text><rect x="60" y="260" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="260" width="360" height="22" rx="6" class="f-bad"/><text x="240" y="332" class="sf-num" text-anchor="middle">4.1× slower at 4 shapes</text><text x="240" y="362" class="sf-lab" text-anchor="middle">Self: a point took 10 words without maps, 3 with.</text><text x="240" y="390" class="sf-lab" text-anchor="middle">Mega costs about the same at 8 and 64 shapes.</text></g>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Start with <code>o.x</code>, a property read in JavaScript. V8 gives each object a hidden class, called a <b>Map</b>, that records its layout. Two objects built the same way share one Map, M2: <code>x</code> first, then <code>y</code>.</p></div>
+<div class="step"><p><b>The naive way.</b> Without a shape tag, every read searches the object's keys. That is several dependent loads, tens of nanoseconds per access, for every object. A JavaScript program does billions of these.</p></div>
+<div class="step"><p><b>The key idea.</b> Each place in the code that reads <code>o.x</code> keeps one slot, its <b>inline cache</b>. The slot remembers the last Map it saw. It starts empty, marked UNINITIALIZED.</p></div>
+<div class="step"><p><b>First call.</b> The slot is empty, so the read misses. The runtime looks up <code>x</code> in M2 once, finds it at offset +12, and stores (M2, +12) in the slot. The slot is now <b>monomorphic</b>: one Map, one answer.</p></div>
+<div class="step"><p><b>Next call hits.</b> The object's Map is M2 again, so the read is one compare and one load at +12. No search. This is the path that makes property access cheap.</p></div>
+<div class="step"><p><b>Hot code bets.</b> Once the function is hot, the optimizing compiler reads the slot and emits a <code>CheckMaps</code> against M2 plus one load. It also records that the code depends on M2 staying stable. The check guards the bet; it does not prove it.</p></div>
+<div class="step"><p><b>The bet loses.</b> An object with Map M3, built as <code>{y, x}</code>, fails the check. The engine <b>deopts</b> back to the interpreter, and the slot goes <b>polymorphic</b>, holding both M2 and M3. The deopt path is what makes the aggressive guard safe.</p></div>
+<div class="step"><p><b>The trade-off.</b> Each extra Map costs one more check, so the read gets slower as shapes pile up. Past 4 Maps the site turns <b>megamorphic</b> and uses a global stub cache. The state only moves forward; a site never goes back to monomorphic.</p></div>
+<div class="step"><p><b>The numbers.</b> One read site, one run. A monomorphic read takes 0.99 ns and four shapes take 4.06 ns, about 4× more. The cards below take each piece in turn.</p></div>
+</div>
+</div>

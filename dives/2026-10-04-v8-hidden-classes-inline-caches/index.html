@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,29 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv2-row{margin:0 0 14px}
+.cv2-row b{color:var(--ink)}
+.cv2-track{height:16px;margin:6px 0 0;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv2-track i{display:block;height:100%;width:0;border-radius:3px}
+.js .guess.done ~ .cold-viz .cv2-track i{animation:cv2-grow .7s var(--ease) forwards}
+@keyframes cv2-grow{from{width:0}}
+</style>
+<p class="cold-line">Reading <code>p.x</code> in JavaScript can take under a nanosecond.</p>
+<p class="cold-line sm">V8 tags each object with a hidden class, its <em>Map</em>. A read that sees one Map is a compare and a load. Four Maps at one site break that.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> One read site sees four object shapes instead of one. How much slower is each read?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About the same</button><button class="g-opt" type="button" data-k="1">About 1.5× slower</button><button class="g-opt" type="button" data-k="2">About 4× slower</button><button class="g-opt" type="button" data-k="3">About 20× slower</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 4×.</b> 4.06 ns against 0.99 ns in my run on Node 24.12, one noisy run. Eight shapes cost about the same, 4.90 ns, because the global stub cache takes over.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv2-row"><b>One shape: 0.99 ns per read.</b>
+    <div class="cv2-track"><i style="width:20%;background:var(--ok)"></i></div></div>
+  <div class="cv2-row"><b>Four shapes: 4.06 ns per read.</b>
+    <div class="cv2-track"><i style="width:83%;background:var(--warn)"></i></div>
+    <p class="mini">Same scale, 0 to 4.9 ns. One noisy run.</p></div>
+</div>
+</div><a class="cold-cue" href="#top">V8 hidden classes &amp; ICs <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
 <g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
@@ -359,9 +473,112 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> property access is the most common operation in JavaScript, and the same guards that make it fast have been the source of serious browser exploits (CVE-2020-6418, CVE-2020-16009, CVE-2025-2135).</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">0.99 ns</div><div class="l">monomorphic property read (my run, Node 24.12)</div></div><div class="stat rv" style="--i:1"><div class="v">4.1×</div><div class="l">slower at 4 shapes (polymorphic)</div></div><div class="stat rv" style="--i:2"><div class="v">4</div><div class="l">max Maps per IC before it goes megamorphic</div></div><div class="stat rv" style="--i:3"><div class="v">21</div><div class="l">elements kinds, and every transition is one-way</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~33 min deep</span>
+      <span>19 cards</span><span>· ~9 min skim</span><span>· ~33 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Four shapes make one read 4× slower, and a deopt keeps V8 honest</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-sm{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-hdr{fill:var(--bg);font:700 14px var(--mono)}
+#story-fig .sf-cell{fill:var(--ink);font:600 14px var(--mono)}
+#story-fig .sf-code{fill:var(--ink);font:14px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-ok{fill:var(--ok)}
+#story-fig .sf-bad{fill:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One V8 read site o.x over four object shapes: a naive search, then an inline cache that remembers the Map, a deopt to a polymorphic slot, and the headline timings">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">An object is a tag plus its fields.</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Naive read: search the keys every time.</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Key idea: each read site remembers one Map.</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">First call misses, then stores the answer.</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Next call hits: compare the Map, load.</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Hot code bets on M2: one compare, one load.</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">The bet loses: deopt, then the IC goes poly.</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Every extra shape adds a cost. Cap: 4.</text>
+<text x="20" y="26" class="sf-cap" data-in="9">Headline numbers, one site, one run.</text>
+<g>
+<rect x="20" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="26" y="62" width="128" height="22" rx="6" class="f-acc"/>
+<text x="32" y="78" class="sf-hdr">map M2</text>
+<rect x="26" y="90" width="128" height="22" rx="6" class="f-code" data-hl="2 3"/>
+<text x="32" y="106" class="sf-cell">x = 1</text>
+<rect x="26" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="32" y="134" class="sf-cell">y = 2</text>
+</g>
+<g>
+<rect x="170" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="176" y="62" width="128" height="22" rx="6" class="f-acc" data-hl="5 6"/>
+<text x="182" y="78" class="sf-hdr">map M2</text>
+<rect x="176" y="90" width="128" height="22" rx="6" class="f-code"/>
+<text x="182" y="106" class="sf-cell">x = 3</text>
+<rect x="176" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="182" y="134" class="sf-cell">y = 4</text>
+</g>
+<g data-in="7">
+<rect x="320" y="56" width="140" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="326" y="62" width="128" height="22" rx="6" class="f-acc2" data-hl="7 8"/>
+<text x="332" y="78" class="sf-hdr">map M3</text>
+<rect x="326" y="90" width="128" height="22" rx="6" class="f-code"/>
+<text x="332" y="106" class="sf-cell">y = 5</text>
+<rect x="326" y="118" width="128" height="22" rx="6" class="f-code"/>
+<text x="332" y="134" class="sf-cell">x = 6</text>
+</g>
+<text x="20" y="205" class="sf-lab" data-in="1" data-out="2">Objects built the same way share M2.</text>
+<text x="20" y="205" class="sf-lab" data-in="2" data-out="3">Search: compare key names until x turns up.</text>
+<text x="20" y="205" class="sf-lab" data-in="3" data-out="4">Remember: slot 3 keeps the last Map seen.</text>
+<text x="20" y="205" class="sf-lab" data-in="4" data-out="5">Miss: look up x once, then store the answer.</text>
+<text x="20" y="205" class="sf-lab" data-in="5" data-out="6">Hit: the Map matches, so load +12 at once.</text>
+<text x="20" y="205" class="sf-lab" data-in="6" data-out="7">The compiler reads the slot while it builds code.</text>
+<text x="20" y="205" class="sf-lab" data-in="7" data-out="8">Object with M3 arrives: CheckMaps fails.</text>
+<text x="20" y="205" class="sf-lab" data-in="8" data-out="9">Poly: one compare per Map, at most 4 of them.</text>
+<rect x="20" y="236" width="440" height="60" rx="8" class="f-panel s-line" stroke-width="2" data-in="3" data-hl="4 5 6 7"/>
+<text x="30" y="252" class="sf-sm" data-in="3">read site o.x, feedback slot 3</text>
+<text x="30" y="284" class="sf-big" data-in="3" data-out="4">UNINITIALIZED</text>
+<text x="30" y="284" class="sf-big" data-in="4" data-out="7">MONO: (M2, field at +12)</text>
+<text x="30" y="284" class="sf-big sf-bad" data-in="7" data-out="8">POLY: [M2, M3]</text>
+<text x="30" y="284" class="sf-big sf-bad" data-in="8" data-out="9">MEGA: global stub cache</text>
+<rect x="20" y="306" width="440" height="56" rx="8" class="f-code s-line" data-in="6" data-out="8"/>
+<text x="30" y="326" class="sf-code" data-in="6" data-out="7">cmp map, M2     jne deopt</text>
+<text x="30" y="326" class="sf-code sf-bad" data-in="7" data-out="8">deopt: back to Ignition</text>
+<text x="30" y="348" class="sf-code" data-in="6" data-out="8">mov r, [o+12]</text>
+<text x="20" y="372" class="sf-lab" data-in="1" data-out="2">Each object carries its Map, a layout tag.</text>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Objects built the same way share one Map.</text>
+<text x="20" y="372" class="sf-lab" data-in="2" data-out="3">Search costs several dependent loads.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Tens of nanoseconds per access, every object.</text>
+<text x="20" y="372" class="sf-lab" data-in="3" data-out="4">The read site keeps one slot for its last Map.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">Empty at first: UNINITIALIZED.</text>
+<text x="20" y="372" class="sf-lab" data-in="4" data-out="5">The slot now holds M2 and the offset of x.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">The next read with M2 skips the search.</text>
+<text x="20" y="372" class="sf-lab" data-in="5" data-out="6">One compare, one load, no descriptor lookup.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Same Map, same fixed offset, every time.</text>
+<text x="20" y="372" class="sf-lab" data-in="6" data-out="7">Optimized code: one compare, one load.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">It also depends on M2 staying stable.</text>
+<text x="20" y="372" class="sf-lab" data-in="7" data-out="8">The IC keeps M2 and adds M3. Now POLY.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Two checks, still no search. Never goes back.</text>
+<text x="20" y="372" class="sf-lab" data-in="8" data-out="9">Past 4 Maps the site uses a global stub cache.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">In my run: 4.06 ns at 4 shapes, 4.90 at 8.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="82" class="sf-cap" text-anchor="middle">One read site, ns per read (one run)</text><text x="60" y="130" class="sf-lab">1 shape (mono)</text><text x="420" y="130" class="sf-big" text-anchor="end">0.99 ns</text><rect x="60" y="136" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="136" width="73" height="22" rx="6" class="f-ok"/><text x="60" y="192" class="sf-lab">4 shapes (poly)</text><text x="420" y="192" class="sf-big" text-anchor="end">4.06 ns</text><rect x="60" y="198" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="198" width="298" height="22" rx="6" class="f-warn"/><text x="60" y="254" class="sf-lab">8 shapes (mega)</text><text x="420" y="254" class="sf-big" text-anchor="end">4.90 ns</text><rect x="60" y="260" width="360" height="22" rx="6" class="f-code s-line"/><rect x="60" y="260" width="360" height="22" rx="6" class="f-bad"/><text x="240" y="332" class="sf-num" text-anchor="middle">4.1× slower at 4 shapes</text><text x="240" y="362" class="sf-lab" text-anchor="middle">Self: a point took 10 words without maps, 3 with.</text><text x="240" y="390" class="sf-lab" text-anchor="middle">Mega costs about the same at 8 and 64 shapes.</text></g>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Start with <code>o.x</code>, a property read in JavaScript. V8 gives each object a hidden class, called a <b>Map</b>, that records its layout. Two objects built the same way share one Map, M2: <code>x</code> first, then <code>y</code>.</p></div>
+<div class="step"><p><b>The naive way.</b> Without a shape tag, every read searches the object's keys. That is several dependent loads, tens of nanoseconds per access, for every object. A JavaScript program does billions of these.</p></div>
+<div class="step"><p><b>The key idea.</b> Each place in the code that reads <code>o.x</code> keeps one slot, its <b>inline cache</b>. The slot remembers the last Map it saw. It starts empty, marked UNINITIALIZED.</p></div>
+<div class="step"><p><b>First call.</b> The slot is empty, so the read misses. The runtime looks up <code>x</code> in M2 once, finds it at offset +12, and stores (M2, +12) in the slot. The slot is now <b>monomorphic</b>: one Map, one answer.</p></div>
+<div class="step"><p><b>Next call hits.</b> The object's Map is M2 again, so the read is one compare and one load at +12. No search. This is the path that makes property access cheap.</p></div>
+<div class="step"><p><b>Hot code bets.</b> Once the function is hot, the optimizing compiler reads the slot and emits a <code>CheckMaps</code> against M2 plus one load. It also records that the code depends on M2 staying stable. The check guards the bet; it does not prove it.</p></div>
+<div class="step"><p><b>The bet loses.</b> An object with Map M3, built as <code>{y, x}</code>, fails the check. The engine <b>deopts</b> back to the interpreter, and the slot goes <b>polymorphic</b>, holding both M2 and M3. The deopt path is what makes the aggressive guard safe.</p></div>
+<div class="step"><p><b>The trade-off.</b> Each extra Map costs one more check, so the read gets slower as shapes pile up. Past 4 Maps the site turns <b>megamorphic</b> and uses a global stub cache. The state only moves forward; a site never goes back to monomorphic.</p></div>
+<div class="step"><p><b>The numbers.</b> One read site, one run. A monomorphic read takes 0.99 ns and four shapes take 4.06 ns, about 4× more. The cards below take each piece in turn.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Objects carry a shape tag, and each read remembers it"><span>Objects carry a shape tag, and each read remembers it</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six things to know first"><span>Six things to know first</span></a><a href="#c-world" data-id="world" aria-label="Every Chrome tab, Node server and Electron app runs it"><span>Every Chrome tab, Node server and Electron app runs it</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Fixed-offset loads&quot; hides five moving parts"><span>&quot;Fixed-offset loads&quot; hides five moving parts</span></a><a href="#c-problem" data-id="problem" aria-label="Without shapes, every o.x is a search and every object repeats its keys"><span>Without shapes, every o.x is a search and every object repeats its keys</span></a><a href="#c-model" data-id="model" aria-label="A Map is a struct discovered at runtime"><span>A Map is a struct discovered at runtime</span></a><a href="#c-mech" data-id="mech" aria-label="One getX call, from cold miss to a deopt"><span>One getX call, from cold miss to a deopt</span></a><a href="#c-math" data-id="math" aria-label="A speculation pays off only if it rarely loses"><span>A speculation pays off only if it rarely loses</span></a><a href="#c-why" data-id="why" aria-label="Speculation is only safe because deopt is always there"><span>Speculation is only safe because deopt is always there</span></a><a href="#c-knobs" data-id="knobs" aria-label="Poly limit 4, dictionary mode, and 21 elements kinds"><span>Poly limit 4, dictionary mode, and 21 elements kinds</span></a><a href="#c-breaks" data-id="breaks" aria-label="Optimizer Map bugs have repeatedly become type confusion"><span>Optimizer Map bugs have repeatedly become type confusion</span></a><a href="#c-wild" data-id="wild" aria-label="Real engines add tiers and deviate from textbook PICs"><span>Real engines add tiers and deviate from textbook PICs</span></a><a href="#c-frontier" data-id="frontier" aria-label="Recent work keeps speculation sound and cheap"><span>Recent work keeps speculation sound and cheap</span></a><a href="#c-open" data-id="open" aria-label="Sound speculation, containment and warm-up are still open"><span>Sound speculation, containment and warm-up are still open</span></a><a href="#c-lineage" data-id="lineage" aria-label="Inline caches date to 1984, and V8 added Maglev in 2023"><span>Inline caches date to 1984, and V8 added Maglev in 2023</span></a><a href="#c-hands" data-id="hands" aria-label="A 30-second script shows Maps, deopts and IC timing"><span>A 30-second script shows Maps, deopts and IC timing</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three follow-ups: sandbox, Turboshaft IR, CacheIR"><span>Three follow-ups: sandbox, Turboshaft IR, CacheIR</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, V8 source and the CVE writeups behind each claim"><span>Papers, V8 source and the CVE writeups behind each claim</span></a></nav>
@@ -375,7 +592,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p><strong>Explain it simply.</strong> JavaScript lets you make an object like <code>{x: 1, y: 2}</code> and add or remove fields whenever you like. That freedom is a problem for speed: to read <code>p.x</code>, a naive engine must search the object for a field called <code>"x"</code> every single time, like flipping through a stack of papers looking for the one labelled "x".</p>
+<p class="dropcap"><strong>Explain it simply.</strong> JavaScript lets you make an object like <code>{x: 1, y: 2}</code> and add or remove fields whenever you like. That freedom is a problem for speed: to read <code>p.x</code>, a naive engine must search the object for a field called <code>"x"</code> every single time, like flipping through a stack of papers looking for the one labelled "x".</p>
 <p>V8 (the engine in Chrome and Node.js) cheats with two tricks. First, every object carries a small tag that says "I'm laid out like <i>this</i>" (the <b>hidden class</b>, V8 calls it a <b>Map</b>). All objects built the same way share one tag. Second, each place in your code that reads <code>p.x</code> keeps a sticky note (the <b>inline cache</b>): "last time, objects with tag #7 had <code>x</code> in the first slot." Next time, the engine glances at the object's tag; if it says #7, it grabs the first slot without searching. If the tag is different, it falls back to searching and updates its note. The faster tiers of the engine go further: they <i>bet</i> the note will stay true, compile code that assumes it, and bail out to slow code if the bet loses.</p>
 <h3 id="plain-example">Everyday example</h3>
 <p>A waiter in a restaurant gets order slips. Slips from the tablet app are all printed in the same layout: table number in the top-left. After a few of them the waiter stops reading the header and just looks top-left. One day a handwritten slip shows up with the table number elsewhere. The waiter notices the layout is different (tag mismatch), stops, reads the slip properly, and mentally files "layouts A and B exist". If slips arrive in dozens of random layouts, the waiter gives up and reads every slip carefully. A very eager waiter (the optimizing compiler) might even pre-write the table number onto a ticket without looking, betting the layout holds; if the bet loses, the ticket is torn up and the waiter starts again.</p>
@@ -458,6 +675,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>10 → 3</b><span>machine words for one Cartesian point in Self, without maps and with them.</span></div>
 <p>Semantically, <code>o.x</code> means: walk the object's property table (a hash map or sorted array), compare strings (interned, so pointer compares), and if the name is missing, climb the prototype chain. That is tens of nanoseconds with several dependent loads, per access, and every object repeats its key names. Self measured a "Cartesian point" at 10 machine words without maps and 3 with. A JS app does billions of accesses, and V8 needs about one load for each.</p>
 <p>The fix is to give each shape a tag, so that a site which has seen that tag before can skip the search. The cost of the tag check and the fallbacks is modelled in the math card.</p>
 
@@ -477,10 +695,10 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-mech" data-id="mech">
+<article class="card rv gated" id="c-mech" data-id="mech">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="44" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="70" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><path d="M40 27 H58 V30 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><path d="M40 53 H58 V60 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><path d="M40 79 H58 V82 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><rect x="74" y="18" width="34" height="24" rx="4" class="f-acc"/><rect x="114" y="18" width="34" height="24" rx="4" class="f-acc"/><rect x="74" y="52" width="34" height="24" rx="4" class="f-acc"/><rect x="114" y="52" width="34" height="24" rx="4" class="f-none s-acc blink" stroke-width="1.5" stroke-dasharray="3 2"/><path d="M40 79 H92" class="f-none s-bad" stroke-width="1" stroke-dasharray="2 2"/></svg></div>
 <div class="card-body"><div class="kicker">§5 · Mechanism, traced</div><h2>One getX call, from cold miss to a deopt</h2>
-<div class="brief"><p>A literal <code>{x,y}</code> follows Map transitions M0 → M1 → M2. The first call misses and stores a handler; the second is a compare and a load. A call with <code>{y,x}</code> fails <code>CheckMaps</code>, deopts, and the IC goes polymorphic.</p><p class="mini">6-step trace and an IC shape simulator inside.</p></div>
+<div class="guess" data-g="order" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Do <code>{x: 1, y: 2}</code> and <code>{y: 2, x: 1}</code> share a Map?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Yes, same keys means same Map</button><button class="g-opt" type="button" data-k="1">No, the order of additions sets the Map</button><button class="g-opt" type="button" data-k="2">Only in strict mode</button><button class="g-opt" type="button" data-k="3">Yes, after the first read</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>No.</b> Map transitions are labelled by property name in insertion order, so the second literal takes a different branch and ends at a different Map. Two Maps at one site make it polymorphic.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>A literal <code>{x,y}</code> follows Map transitions M0 → M1 → M2. The first call misses and stores a handler; the second is a compare and a load. A call with <code>{y,x}</code> fails <code>CheckMaps</code>, deopts, and the IC goes polymorphic.</p><p class="mini">6-step trace and an IC shape simulator inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>8 min · 4 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
@@ -617,10 +835,10 @@ upd();
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 14 V88 H148" class="f-none s-mute" stroke-width="1.5"/><path d="M20 30 Q60 96 90 58 T146 40" class="f-none s-acc draw" stroke-width="2.2"/><circle cx="90" cy="58" r="4" class="f-hl s-acc"/></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>A speculation pays off only if it rarely loses</h2>
-<div class="brief"><p>Speculation wins when the miss rate <b>p</b> is below (t<sub>s</sub>−t<sub>f</sub>)/(t<sub>s</sub>−t<sub>f</sub>+C<sub>d</sub>). A 1 ns fast path against a 5 ns generic path means p must be about 1e-4 to 1e-3. The IC is linear up to 4 Maps, then hashed.</p></div>
+<div class="guess" data-g="breakeven" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> A fast path costs 1 ns and the generic path 5 ns. How rarely can the guard fail for speculation to pay off?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Under 1 in 10</button><button class="g-opt" type="button" data-k="1">About 1 in 100</button><button class="g-opt" type="button" data-k="2">About 1 in 1,000 to 1 in 10,000</button><button class="g-opt" type="button" data-k="3">About half the time</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 1 in 1,000 to 1 in 10,000</b> (p between 1e-4 and 1e-3). A deopt costs much more than a load, so a bet that misses often loses. The break-even formula is in the math section.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Speculation wins when the miss rate <b>p</b> is below (t<sub>s</sub>−t<sub>f</sub>)/(t<sub>s</sub>−t<sub>f</sub>+C<sub>d</sub>). A 1 ns fast path against a 5 ns generic path means p must be about 1e-4 to 1e-3. The IC is linear up to 4 Maps, then hashed.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -681,10 +899,10 @@ upd();
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 84 H148" class="s-mute" stroke-width="1"/><path d="M14 84 L22 22 L26 84 L34 22 L38 84 L46 22 L50 84 L58 22 L62 84 L70 22 L74 84 L82 22 L86 84" class="f-none s-bad" stroke-width="1.8"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Optimizer Map bugs have repeatedly become type confusion</h2>
-<div class="brief"><p>When the compiler removes a <code>CheckMaps</code>, it has proved the Map can't change. A wrong side-effect model gives type confusion, then <code>addrof</code>, then arbitrary read and write. CVE-2020-6418, CVE-2020-16009 and CVE-2025-2135 follow that pattern. The V8 sandbox contains these; it does not fix them.</p></div>
+<div class="guess" data-g="cves" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> How many of the CVEs in the security section come from a wrong Map assumption in optimized code?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1</button><button class="g-opt" type="button" data-k="1">2</button><button class="g-opt" type="button" data-k="2">3</button><button class="g-opt" type="button" data-k="3">7</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>3.</b> CVE-2020-6418, CVE-2020-16009 and CVE-2025-2135. Each one is a wrong fact about Maps or elements kinds that removed a guard. The Super IC bug (CVE-2022-1134) is listed separately and is not counted here.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>When the compiler removes a <code>CheckMaps</code>, it has proved the Map can't change. A wrong side-effect model gives type confusion, then <code>addrof</code>, then arbitrary read and write. CVE-2020-6418, CVE-2020-16009 and CVE-2025-2135 follow that pattern. The V8 sandbox contains these; it does not fix them.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>5 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -719,10 +937,10 @@ upd();
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="14" y="20" class="t-mute">textbook</text><circle cx="20" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="54" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="88" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="122" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><text x="14" y="72" class="t-mute">V8</text><circle cx="20" cy="86" r="8" class="f-acc"/><circle cx="54" cy="86" r="8" class="f-acc"/><circle cx="88" cy="86" r="8" class="f-acc"/><circle cx="122" cy="86" r="8" class="f-warn"/></svg></div>
 <div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Real engines add tiers and deviate from textbook PICs</h2>
-<div class="brief"><p>Maglev compiles about 10× slower than Sparkplug and 10× faster than TurboFan, and cut Speedometer energy by 10%. Turboshaft halved compile time. V8's ICs live in a heap feedback vector, not patched machine code, and megamorphic sites use a global stub cache.</p></div>
+<div class="guess" data-g="maglev" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> How many times slower than Sparkplug does Maglev compile code?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 2×</button><button class="g-opt" type="button" data-k="1">About 5×</button><button class="g-opt" type="button" data-k="2">About 10×</button><button class="g-opt" type="button" data-k="3">About 20×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 10×</b>, and about 10× faster than TurboFan, per the V8 Maglev post. An earlier research note said 20×; the primary source says 10×.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Maglev compiles about 10× slower than Sparkplug and 10× faster than TurboFan, and cut Speedometer energy by 10%. Turboshaft halved compile time. V8's ICs live in a heap feedback vector, not patched machine code, and megamorphic sites use a global stub cache.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -1027,13 +1245,45 @@ megamorphic (64 shapes)    4.80 ns/call</code></pre>
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1053,11 +1303,63 @@ megamorphic (64 shapes)    4.80 ns/call</code></pre>
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
