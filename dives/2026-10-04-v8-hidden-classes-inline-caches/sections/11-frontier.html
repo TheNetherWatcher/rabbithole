@@ -1,0 +1,10 @@
+<p>The settled core is old and the periphery is active. The <i>idea</i> is 35 years old. Recent work is on keeping speculation sound and cheap.</p>
+<ul>
+<li><b>Mutable heap numbers</b> (V8 blog, 2025-02-25). Script-context slots own a mutable HeapNumber or Int32, which avoids an allocation per update. About 2.5× on <code>async-fs</code> and about 1.6% on JetStream2. Verified. (<a href="https://v8.dev/blog/mutable-heap-number" target="_blank" rel="noopener">v8.dev/blog/mutable-heap-number</a>)</li>
+<li><b>Leaving the Sea of Nodes</b> (V8 blog, 2025-03-25). CFG IR migration, 2× compile time. Verified. The date is from the research notes. (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes" target="_blank" rel="noopener">blog</a>)</li>
+<li><b>CVE-2025-2135 writeup</b> (Zellic, 2025). An aliasing bug in map inference, found through V8CTF. Verified. (<a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic</a>)</li>
+<li><b>Translation Validation for the V8 JIT (TurboTV)</b> (ICSE 2024). SMT-based validation of TurboFan optimizations, which finds range-analysis bugs. Reported by a research agent; I did not open it. (<a href="https://kihongheo.kaist.ac.kr/publications/icse24.pdf" target="_blank" rel="noopener">paper</a>)</li>
+<li><b>OptFuzz</b> (USENIX Security 2024). Optimization-path-guided fuzzing: 36 new bugs across V8, JSC, SpiderMonkey and Hermes, per the agent. Not opened. (<a href="https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf" target="_blank" rel="noopener">slides</a>)</li>
+<li><b>DUMPLING</b> (NDSS 2025). Fine-grained differential fuzzing that compares engine state: 8 new V8 bugs, per the agent. Not opened. (<a href="https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf" target="_blank" rel="noopener">paper</a>)</li>
+<li>The agent also listed <i>CoSSJIT</i> (OOPSLA 2025), <i>Understanding and Finding JIT Compiler Performance Bugs</i> (arXiv 2603.06551), and a December 2025 data-centric fuzzing paper (arXiv 2512.18102). I did not verify these, so they are only pointers.</li>
+</ul>

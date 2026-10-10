@@ -1,0 +1,13 @@
+<p>There is no deep math here. There are two useful cost models and one structural count.</p>
+<h3>(a) Speculation break-even</h3>
+<p>Let <b>t<sub>f</sub></b> be the cost of the guarded fast path, <b>t<sub>s</sub></b> the cost of the generic path, <b>p</b> the probability that the guard fails on an execution, and <b>C<sub>d</sub></b> the amortized cost of one deopt plus re-tier. Expected cost per execution when speculating:</p>
+<div class="eq">E = (1 − p)·t<sub>f</sub> + p·(t<sub>s</sub> + C<sub>d</sub>) ≈ t<sub>f</sub> + p·(t<sub>s</sub> − t<sub>f</sub> + C<sub>d</sub>)<small>→ in plain terms: the fast path is cheap, and each miss adds the generic cost plus the deopt cost.</small></div>
+<p>Speculation beats always-generic when <b>E &lt; t<sub>s</sub></b>, that is, when <b>p &lt; (t<sub>s</sub> − t<sub>f</sub>) / (t<sub>s</sub> − t<sub>f</sub> + C<sub>d</sub>)</b>. → in plain terms: a bet is worth it only if it loses <i>rarely enough</i> relative to how expensive losing is. A deopt costs microseconds-ish (my estimate, unmeasured) and a fast load costs about 1 ns, so <b>p</b> must be tiny, around 1e-4 to 1e-3. That is why V8 waits for stable feedback and caps retries.</p>
+<p>Using my measured numbers (t<sub>f</sub> ≈ 1.0 ns, t<sub>s</sub> ≈ 4.9 ns), the generic path is only about 4–5× slower. That is the ceiling on the benefit of the whole machinery for this micro-case.</p>
+<h3>(b) IC lookup cost by state</h3>
+<div class="eq">T<sub>mono</sub> = t<sub>cmp</sub> + t<sub>load</sub>; &nbsp; T<sub>poly</sub>(k) ≈ k·t<sub>cmp</sub> + t<sub>load</sub>, k ≤ 4; &nbsp; T<sub>mega</sub> = t<sub>hash</sub> + 1–2 probes of a global table + handler call</div>
+<p>Why 4? A linear scan costs more with each entry while the hit-rate gain levels off. The constant <code>kMaxPolymorphicMapCount = 4</code> is an engineering cutoff, not something derived. (I checked it as a constant in the V8 source per the research notes; I did not re-open the source myself.)</p>
+<h3>(c) Shape explosion</h3>
+<p>Adding <i>n</i> properties in every possible order gives up to <i>n!</i> root-to-leaf paths and Σ n!/(n−k)! Maps. A deterministic construction order collapses this to n+1 Maps per "class". → in plain terms: this is why order consistency matters.</p>
+<h3>Stub cache sizing</h3>
+<p>The stub cache is primary and secondary, two-level and hashed on (Map, name). In <code>stub-cache.h</code> at main I found <code>kPrimaryTableBits = 12</code> (4096 entries) and <code>kSecondaryTableBits = 10</code> (1024). One research agent claimed 11 and 9. The primary source says 12 and 10, so 11 and 9 are wrong. Sizes have changed across versions.</p>

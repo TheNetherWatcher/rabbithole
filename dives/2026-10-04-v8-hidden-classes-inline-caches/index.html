@@ -1,387 +1,1124 @@
 <!doctype html>
-<html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>V8 hidden classes + inline caches</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="V8 gives every object a hidden class (a Map) that records its layout, and every property read site an inline cache that remembers the last Map it saw. When the Map matches, a read is one compare and one load. Optimized code bets that the Map stays the same, checks it with one compare, and deoptimize">
+<title>V8 hidden classes &amp; ICs · Rabbithole</title>
 <style>
-:root{--bg:#fbfaf7;--fg:#1c1c1e;--mut:#5f6368;--ac:#0b6bcb;--bd:#dedbd2;--card:#fff;--code:#f2f0ea;--ok:#e8f5e9;--no:#fdecea;--warn:#fff6dc;--plain:#eef6ff}
-@media (prefers-color-scheme:dark){:root{--bg:#14161a;--fg:#e8e8ea;--mut:#9aa0a6;--ac:#6cb2ff;--bd:#2c3038;--card:#1b1e24;--code:#20242b;--ok:#17301c;--no:#341a18;--warn:#352d12;--plain:#12263b}}
+/* rabbithole dive template — shared by every dive page and the hub. Edit here, rebuild dives. */
+:root{
+  --bg:#fbfaf7;--bg2:#f4f1ea;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;
+  --accent:#b4411f;--accent2:#1f6f8b;--ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;
+  --code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.06);
+  --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}
+
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
-.layout{display:flex;max-width:1200px;margin:0 auto}
-nav{position:sticky;top:0;align-self:flex-start;height:100vh;overflow:auto;width:270px;padding:20px 12px;border-right:1px solid var(--bd);font-size:13px}
-nav a{display:block;padding:4px 8px;color:var(--mut);text-decoration:none;border-left:2px solid transparent}
-nav a.on{color:var(--ac);border-left-color:var(--ac);font-weight:600}
-main{flex:1;min-width:0;padding:24px 28px 80px;max-width:calc(70ch + 56px)}
-header.hero{border-bottom:1px solid var(--bd);margin-bottom:20px;padding-bottom:16px}
-.badges span{display:inline-block;background:var(--code);border-radius:99px;padding:2px 10px;margin:0 6px 6px 0;font-size:12px;color:var(--mut)}
-h1{margin:.2em 0} h2{margin-top:2em;border-bottom:1px solid var(--bd);padding-bottom:4px}
-code,pre{background:var(--code);border-radius:6px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
-code{padding:1px 5px} pre{padding:12px;overflow:auto;position:relative} pre code{padding:0;background:none}
-table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow:auto} td,th{border:1px solid var(--bd);padding:6px 8px;text-align:left}
-section.plain{background:var(--plain);border-radius:12px;padding:4px 20px 12px;margin:20px 0}
-.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:14px 0}
-.key div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px} .key b{display:block;font-size:18px} .key span{font-size:12px;color:var(--mut)}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:12px 0}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px} .card b{display:block} .card span{font-size:13px;color:var(--mut)}
-.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px} .use{background:var(--ok)} .skip{background:var(--no)} .use,.skip{border-radius:10px;padding:2px 14px}
-.callout{background:var(--warn);border-left:4px solid #e0a800;padding:8px 12px;border-radius:6px;margin:12px 0}
-.divider{display:flex;align-items:center;gap:12px;margin:48px 0 0;color:var(--ac);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:13px}
-.divider:before,.divider:after{content:'';flex:1;border-top:2px solid var(--ac)}
-details{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;margin:4px 0 12px} summary{cursor:pointer;color:var(--ac)}
-.btn{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:6px 14px;cursor:pointer;font:inherit;font-size:14px} .btn:focus-visible{outline:3px solid #f90}
-.btn:disabled{opacity:.4;cursor:default}
-.copy{position:absolute;top:6px;right:6px;font-size:11px;padding:2px 8px}
-.stepper,.sim{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin:12px 0}
-svg{width:100%;height:auto} .cell{fill:var(--code);stroke:var(--bd)} .cell.hl{fill:#ffd54f55;stroke:#e0a800} .t,.s,.t2{fill:var(--fg);font:12px ui-monospace,monospace;text-anchor:middle} .s{fill:var(--mut);font-size:10px} .t2{text-anchor:start;font-size:13px}
-.slot{fill:none;stroke:var(--ac);stroke-width:2;stroke-dasharray:5 3} .slot.hit{stroke:#2e9e4f} .slot.bad{stroke:#d33}
-@media (prefers-reduced-motion:no-preference){.slot{animation:dash 1.2s linear infinite}} @keyframes dash{to{stroke-dashoffset:-16}}
-.ctl{display:flex;gap:12px;align-items:center} .ctl.wrap{flex-wrap:wrap}
-.bar{height:10px;background:var(--code);border-radius:6px;margin:10px 0} #bar{height:100%;background:var(--ac);border-radius:6px;transition:width .3s}
-.simout{display:flex;gap:18px;flex-wrap:wrap}
-@media (max-width:860px){nav{display:none} main{padding:16px} .twocol{grid-template-columns:1fr}}
-</style></head><body>
-<div class='layout'>
-<nav aria-label='Table of contents'><a href='#0b-plain-english-first' data-id='0b-plain-english-first'>0b. Plain English first</a><a href='#1-bare-minimum-context' data-id='1-bare-minimum-context'>1. Bare-minimum context</a><a href='#1b-real-world-context' data-id='1b-real-world-context'>1b. Real-world context</a><a href='#2-the-one-liner-and-what-it-hides' data-id='2-the-one-liner-and-what-it-hides'>2. The one-liner, and what it hides</a><a href='#3-the-problem' data-id='3-the-problem'>3. The problem</a><a href='#4-mental-model' data-id='4-mental-model'>4. Mental model</a><a href='#5-the-mechanism-traced' data-id='5-the-mechanism-traced'>5. The mechanism, traced</a><a href='#6-the-math' data-id='6-the-math'>6. The math</a><a href='#7-why-it-works' data-id='7-why-it-works'>7. Why it works</a><a href='#8-design-knobs-alternatives' data-id='8-design-knobs-alternatives'>8. Design knobs &amp; alternatives</a><a href='#9-where-it-breaks' data-id='9-where-it-breaks'>9. Where it breaks</a><a href='#10-in-the-wild' data-id='10-in-the-wild'>10. In the wild</a><a href='#11-frontier' data-id='11-frontier'>11. Frontier</a><a href='#11b-open-problems' data-id='11b-open-problems'>11b. Open problems</a><a href='#12-lineage' data-id='12-lineage'>12. Lineage</a><a href='#13-hands-on-30-min' data-id='13-hands-on-30-min'>13. Hands-on (≤30 min)</a><a href='#14-question-ladder' data-id='14-question-ladder'>14. Question ladder</a><a href='#15-go-deeper-next' data-id='15-go-deeper-next'>15. Go deeper next</a><a href='#sources' data-id='sources'>Sources</a></nav>
-<main>
-<header class='hero'>
-<div class='badges'><span>Computer science</span><span>Browsers/web internals</span><span>hard</span><span>2026-10-04</span></div>
-<h1>V8 hidden classes + inline caches</h1>
-<p><b>TL;DR.</b> Every JS object points to a shared Map describing its layout; each <code>o.x</code> site memoizes (Map → offset); optimizing tiers bet on that memo and deoptimize when it breaks. <b>Why it matters:</b> it is the reason JS is fast, the reason shape-stable code is fast, and the reason JIT bugs are the richest browser-exploit surface.</p>
-<div class='key'><div><b>~1 ns</b><span>mono load (my run)</span></div><div><b>4</b><span>poly map limit</span></div><div><b>4096 / 1024</b><span>stub cache primary / secondary</span></div><div><b>21</b><span>elements kinds</span></div><div><b>10x / 10x</b><span>Maglev vs Sparkplug / TurboFan compile</span></div></div>
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+a{color:var(--accent2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.scrolled{border-bottom-color:var(--line)}
+.tb-home{font-size:14px;color:var(--mute);text-decoration:none;white-space:nowrap}
+.tb-home:hover{color:var(--ink)}
+.tb-title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.topbar.scrolled .tb-title{opacity:1;transform:none}
+.tb-actions{display:flex;align-items:center;gap:8px}
+.tb-btn{font:inherit;font-size:13px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap}
+.tb-btn:hover{border-color:var(--accent)}
+.tb-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ring{position:relative;width:34px;height:34px;flex:none}
+.ring svg{width:34px;height:34px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .r-bg{stroke:var(--line)}
+.ring .r-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s var(--ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:700}
+@media(max-width:560px){.tb-home span{display:none}.tb-btn .lbl{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;padding:0 0 8px}
+.hero-art{position:relative;height:clamp(180px,30vw,320px);overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.hero-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.hero-art::after{content:"";position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(transparent,var(--bg))}
+.hero-art .layer{will-change:transform}
+.ascii-hero{position:absolute;inset:0;margin:0;display:grid;place-items:center;font:clamp(9px,1.4vw,14px)/1.15 var(--mono);color:var(--accent);white-space:pre;opacity:.9}
+.hero-text{position:relative;margin-top:-48px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
+.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+.why{color:var(--mute);margin:0 0 16px}
+.tldr b,.why b{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.stat .v{font-size:24px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .l{font-size:12px;color:var(--mute);line-height:1.35}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--mute);margin:8px 0 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.badge[data-s="started"]::before{background:var(--accent2)}
+.badge[data-s="skimmed"]::before{background:var(--warn)}
+.badge[data-s="understood"]::before{background:var(--ok)}
+
+/* ---------- groups + cards ---------- */
+main.wrap{padding-bottom:96px}
+.group{margin:40px 0 12px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:14px 0;box-shadow:var(--shadow);
+  transition:box-shadow .3s var(--ease),transform .3s var(--ease),border-color .3s;scroll-margin-top:64px}
+@media(hover:hover){.card:not(.open):hover{box-shadow:var(--shadow-lift);transform:translateY(-2px)}}
+.card.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.card.plain{background:var(--plain);border-color:var(--plainline)}
+.card-head{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;padding:16px 18px}
+@media(max-width:620px){.card-head{grid-template-columns:minmax(0,1fr);gap:8px}.card-vis{max-width:200px}}
+.card-vis{align-self:start;aspect-ratio:16/10;border-radius:10px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;
+  transition:transform .4s var(--ease),opacity .4s}
+.card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.card-vis svg{width:100%;height:100%;display:block}
+.card.open .card-vis{transform:scale(.92);opacity:.75}
+.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
+.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
+.brief{font-size:15.5px}
+.brief p{margin:0 0 6px}
+.brief ul{margin:4px 0 6px;padding-left:18px}
+.brief li{margin:2px 0}
+.card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:10px}
+.deeper{font:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;
+  border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:background .2s,color .2s}
+.deeper:hover{background:var(--accent);color:var(--bg)}
+.deeper .chev{display:inline-block;transition:transform .35s var(--ease)}
+.card.open .deeper .chev{transform:rotate(90deg)}
+.deeper small{font-weight:500;opacity:.75}
+.got{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);cursor:pointer;user-select:none}
+.got input{position:absolute;opacity:0;width:1px;height:1px}
+.got .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel);display:grid;place-items:center;transition:background .2s,border-color .2s}
+.got .box svg{width:14px;height:14px}
+.got .box path{fill:none;stroke:var(--bg);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .3s var(--ease) .05s}
+.got input:checked+.box{background:var(--ok);border-color:var(--ok)}
+.got input:checked+.box path{stroke-dashoffset:0}
+.got input:checked~span{color:var(--ok);font-weight:600}
+.got input:focus-visible+.box{outline:2px solid var(--accent);outline-offset:2px}
+
+.deep{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease)}
+.card.open .deep{grid-template-rows:1fr}
+.deep-inner{overflow:hidden;min-height:0}
+.deep-content{padding:4px 22px 8px;border-top:1px dashed var(--line);margin:0 18px;opacity:0;transform:translateY(-6px);transition:opacity .35s .1s,transform .45s var(--ease) .05s}
+.card.open .deep-content{opacity:1;transform:none}
+.deep-foot{display:flex;justify-content:flex-end;padding:0 18px 14px}
+.collapse{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;cursor:pointer;padding:4px 6px}
+.collapse:hover{color:var(--ink)}
+
+/* side dot nav */
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:9px;z-index:15}
+@media(min-width:1120px){.dots{display:flex}}
+.dots a{position:relative;display:block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--mute);opacity:.55;transition:transform .2s,opacity .2s,background .2s}
+.dots a.got{background:var(--ok);border-color:var(--ok)}
+.dots a.on{opacity:1;transform:scale(1.35);border-color:var(--accent)}
+.dots a span{position:absolute;right:18px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12px;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .15s}
+.dots a:hover span,.dots a:focus-visible span{opacity:1}
+
+/* scroll reveal (only when JS runs) */
+.js .rv{opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*40ms)}
+.js .rv.in{opacity:1;transform:none}
+
+/* hero intro */
+.js .hero-art .layer{animation:rh-in 1s var(--ease) both;animation-delay:calc(var(--i,0)*140ms)}
+@keyframes rh-in{from{opacity:0;transform:translateY(14px)}}
+
+/* ---------- quiz ---------- */
+.qgroup{margin:18px 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.q{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;background:var(--bg)}
+.q .qq{font-weight:600}
+.q .qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.q.show .qa{grid-template-rows:1fr}
+.q .qa>div{overflow:hidden}
+.q .qa p{margin:8px 0 4px}
+.q .qrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.q .qrow .sec{margin-left:auto;font-size:12px}
+.q[data-r="y"]{border-left:4px solid var(--ok)}
+.q[data-r="n"]{border-left:4px solid var(--bad)}
+.qbtn{font:inherit;font-size:13px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qbtn:hover{border-color:var(--accent)}
+.qbtn[aria-pressed="true"].y{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.qbtn[aria-pressed="true"].n{background:var(--bad);border-color:var(--bad);color:var(--bg)}
+.score{font-weight:700;color:var(--accent)}
+
+/* ---------- content kit (use inside sections/*.html) ---------- */
+.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content h4{font-size:15px;margin:1.2em 0 .2em}
+.deep-content p,.deep-content li{max-width:72ch}
+code,pre{font-family:var(--mono);font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer;opacity:0;transition:opacity .2s}
+pre:hover .copy,.copy:focus-visible{opacity:1}
+@media(hover:none){.copy{opacity:1}}
+blockquote{margin:12px 0;padding:8px 16px;border-left:4px solid var(--accent);background:var(--bg2);border-radius:0 10px 10px 0;font-style:italic}
+.eq{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--bg);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}.callout.tip{border-left:5px solid var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto;margin:10px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.btn:disabled{opacity:.4;cursor:default}
+button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.widget{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px;accent-color:var(--accent)}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s var(--ease)}
+.mini{font-size:13px;color:var(--mute)}
+.deep-content,.brief{overflow-wrap:anywhere}
+
+/* ---------- reference figures (from papers/docs, cited) ---------- */
+.fig{margin:18px 0}
+.fig-zoom{display:block;width:100%;padding:10px;margin:0;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:zoom-in;
+  transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.fig-zoom:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+:root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
+.fig figcaption b{color:var(--ink)}
+.fig-cite{display:block;font-size:12px;margin-top:2px}
+.fig-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.fig-pair{grid-template-columns:1fr}}
+.credits{font-size:13.5px}
+.lightbox{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;
+  background:rgba(10,9,7,.86);opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox img{max-width:min(1400px,100%);max-height:80vh;background:#fff;border-radius:10px;padding:12px;transform:scale(.96);transition:transform .3s var(--ease)}
+.lightbox.on img{transform:none}
+.lightbox p{max-width:900px;color:#ddd;font-size:14px;margin:0;text-align:center}
+.lightbox p a{color:#9fd3e6}
+.lightbox button{position:absolute;top:14px;right:16px;font:inherit;font-size:14px;padding:4px 12px;border-radius:99px;border:1px solid #666;background:#222;color:#eee;cursor:pointer}
+
+/* ---------- SVG palette helpers (hero, card visuals, diagrams) ---------- */
+.f-bg{fill:var(--bg)}.f-bg2{fill:var(--bg2)}.f-panel{fill:var(--panel)}.f-code{fill:var(--code)}.f-line{fill:var(--line)}
+.f-ink{fill:var(--ink)}.f-mute{fill:var(--mute)}.f-acc{fill:var(--accent)}.f-acc2{fill:var(--accent2)}
+.f-ok{fill:var(--ok)}.f-warn{fill:var(--warn)}.f-bad{fill:var(--bad)}.f-hl{fill:var(--hl)}.f-none{fill:none}
+.s-ink{stroke:var(--ink)}.s-mute{stroke:var(--mute)}.s-line{stroke:var(--line)}.s-acc{stroke:var(--accent)}.s-acc2{stroke:var(--accent2)}
+.s-ok{stroke:var(--ok)}.s-warn{stroke:var(--warn)}.s-bad{stroke:var(--bad)}
+.t-ink{fill:var(--ink);font:600 11px var(--mono)}.t-mute{fill:var(--mute);font:10px system-ui,sans-serif}
+/* motion helpers: .draw (stroke draws in when visible), .flow (dashes travel), .pulse, .float, .blink */
+.js .draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s var(--ease);transition-delay:calc(var(--d,0)*120ms)}
+.js .in-view .draw{stroke-dashoffset:0}
+.flow{stroke-dasharray:4 6;animation:rh-flow 1.6s linear infinite}
+@keyframes rh-flow{to{stroke-dashoffset:-20}}
+.pulse{transform-box:fill-box;transform-origin:center;animation:rh-pulse 2.6s var(--ease) infinite}
+@keyframes rh-pulse{50%{transform:scale(1.08);opacity:.75}}
+.float{transform-box:fill-box;animation:rh-float 6s ease-in-out infinite}
+@keyframes rh-float{50%{transform:translateY(-4px)}}
+.blink{animation:rh-blink 1.4s steps(1) infinite}
+@keyframes rh-blink{50%{opacity:0}}
+.card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
+
+/* ---------- hub ---------- */
+.hub-head{padding:40px 0 8px}
+.hub-head p{color:var(--mute);margin:0}
+.hub-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0}
+.hub-tools input{font:inherit;font-size:14px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);flex:1 1 200px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:8px 0 80px}
+.tile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:var(--shadow);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
+@media(hover:hover){.tile:hover{box-shadow:var(--shadow-lift);transform:translateY(-3px)}}
+.tile-art{position:relative;aspect-ratio:3/1;background:var(--bg2);border-bottom:1px solid var(--line);overflow:hidden}
+.tile-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.tile-art .ascii-hero{font-size:6px}
+.tile-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.tile-body h3{font-size:15px;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mute);margin-top:auto}
+.tile .bar{height:5px;border:0;border-radius:3px}
+.tile[hidden]{display:none}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js .rv{opacity:1;transform:none}
+  .js .draw{stroke-dashoffset:0}
+}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="tb-home" href="../index.html">← <span>All dives</span></a>
+  <span class="tb-title">V8 hidden classes &amp; ICs</span>
+  <div class="tb-actions">
+    <button class="tb-btn" id="expand-all" type="button" aria-pressed="false" title="Open every card (deep mode)">⇕ <span class="lbl">Expand all</span></button>
+    <button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button>
+    <span class="ring" title="Progress: cards marked 'Got it' + questions you knew">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="r-bg" cx="18" cy="18" r="15"/><circle class="r-fg" cx="18" cy="18" r="15" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+      <b id="ring-pct">0%</b>
+    </span>
+  </div>
 </header>
-<section id='0b-plain-english-first' class='plain'><h2>0b. Plain English first</h2><p><strong>Explain it simply.</strong> JavaScript lets you make an object like <code>{x: 1, y: 2}</code> and add or remove fields whenever you like. That freedom is a problem for speed: to read <code>p.x</code>, a naive engine must search the object for a field called <code>"x"</code> every single time, like flipping through a stack of papers looking for the one labelled "x".</p>
-<p>V8 (the engine in Chrome and Node.js) cheats with two tricks. First, every object carries a small tag that says "I'm laid out like <em>this</em>" (the <strong>hidden class</strong>, V8 calls it a <strong>Map</strong>). All objects built the same way share one tag. Second, each place in your code that reads <code>p.x</code> keeps a sticky note (the <strong>inline cache</strong>): "last time, objects with tag #7 had <code>x</code> in the first slot." Next time, the engine glances at the object's tag; if it says #7, it grabs the first slot without searching. If the tag is different, it falls back to searching and updates its note. The faster tiers of the engine go further: they <em>bet</em> the note will stay true, compile code that assumes it, and bail out to slow code if the bet loses.</p>
-<p><strong>Everyday example.</strong> A waiter in a restaurant gets order slips. Slips from the tablet app are all printed in the same layout: table number in the top-left. After a few of them the waiter stops reading the header and just looks top-left. One day a handwritten slip shows up with the table number elsewhere. The waiter notices the layout is different (tag mismatch), stops, reads the slip properly, and mentally files "layouts A and B exist". If slips arrive in dozens of random layouts, the waiter gives up and reads every slip carefully. A very eager waiter (the optimizing compiler) might even pre-write the table number onto a ticket without looking, betting the layout holds; if the bet loses, the ticket is torn up and the waiter starts again.</p>
-<p><strong>Now the same thing, technically.</strong></p></section><div class='divider'><span>Technical deep dive</span></div><section id='1-bare-minimum-context' class=''><h2>1. Bare-minimum context</h2><ul>
-<li>JS objects are dynamic string→value maps semantically; engines must make that fast anyway.</li>
-<li>Prototype chain: a property miss on the object continues up the <code>[[Prototype]]</code> chain.</li>
-<li>V8 tiers: Ignition (interpreter) → Sparkplug (baseline) → Maglev (mid) → TurboFan (top). <a href="https://v8.dev/blog/maglev">v8.dev/blog/maglev</a></li>
-<li>Smi = small integer stored inline in a tagged word (low tag bit 0); heap objects are tagged pointers. With pointer compression a tagged value is 32 bits.</li>
-<li>Feedback vector: per-function array on the heap where each op site (property load, call, <code>+</code>) records what it saw.</li>
-<li>JIT <em>speculation</em>: compile for observed types, guard with cheap checks, deoptimize on guard failure.</li>
-</ul></section><section id='1b-real-world-context' class=''><h2>1b. Real-world context</h2><p><strong>What it is.</strong> A <em>Map</em> is V8's hidden class: an immutable-ish descriptor of an object's layout (which named properties, in what order, at which offsets, with which representations) plus its prototype and elements kind. An <em>inline cache</em> (IC) is a per-site memo keyed on Map that turns "find property <code>x</code>" into "compare Map, load at fixed offset".</p>
-<p><strong>Why it exists.</strong> Origin: the Self language (Ungar/Smith, 1980s) invented <em>maps</em> to make prototype-based objects as compact as class-based ones; Hölzle, Chambers, Ungar's <em>polymorphic inline caches</em> (ECOOP '91) extended single-entry ICs to several entries per site (median 11% speedup on their Self programs, 27% with type feedback for recompilation, ~2× fewer non-inlined sends) (<a href="https://bibliography.selflanguage.org/pics.html">Self bibliography</a>). Without it, every <code>o.x</code> is a hash probe or linear scan: slow and memory-hungry (property names stored per object).</p>
-<p><strong>Where it's used.</strong>
-- <strong>Chrome / Chromium</strong>: every web page's JS runs on V8.
-- <strong>Node.js, Deno</strong>: server-side JS on V8; Node's performance advice is basically "keep shapes stable".
-- <strong>Electron apps</strong> (VS Code, Slack): V8 inside.
-- <strong>Cloudflare Workers (workerd)</strong>: V8 isolates.
-- <strong>SpiderMonkey</strong> (Firefox): same idea, called <em>Shapes</em>, ICs expressed in <em>CacheIR</em>. <strong>JavaScriptCore</strong> (Safari): <em>Structures</em> + polymorphic ICs, tiers LLInt → Baseline → DFG → FTL. (<a href="https://webkit.org/blog/10308/speculation-in-javascriptcore/">Speculation in JSC</a>)</p>
+
+<section class="hero">
+  <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.14">
+<rect x="150" y="96" width="40" height="28" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<rect x="194" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="232" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="270" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="150" y="166" width="40" height="28" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<rect x="194" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="232" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="270" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="150" y="236" width="40" height="28" rx="5" class="f-warn s-line" stroke-width="1.5"/>
+<rect x="194" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="232" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="270" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="330" y="96" width="40" height="28" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<rect x="374" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="412" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="450" y="96" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="330" y="166" width="40" height="28" rx="5" class="f-warn s-line" stroke-width="1.5"/>
+<rect x="374" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="412" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="450" y="166" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="330" y="236" width="40" height="28" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<rect x="374" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="412" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="450" y="236" width="34" height="28" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+</g>
+<g class="layer" data-depth="0.24">
+<rect x="548" y="88" width="132" height="176" rx="10" class="f-none s-line" stroke-dasharray="4 3" stroke-width="1.5"/>
+<rect x="562" y="102" width="42" height="30" rx="5" class="f-ok s-ok pulse" stroke-width="1.5"/>
+<rect x="612" y="102" width="56" height="30" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="562" y="152" width="42" height="30" rx="5" class="f-line s-line" stroke-width="1.5"/>
+<rect x="612" y="152" width="56" height="30" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="562" y="202" width="42" height="30" rx="5" class="f-line s-line" stroke-width="1.5"/>
+<rect x="612" y="202" width="56" height="30" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="562" y="252" width="42" height="30" rx="5" class="f-line s-line" stroke-width="1.5"/>
+<rect x="612" y="252" width="56" height="30" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+</g>
+<g class="layer" data-depth="0.32">
+<path d="M190 110 H300 V116 H562" class="f-none s-acc2 flow" stroke-width="2"/>
+<path d="M190 180 H300 V167 H562" class="f-none s-acc2" stroke-width="1.5"/>
+<path d="M370 110 H470 V117 H562" class="f-none s-acc2" stroke-width="1.5"/>
+<path d="M370 250 H470 V248 H520 M520 248 H562" class="f-none s-bad blink" stroke-width="2" stroke-dasharray="5 4"/>
+<path d="M668 117 H760 V112 H860" class="f-none s-acc" stroke-width="1.5"/>
+<rect x="860" y="236" width="36" height="44" rx="4" class="f-line s-line"/>
+<rect x="920" y="210" width="36" height="70" rx="4" class="f-line s-line"/>
+<rect x="980" y="250" width="36" height="30" rx="4" class="f-acc"/>
+<rect x="1040" y="224" width="36" height="56" rx="4" class="f-line s-line"/>
+<rect x="1100" y="188" width="36" height="92" rx="4" class="f-line s-line"/>
+</g>
+</svg></div>
+  <div class="hero-text wrap">
+    <div class="chips rv"><span class="chip">Computer science</span><span class="chip">browsers/web internals</span><span class="chip">Depth: hard</span><span class="chip">2026-10-04</span></div>
+    <h1 class="rv" style="--i:1">V8 hidden classes (Maps) and inline caches: shapes, speculation, deopt</h1>
+    <p class="tldr rv" style="--i:2">V8 gives every object a hidden class (a <b>Map</b>) that records its layout, and every property read site an <b>inline cache</b> that remembers the last Map it saw. When the Map matches, <b>a read is one compare and one load</b>. Optimized code bets that the Map stays the same, checks it with one compare, and <b>deoptimizes</b> back to the interpreter when the bet loses.</p>
+    <p class="why rv" style="--i:3"><b>Why it matters:</b> property access is the most common operation in JavaScript, and the same guards that make it fast have been the source of serious browser exploits (CVE-2020-6418, CVE-2020-16009, CVE-2025-2135).</p>
+    <div class="stats"><div class="stat rv" style="--i:0"><div class="v">0.99 ns</div><div class="l">monomorphic property read (my run, Node 24.12)</div></div><div class="stat rv" style="--i:1"><div class="v">4.1×</div><div class="l">slower at 4 shapes (polymorphic)</div></div><div class="stat rv" style="--i:2"><div class="v">4</div><div class="l">max Maps per IC before it goes megamorphic</div></div><div class="stat rv" style="--i:3"><div class="v">21</div><div class="l">elements kinds, and every transition is one-way</div></div></div>
+    <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
+      <span>19 cards</span><span>· ~5 min skim</span><span>· ~27 min deep</span>
+      <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
+  </div>
+</section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Objects carry a shape tag, and each read remembers it"><span>Objects carry a shape tag, and each read remembers it</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six things to know first"><span>Six things to know first</span></a><a href="#c-world" data-id="world" aria-label="Every Chrome tab, Node server and Electron app runs it"><span>Every Chrome tab, Node server and Electron app runs it</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Fixed-offset loads&quot; hides five moving parts"><span>&quot;Fixed-offset loads&quot; hides five moving parts</span></a><a href="#c-problem" data-id="problem" aria-label="Without shapes, every o.x is a search and every object repeats its keys"><span>Without shapes, every o.x is a search and every object repeats its keys</span></a><a href="#c-model" data-id="model" aria-label="A Map is a struct discovered at runtime"><span>A Map is a struct discovered at runtime</span></a><a href="#c-mech" data-id="mech" aria-label="One getX call, from cold miss to a deopt"><span>One getX call, from cold miss to a deopt</span></a><a href="#c-math" data-id="math" aria-label="A speculation pays off only if it rarely loses"><span>A speculation pays off only if it rarely loses</span></a><a href="#c-why" data-id="why" aria-label="Speculation is only safe because deopt is always there"><span>Speculation is only safe because deopt is always there</span></a><a href="#c-knobs" data-id="knobs" aria-label="Poly limit 4, dictionary mode, and 21 elements kinds"><span>Poly limit 4, dictionary mode, and 21 elements kinds</span></a><a href="#c-breaks" data-id="breaks" aria-label="Optimizer Map bugs have repeatedly become type confusion"><span>Optimizer Map bugs have repeatedly become type confusion</span></a><a href="#c-wild" data-id="wild" aria-label="Real engines add tiers and deviate from textbook PICs"><span>Real engines add tiers and deviate from textbook PICs</span></a><a href="#c-frontier" data-id="frontier" aria-label="Recent work keeps speculation sound and cheap"><span>Recent work keeps speculation sound and cheap</span></a><a href="#c-open" data-id="open" aria-label="Sound speculation, containment and warm-up are still open"><span>Sound speculation, containment and warm-up are still open</span></a><a href="#c-lineage" data-id="lineage" aria-label="Inline caches date to 1984, and V8 added Maglev in 2023"><span>Inline caches date to 1984, and V8 added Maglev in 2023</span></a><a href="#c-hands" data-id="hands" aria-label="A 30-second script shows Maps, deopts and IC timing"><span>A 30-second script shows Maps, deopts and IC timing</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three follow-ups: sandbox, Turboshaft IR, CacheIR"><span>Three follow-ups: sandbox, Turboshaft IR, CacheIR</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, V8 source and the CVE writeups behind each claim"><span>Papers, V8 source and the CVE writeups behind each claim</span></a></nav>
+
+<main class="wrap">
+<div class="group rv">Plain English</div>
+<article class="card rv plain" id="c-plain" data-id="plain">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><rect x="14" y="18" width="26" height="22" rx="4" class="f-panel s-acc" stroke-width="1.5"/><circle cx="22" cy="29" r="3" class="f-ok"/><circle cx="32" cy="29" r="3" class="f-ok"/><rect x="49" y="18" width="26" height="22" rx="4" class="f-line s-line" stroke-width="1.5"/><rect x="84" y="18" width="26" height="22" rx="4" class="f-panel s-acc" stroke-width="1.5"/><circle cx="92" cy="29" r="3" class="f-ok"/><circle cx="102" cy="29" r="3" class="f-ok"/><rect x="119" y="18" width="26" height="22" rx="4" class="f-line s-line" stroke-width="1.5"/><rect x="14" y="56" width="26" height="22" rx="4" class="f-line s-line" stroke-width="1.5"/><rect x="49" y="56" width="26" height="22" rx="4" class="f-panel s-acc" stroke-width="1.5"/><circle cx="57" cy="67" r="3" class="f-ok"/><circle cx="67" cy="67" r="3" class="f-ok"/><rect x="84" y="56" width="26" height="22" rx="4" class="f-line s-line" stroke-width="1.5"/><rect x="119" y="56" width="26" height="22" rx="4" class="f-line s-line" stroke-width="1.5"/><text x="14" y="92" class="t-mute" style="font-size:9px">4-seat tables</text></div>
+<div class="card-body"><div class="kicker">In everyday words</div><h2>Objects carry a shape tag, and each read remembers it</h2>
+<div class="brief"><p>JavaScript objects can gain and lose fields at any time, so a naive engine searches for <code>x</code> on every read. V8 tags each object with its layout (its hidden class, or Map) and each read site keeps a sticky note of the last tag it saw.</p><p>When the tag matches, the read is one fixed-offset load.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
+<p><strong>Explain it simply.</strong> JavaScript lets you make an object like <code>{x: 1, y: 2}</code> and add or remove fields whenever you like. That freedom is a problem for speed: to read <code>p.x</code>, a naive engine must search the object for a field called <code>"x"</code> every single time, like flipping through a stack of papers looking for the one labelled "x".</p>
+<p>V8 (the engine in Chrome and Node.js) cheats with two tricks. First, every object carries a small tag that says "I'm laid out like <i>this</i>" (the <b>hidden class</b>, V8 calls it a <b>Map</b>). All objects built the same way share one tag. Second, each place in your code that reads <code>p.x</code> keeps a sticky note (the <b>inline cache</b>): "last time, objects with tag #7 had <code>x</code> in the first slot." Next time, the engine glances at the object's tag; if it says #7, it grabs the first slot without searching. If the tag is different, it falls back to searching and updates its note. The faster tiers of the engine go further: they <i>bet</i> the note will stay true, compile code that assumes it, and bail out to slow code if the bet loses.</p>
+<h3 id="plain-example">Everyday example</h3>
+<p>A waiter in a restaurant gets order slips. Slips from the tablet app are all printed in the same layout: table number in the top-left. After a few of them the waiter stops reading the header and just looks top-left. One day a handwritten slip shows up with the table number elsewhere. The waiter notices the layout is different (tag mismatch), stops, reads the slip properly, and mentally files "layouts A and B exist". If slips arrive in dozens of random layouts, the waiter gives up and reads every slip carefully. A very eager waiter (the optimizing compiler) might even pre-write the table number onto a ticket without looking, betting the layout holds; if the bet loses, the ticket is torn up and the waiter starts again.</p>
+<p><strong>Now the same thing, technically.</strong> The next cards are the same story with the real names, numbers and failure modes.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Context</div>
+<article class="card rv" id="c-ctx" data-id="ctx">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="8" height="8" rx="2" class="f-acc"/><rect x="28" y="16" width="110" height="5" rx="2" class="f-line"/><rect x="14" y="34" width="8" height="8" rx="2" class="f-acc"/><rect x="28" y="36" width="86" height="5" rx="2" class="f-line"/><rect x="14" y="54" width="8" height="8" rx="2" class="f-acc"/><rect x="28" y="56" width="98" height="5" rx="2" class="f-line"/><rect x="14" y="74" width="8" height="8" rx="2" class="f-acc"/><rect x="28" y="76" width="70" height="5" rx="2" class="f-line"/></svg></div>
+<div class="card-body"><div class="kicker">§1 · Prerequisites</div><h2>Six things to know first</h2>
+<div class="brief"><ul><li><b>Map</b>: V8's hidden class, the layout descriptor shared by objects built alike.</li><li><b>Inline cache</b>: a per-site memo keyed on Map.</li><li><b>Tiers</b>: Ignition, Sparkplug, Maglev, TurboFan.</li></ul><p class="mini">Six in total, each defined inside.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-ctx">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-ctx"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>JS objects are dynamic.</b> Semantically they are string-to-value maps, and the engine must make that fast anyway.</li>
+<li><b>Prototype chain.</b> A property miss on the object continues up the <code>[[Prototype]]</code> chain.</li>
+<li><b>V8 tiers.</b> Ignition (interpreter) → Sparkplug (baseline) → Maglev (mid) → TurboFan (top). (<a href="https://v8.dev/blog/maglev" target="_blank" rel="noopener">v8.dev/blog/maglev</a>)</li>
+<li><b>Smi.</b> A small integer stored inline in a tagged word (low tag bit 0); heap objects are tagged pointers. With pointer compression a tagged value is 32 bits.</li>
+<li><b>Feedback vector.</b> A per-function array on the heap where each operation site (property load, call, <code>+</code>) records what it saw.</li>
+<li><b>JIT speculation.</b> Compile for the types you observed, guard with cheap checks, deoptimize when a guard fails.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-world" data-id="world">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="58" y="34" width="44" height="32" rx="5" class="f-panel s-acc" stroke-width="1.5"/><rect x="70" y="44" width="20" height="12" rx="2" class="f-acc"/><path d="M64 34 V26 M64 66 V74" class="s-mute" stroke-width="2"/><path d="M72 34 V26 M72 66 V74" class="s-mute" stroke-width="2"/><path d="M80 34 V26 M80 66 V74" class="s-mute" stroke-width="2"/><path d="M88 34 V26 M88 66 V74" class="s-mute" stroke-width="2"/><path d="M58 40 H50 M58 58 H50 M102 40 H110 M102 58 H110" class="s-mute" stroke-width="2"/><text x="80" y="92" class="t-mute" style="font-size:9px;text-anchor:middle">runs in V8</text></svg></div>
+<div class="card-body"><div class="kicker">§1b · Real-world context</div><h2>Every Chrome tab, Node server and Electron app runs it</h2>
+<div class="brief"><p>Chrome, Node.js, Deno, Electron apps and Cloudflare Workers all run V8. You never call it; you choose stable object shapes. Watch for <code>--trace-deopt</code> spam or <code>LoadIC_Megamorphic</code> in a profile.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-world">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-world"><div class="deep-inner"><div class="deep-content">
+<p><strong>What it is.</strong> A <i>Map</i> is V8's hidden class: an immutable-ish descriptor of an object's layout (which named properties, in what order, at which offsets, with which representations) plus its prototype and elements kind. An <i>inline cache</i> (IC) is a per-site memo keyed on Map that turns "find property <code>x</code>" into "compare Map, load at fixed offset".</p>
+<p><strong>Why it exists.</strong> The origin is the Self language (Ungar and Smith, 1980s), which invented <i>maps</i> to make prototype-based objects as compact as class-based ones. Hölzle, Chambers and Ungar's <i>polymorphic inline caches</i> (ECOOP '91) extended single-entry ICs to several entries per site: median 11% speedup on their Self programs, 27% with type feedback for recompilation, and about 2× fewer non-inlined sends (<a href="https://bibliography.selflanguage.org/pics.html" target="_blank" rel="noopener">Self bibliography</a>). Without it, every <code>o.x</code> is a hash probe or linear scan: slow and memory-hungry, because property names are stored per object.</p>
+<p><strong>Where it's used.</strong></p>
+<ul>
+<li><b>Chrome / Chromium</b>: every web page's JS runs on V8.</li>
+<li><b>Node.js, Deno</b>: server-side JS on V8. Node's performance advice is basically "keep shapes stable".</li>
+<li><b>Electron apps</b> (VS Code, Slack): V8 inside.</li>
+<li><b>Cloudflare Workers (workerd)</b>: V8 isolates.</li>
+<li><b>SpiderMonkey</b> (Firefox): the same idea, called <i>Shapes</i>, with ICs expressed in <i>CacheIR</i>. <b>JavaScriptCore</b> (Safari): <i>Structures</i> plus polymorphic ICs, tiers LLInt → Baseline → DFG → FTL. (<a href="https://webkit.org/blog/10308/speculation-in-javascriptcore/" target="_blank" rel="noopener">Speculation in JSC</a>)</li>
+</ul>
 <p><strong>How it's used.</strong> Nothing to call: it's automatic. What you touch are inspection flags and coding habits.</p>
-<pre><code class="language-bash">node --allow-natives-syntax --trace-opt --trace-deopt --trace-ic app.js
-</code></pre>
-<pre><code class="language-js">// d8 / node --allow-natives-syntax
+<pre><code>node --allow-natives-syntax --trace-opt --trace-deopt --trace-ic app.js</code></pre>
+<pre><code>// d8 / node --allow-natives-syntax
 %HasFastProperties(o)   // false =&gt; dictionary mode
 %HaveSameMap(a, b)      // do two objects share a Map?
-%DebugPrint(o)          // dumps Map, descriptors, elements kind
-</code></pre>
-<p>Habits: initialize all fields in the constructor in the same order; do not <code>delete</code> (set <code>undefined</code>/use <code>Map</code>); keep arrays homogeneous and packed; keep hot call sites ≤4 shapes.</p>
-<p><strong>When to use / not.</strong> You don't opt in; you decide whether to <em>design for</em> it. Worth caring on hot paths (parsers, ECS loops, serializers, framework internals). Not worth contorting cold code. Sign you picked wrong: <code>--trace-deopt</code> spam, <code>%HasFastProperties</code> false on hot objects, a profile full of <code>LoadIC_Megamorphic</code>.</p>
-<p><strong>Who should care.</strong> Node/backend engineers on hot paths, framework/library authors, perf engineers, and <strong>security engineers</strong> (the JIT's shape assumptions are the single richest browser-exploit surface).</p>
-<div class='cards'>
-<div class='card'><b>Chrome</b><span>all web JS runs on V8</span></div>
-<div class='card'><b>Node.js / Deno</b><span>server JS; shape stability is the perf advice</span></div>
-<div class='card'><b>Electron</b><span>VS Code, Slack: V8 inside</span></div>
-<div class='card'><b>Cloudflare workerd</b><span>V8 isolates at the edge</span></div>
-<div class='card'><b>SpiderMonkey</b><span>Shapes + CacheIR ICs</span></div>
-<div class='card'><b>JavaScriptCore</b><span>Structures + PICs; DFG/FTL speculate</span></div>
-</div>
-<div class='twocol'>
-<div class='use'><h4>Design for it when</h4><ul><li>hot loops, parsers, serializers</li><li>library / framework internals</li><li>objects created millions of times</li></ul></div>
-<div class='skip'><h4>Don't contort code when</h4><ul><li>cold paths, startup-once code</li><li>profile shows no deopt / megamorphic cost</li><li>readability would suffer for no measured gain</li></ul></div>
-</div>
-<div class='callout'><b>Misconception:</b> hidden classes are not per-constructor. They are per <i>transition path</i>: <code>{x,y}</code> and <code>{y,x}</code> differ.</div>
-</section><section id='2-the-one-liner-and-what-it-hides' class=''><h2>2. The one-liner, and what it hides</h2><p><em>"V8 gives objects hidden classes so property access is a fixed-offset load."</em></p>
-<p>It hides:
-1. Maps form a <strong>transition tree</strong> keyed by property <em>name and order</em>; <code>{x,y}</code> and <code>{y,x}</code> get different Maps.
-2. The IC is a <strong>monotonic state machine</strong> (uninit → mono → poly ≤4 → mega) with a process-wide <strong>stub cache</strong> fallback.
-3. Optimizing tiers don't just <em>use</em> the IC: they <strong>bet</strong> on it (CheckMaps + dependencies) and need <strong>deoptimization</strong>.
-4. Field <em>representation</em> (Smi/Double/HeapObject/Tagged) is part of the shape and can change in place.
-5. Every guard the compiler removes is a <strong>security assumption</strong>: a modelling bug turns into type confusion.</p></section><section id='3-the-problem' class=''><h2>3. The problem</h2><p>Semantically <code>o.x</code> is: walk the object's property table (hash map or sorted array), compare strings (interned, so pointer compares), if missing climb the prototype chain. That's tens of ns with several dependent loads, per access, and every object repeats its key names. Self measured a "Cartesian point" at 10 machine words without maps vs 3 with. A JS app does billions of accesses; V8 needs ~1 load.</p></section><section id='4-mental-model' class=''><h2>4. Mental model</h2><p>Map = <strong>struct definition</strong> discovered at runtime. Object = struct instance (<code>map*</code>, <code>properties*</code>, <code>elements*</code>, then in-object fields). IC = <strong>JIT-style <code>switch (map)</code></strong> at each site.</p>
-<p>Where it breaks: C structs are fixed; Maps are discovered <em>dynamically</em> and can <strong>mutate</strong> (field generalization, deprecation → "lazy migration") and be <strong>abandoned</strong> (dictionary mode). And the "switch" can be baked into machine code, which makes invalidation a first-class problem.</p></section><section id='5-the-mechanism-traced' class=''><h2>5. The mechanism, traced</h2><p>Code:</p>
-<pre><code class="language-js">function getX(o) { return o.x; }
-getX({x: 1, y: 2});
-</code></pre>
-<p><strong>Object creation.</strong> Literal <code>{x:1,y:2}</code> starts from a root Map M0 (empty, with in-object slack) and follows transitions: <code>M0 --x--&gt; M1 --y--&gt; M2</code>. M2's DescriptorArray (shared with M1/M0 through ownership rules): <code>[x: field, in-object #0, Smi] [y: field, in-object #1, Smi]</code>.</p>
-<p><strong>Layout (pointer compression, 4-byte tagged):</strong></p>
+%DebugPrint(o)          // dumps Map, descriptors, elements kind</code></pre>
+<p>Habits: initialize all fields in the constructor in the same order; do not <code>delete</code> (set <code>undefined</code> or use a <code>Map</code>); keep arrays homogeneous and packed; keep hot call sites at 4 shapes or fewer.</p>
+<p><strong>When to use it, and when not.</strong> You don't opt in; you decide whether to <i>design for</i> it. It's worth caring about on hot paths (parsers, ECS loops, serializers, framework internals). It's not worth contorting cold code. Signs you picked wrong: <code>--trace-deopt</code> spam, <code>%HasFastProperties</code> false on hot objects, or a profile full of <code>LoadIC_Megamorphic</code>.</p>
+<p><strong>Who should care.</strong> Node and backend engineers on hot paths, framework and library authors, performance engineers, and <b>security engineers</b>. The JIT's shape assumptions are the richest browser-exploit surface.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Technical deep dive</div>
+<article class="card rv" id="c-onel" data-id="onel">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="34" y="60" width="92" height="8" rx="2" class="f-acc" stroke-width="1"/><rect x="42" y="50" width="92" height="8" rx="2" class="f-panel s-line" stroke-width="1"/><rect x="50" y="40" width="92" height="8" rx="2" class="f-panel s-line" stroke-width="1"/><rect x="58" y="30" width="92" height="8" rx="2" class="f-panel s-line" stroke-width="1"/><rect x="66" y="20" width="92" height="8" rx="2" class="f-panel s-line" stroke-width="1"/></svg></div>
+<div class="card-body"><div class="kicker">§2 · The one-liner</div><h2>&quot;Fixed-offset loads&quot; hides five moving parts</h2>
+<div class="brief"><p>Maps form a transition tree keyed by property name and order, so <code>{x,y}</code> and <code>{y,x}</code> differ. The IC is a one-way state machine: mono, poly, mega. Optimized code bets on it and needs deopt. Every removed guard is a security assumption.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-onel">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-onel"><div class="deep-inner"><div class="deep-content">
+<p><em>"V8 gives objects hidden classes so property access is a fixed-offset load."</em></p>
+<p>It hides five things:</p>
+<ol>
+<li>Maps form a <b>transition tree</b> keyed by property <i>name and order</i>. <code>{x,y}</code> and <code>{y,x}</code> get different Maps.</li>
+<li>The IC is a <b>monotonic state machine</b> (uninitialized → monomorphic → polymorphic, up to 4 Maps → megamorphic) with a process-wide <b>stub cache</b> as the fallback.</li>
+<li>Optimizing tiers don't just <i>use</i> the IC. They <b>bet</b> on it (CheckMaps plus dependencies) and need <b>deoptimization</b> for when the bet loses.</li>
+<li>Field <i>representation</i> (Smi, Double, HeapObject, Tagged) is part of the shape and can change in place.</li>
+<li>Every guard the compiler removes is a <b>security assumption</b>. A modelling bug turns into type confusion.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-problem" data-id="problem">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="14" y="30" class="t-mute">contiguous</text><rect x="14" y="36" width="132" height="14" rx="3" class="f-warn" opacity=".35"/><rect x="14" y="36" width="40" height="14" rx="3" class="f-ok"/><text x="14" y="72" class="t-mute">paged</text><rect x="14" y="78" width="132" height="14" rx="3" class="f-line"/><rect x="14" y="78" width="124" height="14" rx="3" class="f-ok"/></svg></div>
+<div class="card-body"><div class="kicker">§3 · The problem</div><h2>Without shapes, every o.x is a search and every object repeats its keys</h2>
+<div class="brief"><p>A naive property read is a hash probe or scan with several dependent loads, tens of nanoseconds, and each object stores its own key names. Self measured a point at 10 machine words without maps and 3 with. V8 needs about one load.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<p>Semantically, <code>o.x</code> means: walk the object's property table (a hash map or sorted array), compare strings (interned, so pointer compares), and if the name is missing, climb the prototype chain. That is tens of nanoseconds with several dependent loads, per access, and every object repeats its key names. Self measured a "Cartesian point" at 10 machine words without maps and 3 with. A JS app does billions of accesses, and V8 needs about one load for each.</p>
+<p>The fix is to give each shape a tag, so that a site which has seen that tag before can skip the search. The cost of the tag check and the fallbacks is modelled in the math card.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-model" data-id="model">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="14" width="26" height="14" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="34" width="26" height="14" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="54" width="26" height="14" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="74" width="26" height="14" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="70" y="14" width="22" height="14" rx="3" class="f-acc"/><rect x="98" y="14" width="22" height="14" rx="3" class="f-line"/><rect x="126" y="14" width="22" height="14" rx="3" class="f-line"/><rect x="70" y="34" width="22" height="14" rx="3" class="f-line"/><rect x="98" y="34" width="22" height="14" rx="3" class="f-line"/><rect x="126" y="34" width="22" height="14" rx="3" class="f-acc"/><rect x="70" y="54" width="22" height="14" rx="3" class="f-line"/><rect x="98" y="54" width="22" height="14" rx="3" class="f-acc"/><rect x="126" y="54" width="22" height="14" rx="3" class="f-line"/><rect x="70" y="74" width="22" height="14" rx="3" class="f-acc"/><rect x="98" y="74" width="22" height="14" rx="3" class="f-line"/><rect x="126" y="74" width="22" height="14" rx="3" class="f-line"/><path d="M38 21 H66 M38 41 H94 M38 61 H122 M38 81 H66" class="f-none s-acc2" stroke-width="1.2"/></svg></div>
+<div class="card-body"><div class="kicker">§4 · Mental model</div><h2>A Map is a struct discovered at runtime</h2>
+<div class="brief"><p>Map is the struct definition, the object is an instance, and the inline cache is a JIT-style <code>switch(map)</code> at each site. Unlike C structs, Maps mutate and get abandoned, and the switch gets baked into machine code, so invalidation is the hard part.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-model">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-model"><div class="deep-inner"><div class="deep-content">
+<p>A <b>Map</b> is a <b>struct definition discovered at runtime</b>. An object is a struct instance: a <code>map*</code>, a <code>properties*</code>, an <code>elements*</code>, then the in-object fields. An IC is a <b>JIT-style <code>switch (map)</code></b> at each site.</p>
+<p>Where the analogy breaks: C structs are fixed at compile time. Maps are discovered as the program runs, can <b>mutate</b> (field generalization, deprecation), and can be <b>abandoned</b> for dictionary mode. And the "switch" can be baked into machine code, which makes invalidation a first-class problem.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-mech" data-id="mech">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="44" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><rect x="12" y="70" width="28" height="18" rx="3" class="f-panel s-acc" stroke-width="1.2"/><path d="M40 27 H58 V30 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><path d="M40 53 H58 V60 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><path d="M40 79 H58 V82 H72" class="f-none s-acc2 draw" stroke-width="1.4"/><rect x="74" y="18" width="34" height="24" rx="4" class="f-acc"/><rect x="114" y="18" width="34" height="24" rx="4" class="f-acc"/><rect x="74" y="52" width="34" height="24" rx="4" class="f-acc"/><rect x="114" y="52" width="34" height="24" rx="4" class="f-none s-acc blink" stroke-width="1.5" stroke-dasharray="3 2"/><path d="M40 79 H92" class="f-none s-bad" stroke-width="1" stroke-dasharray="2 2"/></svg></div>
+<div class="card-body"><div class="kicker">§5 · Mechanism, traced</div><h2>One getX call, from cold miss to a deopt</h2>
+<div class="brief"><p>A literal <code>{x,y}</code> follows Map transitions M0 → M1 → M2. The first call misses and stores a handler; the second is a compare and a load. A call with <code>{y,x}</code> fails <code>CheckMaps</code>, deopts, and the IC goes polymorphic.</p><p class="mini">6-step trace and an IC shape simulator inside.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>5 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
+<style>
+#mech-trace .cell{fill:var(--code);stroke:var(--line);stroke-width:1.2}
+#mech-trace .cell.hl{fill:var(--hl);stroke:var(--warn);stroke-width:2}
+#mech-trace .t{fill:var(--ink);font:12px ui-monospace,Menlo,monospace;text-anchor:middle}
+#mech-trace .s{fill:var(--mute);font:10px ui-monospace,Menlo,monospace;text-anchor:middle}
+#mech-trace .t2{fill:var(--ink);font:13px ui-monospace,Menlo,monospace}
+#mech-trace .slot{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:5 3}
+#mech-trace .slot.hit{stroke:var(--ok)}
+#mech-trace .slot.bad{stroke:var(--bad)}
+@media (prefers-reduced-motion:no-preference){#mech-trace .slot{animation:mech-dash 1.2s linear infinite}}
+@keyframes mech-dash{to{stroke-dashoffset:-16}}
+#mech-sim .meter{height:10px;background:var(--code);border-radius:6px;margin:10px 0;overflow:hidden}
+#mech-sim .meter i{display:block;height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .3s}
+#mech-sim .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+#mech-sim .shapes{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+</style>
+<p>Code:</p>
+<pre><code>function getX(o) { return o.x; }
+getX({x: 1, y: 2});</code></pre>
+<p><b>Object creation.</b> The literal <code>{x:1,y:2}</code> starts from a root Map M0 (empty, with in-object slack) and follows transitions: <code>M0 --x--&gt; M1 --y--&gt; M2</code>. M2's DescriptorArray is shared with M1 and M0 through the ownership rules: <code>[x: field, in-object #0, Smi] [y: field, in-object #1, Smi]</code>.</p>
+<p><b>Layout</b> (pointer compression, 4-byte tagged values):</p>
 <pre><code>offset  0   map        -&gt; M2
 offset  4   properties -&gt; empty_fixed_array   (out-of-object overflow)
 offset  8   elements   -&gt; empty_fixed_array
 offset 12   x          Smi(1)   (encoded 0b10)
-offset 16   y          Smi(2)
-</code></pre>
-<p>(Without compression, words are 8 bytes and <code>x</code> sits at offset 24.) This is my derivation from the JSObject layout; check with <code>%DebugPrint</code>.</p>
-<p><strong>Ignition + IC, first call.</strong> Bytecode <code>LdaNamedProperty a0, [name x], [slot 3]</code> consults <code>feedback_vector[3]</code>: UNINITIALIZED → runtime <code>LoadIC::Load</code> does the real lookup in M2's descriptors, finds <code>x</code> at in-object index 0, builds a <strong>handler</strong> and stores <code>(weak M2, handler)</code> in the slot. The handler is typically a Smi bit-packed with <code>KindBits | IsInobjectBits | IsDoubleBits | FieldIndexBits</code> (<a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h">handler-configuration.h</a>).</p>
-<p><strong>Second call (monomorphic hit).</strong> Slot holds M2: load <code>o.map</code>, compare, decode handler, load field at <code>index*word</code>. No lookup.</p>
-<p><strong>Hot → optimized (Maglev/TurboFan).</strong> The compiler reads slot 3 during graph building: monomorphic M2 + field handler ⇒ emit</p>
-<pre><code>CheckMaps  o, {M2}           ; deopt if o.map != M2
-v = LoadField o, offset=12   ; Smi
-</code></pre>
-<p>roughly:</p>
+offset 16   y          Smi(2)</code></pre>
+<p>Without compression, words are 8 bytes and <code>x</code> sits at offset 24. This is my derivation from the JSObject layout; check it with <code>%DebugPrint</code>.</p>
+<p><b>Ignition and the IC, first call.</b> The bytecode <code>LdaNamedProperty a0, [name x], [slot 3]</code> consults <code>feedback_vector[3]</code>. It is UNINITIALIZED, so the runtime <code>LoadIC::Load</code> does the real lookup in M2's descriptors, finds <code>x</code> at in-object index 0, builds a <b>handler</b>, and stores <code>(weak M2, handler)</code> in the slot. The handler is typically a Smi bit-packed with <code>KindBits | IsInobjectBits | IsDoubleBits | FieldIndexBits</code> (<a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h" target="_blank" rel="noopener">handler-configuration.h</a>).</p>
+<p><b>Second call (monomorphic hit).</b> The slot holds M2. Load <code>o.map</code>, compare, decode the handler, load the field at <code>index*word</code>. No lookup.</p>
+<p><b>Hot, then optimized (Maglev or TurboFan).</b> The compiler reads slot 3 while building the graph. Monomorphic M2 with a field handler means it emits:</p>
 <pre><code class="language-asm">cmp  dword [rax + 0], M2_compressed
 jne  deopt_entry
-mov  r10d, [rax + 12]
-</code></pre>
-<p>(Illustrative sketch, not literal V8 output.) The compiler also <em>registers a dependency</em> of this code on M2 (the Map's <code>dependent_code</code> list): if M2 later becomes deprecated or its stability assumptions break, the code is invalidated.</p>
-<p><strong>The bet loses.</strong> Call <code>getX({y: 1, x: 2})</code>: Map M3 (<code>M0 --y--&gt; --x--&gt;</code>). <code>CheckMaps</code> fails ⇒ <strong>eager deopt</strong>: the deoptimizer uses the translation table to rebuild an Ignition frame from registers/stack, and execution resumes in the interpreter at the bytecode offset. The IC slot misses, sees a second Map, becomes <strong>polymorphic</strong> <code>[(M2,h1),(M3,h2)]</code>. The next optimization emits a 2-way <code>CheckMaps</code>.</p>
-<p><strong>Elements path (parallel).</strong> <code>arr[i]</code> ICs key on the Map's <code>elements_kind</code> (part of bit_field2). Pushing <code>1.5</code> onto a <code>PACKED_SMI_ELEMENTS</code> array transitions its Map to <code>PACKED_DOUBLE_ELEMENTS</code> and rewrites the backing store; code that assumed Smi elements guards on the Map and deopts.</p>
+mov  r10d, [rax + 12]</code></pre>
+<p>(Illustrative sketch, not literal V8 output.) The compiler also <i>registers a dependency</i> of this code on M2 (the Map's <code>dependent_code</code> list). If M2 later becomes deprecated or its stability assumptions break, the code is invalidated.</p>
+<p><b>The bet loses.</b> Call <code>getX({y: 1, x: 2})</code>. That object has Map M3 (<code>M0 --y--&gt; --x--&gt;</code>). <code>CheckMaps</code> fails, which is an <b>eager deopt</b>. The deoptimizer uses the translation table to rebuild an Ignition frame from registers and stack, and execution resumes in the interpreter at the bytecode offset. The IC slot misses, sees a second Map, and becomes <b>polymorphic</b>: <code>[(M2,h1),(M3,h2)]</code>. The next optimization emits a 2-way <code>CheckMaps</code>.</p>
+<p><b>Elements path (in parallel).</b> <code>arr[i]</code> ICs key on the Map's <code>elements_kind</code> (part of bit_field2). Pushing <code>1.5</code> onto a <code>PACKED_SMI_ELEMENTS</code> array transitions its Map to <code>PACKED_DOUBLE_ELEMENTS</code> and rewrites the backing store. Code that assumed Smi elements guards on the Map and deopts.</p>
 <h3>IC state machine</h3>
 <pre><code>UNINIT --first Map--&gt; MONO --2nd Map--&gt; POLY(2..4) --5th Map--&gt; MEGA
-          (never goes back)                          \-&gt; global stub cache probe
-</code></pre>
+          (never goes back)                          \-&gt; global stub cache probe</code></pre>
+
 <h3>Step-through: <code>getX({x:1,y:2})</code></h3>
-<div class='stepper' id='trace'>
-<div class='stage'>
-<svg viewBox='0 0 560 170' role='img' aria-label='object layout and IC slot'>
-<g id='obj'>
-<rect x='10' y='20' width='110' height='34' class='cell' id='c-map'/><text x='65' y='42' class='t'>map → M2</text>
-<rect x='120' y='20' width='110' height='34' class='cell'/><text x='175' y='42' class='t'>properties</text>
-<rect x='230' y='20' width='110' height='34' class='cell'/><text x='285' y='42' class='t'>elements</text>
-<rect x='340' y='20' width='100' height='34' class='cell' id='c-x'/><text x='390' y='42' class='t'>x = Smi(1)</text>
-<rect x='440' y='20' width='100' height='34' class='cell'/><text x='490' y='42' class='t'>y = Smi(2)</text>
-<text x='65' y='72' class='s'>+0</text><text x='175' y='72' class='s'>+4</text><text x='285' y='72' class='s'>+8</text><text x='390' y='72' class='s'>+12</text><text x='490' y='72' class='s'>+16</text>
-</g>
-<rect x='10' y='95' width='540' height='60' class='slot' id='slot'/>
-<text x='20' y='115' class='s'>feedback_vector[3]</text>
-<text x='20' y='140' class='t2' id='slotText'>UNINITIALIZED</text>
+<div class="widget" role="group" aria-label="getX inline cache step-through">
+<svg id="mech-trace" viewBox="0 0 560 170" role="img" aria-label="Object layout and the IC feedback slot">
+<rect x="10" y="20" width="110" height="34" class="cell" id="mech-c-map"/><text x="65" y="42" class="t">map → M2</text>
+<rect x="120" y="20" width="110" height="34" class="cell"/><text x="175" y="42" class="t">properties</text>
+<rect x="230" y="20" width="110" height="34" class="cell"/><text x="285" y="42" class="t">elements</text>
+<rect x="340" y="20" width="100" height="34" class="cell" id="mech-c-x"/><text x="390" y="42" class="t">x = Smi(1)</text>
+<rect x="440" y="20" width="100" height="34" class="cell"/><text x="490" y="42" class="t">y = Smi(2)</text>
+<text x="65" y="72" class="s">+0</text><text x="175" y="72" class="s">+4</text><text x="285" y="72" class="s">+8</text><text x="390" y="72" class="s">+12</text><text x="490" y="72" class="s">+16</text>
+<rect x="10" y="95" width="540" height="60" class="slot" id="mech-slot"/>
+<text x="20" y="115" class="s" style="text-anchor:start">feedback_vector[3]</text>
+<text x="20" y="140" class="t2" id="mech-slotText">UNINITIALIZED</text>
 </svg>
+<p class="stepmsg" id="mech-stepmsg" aria-live="polite"></p>
+<div class="stepbar">
+  <button class="btn" id="mech-back" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-stepno" aria-live="polite"></span>
 </div>
-<p class='stepmsg' id='stepmsg'></p>
-<div class='ctl'><button class='btn' id='back'>Back</button><span id='stepno'>STEP 1 / 6</span><button class='btn' id='next'>Next</button></div>
 </div>
 
 <h3>Interactive: one call site, many shapes</h3>
-<div class='sim' id='sim'>
-<p>Send objects of different shapes into the same <code>o.x</code> site. IC state is monotonic: it never goes back.</p>
-<div class='ctl wrap' id='shapeBtns'></div>
-<div class='simout'>
-<div>State: <b id='simState'>UNINITIALIZED</b></div>
-<div>Maps seen: <b id='simMaps'>0</b></div>
-<div>Measured ns/call (Node 24.12, my run): <b id='simNs'>n/a</b></div>
+<div class="widget" id="mech-sim" role="group" aria-label="IC shape simulator">
+<p class="mini">Send objects of different shapes into the same <code>o.x</code> site. IC state is monotonic: it never goes back.</p>
+<div class="shapes" id="mech-shapeBtns"></div>
+<div class="stats">
+<div>State: <b id="mech-simState">UNINITIALIZED</b></div>
+<div>Maps seen: <b id="mech-simMaps">0</b></div>
+<div>Measured ns/call (Node 24.12, my run): <b id="mech-simNs">n/a</b></div>
 </div>
-<div class='bar'><div id='bar'></div></div>
-<button class='btn' id='simReset'>Reset</button>
+<div class="meter"><i id="mech-bar"></i></div>
+<button class="btn" id="mech-simReset">Reset</button>
 </div>
-</section><section id='6-the-math' class=''><h2>6. The math</h2><p>There is no deep math; there are two useful cost models and one structural count.</p>
-<p><strong>(a) Speculation break-even.</strong> Let <code>t_f</code> = cost of guarded fast path, <code>t_s</code> = cost of generic path, <code>p</code> = probability the guard fails per execution, <code>C_d</code> = amortized cost of one deopt + re-tier. Expected cost per execution when speculating:</p>
-<p><code>E = (1 − p)·t_f + p·(t_s + C_d)</code>  ≈  <code>t_f + p·(t_s − t_f + C_d)</code></p>
-<p>Speculation beats always-generic when <code>E &lt; t_s</code>, i.e. <code>p &lt; (t_s − t_f) / (t_s − t_f + C_d)</code>.
-→ in plain terms: a bet is worth it only if it loses <em>rarely enough</em> relative to how expensive losing is. Deopt costs microseconds-ish (my estimate, unmeasured), a fast load costs ~1 ns, so <code>p</code> must be tiny (≲1e-4 to 1e-3). That is why V8 waits for stable feedback and caps retries.</p>
-<p>Using my measured numbers below (<code>t_f ≈ 1.0 ns</code>, <code>t_s ≈ 4.9 ns</code>), the generic path itself is only ~4–5× slower, which is the <em>cap</em> on the benefit of the whole machinery for this micro-case.</p>
-<p><strong>(b) IC lookup cost by state.</strong> <code>T_mono = t_cmp + t_load</code>; <code>T_poly(k) ≈ k·t_cmp (linear) + t_load</code>, k ≤ 4; <code>T_mega = t_hash + 1–2 probes of a global table + handler call</code>. Why 4? Linear scan cost grows with k while hit rate gains saturate; the constant <code>kMaxPolymorphicMapCount = 4</code> is an engineering cutoff, not derived. (Verified as constant in V8 source per research notes; I did not re-open the source myself.)</p>
-<p><strong>(c) Shape explosion.</strong> n properties added in all possible orders ⇒ up to n! root-to-leaf paths and <code>Σ n!/(n−k)!</code> Maps. Deterministic construction order collapses this to n+1 Maps per "class". → in plain terms: this is why order consistency matters.</p>
-<p><strong>Stub cache sizing</strong> (primary/secondary two-level hashed on (Map, name)): in <code>stub-cache.h</code> at main I fetched <code>kPrimaryTableBits = 12</code> (4096 entries) and <code>kSecondaryTableBits = 10</code> (1024). One of the research agents claimed 11/9; the primary source says 12/10, so treat 11/9 as wrong. Sizes have changed across versions.</p></section><section id='7-why-it-works' class=''><h2>7. Why it works</h2><p>Core insight: <strong>programs are far more regular than the language permits.</strong> Real call sites see 1 shape &gt;90% of the time (the Self/PIC measurements and decades of JS engine telemetry back this; I did not find a single canonical V8 number, so treat the figure as folklore with support). Ablations:
-- <strong>No Maps</strong> → per-object name tables, hash lookups (slow, memory-heavy).
-- <strong>Maps but no ICs</strong> → still need a lookup keyed on Map: slow path forever.
-- <strong>ICs but no speculation (Ignition/Sparkplug)</strong> → one compare + load but no inlining, no escape analysis, no field type knowledge.
-- <strong>Speculation but no deopt</strong> → unsound: any surprise miscomputes. Deopt is the <em>safety net that makes aggressive guards legal</em>.
-- <strong>Speculation but a bug in dependency/guard elimination</strong> → type confusion (§9).</p></section><section id='8-design-knobs-alternatives' class=''><h2>8. Design knobs &amp; alternatives</h2><table>
-<thead>
-<tr>
-<th>Knob</th>
-<th>Effect</th>
-</tr>
-</thead>
+
+<script>
+(function(){
+// getX trace stepper
+var steps=[
+ ['Object exists. Map M2 (via M0 →x→ M1 →y→ M2). In-object x at +12 (pointer compression).','UNINITIALIZED',''],
+ ['Ignition runs LdaNamedProperty; the slot is UNINITIALIZED, so it calls the runtime LoadIC::Load.','UNINITIALIZED → miss','bad'],
+ ['The runtime looks up x in M2 descriptors: in-object, index 0, Smi. It builds a Smi-encoded handler.','MONO: (M2, handler{inobject, idx 0})','hit'],
+ ['Next call: compare o.map to M2. Equal, so decode the handler and load at +12. No lookup.','MONO hit','hit'],
+ ['Hot: Maglev/TurboFan emit CheckMaps(M2) + LoadField(+12) and register a dependency on M2.','optimized: cmp map,M2 ; jne deopt ; mov [o+12]','hit'],
+ ['getX({y:1,x:2}) has Map M3. CheckMaps fails, so eager deopt rebuilds the Ignition frame, and the IC goes POLY [(M2,h1),(M3,h2)].','POLY after deopt','bad']];
+var si=0;
+var slot=document.getElementById('mech-slot'),st=document.getElementById('mech-slotText'),sm=document.getElementById('mech-stepmsg'),sn=document.getElementById('mech-stepno'),cx=document.getElementById('mech-c-x');
+var back=document.getElementById('mech-back'),nxt=document.getElementById('mech-next');
+function showStep(){
+  var s=steps[si];
+  sm.textContent=s[0];st.textContent=s[1];
+  slot.setAttribute('class','slot '+s[2]);
+  cx.setAttribute('class',si>=3&&si<5?'cell hl':'cell');
+  sn.textContent='STEP '+(si+1)+' / '+steps.length;
+  back.disabled=si===0;nxt.disabled=si===steps.length-1;
+}
+back.onclick=function(){si=Math.max(0,si-1);showStep()};
+nxt.onclick=function(){si=Math.min(steps.length-1,si+1);showStep()};
+showStep();
+
+// IC shape simulator
+var seen={},sb=document.getElementById('mech-shapeBtns');
+var nSeen=0;
+'ABCDEFGH'.split('').forEach(function(k){
+  var b=document.createElement('button');b.className='btn';b.textContent='shape '+k;
+  b.onclick=function(){if(!seen[k]){seen[k]=true;nSeen++}upd()};
+  sb.appendChild(b);
+});
+function upd(){
+  var n=nSeen,s='UNINITIALIZED',ns='n/a';
+  if(n===1){s='MONOMORPHIC';ns='~1.0'}
+  else if(n>=2&&n<=4){s='POLYMORPHIC';ns='~4.1 (at 4 shapes)'}
+  else if(n>4){s='MEGAMORPHIC (stub cache)';ns='~4.9'}
+  document.getElementById('mech-simState').textContent=s;
+  document.getElementById('mech-simMaps').textContent=n;
+  document.getElementById('mech-simNs').textContent=ns;
+  document.querySelector('#mech-bar').style.width=Math.min(100,n*12.5)+'%';
+}
+document.getElementById('mech-simReset').onclick=function(){seen={};nSeen=0;upd()};
+upd();
+})();
+</script>
+
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-math" data-id="math">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 14 V88 H148" class="f-none s-mute" stroke-width="1.5"/><path d="M20 30 Q60 96 90 58 T146 40" class="f-none s-acc draw" stroke-width="2.2"/><circle cx="90" cy="58" r="4" class="f-hl s-acc"/></svg></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>A speculation pays off only if it rarely loses</h2>
+<div class="brief"><p>Speculation wins when the miss rate <b>p</b> is below (t<sub>s</sub>−t<sub>f</sub>)/(t<sub>s</sub>−t<sub>f</sub>+C<sub>d</sub>). A 1 ns fast path against a 5 ns generic path means p must be about 1e-4 to 1e-3. The IC is linear up to 4 Maps, then hashed.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
+<p>There is no deep math here. There are two useful cost models and one structural count.</p>
+<h3>(a) Speculation break-even</h3>
+<p>Let <b>t<sub>f</sub></b> be the cost of the guarded fast path, <b>t<sub>s</sub></b> the cost of the generic path, <b>p</b> the probability that the guard fails on an execution, and <b>C<sub>d</sub></b> the amortized cost of one deopt plus re-tier. Expected cost per execution when speculating:</p>
+<div class="eq">E = (1 − p)·t<sub>f</sub> + p·(t<sub>s</sub> + C<sub>d</sub>) ≈ t<sub>f</sub> + p·(t<sub>s</sub> − t<sub>f</sub> + C<sub>d</sub>)<small>→ in plain terms: the fast path is cheap, and each miss adds the generic cost plus the deopt cost.</small></div>
+<p>Speculation beats always-generic when <b>E &lt; t<sub>s</sub></b>, that is, when <b>p &lt; (t<sub>s</sub> − t<sub>f</sub>) / (t<sub>s</sub> − t<sub>f</sub> + C<sub>d</sub>)</b>. → in plain terms: a bet is worth it only if it loses <i>rarely enough</i> relative to how expensive losing is. A deopt costs microseconds-ish (my estimate, unmeasured) and a fast load costs about 1 ns, so <b>p</b> must be tiny, around 1e-4 to 1e-3. That is why V8 waits for stable feedback and caps retries.</p>
+<p>Using my measured numbers (t<sub>f</sub> ≈ 1.0 ns, t<sub>s</sub> ≈ 4.9 ns), the generic path is only about 4–5× slower. That is the ceiling on the benefit of the whole machinery for this micro-case.</p>
+<h3>(b) IC lookup cost by state</h3>
+<div class="eq">T<sub>mono</sub> = t<sub>cmp</sub> + t<sub>load</sub>; &nbsp; T<sub>poly</sub>(k) ≈ k·t<sub>cmp</sub> + t<sub>load</sub>, k ≤ 4; &nbsp; T<sub>mega</sub> = t<sub>hash</sub> + 1–2 probes of a global table + handler call</div>
+<p>Why 4? A linear scan costs more with each entry while the hit-rate gain levels off. The constant <code>kMaxPolymorphicMapCount = 4</code> is an engineering cutoff, not something derived. (I checked it as a constant in the V8 source per the research notes; I did not re-open the source myself.)</p>
+<h3>(c) Shape explosion</h3>
+<p>Adding <i>n</i> properties in every possible order gives up to <i>n!</i> root-to-leaf paths and Σ n!/(n−k)! Maps. A deterministic construction order collapses this to n+1 Maps per "class". → in plain terms: this is why order consistency matters.</p>
+<h3>Stub cache sizing</h3>
+<p>The stub cache is primary and secondary, two-level and hashed on (Map, name). In <code>stub-cache.h</code> at main I found <code>kPrimaryTableBits = 12</code> (4096 entries) and <code>kSecondaryTableBits = 10</code> (1024). One research agent claimed 11 and 9. The primary source says 12 and 10, so 11 and 9 are wrong. Sizes have changed across versions.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-why" data-id="why">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="20" width="52" height="30" rx="7" class="f-acc" stroke-width="1.5"/><rect x="88" y="20" width="52" height="30" rx="7" class="f-panel s-acc" stroke-width="1.5"/><rect x="20" y="58" width="52" height="30" rx="7" class="f-panel s-acc" stroke-width="1.5"/><rect x="88" y="58" width="52" height="30" rx="7" class="f-none s-bad" stroke-width="1.5" stroke-dasharray="4 3"/></svg></div>
+<div class="card-body"><div class="kicker">§7 · Why it works</div><h2>Speculation is only safe because deopt is always there</h2>
+<div class="brief"><p>Remove any piece and it breaks: no Maps means hash lookups, no ICs means a lookup forever, and speculation without deopt is unsound. Deopt is the safety net that makes aggressive guards legal. Real call sites see one shape more than 90% of the time.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
+<p>Core insight: <b>programs are far more regular than the language permits.</b> Real call sites see one shape more than 90% of the time. The Self and PIC measurements and decades of JS engine telemetry back this. I did not find a single canonical V8 number, so treat the figure as folklore with support.</p>
+<p>The ablations show which piece carries what:</p>
+<ul>
+<li><b>No Maps</b>: per-object name tables and hash lookups. Slow and memory-heavy.</li>
+<li><b>Maps but no ICs</b>: still a lookup keyed on the Map. The slow path forever.</li>
+<li><b>ICs but no speculation</b> (Ignition and Sparkplug): one compare and one load, but no inlining, no escape analysis, and no field-type knowledge.</li>
+<li><b>Speculation but no deopt</b>: unsound. Any surprise miscomputes. Deopt is the <i>safety net that makes aggressive guards legal</i>.</li>
+<li><b>Speculation with a bug in dependency or guard elimination</b>: type confusion (see the "where it breaks" card).</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-knobs" data-id="knobs">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M16 22 H144" class="s-mute" stroke-width="2"/><circle cx="40" cy="22" r="5" class="f-acc"/><path d="M16 48 H144" class="s-mute" stroke-width="2"/><circle cx="110" cy="48" r="5" class="f-acc"/><path d="M16 74 H144" class="s-mute" stroke-width="2"/><circle cx="72" cy="74" r="5" class="f-acc"/></svg></div>
+<div class="card-body"><div class="kicker">§8 · Knobs &amp; alternatives</div><h2>Poly limit 4, dictionary mode, and 21 elements kinds</h2>
+<div class="brief"><p>A smaller poly limit goes megamorphic sooner, and a larger one slows every check. <code>delete</code> drops an object to dictionary mode, where ICs can't specialize. Elements kinds only generalize one way. The cap of 4 is an engineering choice, not derived.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
+<table>
+<thead><tr><th>Knob</th><th>Effect</th></tr></thead>
 <tbody>
-<tr>
-<td>Poly limit (4)</td>
-<td>smaller → earlier megamorphic; larger → slower poly checks</td>
-</tr>
-<tr>
-<td>In-object slack tracking</td>
-<td>over-allocate for constructors (research notes: +8 slots, counter 7), shrink after a few allocations</td>
-</tr>
-<tr>
-<td>Dictionary mode</td>
-<td>when delete/huge property counts: stop using Maps, use hash table; ICs can't specialize</td>
-</tr>
-<tr>
-<td>Elements kinds (21)</td>
-<td>specialize arrays: Smi/Double/Tagged × packed/holey; transitions only <em>generalize</em></td>
-</tr>
-<tr>
-<td>Tier thresholds</td>
-<td>trade warm-up vs peak; Maglev at mid tier</td>
-</tr>
-<tr>
-<td>Const field tracking</td>
-<td>immutable fields can be embedded as constants in optimized code, invalidated on write</td>
-</tr>
+<tr><td><b>Poly limit (4)</b></td><td>Smaller means megamorphic sooner. Larger means slower polymorphic checks.</td></tr>
+<tr><td><b>In-object slack tracking</b></td><td>Over-allocate for constructors (research notes: +8 slots, counter 7), then shrink after a few allocations.</td></tr>
+<tr><td><b>Dictionary mode</b></td><td>Used on <code>delete</code> or huge property counts. Stops using Maps and uses a hash table, so ICs can't specialize.</td></tr>
+<tr><td><b>Elements kinds (21)</b></td><td>Specialize arrays by Smi, Double or Tagged, and packed or holey. Transitions only <i>generalize</i>.</td></tr>
+<tr><td><b>Tier thresholds</b></td><td>Trade warm-up against peak speed. Maglev sits at the mid tier.</td></tr>
+<tr><td><b>Const field tracking</b></td><td>Immutable fields can be embedded as constants in optimized code, and invalidated on write.</td></tr>
 </tbody>
 </table>
-<p>Alternatives: <strong>SpiderMonkey</strong> CacheIR (ICs expressed as small IR that is both interpreted and compiled; reported 25–30% of compiled code is IC stubs, via Bernstein's CacheIR paper), <strong>JSC</strong> Structure + repatching ICs with DFG/FTL speculation, <em><em>classic </em>class-based</em> languages where shape is static and no guards are needed.</p></section><section id='9-where-it-breaks' class=''><h2>9. Where it breaks</h2><p><strong>Performance:</strong>
-- <strong>Megamorphic cliff.</strong> My measurement (Node v24.12, one machine): mono 0.99 ns, 4-shape 4.06 ns, 8-shape 4.90 ns, 64-shape 4.80 ns per call (loop includes <code>i % len</code> and an array load). Cliff is mono→poly; mega adds little on top <em>here</em> because the stub cache hits.
-- <strong><code>delete</code></strong> → dictionary mode; <code>%HasFastProperties</code> false.
-- <strong>Elements kind generalization is one-way</strong>; a single <code>NaN</code>/<code>-0</code> makes a Smi array double; a hole makes it holey "forever" (<a href="https://v8.dev/blog/elements-kinds">elements-kinds</a>). The famous "6×" in that post is about an out-of-bounds read bug, not holes.
-- <strong>Deopt loops</strong>: repeated deopts lead V8 to stop reoptimizing (a research agent said "~30"; I could not verify the number, treat as unverified).</p>
-<p><strong>Security (the big one).</strong> The compiler removes <code>CheckMaps</code> when it <em>proves</em> the Map can't have changed between two points. The proof depends on a precise <strong>side-effect model</strong>. Wrong model ⇒ wrong Map assumption ⇒ type confusion ⇒ <code>addrof</code>/<code>fakeobj</code> ⇒ arbitrary R/W.
-- <strong>CVE-2020-6418</strong>: <code>NodeProperties::InferReceiverMapsUnsafe</code> special-cased <code>kJSCreate</code> and <em>forgot to mark the result unreliable</em>, though <code>JSCreate</code> can run user code (e.g. a <code>Proxy</code> as 3rd arg to <code>Reflect.construct</code>). Inlined <code>Array.pop</code>; the side effect changed elements kind Smi→Double mid-function; the optimized code kept treating a double backing store as tagged. (<a href="https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html">Project Zero RCA</a>)
-- <strong>CVE-2020-16009</strong>: <code>Map::CanBeDeprecated()</code> wrongly said Maps with only Double/Tagged fields can't be deprecated (pointer compression, no unboxed doubles) so no code dependency was installed; the Map got deprecated anyway; in-place generalization Double→Tagged then led to Double/Tagged confusion. (<a href="https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html">Project Zero RCA</a>)
-- <strong>CVE-2025-2135</strong>: <code>InferMapsUnsafe()</code> handling of <code>TransitionElementsKindOrCheckMap</code> lacked an aliasing check, returning <code>kReliableMaps</code> when two IR nodes referred to the same runtime object ⇒ object-array vs double-array confusion; exploited within the V8 sandbox. (<a href="https://www.zellic.io/blog/pwning-v8ctf/">Zellic</a>)
-- <strong>CVE-2022-1134</strong> ("Super IC"): confusion between <code>lookup_start_object</code> and <code>receiver</code> in the super-property IC. (<a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/">GitHub Blog</a>) (read by the research agent, not re-fetched by me)</p>
-<p>Pattern: <em>an optimizer reasoning about Maps/elements kinds across an effect chain is a soundness proof written in C++</em>. The <strong>V8 sandbox</strong> (pointer-compression cage + indirection tables) limits what a corrupted heap can reach but doesn't fix the logic bugs (<a href="https://v8.dev/blog/sandbox">v8.dev/blog/sandbox</a>).</p>
-<p><strong>Misconceptions.</strong> "Hidden classes are per-constructor" (no: per transition path). "Polymorphic is always bad" (≤4 is OK). "<code>delete</code> is slow because it's slow" (it flips the object to a different <em>representation</em>, hurting every later access). "Sandbox = JIT bugs harmless" (no, only contains them).</p>
-<p>I dropped several CVE claims from the research notes that I could not confirm (an ID in the CVE-2026 range with a GitHub-repo-only source; unverified root causes for CVE-2022-1096 and CVE-2023-3079).</p></section><section id='10-in-the-wild' class=''><h2>10. In the wild</h2><ul>
-<li><strong>Node/Chrome</strong>: tiers Ignition → Sparkplug → Maglev (Chrome M117) → TurboFan. Maglev compiles "roughly 10× slower than Sparkplug, 10× faster than TurboFan"; −10% energy on Speedometer, −3.5% on JetStream (<a href="https://v8.dev/blog/maglev">v8.dev/blog/maglev</a>). (A research agent said "20×"; primary source says 10×.)</li>
-<li><strong>Turboshaft</strong>: CFG IR replacing Sea of Nodes in TurboFan's backend, "compile time got divided by 2" (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes">blog</a>).</li>
-<li><strong>React cliff</strong>: a real-world shape/representation performance cliff documented by V8 (<a href="https://v8.dev/blog/react-cliff">v8.dev/blog/react-cliff</a>).</li>
-<li><strong>Deviations from textbook PICs</strong>: V8's ICs live in a heap-allocated feedback vector (not patched machine code), handlers are Smi-encoded data, plus a global stub cache for megamorphic sites; textbook PICs patch call-site code in place.</li>
-</ul></section><section id='11-frontier' class=''><h2>11. Frontier</h2><p>Settled core, active periphery: the <em>idea</em> is 35 years old; recent work is on keeping the speculation sound and cheap.</p>
+<p><b>Alternatives.</b> <b>SpiderMonkey</b> uses CacheIR, which expresses ICs as a small IR that is both interpreted and compiled. Reported: 25–30% of compiled code is IC stubs (Bernstein's CacheIR paper). <b>JSC</b> uses Structures with repatching ICs, plus DFG and FTL speculation. <b>Hermes</b> uses static shape-ish layouts with a hidden-class cache. Classic <i>class-based</i> languages have a static shape, so they need no guards at all.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-breaks" data-id="breaks">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 84 H148" class="s-mute" stroke-width="1"/><path d="M14 84 L22 22 L26 84 L34 22 L38 84 L46 22 L50 84 L58 22 L62 84 L70 22 L74 84 L82 22 L86 84" class="f-none s-bad" stroke-width="1.8"/></svg></div>
+<div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Optimizer Map bugs have repeatedly become type confusion</h2>
+<div class="brief"><p>When the compiler removes a <code>CheckMaps</code>, it has proved the Map can't change. A wrong side-effect model gives type confusion, then <code>addrof</code>, then arbitrary read and write. CVE-2020-6418, CVE-2020-16009 and CVE-2025-2135 follow that pattern. The V8 sandbox contains these; it does not fix them.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
+<h3>Performance</h3>
 <ul>
-<li><strong>Mutable heap numbers</strong> (V8 blog, 2025-02-25): script-context slots own a mutable HeapNumber/Int32, avoiding allocation per update; ~2.5× on <code>async-fs</code>, ~1.6% JetStream2. Verified. https://v8.dev/blog/mutable-heap-number</li>
-<li><strong>Leaving the Sea of Nodes</strong> (V8 blog, 2025-03-25): CFG IR migration, 2× compile time. Verified (date from research notes). https://v8.dev/blog/leaving-the-sea-of-nodes</li>
-<li><strong>CVE-2025-2135 writeup</strong> (Zellic, 2025): aliasing bug in map inference found via V8CTF. Verified. https://www.zellic.io/blog/pwning-v8ctf/</li>
-<li><strong>Translation Validation for JIT Compiler in V8 (TurboTV)</strong> (ICSE 2024): SMT-based validation of TurboFan optimizations, finds range-analysis bugs. https://kihongheo.kaist.ac.kr/publications/icse24.pdf (reported by research agent; not opened)</li>
-<li><strong>OptFuzz</strong> (USENIX Security 2024): optimization-path-guided fuzzing; 36 new bugs across V8/JSC/SpiderMonkey/Hermes (per agent). https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf (not opened)</li>
-<li><strong>DUMPLING</strong> (NDSS 2025): fine-grained differential fuzzing comparing engine state; 8 new V8 bugs (per agent). https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf (not opened)</li>
-<li>Agent also listed <em>CoSSJIT</em> (OOPSLA 2025), <em>Understanding and Finding JIT Compiler Performance Bugs</em> (arXiv 2603.06551) and a Dec 2025 data-centric fuzzing paper (arXiv 2512.18102); I did not verify these, so they're only pointers.</li>
-</ul></section><section id='11b-open-problems' class=''><h2>11b. Open problems</h2><ul>
-<li><strong>Sound speculation.</strong> No production-scale proof that "effect-chain Map inference" is correct; bugs recur (2020 → 2025 in the same function family). Obvious fix (always keep CheckMaps) loses much of the benefit. Approaches: translation validation (TurboTV), differential fuzzing, verified-speculation work (POPL'21, Vitek et al.).</li>
-<li><strong>Containment vs correctness.</strong> V8 sandbox treats logic bugs as inevitable; open question whether containment gets strong enough to make JIT bugs non-critical.</li>
-<li><strong>Warm-up.</strong> Feedback must be re-learned on every page load; caching/snapshotting profiles risks stale or attacker-influenced feedback.</li>
-<li><strong>Side channels.</strong> IC state/tier changes create data-dependent timing; reported to undermine constant-time JS (JIT-Leaks, IEEE S&amp;P 2020; DeJITLeak, ESEC/FSE 2022: from research notes, unopened).</li>
-<li><strong>Representation invariants</strong> across Map deprecation (CVE-2020-16009 class) have no decidable, general checker.</li>
-</ul></section><section id='12-lineage' class=''><h2>12. Lineage</h2><p>Smalltalk-80 inline caching (Deutsch &amp; Schiffman 1984) → <strong>Self maps</strong> (Chambers/Ungar/Lee 1989) → <strong>PICs</strong> (Hölzle/Chambers/Ungar, ECOOP '91) → V8 hidden classes (2008, Crankshaft) → Ignition+TurboFan (2017) → Sparkplug (2021) → Maglev (2023) → Turboshaft / sandbox / mutable heap numbers (2024–25). Deutsch–Schiffman is from memory; unchecked here.</p></section><section id='13-hands-on-30-min' class=''><h2>13. Hands-on (≤30 min)</h2><p><a href="ic_demo.js"><code>ic_demo.js</code></a>: <code>node --allow-natives-syntax ic_demo.js</code>. Shows Map sharing, delete→dictionary mode, elements kinds, and mono/poly/mega timing. My run (Node v24.12.0, same machine, one run, no pinning, so noisy):</p>
+<li><b>Megamorphic cliff.</b> My measurement (Node v24.12, one machine): mono 0.99 ns, 4-shape 4.06 ns, 8-shape 4.90 ns, 64-shape 4.80 ns per call. The loop includes <code>i % len</code> and an array load. The cliff is mono to poly. Megamorphic adds little on top <i>here</i>, because the stub cache hits.</li>
+<li><b><code>delete</code></b> flips the object to dictionary mode, and <code>%HasFastProperties</code> returns false.</li>
+<li><b>Elements-kind generalization is one-way.</b> A single <code>NaN</code> or <code>-0</code> makes a Smi array double. A hole makes it holey "forever" (<a href="https://v8.dev/blog/elements-kinds" target="_blank" rel="noopener">elements-kinds</a>). The famous "6×" in that post is about an out-of-bounds read bug, not holes.</li>
+<li><b>Deopt loops.</b> Repeated deopts lead V8 to stop reoptimizing. One research agent said "~30". I could not verify the number, so treat it as unverified.</li>
+</ul>
+<h3>Security (the big one)</h3>
+<p>The compiler removes <code>CheckMaps</code> when it <i>proves</i> the Map can't have changed between two points. The proof depends on a precise <b>side-effect model</b>. A wrong model gives a wrong Map assumption, which gives type confusion, which gives <code>addrof</code> and <code>fakeobj</code>, which gives arbitrary read and write.</p>
+<ul>
+<li><b>CVE-2020-6418.</b> <code>NodeProperties::InferReceiverMapsUnsafe</code> special-cased <code>kJSCreate</code> and forgot to mark the result unreliable, though <code>JSCreate</code> can run user code (for example a <code>Proxy</code> as the third argument to <code>Reflect.construct</code>). The optimizer inlined <code>Array.pop</code>. The side effect changed the elements kind from Smi to Double mid-function, and the optimized code kept treating a double backing store as tagged. (<a href="https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html" target="_blank" rel="noopener">Project Zero RCA</a>)</li>
+<li><b>CVE-2020-16009.</b> <code>Map::CanBeDeprecated()</code> wrongly said Maps with only Double or Tagged fields can't be deprecated (pointer compression, no unboxed doubles). So no code dependency was installed, and the Map was deprecated anyway. The in-place generalization from Double to Tagged then led to Double/Tagged confusion. (<a href="https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html" target="_blank" rel="noopener">Project Zero RCA</a>)</li>
+<li><b>CVE-2025-2135.</b> The <code>InferMapsUnsafe()</code> handling of <code>TransitionElementsKindOrCheckMap</code> lacked an aliasing check. It returned <code>kReliableMaps</code> when two IR nodes referred to the same runtime object, which gave object-array vs double-array confusion. It was exploited within the V8 sandbox. (<a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic</a>)</li>
+<li><b>CVE-2022-1134 ("Super IC").</b> Confusion between <code>lookup_start_object</code> and <code>receiver</code> in the super-property IC. (<a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/" target="_blank" rel="noopener">GitHub Blog</a>) I read this in the research agent's notes and did not re-fetch it.</li>
+</ul>
+<p>The pattern: <i>an optimizer reasoning about Maps and elements kinds across an effect chain is a soundness proof written in C++.</i> The <b>V8 sandbox</b> (a pointer-compression cage plus indirection tables) limits what a corrupted heap can reach. It doesn't fix the logic bugs (<a href="https://v8.dev/blog/sandbox" target="_blank" rel="noopener">v8.dev/blog/sandbox</a>).</p>
+<h3>Misconceptions</h3>
+<ul>
+<li>"Hidden classes are per constructor." No: they are per transition path.</li>
+<li>"Polymorphic is always bad." At 4 or fewer shapes it is fine.</li>
+<li>"<code>delete</code> is slow because it's slow." It flips the object to a different <i>representation</i>, which hurts every later access.</li>
+<li>"The sandbox makes JIT bugs harmless." No. It only contains them.</li>
+</ul>
+<p>I dropped several CVE claims from the research notes that I could not confirm: an ID in the CVE-2026 range with a GitHub-repo-only source, and unverified root causes for CVE-2022-1096 and CVE-2023-3079.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-wild" data-id="wild">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="14" y="20" class="t-mute">textbook</text><circle cx="20" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="54" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="88" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><circle cx="122" cy="34" r="8" class="f-none s-mute" stroke-dasharray="3 2"/><text x="14" y="72" class="t-mute">V8</text><circle cx="20" cy="86" r="8" class="f-acc"/><circle cx="54" cy="86" r="8" class="f-acc"/><circle cx="88" cy="86" r="8" class="f-acc"/><circle cx="122" cy="86" r="8" class="f-warn"/></svg></div>
+<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Real engines add tiers and deviate from textbook PICs</h2>
+<div class="brief"><p>Maglev compiles about 10× slower than Sparkplug and 10× faster than TurboFan, and cut Speedometer energy by 10%. Turboshaft halved compile time. V8's ICs live in a heap feedback vector, not patched machine code, and megamorphic sites use a global stub cache.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Node and Chrome tiers.</b> Ignition → Sparkplug → Maglev (Chrome M117) → TurboFan. Maglev compiles "roughly 10× slower than Sparkplug, 10× faster than TurboFan", and gives −10% energy on Speedometer and −3.5% on JetStream (<a href="https://v8.dev/blog/maglev" target="_blank" rel="noopener">v8.dev/blog/maglev</a>). A research agent said 20×; the primary source says 10×.</li>
+<li><b>Turboshaft.</b> A CFG IR replacing Sea of Nodes in TurboFan's backend. "Compile time got divided by 2" (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes" target="_blank" rel="noopener">blog</a>).</li>
+<li><b>React cliff.</b> A real-world shape and representation performance cliff documented by V8 (<a href="https://v8.dev/blog/react-cliff" target="_blank" rel="noopener">v8.dev/blog/react-cliff</a>).</li>
+<li><b>Deviations from textbook PICs.</b> V8's ICs live in a heap-allocated feedback vector, not in patched machine code. Handlers are Smi-encoded data. Megamorphic sites use a global stub cache. Textbook PICs patch call-site code in place.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Research edge</div>
+<article class="card rv" id="c-frontier" data-id="frontier">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M16 60 H144" class="s-mute" stroke-width="2"/><circle cx="22" cy="60" r="7" class="f-panel s-acc" stroke-width="1.5"/><circle cx="56" cy="60" r="7" class="f-panel s-acc" stroke-width="1.5"/><circle cx="90" cy="60" r="7" class="f-panel s-acc" stroke-width="1.5"/><circle cx="124" cy="60" r="7" class="f-acc" stroke-width="1.5"/><path d="M22 40 V50 M56 40 V50 M90 40 V50 M124 40 V50" class="s-mute" stroke-width="1"/></svg></div>
+<div class="card-body"><div class="kicker">§11 · Frontier</div><h2>Recent work keeps speculation sound and cheap</h2>
+<div class="brief"><p>Mutable heap numbers (2025) avoid an allocation per update, about 2.5× on <code>async-fs</code>. Turboshaft's CFG IR halved compile time. Translation validation and fuzzers (TurboTV, OptFuzz, DUMPLING) hunt the optimizer bugs that keep recurring.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
+<p>The settled core is old and the periphery is active. The <i>idea</i> is 35 years old. Recent work is on keeping speculation sound and cheap.</p>
+<ul>
+<li><b>Mutable heap numbers</b> (V8 blog, 2025-02-25). Script-context slots own a mutable HeapNumber or Int32, which avoids an allocation per update. About 2.5× on <code>async-fs</code> and about 1.6% on JetStream2. Verified. (<a href="https://v8.dev/blog/mutable-heap-number" target="_blank" rel="noopener">v8.dev/blog/mutable-heap-number</a>)</li>
+<li><b>Leaving the Sea of Nodes</b> (V8 blog, 2025-03-25). CFG IR migration, 2× compile time. Verified. The date is from the research notes. (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes" target="_blank" rel="noopener">blog</a>)</li>
+<li><b>CVE-2025-2135 writeup</b> (Zellic, 2025). An aliasing bug in map inference, found through V8CTF. Verified. (<a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic</a>)</li>
+<li><b>Translation Validation for the V8 JIT (TurboTV)</b> (ICSE 2024). SMT-based validation of TurboFan optimizations, which finds range-analysis bugs. Reported by a research agent; I did not open it. (<a href="https://kihongheo.kaist.ac.kr/publications/icse24.pdf" target="_blank" rel="noopener">paper</a>)</li>
+<li><b>OptFuzz</b> (USENIX Security 2024). Optimization-path-guided fuzzing: 36 new bugs across V8, JSC, SpiderMonkey and Hermes, per the agent. Not opened. (<a href="https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf" target="_blank" rel="noopener">slides</a>)</li>
+<li><b>DUMPLING</b> (NDSS 2025). Fine-grained differential fuzzing that compares engine state: 8 new V8 bugs, per the agent. Not opened. (<a href="https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf" target="_blank" rel="noopener">paper</a>)</li>
+<li>The agent also listed <i>CoSSJIT</i> (OOPSLA 2025), <i>Understanding and Finding JIT Compiler Performance Bugs</i> (arXiv 2603.06551), and a December 2025 data-centric fuzzing paper (arXiv 2512.18102). I did not verify these, so they are only pointers.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-open" data-id="open">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="36" width="40" height="28" rx="6" class="f-none s-mute" stroke-width="1.5"/><rect x="62" y="36" width="40" height="28" rx="6" class="f-none s-mute" stroke-width="1.5"/><rect x="110" y="36" width="40" height="28" rx="6" class="f-warn s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><text x="80" y="82" class="t-mute" style="text-anchor:middle;font-size:9px">unsolved</text></svg></div>
+<div class="card-body"><div class="kicker">§11b · Open problems</div><h2>Sound speculation, containment and warm-up are still open</h2>
+<div class="brief"><p>No production-scale proof says effect-chain Map inference is correct, and the same bug family recurs from 2020 to 2025. Open questions: can the sandbox make JIT bugs non-critical, can feedback be cached without staleness, and does IC state leak timing?</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-open">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-open"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Sound speculation.</b> No production-scale proof exists that effect-chain Map inference is correct, and bugs recur (2020 to 2025 in the same function family). The obvious fix, always keeping CheckMaps, loses much of the benefit. Approaches: translation validation (TurboTV), differential fuzzing, and verified speculation (POPL '21, Vitek et al.).</li>
+<li><b>Containment versus correctness.</b> The V8 sandbox treats logic bugs as inevitable. It is an open question whether containment can get strong enough to make JIT bugs non-critical.</li>
+<li><b>Warm-up.</b> Feedback must be re-learned on every page load. Caching or snapshotting profiles risks stale or attacker-influenced feedback.</li>
+<li><b>Side channels.</b> IC state and tier changes create data-dependent timing, which is reported to undermine constant-time JS (JIT-Leaks, IEEE S&amp;P 2020; DeJITLeak, ESEC/FSE 2022). From research notes; unopened.</li>
+<li><b>Representation invariants</b> across Map deprecation (the CVE-2020-16009 class) have no decidable, general checker.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-lineage" data-id="lineage">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="50" r="7" class="f-panel s-acc" stroke-width="1.5"/><path d="M23 50 H45" class="s-mute" stroke-width="1.5"/><circle cx="52" cy="50" r="7" class="f-panel s-acc" stroke-width="1.5"/><path d="M59 50 H81" class="s-mute" stroke-width="1.5"/><circle cx="88" cy="50" r="7" class="f-panel s-acc" stroke-width="1.5"/><path d="M95 50 H117" class="s-mute" stroke-width="1.5"/><circle cx="124" cy="50" r="7" class="f-acc" stroke-width="1.5"/><circle cx="88" cy="82" r="5" class="f-line s-mute"/><path d="M88 57 V77" class="s-mute" stroke-width="1.2"/></svg></div>
+<div class="card-body"><div class="kicker">§12 · Lineage</div><h2>Inline caches date to 1984, and V8 added Maglev in 2023</h2>
+<div class="brief"><p>Smalltalk-80 inline caching (1984), Self maps (1989), polymorphic ICs (1991), V8 hidden classes (2008), then Ignition and TurboFan (2017), Sparkplug (2021), Maglev (2023), and Turboshaft with the sandbox (2024–25).</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-lineage">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-lineage"><div class="deep-inner"><div class="deep-content">
+<p>Smalltalk-80 inline caching (Deutsch and Schiffman, 1984) → <b>Self maps</b> (Chambers, Ungar and Lee, 1989) → <b>PICs</b> (Hölzle, Chambers and Ungar, ECOOP '91) → V8 hidden classes (2008, Crankshaft) → Ignition and TurboFan (2017) → Sparkplug (2021) → Maglev (2023) → Turboshaft, the sandbox and mutable heap numbers (2024–25).</p>
+<p class="mini">The Deutsch–Schiffman date is from memory and I did not check it here.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Practice &amp; self-test</div>
+<article class="card rv" id="c-hands" data-id="hands">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="12" width="136" height="76" rx="6" class="f-code s-line" stroke-width="1.2"/><rect x="22" y="24" width="60" height="5" rx="2" class="f-acc"/><rect x="22" y="38" width="96" height="5" rx="2" class="f-line"/><rect x="22" y="50" width="78" height="5" rx="2" class="f-line"/><rect x="22" y="62" width="10" height="5" rx="2" class="f-ok"/><rect x="36" y="62" width="40" height="5" rx="2" class="f-line"/><rect x="22" y="74" width="6" height="7" class="f-ok blink"/></svg></div>
+<div class="card-body"><div class="kicker">§13 · Hands-on</div><h2>A 30-second script shows Maps, deopts and IC timing</h2>
+<div class="brief"><p>Run <code>node --allow-natives-syntax ic_demo.js</code>. It prints Map sharing, dictionary mode after <code>delete</code>, and mono and poly and mega timings: 0.99, 4.06 and 4.90 ns per call on one machine, one noisy run.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-hands">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-hands"><div class="deep-inner"><div class="deep-content">
+<p><a href="ic_demo.js" target="_blank" rel="noopener"><code>ic_demo.js</code></a> (in this folder): <code>node --allow-natives-syntax ic_demo.js</code>. It shows Map sharing, <code>delete</code> turning an object into dictionary mode, elements kinds, and mono, poly and mega timing. My run (Node v24.12.0, same machine, one run, no pinning, so it is noisy):</p>
 <pre><code>a,b share Map? true        a,c share Map? false
 fast before delete: true   fast after delete : false   fast after x=undefined: true
 monomorphic (1 shape)      0.99 ns/call
 polymorphic (4 shapes)     4.06 ns/call
 megamorphic (8 shapes)     4.90 ns/call
-megamorphic (64 shapes)    4.80 ns/call
-</code></pre>
-<p>Then: add <code>--trace-deopt --trace-opt</code>, and <code>%DebugPrint(arr)</code> after each push to watch the elements kind change.</p></section><section id='14-question-ladder' class=''><h2>14. Question ladder</h2><p><button id='revealAll' class='btn'>Reveal all answers</button></p><p><strong>Mechanism</strong>
-1. What exactly is in a JSObject's first three words?</p>
-<details><summary>Answer</summary>Map pointer, properties (overflow backing store), elements. In-object fields follow; with pointer compression each is 4 bytes, so the first field is at offset 12.</details>
-<ol>
-<li>What does a monomorphic LoadIC slot contain after the first miss?</li>
-</ol>
-<details><summary>Answer</summary>A weak reference to the Map plus a handler (typically a Smi encoding kind, in-object flag, double flag and field index).</details>
-<ol>
-<li>What happens on <code>getX({y:1,x:2})</code> after <code>getX</code> was optimized for <code>{x,y}</code>?</li>
-</ol>
-<details><summary>Answer</summary>CheckMaps fails → eager deopt → frame rebuilt for Ignition → IC becomes polymorphic → later reopt with 2-way check.</details>
-<ol>
-<li>How does <code>push(1.5)</code> on a Smi array change things?</li>
-</ol>
-<details><summary>Answer</summary>Map changes to PACKED_DOUBLE_ELEMENTS and the backing store is rewritten as unboxed doubles; one-way.</details>
-<ol>
-<li>Where does a megamorphic site look?</li>
-</ol>
-<details><summary>Answer</summary>Global two-level stub cache keyed on (Map, name); miss → runtime lookup.</details>
+megamorphic (64 shapes)    4.80 ns/call</code></pre>
+<p>Then add <code>--trace-deopt --trace-opt</code>, and call <code>%DebugPrint(arr)</code> after each push to watch the elements kind change.</p>
 
-<p><strong>Why</strong>
-6. Why do <code>{x,y}</code> and <code>{y,x}</code> have different Maps?</p>
-<details><summary>Answer</summary>Transitions are labeled by property name in insertion order; offsets depend on order.</details>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-quiz" data-id="quiz">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="18" width="16" height="16" rx="3" class="f-panel s-line" stroke-width="1.2"/><path d="M17 26 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:0"/><rect x="40" y="23" width="100" height="6" rx="2" class="f-line"/><rect x="14" y="44" width="16" height="16" rx="3" class="f-panel s-line" stroke-width="1.2"/><path d="M17 52 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:1"/><rect x="40" y="49" width="84" height="6" rx="2" class="f-line"/><rect x="14" y="70" width="16" height="16" rx="3" class="f-panel s-line" stroke-width="1.2"/><path d="M17 78 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:2"/><rect x="40" y="75" width="68" height="6" rx="2" class="f-line"/></svg></div>
+<div class="card-body"><div class="kicker">§14 · Question ladder</div><h2>Test yourself</h2>
+<div class="brief"><p>20 questions across mechanism, why, counterfactual, adversarial, connection and open. Answers reveal on click.</p><p class="score" id="quiz-score"></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-quiz">Go deeper <span class="chev">▸</span> <small>5 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-quiz"><div class="deep-inner"><div class="deep-content">
+<p class="mini">Answer in your head first, then reveal and mark yourself honestly. Marks are saved in this browser and feed the progress ring.</p><p><button class="btn" id="reveal-all" type="button" aria-pressed="false">Reveal all answers</button> <button class="btn" id="quiz-reset" type="button">Reset marks</button></p><div class="qgroup">Mechanism</div>
+<div class="q" data-i="0"><div class="qq">1. What exactly is in a JSObject's first three words?</div><div class="qa"><div><p>Map pointer, properties (overflow backing store), elements. In-object fields follow; with pointer compression each is 4 bytes, so the first field is at offset 12.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="1"><div class="qq">2. What does a monomorphic LoadIC slot contain after the first miss?</div><div class="qa"><div><p>A weak reference to the Map plus a handler (typically a Smi encoding kind, in-object flag, double flag and field index).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="2"><div class="qq">3. What happens on <code>getX({y:1,x:2})</code> after <code>getX</code> was optimized for <code>{x,y}</code>?</div><div class="qa"><div><p>CheckMaps fails, then eager deopt rebuilds the Ignition frame, the IC becomes polymorphic, and a later reopt uses a 2-way check.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="3"><div class="qq">4. How does <code>push(1.5)</code> on a Smi array change things?</div><div class="qa"><div><p>The Map changes to PACKED_DOUBLE_ELEMENTS and the backing store is rewritten as unboxed doubles. The change is one-way.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="4"><div class="qq">5. Where does a megamorphic site look?</div><div class="qa"><div><p>The global two-level stub cache, keyed on (Map, name). On a miss it falls back to a runtime lookup.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="qgroup">Why</div>
+<div class="q" data-i="5"><div class="qq">6. Why do <code>{x,y}</code> and <code>{y,x}</code> have different Maps?</div><div class="qa"><div><p>Transitions are labelled by property name in insertion order, and offsets depend on that order.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="6"><div class="qq">7. Why cap polymorphism at 4?</div><div class="qa"><div><p>Linear checks cost more per entry while the hit-rate gain levels off. Beyond that, a hashed global lookup is cheaper. It is an engineering constant.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="q" data-i="7"><div class="qq">8. Why is deoptimization necessary rather than a luxury?</div><div class="qa"><div><p>Guards can fail. Without a way back to a generic tier, the optimized code would have to be correct for all inputs, which defeats speculation.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="8"><div class="qq">9. Why does <code>delete</code> hurt later reads?</div><div class="qa"><div><p>The object flips to dictionary mode. It has no stable Map to key on, so ICs can't specialize.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="qgroup">Counterfactual</div>
+<div class="q" data-i="9"><div class="qq">10. What if V8 never removed redundant CheckMaps?</div><div class="qa"><div><p>The CVE-2020-6418 class mostly disappears, but every property access pays a compare, which loses a chunk of optimized-code speed.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="10"><div class="qq">11. What if the IC cap were 1?</div><div class="qa"><div><p>Any two-shape site would go megamorphic. The common optional-field pattern would hit the stub cache constantly.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="q" data-i="11"><div class="qq">12. What if elements kinds could transition back?</div><div class="qa"><div><p>Optimized code would need more dependencies and deopts, and flip-flopping arrays would thrash. One-way transitions keep the lattice finite and monotone.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="qgroup">Adversarial</div>
+<div class="q" data-i="12"><div class="qq">13. How does an attacker turn a missing side-effect model into <code>addrof</code>?</div><div class="qa"><div><p>They use user-controllable code (a Proxy, valueOf) at the unmodeled effect to change the Map or elements kind. The optimized code still reads with the old layout, so a double array's words are read as tagged pointers (a leak), or a crafted double is read as a pointer (a fake object).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="13"><div class="qq">14. Can an attacker influence what the IC caches?</div><div class="qa"><div><p>Yes. They control which shapes reach a site, so they steer the feedback and therefore which speculation the compiler makes. This is JIT-spray-like feedback grooming.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="14"><div class="qq">15. Why doesn't the V8 sandbox end this class?</div><div class="qa"><div><p>It bounds what corrupted pointers can reach, not the corruption itself. In-sandbox arbitrary read and write remains, and escapes target the boundary.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="qgroup">Connection</div>
+<div class="q" data-i="15"><div class="qq">16. How is this like a CPU branch predictor plus a pipeline flush?</div><div class="qa"><div><p>The guard is a predicted branch and the deopt is the flush. Both bet on regularity and trade a rare large penalty for a common cheap path.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-lineage">→ related card</a></div></div>
+<div class="q" data-i="16"><div class="qq">17. How do Shapes in SpiderMonkey differ?</div><div class="qa"><div><p>The idea is the same. ICs are expressed as CacheIR, so the same IR can be interpreted or compiled.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-next">→ related card</a></div></div>
+<div class="q" data-i="17"><div class="qq">18. How does this relate to Spectre-style attacks?</div><div class="qa"><div><p>Both are speculation: one in hardware, one in software. Software speculation's guards are architecturally visible bugs, while hardware's are microarchitectural leaks.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-wild">→ related card</a></div></div>
+<div class="qgroup">Open</div>
+<div class="q" data-i="18"><div class="qq">19. Can speculative JIT optimizations be formally verified at production scale?</div><div class="qa"><div><p>Unsettled. Translation validation finds bugs but does not yet gate production releases.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+<div class="q" data-i="19"><div class="qq">20. Can feedback be persisted safely across loads?</div><div class="qa"><div><p>Unsettled. It trades warm-up for staleness and attacker-influenceable state.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Further</div>
+<article class="card rv" id="c-next" data-id="next">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="40" width="30" height="20" rx="4" class="f-acc"/><rect x="100" y="12" width="50" height="18" rx="4" class="f-panel s-line" stroke-width="1.2"/><path d="M40 50 C70 50 70 21 100 21" class="f-none s-acc2" stroke-width="1.4"/><rect x="100" y="40" width="50" height="18" rx="4" class="f-panel s-line" stroke-width="1.2"/><path d="M40 50 C70 50 70 49 100 49" class="f-none s-acc2" stroke-width="1.4"/><rect x="100" y="68" width="50" height="18" rx="4" class="f-panel s-line" stroke-width="1.2"/><path d="M40 50 C70 50 70 77 100 77" class="f-none s-acc2" stroke-width="1.4"/></svg></div>
+<div class="card-body"><div class="kicker">§15 · Go deeper next</div><h2>Three follow-ups: sandbox, Turboshaft IR, CacheIR</h2>
+<div class="brief"><p>The V8 sandbox and its code-pointer tables, Sea of Nodes to Turboshaft, and SpiderMonkey's CacheIR, which shares one IR between the interpreter and the compiler.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-next">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-next"><div class="deep-inner"><div class="deep-content">
 <ol>
-<li>Why cap polymorphism at 4?</li>
+<li><b>V8 sandbox and code-pointer tables</b>: how containment of JIT bugs is engineered.</li>
+<li><b>Sea of Nodes to Turboshaft</b>: IR design trade-offs.</li>
+<li><b>SpiderMonkey CacheIR</b>: ICs as an IR shared by the interpreter and the compiler.</li>
 </ol>
-<details><summary>Answer</summary>Linear checks cost more per entry while hit-rate gains saturate; beyond that a hashed global lookup is cheaper. It's an engineering constant.</details>
-<ol>
-<li>Why is deoptimization necessary rather than a luxury?</li>
-</ol>
-<details><summary>Answer</summary>Guards can fail; without a way back to a generic tier the optimized code would need to be correct for all inputs, defeating speculation.</details>
-<ol>
-<li>Why does <code>delete</code> hurt later reads?</li>
-</ol>
-<details><summary>Answer</summary>Object flips to dictionary mode: no stable Map to key on, ICs can't specialize.</details>
 
-<p><strong>Counterfactual</strong>
-10. What if V8 never removed redundant CheckMaps?</p>
-<details><summary>Answer</summary>The CVE-2020-6418 class mostly disappears but every property access pays a compare, losing a chunk of optimized-code speed.</details>
-<ol>
-<li>What if the IC cap were 1?</li>
-</ol>
-<details><summary>Answer</summary>Any two-shape site would go megamorphic; the common "optional field" pattern would hit the stub cache constantly.</details>
-<ol>
-<li>What if elements kinds could transition back?</li>
-</ol>
-<details><summary>Answer</summary>Optimized code would need more dependencies and deopts; flip-flopping arrays would thrash. One-way keeps the lattice finite and monotone.</details>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-sources" data-id="sources">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="36" y="14" width="72" height="54" rx="4" class="f-line s-mute" stroke-width="1.2"/><rect x="46" y="22" width="72" height="54" rx="4" class="f-line s-mute" stroke-width="1.2"/><rect x="56" y="30" width="72" height="54" rx="4" class="f-panel s-acc" stroke-width="1.2"/><rect x="50" y="30" width="44" height="3" rx="1" class="f-mute"/><rect x="50" y="39" width="38" height="3" rx="1" class="f-mute"/><rect x="50" y="48" width="32" height="3" rx="1" class="f-mute"/><rect x="50" y="57" width="26" height="3" rx="1" class="f-mute"/></svg></div>
+<div class="card-body"><div class="kicker">Sources</div><h2>Papers, V8 source and the CVE writeups behind each claim</h2>
+<div class="brief"><p>Papers (PICs, TurboTV, OptFuzz, DUMPLING, CacheIR, POPL '21), V8 source and blog posts, and the Project Zero, Zellic and GitHub writeups. Items the research notes never opened are marked.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-sources">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-sources"><div class="deep-inner"><div class="deep-content">
+<h3>Papers</h3>
+<ul>
+<li><a href="https://bibliography.selflanguage.org/pics.html" target="_blank" rel="noopener">Hölzle, Chambers, Ungar. Polymorphic inline caches, ECOOP '91</a></li>
+<li><a href="https://kihongheo.kaist.ac.kr/publications/icse24.pdf" target="_blank" rel="noopener">TurboTV, ICSE 2024</a></li>
+<li><a href="https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf" target="_blank" rel="noopener">OptFuzz, USENIX Security 2024</a></li>
+<li><a href="https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf" target="_blank" rel="noopener">DUMPLING, NDSS 2025</a></li>
+<li><a href="https://bernsteinbear.com/assets/img/cacheir.pdf" target="_blank" rel="noopener">CacheIR (Bernstein)</a></li>
+<li><a href="https://janvitek.org/pubs/popl21.pdf" target="_blank" rel="noopener">Verified speculation, POPL '21</a></li>
+</ul>
+<h3>V8 docs and blog</h3>
+<ul>
+<li><a href="https://v8.dev/docs/hidden-classes" target="_blank" rel="noopener">v8.dev/docs/hidden-classes</a> · <a href="https://v8.dev/blog/fast-properties" target="_blank" rel="noopener">fast-properties</a> · <a href="https://v8.dev/blog/elements-kinds" target="_blank" rel="noopener">elements-kinds</a> · <a href="https://v8.dev/blog/slack-tracking" target="_blank" rel="noopener">slack-tracking</a></li>
+<li><a href="https://v8.dev/blog/maglev" target="_blank" rel="noopener">maglev</a> · <a href="https://v8.dev/blog/sparkplug" target="_blank" rel="noopener">sparkplug</a> · <a href="https://v8.dev/blog/leaving-the-sea-of-nodes" target="_blank" rel="noopener">leaving-the-sea-of-nodes</a> · <a href="https://v8.dev/blog/mutable-heap-number" target="_blank" rel="noopener">mutable-heap-number</a> · <a href="https://v8.dev/blog/sandbox" target="_blank" rel="noopener">sandbox</a> · <a href="https://v8.dev/blog/react-cliff" target="_blank" rel="noopener">react-cliff</a></li>
+</ul>
+<h3>V8 and WebKit source</h3>
+<ul>
+<li><a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/stub-cache.h" target="_blank" rel="noopener">stub-cache.h</a></li>
+<li><a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h" target="_blank" rel="noopener">handler-configuration.h</a></li>
+<li><a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/objects/map.h" target="_blank" rel="noopener">map.h</a></li>
+<li><a href="https://webkit.org/blog/10308/speculation-in-javascriptcore/" target="_blank" rel="noopener">Speculation in JavaScriptCore</a></li>
+</ul>
+<h3>Articles and writeups</h3>
+<ul>
+<li><a href="https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html" target="_blank" rel="noopener">Project Zero, CVE-2020-6418</a></li>
+<li><a href="https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html" target="_blank" rel="noopener">Project Zero, CVE-2020-16009</a></li>
+<li><a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic, CVE-2025-2135</a></li>
+<li><a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/" target="_blank" rel="noopener">GitHub Blog, Super IC</a></li>
+<li><a href="https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html" target="_blank" rel="noopener">mrale.ph, monomorphism</a></li>
+<li><a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank" rel="noopener">Bynens, shapes and ICs</a></li>
+</ul>
+<p class="mini">Items marked "not opened" or "per agent" come from research-subagent notes that I did not re-fetch. I fetched and checked these myself: the stub-cache.h constants, the Maglev blog numbers, the Sea-of-Nodes 2× claim, the elements-kinds post, the mutable-heap-number post, the Project Zero RCAs for CVE-2020-6418 and CVE-2020-16009, and the Zellic CVE-2025-2135 writeup.</p>
 
-<p><strong>Adversarial</strong>
-13. How does an attacker turn a missing side-effect model into <code>addrof</code>?</p>
-<details><summary>Answer</summary>Use user-controllable code (Proxy, valueOf) at the unmodeled effect to change the Map/elements kind; optimized code still reads with old layout, so a double array's words are read as tagged pointers (leak) or a crafted double is read as a pointer (fake object).</details>
-<ol>
-<li>Can an attacker influence what the IC caches?</li>
-</ol>
-<details><summary>Answer</summary>Yes: they control which shapes reach a site, so they steer the feedback and thus which speculation the compiler makes (JIT-spray-like "feedback grooming").</details>
-<ol>
-<li>Why doesn't the V8 sandbox end this class?</li>
-</ol>
-<details><summary>Answer</summary>It bounds what corrupted pointers can reach, not the corruption itself; in-sandbox arbitrary R/W remains, and escapes target the boundary.</details>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+</main>
 
-<p><strong>Connection</strong>
-16. How is this like a CPU branch predictor + pipeline flush?</p>
-<details><summary>Answer</summary>Guard = predicted branch, deopt = flush; both bet on regularity and trade rare large penalty for common cheap path.</details>
-<ol>
-<li>How do Shapes in SpiderMonkey differ?</li>
-</ol>
-<details><summary>Answer</summary>Same idea; ICs are expressed as CacheIR so the same IR can be interpreted or compiled.</details>
-<ol>
-<li>How does this relate to Spectre-style attacks?</li>
-</ol>
-<details><summary>Answer</summary>Both are speculation: one in hardware, one in software. Software speculation's guards are architecturally visible bugs; hardware's are microarchitectural leaks.</details>
-
-<p><strong>Open</strong>
-19. Can speculative JIT optimizations be formally verified at production scale?</p>
-<details><summary>Answer</summary>Unsettled; translation validation finds bugs but does not yet gate production releases.</details>
-<ol>
-<li>Can feedback be persisted safely across loads?</li>
-</ol>
-<details><summary>Answer</summary>Unsettled; trades warm-up for staleness and attacker-influenceable state.</details></section><section id='15-go-deeper-next' class=''><h2>15. Go deeper next</h2><ol>
-<li><strong>V8 sandbox &amp; code pointer tables</strong>: how containment of JIT bugs is engineered.</li>
-<li><strong>Sea of Nodes → Turboshaft</strong>: IR design tradeoffs.</li>
-<li><strong>SpiderMonkey CacheIR</strong>: ICs as an IR shared by interpreter and compiler.</li>
-</ol></section><section id='sources' class=''><h2>Sources</h2><p><strong>Papers</strong>
-- Hölzle, Chambers, Ungar. PICs, ECOOP '91: https://bibliography.selflanguage.org/pics.html
-- TurboTV, ICSE 2024: https://kihongheo.kaist.ac.kr/publications/icse24.pdf
-- OptFuzz, USENIX Sec 2024: https://www.usenix.org/system/files/usenixsecurity24_slides-wang-jiming.pdf
-- DUMPLING, NDSS 2025: https://www.ndss-symposium.org/wp-content/uploads/2025-1411-paper.pdf
-- CacheIR: https://bernsteinbear.com/assets/img/cacheir.pdf
-- Verified speculation, POPL'21: https://janvitek.org/pubs/popl21.pdf</p>
-<p><strong>Code/docs</strong>
-- https://v8.dev/docs/hidden-classes · https://v8.dev/blog/fast-properties · https://v8.dev/blog/elements-kinds · https://v8.dev/blog/slack-tracking
-- https://v8.dev/blog/maglev · https://v8.dev/blog/sparkplug · https://v8.dev/blog/leaving-the-sea-of-nodes · https://v8.dev/blog/mutable-heap-number · https://v8.dev/blog/sandbox · https://v8.dev/blog/react-cliff
-- stub-cache.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/stub-cache.h
-- handler-configuration.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h
-- map.h: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/objects/map.h
-- JSC speculation: https://webkit.org/blog/10308/speculation-in-javascriptcore/</p>
-<p><strong>Articles / writeups</strong>
-- Project Zero CVE-2020-6418: https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html
-- Project Zero CVE-2020-16009: https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html
-- Zellic CVE-2025-2135: https://www.zellic.io/blog/pwning-v8ctf/
-- GitHub Blog Super IC: https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/
-- mrale.ph monomorphism: https://mrale.ph/blog/2015/01/11/whats-up-with-monomorphism.html
-- Bynens, shapes and ICs: https://mathiasbynens.be/notes/shapes-ics</p>
-<p><em>Verification notes: items marked "not opened"/"per agent" come from research subagent notes I did not re-fetch. Fetched and checked by me: stub-cache.h constants, Maglev blog numbers, Sea-of-Nodes 2× claim, elements-kinds post, mutable-heap-number post, Project Zero RCAs for CVE-2020-6418/16009, Zellic CVE-2025-2135.</em></p></section>
-</main></div>
+<script type="application/json" id="rh-data">{"slug": "2026-10-04-v8-hidden-classes-inline-caches", "cards": ["plain", "ctx", "world", "onel", "problem", "model", "mech", "math", "why", "knobs", "breaks", "wild", "frontier", "open", "lineage", "hands", "quiz", "next", "sources"], "questions": 20}</script>
 <script>
-// scroll spy
-const links=[...document.querySelectorAll('nav a')];
-const secs=links.map(a=>document.getElementById(a.dataset.id));
-const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.dataset.id===e.target.id));}})},{rootMargin:'-20% 0px -70% 0px'});
-secs.forEach(s=>s&&io.observe(s));
-// copy buttons
-document.querySelectorAll('pre').forEach(p=>{const b=document.createElement('button');b.className='btn copy';b.textContent='Copy';b.onclick=()=>{try{navigator.clipboard.writeText(p.innerText.replace(/^Copy\n?/,''));b.textContent='Copied'}catch(e){b.textContent='n/a'};setTimeout(()=>b.textContent='Copy',1200)};p.appendChild(b)});
-// reveal all
-const ra=document.getElementById('revealAll');
-if(ra){let open=false;ra.onclick=()=>{open=!open;document.querySelectorAll('#'+ra.closest('section').id+' details').forEach(d=>d.open=open);ra.textContent=open?'Hide all answers':'Reveal all answers'}}
-// trace stepper
-const steps=[
- ['Object exists. Map M2 (via M0 →x→ M1 →y→ M2). In-object x at +12 (pointer compression).','UNINITIALIZED',''],
- ['Ignition runs LdaNamedProperty; slot is UNINITIALIZED, so it calls the runtime LoadIC::Load.','UNINITIALIZED → miss','bad'],
- ['Runtime looks up x in M2 descriptors: in-object, index 0, Smi. Builds a Smi-encoded handler.','MONO: (M2, handler{inobject, idx 0})','hit'],
- ['Next call: compare o.map to M2 → equal → decode handler → load at +12. No lookup.','MONO hit','hit'],
- ['Hot: Maglev/TurboFan emit CheckMaps(M2) + LoadField(+12) and register a dependency on M2.','optimized: cmp map,M2 ; jne deopt ; mov [o+12]','hit'],
- ['getX({y:1,x:2}) has Map M3. CheckMaps fails → eager deopt → Ignition frame rebuilt → IC goes POLY [(M2,h1),(M3,h2)].','POLY after deopt','bad']];
-let si=0;
-const slot=document.getElementById('slot'),st=document.getElementById('slotText'),sm=document.getElementById('stepmsg'),sn=document.getElementById('stepno'),cx=document.getElementById('c-x');
-function showStep(){const [m,t,c]=steps[si];sm.textContent=m;st.textContent=t;slot.setAttribute('class','slot '+c);cx.setAttribute('class',si>=3&&si<5?'cell hl':'cell');sn.textContent='STEP '+(si+1)+' / '+steps.length;document.getElementById('back').disabled=si===0;document.getElementById('next').disabled=si===steps.length-1}
-document.getElementById('back').onclick=()=>{si=Math.max(0,si-1);showStep()};
-document.getElementById('next').onclick=()=>{si=Math.min(steps.length-1,si+1);showStep()};
-showStep();
-// IC sim
-const seen=new Set();const sb=document.getElementById('shapeBtns');
-'ABCDEFGH'.split('').forEach(k=>{const b=document.createElement('button');b.className='btn';b.textContent='shape '+k;b.onclick=()=>{seen.add(k);upd()};sb.appendChild(b)});
-function upd(){const n=seen.size;let s='UNINITIALIZED',ns='n/a';if(n===1){s='MONOMORPHIC';ns='~1.0'}else if(n>=2&&n<=4){s='POLYMORPHIC';ns='~4.1 (at 4 shapes)'}else if(n>4){s='MEGAMORPHIC (stub cache)';ns='~4.9'}
-document.getElementById('simState').textContent=s;document.getElementById('simMaps').textContent=n;document.getElementById('simNs').textContent=ns;document.getElementById('bar').style.width=Math.min(100,n*12.5)+'%'}
-document.getElementById('simReset').onclick=()=>{seen.clear();upd()};
-</script></body></html>
+/* rabbithole dive template runtime — cards, progress, quiz, motion. Shared by every dive page. */
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return [].slice.call((el || document).querySelectorAll(s)); };
+
+  // ---- storage (never required: page works without it) ----
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  // ---- theme ----
+  var theme = load('rh:theme', null);
+  if (theme) root.setAttribute('data-theme', theme);
+  var tb = $('#theme');
+  if (tb) tb.onclick = function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    theme = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', theme); save('rh:theme', theme);
+  };
+
+  // ---- copy buttons ----
+  $$('pre').forEach(function (p) {
+    var c = p.querySelector('code'); if (!c) return;
+    var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(c.innerText) : Promise.reject())
+        .then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select + copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1400);
+    };
+    p.appendChild(b);
+  });
+
+  // ---- SVG stroke draw-in: normalise path length ----
+  $$('.draw').forEach(function (e) { e.setAttribute('pathLength', '1'); });
+
+  // ---- hero layers: stagger intro, parallax ----
+  var layers = $$('.hero-art .layer');
+  layers.forEach(function (g, i) { g.style.setProperty('--i', i); });
+  var bar = $('.topbar');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      if (bar) bar.classList.toggle('scrolled', y > 40);
+      if (!reduce && y < 700) layers.forEach(function (g) {
+        g.style.translate = '0 ' + (y * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
+      });
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  var heroArt = $('.hero-art');
+  if (heroArt) requestAnimationFrame(function () { requestAnimationFrame(function () { heroArt.classList.add('in-view'); }); });
+
+  // ---- ASCII hero: scramble then resolve ----
+  var ascii = $('.hero-art .ascii-hero');
+  if (ascii && !reduce) {
+    var target = ascii.textContent, glyphs = '01#*+=-:.<>/\\|[]{}', t0 = performance.now();
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / 1400), out = '';
+      for (var i = 0; i < target.length; i++) {
+        var ch = target[i];
+        out += (ch === '\n' || ch === ' ' || Math.random() < k * 1.15) ? ch : glyphs[(Math.random() * glyphs.length) | 0];
+      }
+      ascii.textContent = out;
+      if (k < 1) requestAnimationFrame(frame); else ascii.textContent = target;
+    })(t0);
+  }
+
+  // ---- stat count-up ----
+  function countUp(el) {
+    var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(el.textContent.trim());
+    if (!m || reduce) return;
+    if (el.dataset.counted) return; el.dataset.counted = 1;
+    var final = el.textContent, end = parseFloat(m[1]), dec = (m[1].split('.')[1] || '').length, rest = m[2], t0 = performance.now();
+    (function f() {
+      var k = Math.min(1, Math.max(0, (performance.now() - t0) / 900)), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k < 1 ? (end * e).toFixed(dec) + rest : final;
+      if (k < 1) requestAnimationFrame(f);
+    })();
+    setTimeout(function () { el.textContent = final; }, 1200); // rAF can stall in background tabs
+  }
+
+  // ---- reveal on scroll ----
+  var cardsSeen = {};
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        var t = e.target;
+        if (t.classList.contains('card')) t.classList.toggle('in-view', e.isIntersecting);
+        if (!e.isIntersecting) return;
+        if (t.classList.contains('rv') && !t.classList.contains('in')) {
+          t.classList.add('in');
+          if (t.classList.contains('stat')) countUp($('.v', t));
+        }
+        if (t.matches && t.matches('svg') ) t.classList.add('in-view');
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    $$('.rv, .card, .deep-content svg, .card-vis svg').forEach(function (e) { io.observe(e); });
+  } else {
+    $$('.rv').forEach(function (e) { e.classList.add('in'); });
+    $$('.card, svg').forEach(function (e) { e.classList.add('in-view'); });
+  }
+
+  // ---- figure lightbox ----
+  var figs = $$('.fig-zoom');
+  if (figs.length) {
+    var lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true');
+    lb.innerHTML = '<button type="button">Close ✕</button><img alt=""><p></p>';
+    document.body.appendChild(lb);
+    var lastFocus = null;
+    var close = function () { lb.classList.remove('on'); if (lastFocus) lastFocus.focus(); };
+    figs.forEach(function (b) {
+      b.onclick = function () {
+        var img = $('img', b), cap = b.parentNode.querySelector('figcaption');
+        $('img', lb).src = img.src; $('img', lb).alt = img.alt; $('p', lb).innerHTML = cap ? cap.innerHTML : '';
+        lastFocus = b; lb.classList.add('on'); $('button', lb).focus();
+      };
+    });
+    lb.onclick = function (e) { if (e.target === lb || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') close(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
+  }
+
+  // ---- page data + progress ----
+  var dataEl = $('#rh-data'); if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var KEY = 'rh:p:' + D.slug;
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var cards = $$('article.card');
+  var qs = $$('.q[data-i]');
+
+  function status(gotN, yesN) {
+    var nc = cards.length, nq = qs.length;
+    if (gotN === nc && (nq === 0 || yesN / nq >= 0.8)) return 'understood';
+    if (gotN >= Math.ceil(nc / 2)) return 'skimmed';
+    return 'started';
+  }
+  function refresh() {
+    var gotN = cards.filter(function (c) { return P.got[c.dataset.id]; }).length;
+    var yesN = qs.filter(function (q) { return P.q[q.dataset.i] === 'y'; }).length;
+    var ansN = qs.filter(function (q) { return P.q[q.dataset.i]; }).length;
+    var pct = Math.round(100 * (gotN + yesN) / Math.max(1, cards.length + qs.length));
+    var st = status(gotN, yesN);
+    P.pct = pct; P.status = st; save(KEY, P);
+    var fg = $('.ring .r-fg'); if (fg) fg.style.strokeDashoffset = (1 - pct / 100).toFixed(3);
+    var rp = $('#ring-pct'); if (rp) rp.textContent = pct + '%';
+    $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
+    var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
+    $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+  }
+
+  // ---- cards: expand / collapse / got-it ----
+  function setOpen(card, open, scroll) {
+    card.classList.toggle('open', open);
+    var btn = $('.deeper', card), deep = $('.deep', card);
+    btn.setAttribute('aria-expanded', open);
+    if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
+    if (!open && scroll) {
+      var top = card.getBoundingClientRect().top;
+      if (top < 0) card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  cards.forEach(function (card) {
+    var id = card.dataset.id;
+    $('.deeper', card).onclick = function () { setOpen(card, !card.classList.contains('open'), true); };
+    var col = $('.collapse', card); if (col) col.onclick = function () { setOpen(card, false, true); };
+    var cb = $('.got input', card);
+    cb.checked = !!P.got[id];
+    cb.onchange = function () { if (cb.checked) P.got[id] = 1; else delete P.got[id]; refresh(); };
+    setOpen(card, card.hasAttribute('data-open'), false);
+  });
+
+  // expand-all ("deep mode")
+  var ea = $('#expand-all');
+  if (ea) {
+    var setAll = function (on) {
+      ea.setAttribute('aria-pressed', on); $('.lbl', ea).textContent = on ? 'Collapse all' : 'Expand all';
+      cards.forEach(function (c) { setOpen(c, on, false); }); save('rh:deep', on);
+    };
+    ea.onclick = function () { setAll(ea.getAttribute('aria-pressed') !== 'true'); };
+    if (load('rh:deep', false)) setAll(true);
+  }
+
+  // deep links: #c-<id> or #<anchor inside a card> opens it
+  function openFromHash() {
+    var h = decodeURIComponent(location.hash.slice(1)); if (!h) return;
+    var el = document.getElementById(h); if (!el) return;
+    var card = el.closest('article.card');
+    if (card && !card.classList.contains('open')) { setOpen(card, true, false); setTimeout(function () { el.scrollIntoView(); }, 480); }
+  }
+  window.addEventListener('hashchange', openFromHash); openFromHash();
+
+  // ---- quiz ----
+  qs.forEach(function (q) {
+    var i = q.dataset.i;
+    var show = $('.qshow', q), y = $('.qbtn.y', q), n = $('.qbtn.n', q);
+    function paint() {
+      var r = P.q[i] || '';
+      q.dataset.r = r; y.setAttribute('aria-pressed', r === 'y'); n.setAttribute('aria-pressed', r === 'n');
+    }
+    show.onclick = function () { var s = q.classList.toggle('show'); show.textContent = s ? 'Hide answer' : 'Show answer'; show.setAttribute('aria-expanded', s); };
+    y.onclick = function () { P.q[i] = P.q[i] === 'y' ? '' : 'y'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    n.onclick = function () { P.q[i] = P.q[i] === 'n' ? '' : 'n'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    paint();
+  });
+  var ra = $('#reveal-all');
+  if (ra) ra.onclick = function () {
+    var on = ra.getAttribute('aria-pressed') !== 'true'; ra.setAttribute('aria-pressed', on);
+    ra.textContent = on ? 'Hide all answers' : 'Reveal all answers';
+    qs.forEach(function (q) { q.classList.toggle('show', on); var s = $('.qshow', q); s.textContent = on ? 'Hide answer' : 'Show answer'; });
+  };
+  var rs = $('#quiz-reset');
+  if (rs) rs.onclick = function () { P.q = {}; qs.forEach(function (q) { q.dataset.r = ''; $$('.qbtn', q).forEach(function (b) { b.setAttribute('aria-pressed', false); }); }); refresh(); };
+
+  // ---- side dots: current card ----
+  var dots = $$('.dots a');
+  if (dots.length && 'IntersectionObserver' in window) {
+    var map = {}; dots.forEach(function (a) { map[a.dataset.id] = a; });
+    var dio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        dots.forEach(function (a) { a.classList.remove('on'); });
+        var a = map[e.target.dataset.id]; if (a) a.classList.add('on');
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    cards.forEach(function (c) { dio.observe(c); });
+  }
+
+  refresh();
+})();
+
+</script>
+</body>
+</html>

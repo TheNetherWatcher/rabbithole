@@ -1,0 +1,6 @@
+<ul>
+<li><b>Node and Chrome tiers.</b> Ignition → Sparkplug → Maglev (Chrome M117) → TurboFan. Maglev compiles "roughly 10× slower than Sparkplug, 10× faster than TurboFan", and gives −10% energy on Speedometer and −3.5% on JetStream (<a href="https://v8.dev/blog/maglev" target="_blank" rel="noopener">v8.dev/blog/maglev</a>). A research agent said 20×; the primary source says 10×.</li>
+<li><b>Turboshaft.</b> A CFG IR replacing Sea of Nodes in TurboFan's backend. "Compile time got divided by 2" (<a href="https://v8.dev/blog/leaving-the-sea-of-nodes" target="_blank" rel="noopener">blog</a>).</li>
+<li><b>React cliff.</b> A real-world shape and representation performance cliff documented by V8 (<a href="https://v8.dev/blog/react-cliff" target="_blank" rel="noopener">v8.dev/blog/react-cliff</a>).</li>
+<li><b>Deviations from textbook PICs.</b> V8's ICs live in a heap-allocated feedback vector, not in patched machine code. Handlers are Smi-encoded data. Megamorphic sites use a global stub cache. Textbook PICs patch call-site code in place.</li>
+</ul>

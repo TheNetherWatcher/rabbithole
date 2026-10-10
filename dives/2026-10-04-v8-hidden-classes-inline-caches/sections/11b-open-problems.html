@@ -1,0 +1,7 @@
+<ul>
+<li><b>Sound speculation.</b> No production-scale proof exists that effect-chain Map inference is correct, and bugs recur (2020 to 2025 in the same function family). The obvious fix, always keeping CheckMaps, loses much of the benefit. Approaches: translation validation (TurboTV), differential fuzzing, and verified speculation (POPL '21, Vitek et al.).</li>
+<li><b>Containment versus correctness.</b> The V8 sandbox treats logic bugs as inevitable. It is an open question whether containment can get strong enough to make JIT bugs non-critical.</li>
+<li><b>Warm-up.</b> Feedback must be re-learned on every page load. Caching or snapshotting profiles risks stale or attacker-influenced feedback.</li>
+<li><b>Side channels.</b> IC state and tier changes create data-dependent timing, which is reported to undermine constant-time JS (JIT-Leaks, IEEE S&amp;P 2020; DeJITLeak, ESEC/FSE 2022). From research notes; unopened.</li>
+<li><b>Representation invariants</b> across Map deprecation (the CVE-2020-16009 class) have no decidable, general checker.</li>
+</ul>

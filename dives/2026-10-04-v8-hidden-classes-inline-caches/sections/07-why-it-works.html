@@ -1,0 +1,9 @@
+<p>Core insight: <b>programs are far more regular than the language permits.</b> Real call sites see one shape more than 90% of the time. The Self and PIC measurements and decades of JS engine telemetry back this. I did not find a single canonical V8 number, so treat the figure as folklore with support.</p>
+<p>The ablations show which piece carries what:</p>
+<ul>
+<li><b>No Maps</b>: per-object name tables and hash lookups. Slow and memory-heavy.</li>
+<li><b>Maps but no ICs</b>: still a lookup keyed on the Map. The slow path forever.</li>
+<li><b>ICs but no speculation</b> (Ignition and Sparkplug): one compare and one load, but no inlining, no escape analysis, and no field-type knowledge.</li>
+<li><b>Speculation but no deopt</b>: unsound. Any surprise miscomputes. Deopt is the <i>safety net that makes aggressive guards legal</i>.</li>
+<li><b>Speculation with a bug in dependency or guard elimination</b>: type confusion (see the "where it breaks" card).</li>
+</ul>

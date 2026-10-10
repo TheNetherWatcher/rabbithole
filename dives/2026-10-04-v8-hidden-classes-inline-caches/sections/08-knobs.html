@@ -1,0 +1,12 @@
+<table>
+<thead><tr><th>Knob</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><b>Poly limit (4)</b></td><td>Smaller means megamorphic sooner. Larger means slower polymorphic checks.</td></tr>
+<tr><td><b>In-object slack tracking</b></td><td>Over-allocate for constructors (research notes: +8 slots, counter 7), then shrink after a few allocations.</td></tr>
+<tr><td><b>Dictionary mode</b></td><td>Used on <code>delete</code> or huge property counts. Stops using Maps and uses a hash table, so ICs can't specialize.</td></tr>
+<tr><td><b>Elements kinds (21)</b></td><td>Specialize arrays by Smi, Double or Tagged, and packed or holey. Transitions only <i>generalize</i>.</td></tr>
+<tr><td><b>Tier thresholds</b></td><td>Trade warm-up against peak speed. Maglev sits at the mid tier.</td></tr>
+<tr><td><b>Const field tracking</b></td><td>Immutable fields can be embedded as constants in optimized code, and invalidated on write.</td></tr>
+</tbody>
+</table>
+<p><b>Alternatives.</b> <b>SpiderMonkey</b> uses CacheIR, which expresses ICs as a small IR that is both interpreted and compiled. Reported: 25–30% of compiled code is IC stubs (Bernstein's CacheIR paper). <b>JSC</b> uses Structures with repatching ICs, plus DFG and FTL speculation. <b>Hermes</b> uses static shape-ish layouts with a hidden-class cache. Classic <i>class-based</i> languages have a static shape, so they need no guards at all.</p>

@@ -1,0 +1,9 @@
+<p><em>"V8 gives objects hidden classes so property access is a fixed-offset load."</em></p>
+<p>It hides five things:</p>
+<ol>
+<li>Maps form a <b>transition tree</b> keyed by property <i>name and order</i>. <code>{x,y}</code> and <code>{y,x}</code> get different Maps.</li>
+<li>The IC is a <b>monotonic state machine</b> (uninitialized → monomorphic → polymorphic, up to 4 Maps → megamorphic) with a process-wide <b>stub cache</b> as the fallback.</li>
+<li>Optimizing tiers don't just <i>use</i> the IC. They <b>bet</b> on it (CheckMaps plus dependencies) and need <b>deoptimization</b> for when the bet loses.</li>
+<li>Field <i>representation</i> (Smi, Double, HeapObject, Tagged) is part of the shape and can change in place.</li>
+<li>Every guard the compiler removes is a <b>security assumption</b>. A modelling bug turns into type confusion.</li>
+</ol>

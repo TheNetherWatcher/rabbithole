@@ -1,0 +1,8 @@
+<p><a href="ic_demo.js" target="_blank" rel="noopener"><code>ic_demo.js</code></a> (in this folder): <code>node --allow-natives-syntax ic_demo.js</code>. It shows Map sharing, <code>delete</code> turning an object into dictionary mode, elements kinds, and mono, poly and mega timing. My run (Node v24.12.0, same machine, one run, no pinning, so it is noisy):</p>
+<pre><code>a,b share Map? true        a,c share Map? false
+fast before delete: true   fast after delete : false   fast after x=undefined: true
+monomorphic (1 shape)      0.99 ns/call
+polymorphic (4 shapes)     4.06 ns/call
+megamorphic (8 shapes)     4.90 ns/call
+megamorphic (64 shapes)    4.80 ns/call</code></pre>
+<p>Then add <code>--trace-deopt --trace-opt</code>, and call <code>%DebugPrint(arr)</code> after each push to watch the elements kind change.</p>

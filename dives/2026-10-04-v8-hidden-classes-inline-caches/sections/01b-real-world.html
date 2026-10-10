@@ -1,0 +1,19 @@
+<p><strong>What it is.</strong> A <i>Map</i> is V8's hidden class: an immutable-ish descriptor of an object's layout (which named properties, in what order, at which offsets, with which representations) plus its prototype and elements kind. An <i>inline cache</i> (IC) is a per-site memo keyed on Map that turns "find property <code>x</code>" into "compare Map, load at fixed offset".</p>
+<p><strong>Why it exists.</strong> The origin is the Self language (Ungar and Smith, 1980s), which invented <i>maps</i> to make prototype-based objects as compact as class-based ones. Hölzle, Chambers and Ungar's <i>polymorphic inline caches</i> (ECOOP '91) extended single-entry ICs to several entries per site: median 11% speedup on their Self programs, 27% with type feedback for recompilation, and about 2× fewer non-inlined sends (<a href="https://bibliography.selflanguage.org/pics.html" target="_blank" rel="noopener">Self bibliography</a>). Without it, every <code>o.x</code> is a hash probe or linear scan: slow and memory-hungry, because property names are stored per object.</p>
+<p><strong>Where it's used.</strong></p>
+<ul>
+<li><b>Chrome / Chromium</b>: every web page's JS runs on V8.</li>
+<li><b>Node.js, Deno</b>: server-side JS on V8. Node's performance advice is basically "keep shapes stable".</li>
+<li><b>Electron apps</b> (VS Code, Slack): V8 inside.</li>
+<li><b>Cloudflare Workers (workerd)</b>: V8 isolates.</li>
+<li><b>SpiderMonkey</b> (Firefox): the same idea, called <i>Shapes</i>, with ICs expressed in <i>CacheIR</i>. <b>JavaScriptCore</b> (Safari): <i>Structures</i> plus polymorphic ICs, tiers LLInt → Baseline → DFG → FTL. (<a href="https://webkit.org/blog/10308/speculation-in-javascriptcore/" target="_blank" rel="noopener">Speculation in JSC</a>)</li>
+</ul>
+<p><strong>How it's used.</strong> Nothing to call: it's automatic. What you touch are inspection flags and coding habits.</p>
+<pre><code>node --allow-natives-syntax --trace-opt --trace-deopt --trace-ic app.js</code></pre>
+<pre><code>// d8 / node --allow-natives-syntax
+%HasFastProperties(o)   // false =&gt; dictionary mode
+%HaveSameMap(a, b)      // do two objects share a Map?
+%DebugPrint(o)          // dumps Map, descriptors, elements kind</code></pre>
+<p>Habits: initialize all fields in the constructor in the same order; do not <code>delete</code> (set <code>undefined</code> or use a <code>Map</code>); keep arrays homogeneous and packed; keep hot call sites at 4 shapes or fewer.</p>
+<p><strong>When to use it, and when not.</strong> You don't opt in; you decide whether to <i>design for</i> it. It's worth caring about on hot paths (parsers, ECS loops, serializers, framework internals). It's not worth contorting cold code. Signs you picked wrong: <code>--trace-deopt</code> spam, <code>%HasFastProperties</code> false on hot objects, or a profile full of <code>LoadIC_Megamorphic</code>.</p>
+<p><strong>Who should care.</strong> Node and backend engineers on hot paths, framework and library authors, performance engineers, and <b>security engineers</b>. The JIT's shape assumptions are the richest browser-exploit surface.</p>

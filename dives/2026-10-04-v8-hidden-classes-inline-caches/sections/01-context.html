@@ -1,0 +1,8 @@
+<ul>
+<li><b>JS objects are dynamic.</b> Semantically they are string-to-value maps, and the engine must make that fast anyway.</li>
+<li><b>Prototype chain.</b> A property miss on the object continues up the <code>[[Prototype]]</code> chain.</li>
+<li><b>V8 tiers.</b> Ignition (interpreter) → Sparkplug (baseline) → Maglev (mid) → TurboFan (top). (<a href="https://v8.dev/blog/maglev" target="_blank" rel="noopener">v8.dev/blog/maglev</a>)</li>
+<li><b>Smi.</b> A small integer stored inline in a tagged word (low tag bit 0); heap objects are tagged pointers. With pointer compression a tagged value is 32 bits.</li>
+<li><b>Feedback vector.</b> A per-function array on the heap where each operation site (property load, call, <code>+</code>) records what it saw.</li>
+<li><b>JIT speculation.</b> Compile for the types you observed, guard with cheap checks, deoptimize when a guard fails.</li>
+</ul>

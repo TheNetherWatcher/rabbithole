@@ -1,0 +1,122 @@
+<style>
+#mech-trace .cell{fill:var(--code);stroke:var(--line);stroke-width:1.2}
+#mech-trace .cell.hl{fill:var(--hl);stroke:var(--warn);stroke-width:2}
+#mech-trace .t{fill:var(--ink);font:12px ui-monospace,Menlo,monospace;text-anchor:middle}
+#mech-trace .s{fill:var(--mute);font:10px ui-monospace,Menlo,monospace;text-anchor:middle}
+#mech-trace .t2{fill:var(--ink);font:13px ui-monospace,Menlo,monospace}
+#mech-trace .slot{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:5 3}
+#mech-trace .slot.hit{stroke:var(--ok)}
+#mech-trace .slot.bad{stroke:var(--bad)}
+@media (prefers-reduced-motion:no-preference){#mech-trace .slot{animation:mech-dash 1.2s linear infinite}}
+@keyframes mech-dash{to{stroke-dashoffset:-16}}
+#mech-sim .meter{height:10px;background:var(--code);border-radius:6px;margin:10px 0;overflow:hidden}
+#mech-sim .meter i{display:block;height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .3s}
+#mech-sim .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+#mech-sim .shapes{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+</style>
+<p>Code:</p>
+<pre><code>function getX(o) { return o.x; }
+getX({x: 1, y: 2});</code></pre>
+<p><b>Object creation.</b> The literal <code>{x:1,y:2}</code> starts from a root Map M0 (empty, with in-object slack) and follows transitions: <code>M0 --x--&gt; M1 --y--&gt; M2</code>. M2's DescriptorArray is shared with M1 and M0 through the ownership rules: <code>[x: field, in-object #0, Smi] [y: field, in-object #1, Smi]</code>.</p>
+<p><b>Layout</b> (pointer compression, 4-byte tagged values):</p>
+<pre><code>offset  0   map        -&gt; M2
+offset  4   properties -&gt; empty_fixed_array   (out-of-object overflow)
+offset  8   elements   -&gt; empty_fixed_array
+offset 12   x          Smi(1)   (encoded 0b10)
+offset 16   y          Smi(2)</code></pre>
+<p>Without compression, words are 8 bytes and <code>x</code> sits at offset 24. This is my derivation from the JSObject layout; check it with <code>%DebugPrint</code>.</p>
+<p><b>Ignition and the IC, first call.</b> The bytecode <code>LdaNamedProperty a0, [name x], [slot 3]</code> consults <code>feedback_vector[3]</code>. It is UNINITIALIZED, so the runtime <code>LoadIC::Load</code> does the real lookup in M2's descriptors, finds <code>x</code> at in-object index 0, builds a <b>handler</b>, and stores <code>(weak M2, handler)</code> in the slot. The handler is typically a Smi bit-packed with <code>KindBits | IsInobjectBits | IsDoubleBits | FieldIndexBits</code> (<a href="https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/ic/handler-configuration.h" target="_blank" rel="noopener">handler-configuration.h</a>).</p>
+<p><b>Second call (monomorphic hit).</b> The slot holds M2. Load <code>o.map</code>, compare, decode the handler, load the field at <code>index*word</code>. No lookup.</p>
+<p><b>Hot, then optimized (Maglev or TurboFan).</b> The compiler reads slot 3 while building the graph. Monomorphic M2 with a field handler means it emits:</p>
+<pre><code class="language-asm">cmp  dword [rax + 0], M2_compressed
+jne  deopt_entry
+mov  r10d, [rax + 12]</code></pre>
+<p>(Illustrative sketch, not literal V8 output.) The compiler also <i>registers a dependency</i> of this code on M2 (the Map's <code>dependent_code</code> list). If M2 later becomes deprecated or its stability assumptions break, the code is invalidated.</p>
+<p><b>The bet loses.</b> Call <code>getX({y: 1, x: 2})</code>. That object has Map M3 (<code>M0 --y--&gt; --x--&gt;</code>). <code>CheckMaps</code> fails, which is an <b>eager deopt</b>. The deoptimizer uses the translation table to rebuild an Ignition frame from registers and stack, and execution resumes in the interpreter at the bytecode offset. The IC slot misses, sees a second Map, and becomes <b>polymorphic</b>: <code>[(M2,h1),(M3,h2)]</code>. The next optimization emits a 2-way <code>CheckMaps</code>.</p>
+<p><b>Elements path (in parallel).</b> <code>arr[i]</code> ICs key on the Map's <code>elements_kind</code> (part of bit_field2). Pushing <code>1.5</code> onto a <code>PACKED_SMI_ELEMENTS</code> array transitions its Map to <code>PACKED_DOUBLE_ELEMENTS</code> and rewrites the backing store. Code that assumed Smi elements guards on the Map and deopts.</p>
+<h3>IC state machine</h3>
+<pre><code>UNINIT --first Map--&gt; MONO --2nd Map--&gt; POLY(2..4) --5th Map--&gt; MEGA
+          (never goes back)                          \-&gt; global stub cache probe</code></pre>
+
+<h3>Step-through: <code>getX({x:1,y:2})</code></h3>
+<div class="widget" role="group" aria-label="getX inline cache step-through">
+<svg id="mech-trace" viewBox="0 0 560 170" role="img" aria-label="Object layout and the IC feedback slot">
+<rect x="10" y="20" width="110" height="34" class="cell" id="mech-c-map"/><text x="65" y="42" class="t">map → M2</text>
+<rect x="120" y="20" width="110" height="34" class="cell"/><text x="175" y="42" class="t">properties</text>
+<rect x="230" y="20" width="110" height="34" class="cell"/><text x="285" y="42" class="t">elements</text>
+<rect x="340" y="20" width="100" height="34" class="cell" id="mech-c-x"/><text x="390" y="42" class="t">x = Smi(1)</text>
+<rect x="440" y="20" width="100" height="34" class="cell"/><text x="490" y="42" class="t">y = Smi(2)</text>
+<text x="65" y="72" class="s">+0</text><text x="175" y="72" class="s">+4</text><text x="285" y="72" class="s">+8</text><text x="390" y="72" class="s">+12</text><text x="490" y="72" class="s">+16</text>
+<rect x="10" y="95" width="540" height="60" class="slot" id="mech-slot"/>
+<text x="20" y="115" class="s" style="text-anchor:start">feedback_vector[3]</text>
+<text x="20" y="140" class="t2" id="mech-slotText">UNINITIALIZED</text>
+</svg>
+<p class="stepmsg" id="mech-stepmsg" aria-live="polite"></p>
+<div class="stepbar">
+  <button class="btn" id="mech-back" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-stepno" aria-live="polite"></span>
+</div>
+</div>
+
+<h3>Interactive: one call site, many shapes</h3>
+<div class="widget" id="mech-sim" role="group" aria-label="IC shape simulator">
+<p class="mini">Send objects of different shapes into the same <code>o.x</code> site. IC state is monotonic: it never goes back.</p>
+<div class="shapes" id="mech-shapeBtns"></div>
+<div class="stats">
+<div>State: <b id="mech-simState">UNINITIALIZED</b></div>
+<div>Maps seen: <b id="mech-simMaps">0</b></div>
+<div>Measured ns/call (Node 24.12, my run): <b id="mech-simNs">n/a</b></div>
+</div>
+<div class="meter"><i id="mech-bar"></i></div>
+<button class="btn" id="mech-simReset">Reset</button>
+</div>
+
+<script>
+(function(){
+// getX trace stepper
+var steps=[
+ ['Object exists. Map M2 (via M0 →x→ M1 →y→ M2). In-object x at +12 (pointer compression).','UNINITIALIZED',''],
+ ['Ignition runs LdaNamedProperty; the slot is UNINITIALIZED, so it calls the runtime LoadIC::Load.','UNINITIALIZED → miss','bad'],
+ ['The runtime looks up x in M2 descriptors: in-object, index 0, Smi. It builds a Smi-encoded handler.','MONO: (M2, handler{inobject, idx 0})','hit'],
+ ['Next call: compare o.map to M2. Equal, so decode the handler and load at +12. No lookup.','MONO hit','hit'],
+ ['Hot: Maglev/TurboFan emit CheckMaps(M2) + LoadField(+12) and register a dependency on M2.','optimized: cmp map,M2 ; jne deopt ; mov [o+12]','hit'],
+ ['getX({y:1,x:2}) has Map M3. CheckMaps fails, so eager deopt rebuilds the Ignition frame, and the IC goes POLY [(M2,h1),(M3,h2)].','POLY after deopt','bad']];
+var si=0;
+var slot=document.getElementById('mech-slot'),st=document.getElementById('mech-slotText'),sm=document.getElementById('mech-stepmsg'),sn=document.getElementById('mech-stepno'),cx=document.getElementById('mech-c-x');
+var back=document.getElementById('mech-back'),nxt=document.getElementById('mech-next');
+function showStep(){
+  var s=steps[si];
+  sm.textContent=s[0];st.textContent=s[1];
+  slot.setAttribute('class','slot '+s[2]);
+  cx.setAttribute('class',si>=3&&si<5?'cell hl':'cell');
+  sn.textContent='STEP '+(si+1)+' / '+steps.length;
+  back.disabled=si===0;nxt.disabled=si===steps.length-1;
+}
+back.onclick=function(){si=Math.max(0,si-1);showStep()};
+nxt.onclick=function(){si=Math.min(steps.length-1,si+1);showStep()};
+showStep();
+
+// IC shape simulator
+var seen={},sb=document.getElementById('mech-shapeBtns');
+var nSeen=0;
+'ABCDEFGH'.split('').forEach(function(k){
+  var b=document.createElement('button');b.className='btn';b.textContent='shape '+k;
+  b.onclick=function(){if(!seen[k]){seen[k]=true;nSeen++}upd()};
+  sb.appendChild(b);
+});
+function upd(){
+  var n=nSeen,s='UNINITIALIZED',ns='n/a';
+  if(n===1){s='MONOMORPHIC';ns='~1.0'}
+  else if(n>=2&&n<=4){s='POLYMORPHIC';ns='~4.1 (at 4 shapes)'}
+  else if(n>4){s='MEGAMORPHIC (stub cache)';ns='~4.9'}
+  document.getElementById('mech-simState').textContent=s;
+  document.getElementById('mech-simMaps').textContent=n;
+  document.getElementById('mech-simNs').textContent=ns;
+  document.querySelector('#mech-bar').style.width=Math.min(100,n*12.5)+'%';
+}
+document.getElementById('mech-simReset').onclick=function(){seen={};nSeen=0;upd()};
+upd();
+})();
+</script>
+

@@ -1,0 +1,24 @@
+<h3>Performance</h3>
+<ul>
+<li><b>Megamorphic cliff.</b> My measurement (Node v24.12, one machine): mono 0.99 ns, 4-shape 4.06 ns, 8-shape 4.90 ns, 64-shape 4.80 ns per call. The loop includes <code>i % len</code> and an array load. The cliff is mono to poly. Megamorphic adds little on top <i>here</i>, because the stub cache hits.</li>
+<li><b><code>delete</code></b> flips the object to dictionary mode, and <code>%HasFastProperties</code> returns false.</li>
+<li><b>Elements-kind generalization is one-way.</b> A single <code>NaN</code> or <code>-0</code> makes a Smi array double. A hole makes it holey "forever" (<a href="https://v8.dev/blog/elements-kinds" target="_blank" rel="noopener">elements-kinds</a>). The famous "6×" in that post is about an out-of-bounds read bug, not holes.</li>
+<li><b>Deopt loops.</b> Repeated deopts lead V8 to stop reoptimizing. One research agent said "~30". I could not verify the number, so treat it as unverified.</li>
+</ul>
+<h3>Security (the big one)</h3>
+<p>The compiler removes <code>CheckMaps</code> when it <i>proves</i> the Map can't have changed between two points. The proof depends on a precise <b>side-effect model</b>. A wrong model gives a wrong Map assumption, which gives type confusion, which gives <code>addrof</code> and <code>fakeobj</code>, which gives arbitrary read and write.</p>
+<ul>
+<li><b>CVE-2020-6418.</b> <code>NodeProperties::InferReceiverMapsUnsafe</code> special-cased <code>kJSCreate</code> and forgot to mark the result unreliable, though <code>JSCreate</code> can run user code (for example a <code>Proxy</code> as the third argument to <code>Reflect.construct</code>). The optimizer inlined <code>Array.pop</code>. The side effect changed the elements kind from Smi to Double mid-function, and the optimized code kept treating a double backing store as tagged. (<a href="https://googleprojectzero.blogspot.com/p/cve-2020-6418-chrome-incorrect-side.html" target="_blank" rel="noopener">Project Zero RCA</a>)</li>
+<li><b>CVE-2020-16009.</b> <code>Map::CanBeDeprecated()</code> wrongly said Maps with only Double or Tagged fields can't be deprecated (pointer compression, no unboxed doubles). So no code dependency was installed, and the Map was deprecated anyway. The in-place generalization from Double to Tagged then led to Double/Tagged confusion. (<a href="https://googleprojectzero.blogspot.com/p/rca-cve-2020-16009.html" target="_blank" rel="noopener">Project Zero RCA</a>)</li>
+<li><b>CVE-2025-2135.</b> The <code>InferMapsUnsafe()</code> handling of <code>TransitionElementsKindOrCheckMap</code> lacked an aliasing check. It returned <code>kReliableMaps</code> when two IR nodes referred to the same runtime object, which gave object-array vs double-array confusion. It was exploited within the V8 sandbox. (<a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic</a>)</li>
+<li><b>CVE-2022-1134 ("Super IC").</b> Confusion between <code>lookup_start_object</code> and <code>receiver</code> in the super-property IC. (<a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/" target="_blank" rel="noopener">GitHub Blog</a>) I read this in the research agent's notes and did not re-fetch it.</li>
+</ul>
+<p>The pattern: <i>an optimizer reasoning about Maps and elements kinds across an effect chain is a soundness proof written in C++.</i> The <b>V8 sandbox</b> (a pointer-compression cage plus indirection tables) limits what a corrupted heap can reach. It doesn't fix the logic bugs (<a href="https://v8.dev/blog/sandbox" target="_blank" rel="noopener">v8.dev/blog/sandbox</a>).</p>
+<h3>Misconceptions</h3>
+<ul>
+<li>"Hidden classes are per constructor." No: they are per transition path.</li>
+<li>"Polymorphic is always bad." At 4 or fewer shapes it is fine.</li>
+<li>"<code>delete</code> is slow because it's slow." It flips the object to a different <i>representation</i>, which hurts every later access.</li>
+<li>"The sandbox makes JIT bugs harmless." No. It only contains them.</li>
+</ul>
+<p>I dropped several CVE claims from the research notes that I could not confirm: an ID in the CVE-2026 range with a GitHub-repo-only source, and unverified root causes for CVE-2022-1096 and CVE-2023-3079.</p>
