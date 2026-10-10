@@ -1,0 +1,62 @@
+<p><b>Network path.</b> Pick the cheapest layer that meets your budget:</p>
+<table>
+<thead><tr><th>Path</th><th>Extra over raw ef_vi (vendor slide, 2017)</th><th>Code change</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>Kernel + <code>busy_poll</code></td><td>+3.9 µs (TCP)</td><td>none</td><td>≥ 10 µs budgets</td></tr>
+<tr><td>Onload / XLIO (LD_PRELOAD)</td><td>+300 ns UDP, +460 ns TCP</td><td>none</td><td>first step; socket code</td></tr>
+<tr><td>TCPDirect</td><td>+15 ns UDP, +22 ns TCP</td><td>sockets-like API</td><td>order entry</td></tr>
+<tr><td>ef_vi / libexanic raw frames</td><td>0</td><td>you write the protocol</td><td>hot feed handler</td></tr>
+<tr><td>AF_XDP (upstream Linux)</td><td>best ≈ 6.5 µs RTT when tuned</td><td>moderate</td><td>portability, not tick-to-trade (<a href="https://arxiv.org/abs/2402.10513" target="_blank" rel="noopener">arXiv 2402.10513</a>)</td></tr>
+<tr><td>FPGA (STAC-T0 13.9 ns)</td><td>n/a</td><td>HDL/HLS</td><td>simple, parameterisable triggers</td></tr>
+</tbody>
+</table>
+
+<p><b>CPU.</b></p>
+<ul>
+<li>SMT off: the sibling shares L1/L2, ports and the predictor.</li>
+<li>Turbo: higher peak but frequency transitions, a tradeoff.</li>
+<li>C-states locked shallow.</li>
+<li>One socket for trading, noisy work on the other.</li>
+<li>Some disable all but one core per L3 or partition the LLC with Intel CAT (Cook slide 40, Rigtorp).</li>
+</ul>
+
+<p><b>Threading model.</b></p>
+<ul>
+<li>Single-threaded hot path (Cook) vs pipeline over SPSC queues.</li>
+<li>If queues are used:
+  <ul>
+  <li>single writer;</li>
+  <li>head/tail on separate lines;</li>
+  <li><b>cached opposite index</b>: the reader re-reads the writer's index only when it thinks the queue is empty. Rigtorp saw 5.5 M → 112 M ops/s and ≈3 → 0.15 cache misses per op (<a href="https://rigtorp.se/ringbuffer/" target="_blank" rel="noopener">rigtorp ringbuffer</a>).</li>
+  </ul>
+</li>
+<li>For one-to-many, Gross's FastQueue: seqlock-style write counter / read counter, readers detect overrun and never slow the writer.</li>
+</ul>
+
+<p><b>Process model.</b></p>
+<ul>
+<li>Multiple processes over shared memory (<code>shm_open</code> + <code>mmap</code>) reduce operational risk; one crash doesn't take down the feed (Gross).</li>
+<li>Versioned headers with reserved bytes.</li>
+</ul>
+
+<p><b>Data layout.</b></p>
+<ul>
+<li>Denormalise: copy the multiplier into the instrument struct so it sits on the same line (Cook).</li>
+<li>Integer ticks.</li>
+<li>Hash maps with contiguous hash+pointer arrays that can be prefetched: 14–24 ns → 7–9 ns versus <code>std::unordered_map</code> (Cook slides 29–35).</li>
+</ul>
+
+<p><b>Compiler.</b></p>
+<ul>
+<li><code>-O3 -march=native</code>, PGO, LTO, then BOLT layout (LBR samples).</li>
+<li><code>[[likely]]</code> / <code>[[unlikely]]</code>, <code>__attribute__((cold,noinline))</code> immediately-invoked lambdas for error paths.</li>
+<li><code>always_inline</code> where measured. The <code>inline</code> keyword is about ODR, not inlining (Cook slide 36).</li>
+</ul>
+
+<p><b>Alternatives and why C++ (mostly) won the software layer:</b></p>
+<ul>
+<li><b>Java</b> (LMAX, Chronicle): garbage-free code. Disruptor mean 52 ns / p99.99 8 µs. Good, but you fight the GC and JIT warm-up.</li>
+<li><b>OCaml</b> (Jane Street): correctness first.</li>
+<li><b>Rust</b>: promising, but anecdotally "a nightmare" on the hot path because of unsafe and aliasing gymnastics (<a href="https://www.efinancialcareers.com/news/C-vs-Rust-High-Frequency-Trading-Hell" target="_blank" rel="noopener">eFinancialCareers</a>, anecdotal).</li>
+<li><b>FPGA</b> won the <i>fastest</i> path. C++ moved up a layer to strategy, parameters and risk.</li>
+</ul>

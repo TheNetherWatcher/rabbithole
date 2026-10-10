@@ -1,0 +1,1 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="10" y="30" class="t-mute" font-size="9">same line</text><rect x="10" y="34" width="140" height="14" rx="3" class="f-bad" opacity=".7"/><text x="10" y="70" class="t-mute" font-size="9">padded</text><rect x="10" y="74" width="6" height="14" rx="3" class="f-ok"/></svg>

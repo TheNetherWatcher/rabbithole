@@ -1,0 +1,38 @@
+<ol>
+<li><b>Deterministic latency on general-purpose CPUs.</b>
+  <ul>
+  <li>SMIs, microcode assists, uncore and memory-controller power management, and voltage transitions can't be turned off from software.</li>
+  <li>Even with <code>isolcpus</code> + <code>nohz_full</code>, residual timer interrupts appear (≈1 Hz tick by design, and Red Hat KB reports more).</li>
+  <li>Why hard: the CPU vendor, not the OS, owns these.</li>
+  <li>Who: Linux RT and nohz maintainers (Frederic Weisbecker et al.), hardware vendors.</li>
+  </ul>
+</li>
+<li><b>Verifying lock-free code at system scale.</b>
+  <ul>
+  <li>GenMC (MPI-SWS, PLDI'19) model-checks RC11/IMM programs, but small client programs only: state explosion, bounded loops.</li>
+  <li>Production seqlocks are formally racy in C++ today (P1478 pending).</li>
+  </ul>
+</li>
+<li><b>Performance measurement that isn't layout noise.</b>
+  <ul>
+  <li>Stabilizer showed layout effects swamp many "optimisations".</li>
+  <li>Firms want ±1% decisions on code where alignment alone moves ±several %.</li>
+  <li>Pinning alignment (<code>-falign-functions</code>, BOLT) helps but doesn't prove causality.</li>
+  </ul>
+</li>
+<li><b>One source of truth across CPU and FPGA.</b>
+  <ul>
+  <li>Strategy and risk checks get re-implemented in HDL/HLS.</li>
+  <li>No programming model guarantees the FPGA's "fire" logic and the C++ risk gate agree.</li>
+  <li>FinHardBench shows LLM-generated RTL isn't there yet.</li>
+  </ul>
+</li>
+<li><b>Is it socially worth it?</b>
+  <ul>
+  <li>Budish/Cramton/Shim (QJE 2015) and Aquilina et al. (QJE 2022) argue races are an artifact of continuous limit-order books. Frequent batch auctions would cut liquidity cost ≈17%.</li>
+  <li>Speed-bump evidence is mixed: it helps the adopting venue, but market-wide effects are inconclusive (<a href="https://static1.squarespace.com/static/6310c0b9bb63a25599f4418c/t/65d4835e10387e459f6266a2/1708426079078/SpeedBumpFinal20240212.pdf" target="_blank" rel="noopener">Aramian &amp; Comerton-Forde</a>).</li>
+  <li>If market design changed, much of this engineering would be obsolete.</li>
+  </ul>
+</li>
+<li><b>Gaps in this dive.</b> Exact ns numbers in Gross's charts weren't extractable (images). No 2023–25 head-to-head paper compares Onload/ef_vi vs AF_XDP vs DPDK latency. Firm-internal splits of the tick-to-trade budget aren't public.</li>
+</ol>

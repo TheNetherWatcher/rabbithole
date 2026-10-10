@@ -1,0 +1,24 @@
+<h3>Explain it simply</h3>
+<p>Picture a tiny auction house. Hundreds of times a second, someone near the door shouts a new price ("apples, 100 dollars 25!"). Several professional bidders are in the room. When a price looks like a bargain, the first bidder to raise a paddle gets the deal. Second place gets nothing. It doesn't matter if they're a millionth of a second late.</p>
+<p>A high-frequency trading (HFT) firm is one of those bidders. Its "paddle" is a computer program. The race is decided in microseconds (millionths of a second), sometimes nanoseconds (billionths). So the people who write these programs care less about a program being fast on average. They care that it is fast <b>every single time</b>, including the rare moment that matters, when it has been sitting idle for a while. Most of the craft is about not letting the computer do anything surprising: no pausing to tidy memory, no asking the operating system for permission, no "forgetting" the routine because it hasn't run for a while.</p>
+
+<h3>Everyday example</h3>
+<p>The bidder (call them Ana) sits by the door. Each time a price is shouted, Ana:</p>
+<ol>
+<li>hears it (the network card receives a message),</li>
+<li>writes it on a whiteboard of current best prices (the "order book"),</li>
+<li>checks a cheat sheet: "if apples drop below 100.30, buy" (the strategy),</li>
+<li>checks the rules: "never buy more than 1,000 apples" (the risk check),</li>
+<li>raises the paddle (sends an order).</li>
+</ol>
+<p>Ana has learned some tricks:</p>
+<ul>
+<li>She keeps the cheat sheet in her hand, not in a drawer (data kept in the CPU cache, not in slow memory).</li>
+<li>She never leaves to fetch a new pen mid-auction; pens are laid out beforehand (no memory allocation).</li>
+<li>She doesn't go through the front office to get messages; she stands right at the door (kernel bypass).</li>
+<li>If no good price comes along for a long time, her arm gets stiff. So every few seconds she practises: runs through all five steps and lifts the paddle a centimetre without actually bidding (cache warming with dummy orders).</li>
+</ul>
+<p>One day the shout is "apples, 100.25, 500 available!", below her 100.30 trigger. Ana updates the whiteboard, sees the trigger hit, checks 500 ≤ 1,000, and raises the paddle. She wins by a hair, because a rival had to walk back from the coffee machine.</p>
+
+<h3>Now the same thing, technically</h3>
+<p>Each step of Ana's routine is a stage of the hot path: receive, parse, update the book, decide, check risk, send. The rest of this dive explains how each stage is kept fast and, more importantly, kept <i>steady</i>.</p>

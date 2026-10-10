@@ -1,0 +1,31 @@
+<p>Concrete constraints a designer faces:</p>
+
+<h3>The physics floor</h3>
+<ul>
+<li>Chicago (CME, Aurora) to New Jersey (Carteret/Secaucus): 1139.5 km geodesic, so the speed-of-light round trip is 7.6 ms.</li>
+<li>Microwave networks measure 7.7 ms RTT, within 1.5% of c.</li>
+<li>Market data shows CME→NJ reactions at ≈4.2 ms one-way, versus ≈6.65 ms for the best fiber.</li>
+<li><a href="https://courses.cs.duke.edu/fall21/compsci514/internal/readings/BhattacherjeeAABSTACGLMS22.pdf" target="_blank" rel="noopener">cISP paper (Bhattacherjee et al.)</a>, <a href="https://www.theregister.com/2013/02/27/microwave_versus_fibre/" target="_blank" rel="noopener">The Register 2013</a></li>
+</ul>
+<p>Once everyone is on the same microwave path and in the same colo, what remains is <b>inside the box</b>.</p>
+
+<h3>The box budget</h3>
+<p>"A very good minimum time (wire to wire) for a software-based trading system is around 2.5 µs" (Cook 2017). Gross 2024: strategy layer 1–10 µs, ultra-low-latency execution &lt; 1 µs.</p>
+
+<h3>What eats the budget if you do nothing</h3>
+<table>
+<thead><tr><th>Cost</th><th>Typical</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>Kernel TCP path vs raw ef_vi</td><td>+3.9 µs</td><td><a href="https://docs.stacresearch.com/system/files/resource/files/STAC-Summit-5-Jun-2017-Solarflare.pdf" target="_blank" rel="noopener">Solarflare slide</a></td></tr>
+<tr><td>PCIe NIC round trip, 128 B packet</td><td>≈1000 ns, of which ≈900 ns is PCIe</td><td><a href="https://www.cl.cam.ac.uk/teaching/1011/R02/papers/p327-neugebauer.pdf" target="_blank" rel="noopener">Neugebauer SIGCOMM'18</a></td></tr>
+<tr><td>Context switch (unpinned)</td><td>3–4.5 µs, plus cache-pollution aftermath</td><td><a href="https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html" target="_blank" rel="noopener">Tsuna</a></td></tr>
+<tr><td>Core C6 exit</td><td>≈90 µs measured, 133–170 µs per the driver table</td><td><a href="https://docs.kernel.org/6.19/admin-guide/pm/intel_idle.html" target="_blank" rel="noopener">intel_idle</a>, <a href="https://www.phoronix.com/news/Intel-C6-Ice-Lake-Xeon-Idle" target="_blank" rel="noopener">Phoronix</a></td></tr>
+<tr><td>4-level page walk on TLB miss</td><td>≈3 dependent loads ≈ 210 ns at 70 ns DRAM</td><td><a href="https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/" target="_blank" rel="noopener">HRT</a></td></tr>
+<tr><td>DRAM miss</td><td>60–100 ns</td><td>7-cpu, Drepper</td></tr>
+<tr><td>Branch mispredict</td><td>16–20 cycles ≈ 5 ns</td><td>7-cpu</td></tr>
+<tr><td>Exception thrown for control flow</td><td>≥ 1.5 µs</td><td>Cook slide 22</td></tr>
+<tr><td><code>std::pow</code> slow path (glibc 2.17)</td><td>478 µs (!) vs 53 ns</td><td>Cook slide 47</td></tr>
+</tbody>
+</table>
+
+<p>So one page fault, one C-state exit or one thrown exception costs more than the whole budget. The design problem is <b>removing variance</b>, not shaving averages.</p>

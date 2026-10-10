@@ -1,0 +1,45 @@
+<h3>Operational: Knight Capital, 1 Aug 2012</h3>
+<p><a href="https://www.sec.gov/litigation/admin/2013/34-70694.pdf" target="_blank" rel="noopener">SEC 34-70694</a></p>
+<ul>
+<li>New code went to 7 of 8 servers. A <b>reused flag</b> woke dead "Power Peg" code on server 8.</li>
+<li>Its fill-tracking had been broken by a 2005 refactor that nobody retested.</li>
+<li>45 minutes: 4M executions, 397M shares, ≈$3.5B long / $3.15B short, <b>&gt;$460M loss</b>. (The common "$440M" was Knight's early estimate.)</li>
+<li>97 warning emails went unread.</li>
+<li>The rollback made it worse: removing the new code from the 7 correct servers made them run Power Peg too.</li>
+<li>Pre-trade controls "were not capable of preventing the entry of orders".</li>
+<li>Lesson: speed engineering is worthless without automated, blocking risk gates, version-consistency checks, and no dead code behind flags.</li>
+</ul>
+
+<h3>Microarchitecture traps</h3>
+<ul>
+<li><b>False sharing.</b> Padding to 64 B isn't enough on Intel parts whose spatial prefetcher pulls line <i>pairs</i>, so many pad to 128 B. <code>std::hardware_destructive_interference_size</code> is a compile-time guess; GCC warns about ABI hazards. Apple M-series reports 128 B lines (<code>sysctl hw.cachelinesize</code> on our test machine).</li>
+<li><b>Denormals.</b> Up to ≈100× slower via microcode assist. A decaying EMA drifting toward 0 is the classic trigger. Fix: FTZ/DAZ. <a href="https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-windows/2025-1/operating-on-denormals.html" target="_blank" rel="noopener">Intel</a></li>
+<li><b>AVX-512 frequency licences.</b> On Skylake-SP, one AVX-512 burst downclocks the core and slows the scalar code after it. Mostly gone on Ice Lake+ (≤100 MHz), but voltage transitions remain. <a href="https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html" target="_blank" rel="noopener">Travis Downs</a></li>
+<li><b>SMIs.</b> Firmware interrupts invisible to the OS, sometimes ms long. Only detectable via <code>hwlatdetect</code>. An <b>irreducible floor</b>. <a href="https://www.kernel.org/doc/Documentation/trace/hwlat_detector.rst" target="_blank" rel="noopener">kernel hwlat</a></li>
+<li><b>THP.</b> khugepaged and direct compaction stall at random. Use explicit hugetlbfs.</li>
+<li><b>TLB shootdowns.</b> Any <code>munmap</code> / <code>mprotect</code> / <code>MADV_FREE</code> by any thread IPIs every core running the process (Rigtorp).</li>
+<li><b>Spectre mitigations.</b> KPTI made <code>getppid</code> 0.079 → 0.202 µs (+150%) (<a href="https://brendangregg.com/blog/2018-02-09/kpti-kaiser-meltdown-performance.html" target="_blank" rel="noopener">Gregg</a>). Rigtorp lists <code>mitigations=off</code>. I found <b>no primary source</b> that firms do this routinely. It is only defensible on single-tenant, locked-down boxes.</li>
+</ul>
+
+<h3>C++ traps</h3>
+<ul>
+<li><b>Type-punning packet buffers.</b> <code>reinterpret_cast&lt;Hdr*&gt;(buf)-&gt;field</code> is UB (strict aliasing / object lifetime). It works until an optimiser proves otherwise. Use <code>memcpy</code> / <code>bit_cast</code> or C++23 <code>std::start_lifetime_as</code> (<a href="https://open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2590r2.pdf" target="_blank" rel="noopener">P2590R2</a>); library support landed late.</li>
+<li><b>Memory ordering.</b> x86 TSO hides <code>relaxed</code>-ordering bugs that break on ARM (<a href="https://learn.arm.com/learning-paths/servers-and-cloud-computing/arm-cpp-memory-model/3/" target="_blank" rel="noopener">Arm learning path</a>). Even on x86, the compiler can reorder relaxed ops, and TSO still reorders store→load. <code>volatile</code> gives neither.</li>
+<li><b>Seqlock readers.</b> Gross notes FastQueue's reader <code>memcpy</code> is formally a data race, pending P1478 (byte-wise atomic memcpy).</li>
+<li><b>Exceptions.</b> Zero-cost until thrown; then ≥1.5 µs (Cook), and the unwinder takes a global lock that scales badly across threads (<a href="https://open-std.org/JTC1/SC22/WG21/docs/papers/2022/p2544r0.html" target="_blank" rel="noopener">P2544</a>).</li>
+<li><b>Hidden allocations.</b> <code>std::function</code> may allocate (use <code>inplace_function</code>). Thread-safe function-local statics cost 5–10%. Before gcc 7.1, placement new did a null check (Cook war stories).</li>
+</ul>
+
+<h3>Measurement misconceptions</h3>
+<ul>
+<li>Microbenchmarks run warm; production fires cold (Gross's "you're not alone": other processes evict you). <code>DoNotOptimize</code> doesn't stop the compiler computing the expression at compile time.</li>
+<li><code>rdtsc</code> needs <code>lfence</code> / <code>rdtscp</code> fencing and an invariant TSC, and may be unsynchronised across sockets (<a href="https://cis.temple.edu/~qzeng/cis3207-spring18/files/ia-32-ia-64-benchmark-code-execution-paper.pdf" target="_blank" rel="noopener">Paoloni</a>).</li>
+<li><b>Layout noise.</b> Changing environment size or link order flipped whether -O3 beats -O2 (Mytkowicz, ASPLOS'09). With layout randomised (Stabilizer, ASPLOS'13), -O3 vs -O2 was indistinguishable from noise on SPEC2006. So a "3% win" from an unrelated commit may be alignment. <a href="https://people.cs.umass.edu/~emery/pubs/stabilizer-asplos13.pdf" target="_blank" rel="noopener">Stabilizer</a></li>
+</ul>
+
+<h3>Misconceptions</h3>
+<ul>
+<li>"Virtual calls are slow because of the vtable load." No: the cost is the indirect mispredict and the lost inlining.</li>
+<li>"Lock-free means no locks." Cook: it "may still require locks at the hardware level" (cache-line ownership).</li>
+<li>"Faster average = more wins." Race wins come from the tail at the moment of news.</li>
+</ul>

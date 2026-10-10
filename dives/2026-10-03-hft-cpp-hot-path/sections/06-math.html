@@ -1,0 +1,116 @@
+<style>
+#math-burst .bad{color:var(--bad);font-weight:600}
+#math-burst .good{color:var(--ok);font-weight:600}
+#math-wire .out,#math-burst .out,#math-tail .out{margin-top:8px;padding:8px 10px;background:var(--code);border-radius:8px;font-size:13.5px;white-space:pre-wrap;font-family:var(--mono)}
+#math-wire label,#math-burst label,#math-tail label{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+#math-wire input[type=range],#math-burst input[type=range],#math-tail input[type=range]{flex:1 1 200px;accent-color:var(--accent)}
+</style>
+
+<h3>6.1 The wire floor</h3>
+<p>Let d be path length, c = 299,792 km/s, and n the refractive index (fiber ≈ 1.47, air ≈ 1.0003).</p>
+<div class="eq">t<sub>one-way</sub> = n · d / c<small>→ in plain terms: light is slower in glass than in air, so every kilometre of fiber costs extra time.</small></div>
+<ul>
+<li>Fiber: 4.9 µs/km.</li>
+<li>Air: 3.34 µs/km.</li>
+<li>Chicago–NJ geodesic at 1139.5 km: 3.80 ms in air. Fiber runs ≈ 6.65 ms because of n <i>and</i> a longer right-of-way.</li>
+</ul>
+<p class="plainterms">→ <b>In plain terms:</b> every kilometre of glass costs 1.5 µs more than air. That is why firms bought microwave towers. After that, everyone is equal, and <b>in-box µs decide</b>.</p>
+
+<div class="widget" id="math-wire">
+<h4 style="margin-top:0">Wire floor calculator</h4>
+<label>Distance <input type="range" id="math-wd" min="10" max="2000" value="1140"> <span id="math-wdv" class="mono"></span> km</label>
+<div id="math-wout" class="out"></div>
+</div>
+
+<h3>6.2 Average memory access time: why a cold hot path is slow</h3>
+<p>A path touches M cache lines. Each hits in level i with probability h<sub>i</sub> at latency L<sub>i</sub>:</p>
+<div class="eq">T<sub>mem</sub> ≈ M · (L<sub>1</sub> + m<sub>1</sub> L<sub>2</sub> + m<sub>1</sub> m<sub>2</sub> L<sub>3</sub> + m<sub>1</sub> m<sub>2</sub> m<sub>3</sub> L<sub>DRAM</sub>)<small>→ in plain terms: each level you miss adds the next level's latency, weighted by how often you miss it.</small></div>
+<p>Here m<sub>i</sub> = 1 − h<sub>i</sub> is the miss rate at level i. Warm: m<sub>1</sub> ≈ 0, so T ≈ M · 1 ns. Cold, after another workload trashed the caches: m<sub>1</sub> = m<sub>2</sub> = m<sub>3</sub> ≈ 1, so T ≈ M · 80 ns.</p>
+<p>For M = 512 lines (our lab's 32 KiB working set), that is ≈0.5 µs warm and up to ≈40 µs cold. The hardware prefetcher and memory-level parallelism hide most of the sequential case: our lab measured <b>p50 84 ns warm vs 542 ns cold, 6.5×</b>.</p>
+<p class="plainterms">→ <b>In plain terms:</b> latency is multiplied by the miss rate, and an idle path's miss rate tends to 1. Warming forces m<sub>1</sub> → 0 right before the moment that counts.</p>
+<p>Why this form and not "bytes / bandwidth"? Because the hot path is <b>latency-bound</b>: dependent pointer loads (hash bucket → node → level) can't overlap. Bandwidth only matters for streaming. That is also why node containers (<code>std::map</code>: log N dependent misses) lose to contiguous arrays.</p>
+
+<h3>6.3 Tails compound across stages</h3>
+<p>A tick traverses N stages (NIC, parse, book, strategy, risk, send, …), each independently "slow" with probability p:</p>
+<div class="eq">P(tick hits at least one slow stage) = 1 − (1 − p)<sup>N</sup><small>→ in plain terms: the chance that at least one stage misbehaves grows quickly with the number of stages.</small></div>
+<p>With p = 1% and N = 6, that is 5.9%. With N = 100 (fan-out services), 63%. <a href="https://blog.acolyer.org/2015/01/15/the-tail-at-scale/" target="_blank" rel="noopener">Dean &amp; Barroso, The Tail at Scale</a></p>
+<p class="plainterms">→ <b>In plain terms:</b> a path is only as predictable as the product of its stages' predictability, so every stage's p99 matters, not just the slowest stage's p50.</p>
+
+<div class="widget" id="math-tail">
+<h4 style="margin-top:0">Tails compound</h4>
+<label>Per-stage slow probability p <input type="range" id="math-tp" min="0.1" max="10" step="0.1" value="1"> <span id="math-tpv" class="mono"></span> %</label>
+<label>Stages N <input type="range" id="math-tn" min="1" max="100" value="6"> <span id="math-tnv" class="mono"></span></label>
+<div id="math-tout" class="out"></div>
+<div class="bar"><i id="math-tbar"></i></div>
+</div>
+
+<h3>6.4 Bursts, Little's law, and dropped packets</h3>
+<ul>
+<li>Little's law: <code>L = λW</code> (mean items in system = arrival rate × mean time in system), valid for any stable system.</li>
+<li>During a burst, the arrival rate λ exceeds the service rate μ = 1/s, where s = per-message service time.</li>
+<li>The backlog then grows at λ − μ. A NIC ring of R slots overflows after</li>
+</ul>
+<div class="eq">T<sub>drop</sub> = R / (λ − μ)<small>→ in plain terms: a fixed-size queue fills at the rate that arrivals outrun service.</small></div>
+<p>Example (made-up but realistic): λ = 5 M msg/s in a burst, s = 300 ns → μ = 3.33 M/s → backlog grows 1.67 M/s → a 4096-slot ring overflows in <b>2.5 ms</b>. Halve s to 150 ns (μ = 6.67 M/s &gt; λ) and the ring never fills.</p>
+<p>The queueing delay seen by the k-th message of the burst is ≈ k(s − 1/λ). So <b>the most important packets, right after news, wait longest.</b></p>
+<p class="plainterms">→ <b>In plain terms:</b> a small per-message cost difference flips you from "keeps up" to "falls behind and loses data". It is a cliff, not a slope. That is why Gross treats order-book update time as an availability issue.</p>
+
+<div class="widget" id="math-burst">
+<h4 style="margin-top:0">Burst vs NIC ring: when do you drop?</h4>
+<label>Burst arrival λ <input type="range" id="math-bl" min="0.5" max="10" step="0.1" value="5"> <span id="math-blv" class="mono"></span> M msg/s</label>
+<label>Service time s <input type="range" id="math-bs" min="50" max="1000" step="10" value="300"> <span id="math-bsv" class="mono"></span> ns/msg</label>
+<label>Ring size R <input type="range" id="math-br" min="256" max="65536" step="256" value="4096"> <span id="math-brv" class="mono"></span> slots</label>
+<div id="math-bout" class="out"></div>
+</div>
+
+<h3>6.5 Coordinated omission</h3>
+<ul>
+<li>A load tester sends every interval Δ but waits for each reply.</li>
+<li>When one stall of length S occurs, it skips ≈ S/Δ − 1 samples that <i>should</i> have seen latencies S − Δ, S − 2Δ, …</li>
+<li>Recorded data: 1 slow sample. Truth: S/Δ slow samples.</li>
+<li>Tene's example: Δ = 1 ms, 10 stalls of ≈536 ms → ≈5,350 omitted samples; true p99.99 ≈ 582 ms vs a reported figure ≈35,000× smaller. <a href="https://groups.google.com/g/mechanical-sympathy/c/icNZJejUHfE/m/BfDekfBEs_sJ" target="_blank" rel="noopener">Tene</a></li>
+</ul>
+<p class="plainterms">→ <b>In plain terms:</b> if your measurement waits for the system, it stops measuring exactly when the system is worst. Wire taps don't wait, so they don't lie this way.</p>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+function wire(){
+  var d=+$('math-wd').value; $('math-wdv').textContent=d;
+  var air=d*1.0003/299792.458*1e3, fib=d*1.47/299792.458*1e3;
+  $('math-wout').textContent='air / microwave one-way: '+air.toFixed(3)+' ms   (RTT '+(2*air).toFixed(2)+' ms)\n'
+    +'fiber (n=1.47) one-way:  '+fib.toFixed(3)+' ms   (+'+((fib-air)*1000).toFixed(0)+' µs vs air)\n'
+    +'→ every km of glass costs ≈ '+(((1.47-1.0003)/299792.458)*1e6).toFixed(2)+' µs extra (straight-line; real fiber routes are longer)';
+}
+$('math-wd').oninput=wire; wire();
+
+function burst(){
+  var l=+$('math-bl').value*1e6, s=+$('math-bs').value*1e-9, R=+$('math-br').value;
+  $('math-blv').textContent=(+$('math-bl').value).toFixed(1);
+  $('math-bsv').textContent=$('math-bs').value;
+  $('math-brv').textContent=R;
+  var mu=1/s;
+  var t='service rate μ = '+(mu/1e6).toFixed(2)+' M msg/s, utilisation ρ = λ/μ = '+(l/mu).toFixed(2)+'\n';
+  if(l<=mu){ t+='<span class="good">keeps up</span>: backlog never grows; ring of '+R+' never fills (in this fluid model).'; }
+  else{
+    var g=l-mu, T=R/g;
+    t+='backlog grows '+(g/1e6).toFixed(2)+' M msg/s → <span class="bad">ring overflows after '+(T<1e-3?(T*1e6).toFixed(0)+' µs':(T*1e3).toFixed(2)+' ms')+'</span> of burst\n'
+      +'message #1000 of the burst waits ≈ '+(1000*(s-1/l)*1e6).toFixed(1)+' µs in queue';
+  }
+  $('math-bout').innerHTML=t;
+}
+['math-bl','math-bs','math-br'].forEach(function(i){ $(i).oninput=burst; });
+burst();
+
+function tail(){
+  var p=+$('math-tp').value/100, N=+$('math-tn').value;
+  $('math-tpv').textContent=(p*100).toFixed(1);
+  $('math-tnv').textContent=N;
+  var P=1-Math.pow(1-p,N);
+  $('math-tout').textContent='P(at least one slow stage) = 1 − (1 − '+p.toFixed(3)+')^'+N+' = '+(P*100).toFixed(1)+' %';
+  $('math-tbar').style.width=(P*100)+'%';
+}
+['math-tp','math-tn'].forEach(function(i){ $(i).oninput=tail; });
+tail();
+})();
+</script>

@@ -1,0 +1,31 @@
+<ul>
+<li><b>Optiver (Cook 2017).</b>
+  <ul>
+  <li>Single-threaded hot path.</li>
+  <li>Template config so there is "one virtual call at the top, none inside".</li>
+  <li>Custom <code>array_map</code> hash.</li>
+  <li>Dummy-path warming.</li>
+  <li>Switch-timestamp replay rig for measurement.</li>
+  <li>Deviation from textbook: <i>prefer approximations; do expensive work only when there's spare time.</i></li>
+  </ul>
+</li>
+<li><b>Optiver (Gross 2024).</b>
+  <ul>
+  <li>Reverse-vector book with linear search. He showed the branchless binary search <code>first += comp(first[half], value) * (length - half);</code> (the <code>*</code> is "needed for GCC to generate CMOV") and then showed that linear search wins anyway.</li>
+  <li>Kernel-bypass fan-out to processes on the same box.</li>
+  <li>FastQueue over shared memory, benchmarked against Aeron's BroadcastTransmitter and the LMAX Disruptor on an EPYC 9474F.</li>
+  <li><code>ScopedTrace</code> with <code>__rdtsc()</code> pushed to a queue; Clang XRay for runtime patching.</li>
+  <li>Top-down <code>perf stat -M Frontend_Bound,Backend_Bound,Bad_Speculation,Retiring</code>.</li>
+  </ul>
+</li>
+<li><b>HRT.</b> Explicit huge pages: 4.5× faster random access over a 32 GB dataset on Alder Lake. Devirtualisation posts.</li>
+<li><b>Logging (Quill, fmtlog).</b>
+  <ul>
+  <li>Per-thread SPSC queues carry a format-string ID plus binary args, ≈6 ns p50.</li>
+  <li>A backend thread on a housekeeping core formats.</li>
+  <li>spdlog formatting inline is ≈271 ns p50 in Quill's benchmark.</li>
+  </ul>
+</li>
+<li><b>Hybrid CPU+FPGA.</b> AMD's X3522 markets "offload business logic to NIC". Solarflare/LDA put the TCP fast path in the FPGA with control in Onload. Software precomputes "if price X arrives, fire order Y" and the FPGA fires.</li>
+<li><b>Exchanges moving into the cloud.</b> CME announced (26 Jun 2024) Globex moving to a private Google Cloud region in Aurora with colocation (<a href="https://www.cmegroup.com/media-room/press-releases/2024/6/26/cme_group_and_googlecloudannouncenewchicagoareaprivatecloudregio.html" target="_blank" rel="noopener">CME</a>). Cut-over date unverified. Cloud-style NICs are why userspace stacks like Machnet matter.</li>
+</ul>

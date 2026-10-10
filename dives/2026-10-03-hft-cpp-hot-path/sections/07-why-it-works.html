@@ -1,0 +1,18 @@
+<p><b>The core insight:</b> latency on a modern CPU is dominated by <i>events</i>, not <i>instructions</i>: cache misses, TLB misses, mispredicts, syscalls, interrupts, page faults, frequency transitions. A few hundred well-predicted, cache-resident instructions cost tens of ns. One event costs 100 ns–100 µs. So the craft is <b>eliminating events on the hot path, and pre-paying the unavoidable ones off the hot path</b>.</p>
+
+<p>Ablation, removing each piece:</p>
+<table>
+<thead><tr><th>Remove…</th><th>What breaks</th></tr></thead>
+<tbody>
+<tr><td>Kernel bypass</td><td>+≈4 µs per packet in the kernel TCP path, plus syscall jitter and interrupt coalescing.</td></tr>
+<tr><td>Busy-poll / pinned core</td><td>The thread sleeps → C-state exit (≈90+ µs) or a context switch (µs) on wake.</td></tr>
+<tr><td><code>isolcpus</code> / <code>nohz_full</code></td><td>Timer ticks, RCU callbacks and kworkers land on your core; Rigtorp still saw 18 µs max jitter on a poorly isolated core.</td></tr>
+<tr><td>Cache warming</td><td>First real packet after idle pays the cold miss chain: our lab shows 6.5× p50, ≈7× p99.</td></tr>
+<tr><td>Preallocation + <code>mlockall</code> + prefault</td><td><code>malloc</code> bookkeeping ("400 lines" in glibc <code>free</code>), page faults, THP compaction stalls.</td></tr>
+<tr><td>Templates instead of virtuals</td><td>Indirect branch mispredicts at polymorphic sites, plus <b>lost inlining</b>, which is the bigger cost.</td></tr>
+<tr><td>Single-branch risk check</td><td>N unpredictable branches; error code inlined into the hot path, polluting the i-cache.</td></tr>
+<tr><td>Contiguous reverse-vector book</td><td><code>std::map</code>: node allocation per level and log N dependent misses. Gross: "Most of the time, you don't want node containers."</td></tr>
+<tr><td>Padding / single writer</td><td>False sharing: our lab went <b>1908 ms vs 82 ms (23×)</b> for two counters on one line vs separate lines.</td></tr>
+<tr><td>Wire-level measurement</td><td>You optimise the wrong thing. Sampling profilers "miss the key events" (Cook).</td></tr>
+</tbody>
+</table>

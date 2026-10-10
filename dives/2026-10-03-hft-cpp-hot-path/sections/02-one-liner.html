@@ -1,0 +1,9 @@
+<blockquote>"HFT C++ is about avoiding allocations and virtual functions and using kernel bypass."</blockquote>
+<p>What that hides:</p>
+<ol>
+<li><b>The real enemy is coldness, not slowness.</b> The hot path runs ≈0.01% of the time, so caches, TLB and branch predictors have forgotten it by the time it fires. Firms <i>run it constantly on fake data</i> to keep it warm.</li>
+<li><b>Tails, not means.</b> A 629× gap in mean latency (Disruptor vs ArrayBlockingQueue) hides a p99.99 gap of 8 µs vs 4.2 ms. Races are lost in the tail.</li>
+<li><b>Simple beats asymptotic.</b> Linear search beats binary search, and a vector beats <code>std::map</code>. That holds because the data is skewed toward the top of the book and memory access dominates.</li>
+<li><b>The machine is part of the program.</b> Same binary and same hardware give visibly different speed depending on BIOS/OS tuning (Cook slide 11). SMIs, C-state exits (≈90–170 µs) and other processes evicting your L3 are invisible to the C++.</li>
+<li><b>Software is no longer the fastest path.</b> FPGAs hit 13.9 ns on STAC-T0. Modern C++ sits in the 1–10 µs strategy layer and <i>parameterises</i> hardware that fires.</li>
+</ol>

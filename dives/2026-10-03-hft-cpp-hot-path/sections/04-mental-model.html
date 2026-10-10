@@ -1,0 +1,16 @@
+<p><b>A Formula 1 pit stop.</b> Every tool is laid out in advance, each crew member does one job and never moves, and the car spends its whole race lapping, so tyres and brakes stay at temperature. A stop takes ≈2 s because nobody fetches anything, nobody waits for permission, and nobody has to remember how.</p>
+
+<p>Mapping:</p>
+<ul>
+<li><b>Tools laid out</b> → preallocated pools, no <code>malloc</code>.</li>
+<li><b>One crew member per job</b> → one pinned thread per isolated core.</li>
+<li><b>Car lapping</b> → the dummy warm-up path.</li>
+<li><b>No radio to race control mid-stop</b> → no syscalls (kernel bypass).</li>
+</ul>
+
+<div class="mis"><p><b>Where the analogy breaks:</b></p>
+<ol>
+<li>A pit crew practises the <i>same</i> motion. A warm-up path must exercise the <i>same code and data</i> as the real decision, but must <b>not</b> send. That one difference is a branch that has to be predicted correctly at the real moment.</li>
+<li>Pit stops are serial and independent. CPU caches are shared: your neighbour's process can evict your L3 lines mid-race (Gross's "you're not alone").</li>
+<li>In F1 a faster stop always helps. In HFT, shaving 100 ns of software is worthless if the race is decided by an FPGA 2 µs earlier.</li>
+</ol></div>

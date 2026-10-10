@@ -1,0 +1,92 @@
+<h3>What it is, in one paragraph</h3>
+<p>"Low-latency C++" in HFT is a body of practice for building the <b>tick-to-trade</b> path. That path is the code that runs from the moment the last bit of a market-data packet arrives on the wire to the moment the first bit of the resulting order leaves. The goal is to make it short (single-digit microseconds in software, tens of nanoseconds in FPGAs) and, above all, <b>predictable</b>. The practice spans hardware (NIC choice, BIOS settings), the OS (core isolation, no interrupts), the C++ itself (no allocation, no virtual calls or branches on the hot path, cache-friendly data), and measurement (hardware timestamps at the wire, tail percentiles).</p>
+
+<h3>Why it exists</h3>
+<ul>
+<li><b>The race is tiny and winner-take-all.</b> On the London Stock Exchange, latency-arbitrage "races" happen about once a minute per FTSE-100 symbol. The <b>modal winning margin is 5–10 µs</b>. Races cover ≈20% of volume, and the top 6 firms take &gt;80% of race wins and losses. About $5B a year is at stake in global equities. <a href="https://www.nber.org/papers/w29011" target="_blank" rel="noopener">Aquilina, Budish, O'Neill, QJE 2022</a>; <a href="https://www.fca.org.uk/publications/occasional-papers/occasional-paper-no-50-quantifying-high-frequency-trading-arms-race-new-methodology" target="_blank" rel="noopener">FCA OP50</a></li>
+<li><b>General-purpose stacks are tuned for throughput and fairness, not latency.</b> Carl Cook (Optiver): "Jitter is unacceptable – it means bad trades". The hot path runs only ≈0.01% of the time, so by default it is always cold. <a href="https://github.com/CppCon/CppCon2017/blob/master/Presentations/When%20a%20Microsecond%20Is%20an%20Eternity/When%20a%20Microsecond%20Is%20an%20Eternity%20-%20Carl%20Cook%20-%20CppCon%202017.pdf" target="_blank" rel="noopener">Cook 2017 slides</a></li>
+<li><b>Falling behind can also drop data.</b> Feeds burst to hundreds of thousands of updates a second. If you read too slowly, the NIC runs out of buffers and drops packets, which is an outage. <a href="https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf" target="_blank" rel="noopener">Gross 2024</a></li>
+<li><b>Before:</b> 2000s-era systems used kernel sockets, std containers and logging inline. A kernel TCP path adds ≈3.9 µs over raw ef_vi per Solarflare's own (vendor, non-STAC) slide. <a href="https://docs.stacresearch.com/system/files/resource/files/STAC-Summit-5-Jun-2017-Solarflare.pdf" target="_blank" rel="noopener">STAC Summit 2017</a></li>
+</ul>
+
+<h3>Where it's used</h3>
+<table>
+<thead><tr><th>System / firm</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><b>Optiver</b></td><td>Public C++ talks (Cook 2017, Gross 2022/2024). Templates over virtuals, reverse-vector order books, the FastQueue shared-memory broadcast queue.</td></tr>
+<tr><td><b>IMC</b></td><td>C++ "sits directly in the latency-critical loop… integrate FPGA-based systems". This is the hybrid CPU+FPGA model. <a href="https://www.imc.com/us/careers/jobs/4634204101" target="_blank" rel="noopener">IMC job page</a></td></tr>
+<tr><td><b>Hudson River Trading</b></td><td>C++ at the center of live trading. Its HRTbeat blog covers huge pages and devirtualisation. <a href="https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/" target="_blank" rel="noopener">HRT huge pages</a></td></tr>
+<tr><td><b>AMD Solarflare NICs (Onload, TCPDirect, ef_vi)</b></td><td>The de facto kernel-bypass stack in colocated trading. <a href="https://github.com/Xilinx-CNS/onload" target="_blank" rel="noopener">Xilinx-CNS/onload</a></td></tr>
+<tr><td><b>Cisco Nexus SmartNIC (ex-Exablaze ExaNIC)</b></td><td>Raw-frame API, 780 ns median app→network→app, 6.2 ns hardware timestamps. <a href="https://github.com/cisco/exanic-software" target="_blank" rel="noopener">cisco/exanic-software</a></td></tr>
+<tr><td><b>Real Logic SBE / Aeron / Agrona</b></td><td>Zero-allocation flyweight codecs; reliable UDP and IPC messaging. CME MDP3 uses SBE. <a href="https://github.com/real-logic/simple-binary-encoding" target="_blank" rel="noopener">SBE</a></td></tr>
+<tr><td><b>Quill / fmtlog / NanoLog</b></td><td>Hot-path logging at ≈6–20 ns: binary-encode the arguments, format later on another core. <a href="https://github.com/odygrd/quill" target="_blank" rel="noopener">Quill</a>, <a href="https://www.usenix.org/conference/atc18/presentation/yang-stephen" target="_blank" rel="noopener">NanoLog ATC'18</a></td></tr>
+<tr><td><b>Counter-examples</b></td><td>Jane Street writes its lowest-latency software in <b>OCaml</b> and its FPGAs in Hardcaml (<a href="https://www.janestreet.com/performance-engineering/" target="_blank" rel="noopener">JS</a>). LMAX and Chronicle use garbage-free <b>Java</b>.</td></tr>
+</tbody>
+</table>
+
+<h3>How it's used (what a practitioner touches)</h3>
+<pre><code># Boot: isolate cores 2-7 from the scheduler, timer tick and RCU callbacks
+GRUB_CMDLINE_LINUX="isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7 nosmt transparent_hugepage=never intel_idle.max_cstate=0 processor.max_cstate=1"
+pgrep -P 2 | xargs -i taskset -p -c 0 {}      # kernel threads to core 0 (Rigtorp guide)
+tuned-adm profile network-latency
+
+# Zero-code-change bypass first: LD_PRELOAD Onload with busy-polling
+onload --profile=latency taskset -c 3 ./algo_trader</code></pre>
+
+<pre><code class="language-cpp">// Hot thread skeleton: pinned, busy-polling, nothing allocates, one branch for "send or not".
+template &lt;class Strategy, class Sender&gt;              // config picked once at startup → no virtuals inside
+struct Engine {
+    Strategy strat; Sender tx; Book book; Risk risk;
+    void run() {
+        pin_this_thread(3);
+        mlockall(MCL_CURRENT | MCL_FUTURE);
+        for (;;) {                                    // never sleeps, never yields
+            if (auto* pkt = rx.poll()) [[likely]] on_packet(pkt);
+            else if (warm_timer.due()) on_packet(&amp;synthetic_tick, /*dry_run=*/true);   // keep caches hot
+        }
+    }
+    void on_packet(const Packet* p, bool dry_run = false) {
+        auto&amp; m = *std::start_lifetime_as&lt;AddOrder&gt;(p-&gt;payload);   // C++23, no UB type-punning
+        book.apply(m);
+        Order o = strat.decide(book);                 // writes into a preallocated Order
+        uint64_t err = risk.check(o);                 // all checks OR'ed into one flag word
+        if (!err &amp;&amp; !dry_run) [[likely]] tx.send(o);
+        else if (err) [[unlikely]] [&amp;]() __attribute__((noinline, cold)) { handle(err); }();
+    }
+};</code></pre>
+
+<p>Typical values:</p>
+<ul>
+<li>1 hot thread per isolated physical core.</li>
+<li><code>EF_POLL_USEC=100000</code> in the Onload latency profile.</li>
+<li>Warm-up dummy path every few µs to ms. Firms don't publish the interval.</li>
+<li>Integer prices in ticks.</li>
+<li>Preallocated pools sized for the worst day.</li>
+</ul>
+
+<h3>When to use it / when NOT to</h3>
+<div class="two">
+<div class="use"><h4>Use when</h4>
+<ul>
+<li>you're colocated,</li>
+<li>the competition is decided in µs,</li>
+<li>one hot thread per core is affordable,</li>
+<li>you can measure at the wire.</li>
+</ul></div>
+<div class="skip"><h4>Don't when</h4>
+<ul>
+<li>you're in a cloud VM (noisy neighbours dominate),</li>
+<li>latency budgets are ≥ 50 µs (kernel + <code>busy_poll</code> is fine),</li>
+<li>the logic is simple enough for an FPGA to fire (C++ loses to 14 ns hardware),</li>
+<li>developer velocity matters more (Java, OCaml).</li>
+</ul></div>
+</div>
+<p><b>Sign you picked wrong:</b> your p50 dropped but your <i>race win rate</i> didn't move. Your tail or your wire latency is elsewhere.</p>
+
+<h3>Who should care</h3>
+<ul>
+<li>Trading-infra and C++ engineers at market makers and prop shops.</li>
+<li>Exchange and matching-engine developers.</li>
+<li>Anyone building µs-SLA systems: ad bidding, telecom user plane, game servers, robotics control loops.</li>
+<li>Performance engineers who need the measurement discipline (coordinated omission, layout noise) even with no trading.</li>
+</ul>

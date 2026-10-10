@@ -1,0 +1,22 @@
+<p><a href="hotpath_lab.cpp" target="_blank" rel="noopener"><code>hotpath_lab.cpp</code></a> runs three experiments behind the folklore:</p>
+<pre><code>c++ -O2 -std=c++20 -pthread hotpath_lab.cpp -o lab && ./lab</code></pre>
+
+<p>Results on an Apple M-series laptop, macOS, clang 21 (your numbers will differ; compare ratios):</p>
+<pre><code>1) false sharing — 2 threads x 50M relaxed fetch_add
+  same line : 1908 ms
+  padded    : 82 ms                              → 23x
+2) cold vs warm hot path (2000 samples each)
+  cold (after cache trash)     p50= 542 ns  p99=1666 ns  p99.9=1875 ns
+  warm (after warm-up call)    p50=  84 ns  p99= 208 ns  p99.9= 250 ns   → 6.5x p50, 8x p99
+3) order book update, 1M ops, 90% within 5 ticks of best
+  std::map&lt;greater&gt;            16.9 ns/update
+  reversed vector + linear     10.9 ns/update    → 1.55x</code></pre>
+
+<p>Things to try:</p>
+<ul>
+<li>Change <code>kLine</code> from 128 to 8 in <code>Padded</code> and watch the 23× return.</li>
+<li>In experiment 3, make updates uniform over all 200 levels (<code>near</code> always false). The vector's linear scan and <code>insert</code> shifts grow, and <code>std::map</code> catches up. Data skew is the reason the vector wins.</li>
+<li>Shrink <code>g_junk</code> to 1 MiB. "Cold" stops being cold once the trash fits in L2.</li>
+<li>Remove the warm-up call <code>on_tick(i + 1)</code> and see "warm" degrade.</li>
+<li>On Linux x86, run under <code>perf stat -e cache-misses,branch-misses</code> and with <code>taskset -c</code> on an isolated core.</li>
+</ul>

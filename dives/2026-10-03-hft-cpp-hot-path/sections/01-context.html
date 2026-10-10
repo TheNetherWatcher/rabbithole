@@ -1,0 +1,8 @@
+<ul>
+<li><b>Limit order book.</b> The exchange's list of resting buy (bid) and sell (ask) orders at each price. Feeds send Add/Modify/Delete messages. <a href="https://github.com/CppCon/CppCon2024/blob/main/Presentations/When_Nanoseconds_Matter.pdf" target="_blank" rel="noopener">Gross 2024 slides</a></li>
+<li><b>Market data over UDP multicast.</b> Exchanges broadcast binary messages (e.g. Nasdaq ITCH, CME MDP3, which is SBE-encoded). Orders go back over TCP (OUCH, FIX, iLink).</li>
+<li><b>CPU memory hierarchy.</b> L1 ≈ 4 cycles, L2 ≈ 12, L3 ≈ 40–50, DRAM ≈ 60–100 ns. Data moves in 64-byte cache lines. <a href="https://www.7-cpu.com/cpu/Skylake.html" target="_blank" rel="noopener">7-cpu Skylake</a>, <a href="https://www.akkadia.org/drepper/cpumemory.pdf" target="_blank" rel="noopener">Drepper</a></li>
+<li><b>Branch prediction.</b> The CPU guesses which way an <code>if</code> goes and runs ahead. A wrong guess costs ≈16–20 cycles on Skylake. <a href="https://www.7-cpu.com/cpu/Skylake.html" target="_blank" rel="noopener">7-cpu</a></li>
+<li><b>Kernel vs user space.</b> A normal socket <code>recv()</code> crosses into the kernel. Kernel-bypass NICs let user code read the NIC's receive ring directly. <a href="https://www.kernel.org/doc/html/latest/networking/timestamping.html" target="_blank" rel="noopener">Kernel timestamping doc</a></li>
+<li><b>Percentiles.</b> p99 = the latency that 99% of events beat. HFT cares about p99.9 and max during bursts, not the mean. <a href="https://qconsf.com/sf2012/dl/qcon-sanfran-2012/slides/GilTene_HowNotToMeasureLatency.pdf" target="_blank" rel="noopener">Gil Tene</a></li>
+</ul>

@@ -1,0 +1,132 @@
+<style>
+#mech-w .mpipe{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px;margin:6px 0 10px}
+#mech-w .mpipe span{border:1px solid var(--line);border-radius:8px;padding:6px 2px;text-align:center;font-size:12px;line-height:1.25;background:var(--code);color:var(--mute);transition:background .2s,color .2s,border-color .2s}
+#mech-w .mpipe span.done{color:var(--ink);border-color:var(--ok)}
+#mech-w .mpipe span.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+#mech-w .steptext{min-height:96px;margin-top:10px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--code);border-radius:0 8px 8px 0;font-size:14px}
+@media(max-width:600px){#mech-w .mpipe{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+<p>One packet, end to end: Ana's story with real data. A Nasdaq-ITCH-like <b>Add Order: SELL 500 @ 100.25</b> arrives. Our strategy buys whenever the best ask is ≤ 100.30, so this new offer crosses our trigger.</p>
+<pre><code> wire ──► NIC ──DMA──► RX ring (hugepage) ──► [hot core 3: busy-poll]
+                                                  │ parse (in place)
+                                                  │ book.apply
+                                                  │ strategy.decide
+                                                  │ risk.check (1 branch)
+                                                  ▼
+ wire ◄── NIC ◄──doorbell/PIO── TX descriptor ◄── build order (prealloc)
+          ▲                                                     │
+   switch/tap timestamps both directions  ◄─── capture server ──┘ (offline)</code></pre>
+
+<div class="widget" id="mech-w" role="group" aria-label="Packet step-through">
+<b>Step through one packet</b>
+<div class="mpipe" aria-hidden="true"><span data-k="pre">Warm-up<br>prefault</span><span data-k="nic">NIC RX<br>DMA</span><span data-k="poll">Busy<br>poll</span><span data-k="parse">Parse</span><span data-k="book">Book</span><span data-k="strat">Strategy</span><span data-k="risk">Risk<br>1 branch</span><span data-k="tx">NIC TX</span><span data-k="tap">Wire tap</span></div>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+</div>
+<div class="steptext" id="mech-info" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+var STEPS=[
+["Before the packet","pre","mlockall + prefault pools; hot arenas on 2 MiB huge pages; thread pinned to isolated core 3 (nohz_full stops the tick). A synthetic tick runs the full path with dry_run=true every few µs–ms, so the book, strategy params, risk limits and order template stay in L1/L2 and the predictor stays trained."],
+["NIC receive","nic","Frame: Eth + IP + UDP + MoldUDP64 + ITCH Add Order (type 'A', side 'S', shares 500, stock ABCD, price 1002500 = 100.25). The NIC DMAs it into a pre-posted RX buffer on a huge page and writes an event. No interrupt. Hardware RX timestamp taken. About hundreds of ns including PCIe."],
+["Notice","poll","The busy loop calls ef_eventq_poll(), sees EF_EVENT_TYPE_RX, and gets the buffer id and length. No syscall, no wake-up, no context switch. About tens of ns."],
+["Parse in place","parse","The payload is viewed as a struct via std::start_lifetime_as&lt;AddOrder&gt; (C++23), or memcpy / bit_cast, which compile to plain loads. Big-endian fields are swapped with bswap. The price stays an integer (1002500). About a few ns."],
+["Book update","book","Order ref → level in a preallocated open-addressing map. Asks are stored descending, so the best ask sits at back(). The new 100.25 beats the old best of 100.27, and a linear scan from the back finds its slot in zero steps, so insert at the end shifts nothing. About 10 ns in our lab."],
+["Strategy","strat","Strategy&lt;Side::Buy&gt;::decide is a template specialisation: no side branch, no virtual call. Best ask 1002500 ≤ trigger 1003000, so it fills a preallocated Order{BUY, ABCD, 500, 1002500, IOC}. About tens of ns."],
+["Risk check","risk","Max qty, notional, price band, position limit and kill switch each set one bit in a uint64_t err. One branch: if (!err) send(); the handler is noinline and cold. This is the SEC 15c3-5 pre-trade control. About a few ns."],
+["Send","tx","Patch price, qty and token into a pre-built OUCH-like template, push the TX descriptor (or PIO a small frame), and ring the doorbell. The NIC timestamps TX. On warm-up passes only the doorbell is skipped. About hundreds of ns."],
+["Measure","tap","A Layer-1 switch or tap (e.g. Arista 7130 / MetaWatch, sub-ns timestamps) stamps the inbound and outbound frames. A capture server matches them and records wire-to-wire latency for every packet in a histogram. No sampling, no in-process observer."]
+];
+var nodes=[].slice.call(document.querySelectorAll('#mech-w .mpipe span'));
+var i=0, info=document.getElementById('mech-info'), cnt=document.getElementById('mech-n');
+var prev=document.getElementById('mech-prev'), next=document.getElementById('mech-next');
+function render(){
+  var s=STEPS[i];
+  cnt.textContent='STEP '+(i+1)+' / '+STEPS.length;
+  info.innerHTML='<b>'+s[0]+'</b><br>'+s[2];
+  var idx=-1; nodes.forEach(function(n,j){ if(n.getAttribute('data-k')===s[1]) idx=j; });
+  nodes.forEach(function(n,j){ n.classList.toggle('on',j===idx); n.classList.toggle('done',j<idx); });
+  prev.disabled=i===0; next.disabled=i===STEPS.length-1;
+}
+prev.onclick=function(){ if(i>0){ i--; render(); } };
+next.onclick=function(){ if(i<STEPS.length-1){ i++; render(); } };
+render();
+})();
+</script>
+
+<p>The same trace in more detail:</p>
+
+<p><b>Step 0, before the packet (t = −∞).</b></p>
+<ul>
+<li>The process started, <code>mlockall</code>'d, and touched every page of its pools and book. There are no first-touch page faults later.</li>
+<li>Hot arenas are on 2 MiB huge pages. ≈2000 TLB entries × 2 MiB ≈ 4 GiB reach, against 8 MiB with 4 KiB pages (<a href="https://www.hudsonrivertrading.com/hrtbeat/low-latency-optimization-part-1/" target="_blank" rel="noopener">HRT</a>).</li>
+<li>Thread pinned to isolated core 3; no other runnable task, so <code>nohz_full</code> stops the tick (<a href="https://docs.kernel.org/timers/no_hz.html" target="_blank" rel="noopener">kernel no_hz</a>).</li>
+<li>Every few µs–ms a <b>synthetic tick</b> runs the full path with <code>dry_run=true</code> (Cook slides 37–38). The book, strategy params, risk limits and order template stay in L1/L2, and the branch predictor stays trained.</li>
+</ul>
+
+<p><b>Step 1, NIC receive (≈ hundreds of ns, hardware).</b></p>
+<ul>
+<li>The frame arrives: Ethernet + IP + UDP + MoldUDP64 header + ITCH message. The ITCH Add Order is a fixed-layout big-endian record with type <code>'A'</code>, stock locate, tracking, timestamp (6 B), order ref (8 B), side <code>'S'</code>, shares 500, stock "ABCD    ", price 1002500 (4 implied decimals).</li>
+<li>The NIC DMAs it into a pre-posted buffer in the RX ring and writes an event into the event queue. With ef_vi there is no interrupt and no kernel involvement.</li>
+<li>The NIC hardware-timestamps the frame (<code>SOF_TIMESTAMPING_RX_HARDWARE</code>).</li>
+</ul>
+
+<p><b>Step 2, notice (≈ tens of ns).</b> The hot loop spins on <code>ef_eventq_poll(&amp;vi, evs, BATCH)</code>. It sees <code>EF_EVENT_TYPE_RX</code> and gets the buffer id and length. No syscall, no wake-up, no context switch.</p>
+<pre><code class="language-c">for(;;){ int n = ef_eventq_poll(&amp;vi, evs, BATCH);   /* verbatim pattern from onload efsink.c */
+  for(i=0;i&lt;n;++i) if(EF_EVENT_TYPE(evs[i])==EF_EVENT_TYPE_RX) handle(EF_EVENT_RX_RQ_ID(evs[i])); }</code></pre>
+
+<p><b>Step 3, parse in place (≈ few ns).</b></p>
+<ul>
+<li>No copy into a "message object". The payload is viewed as a struct.</li>
+<li>The <i>legal</i> way is <code>std::start_lifetime_as&lt;AddOrder&gt;(buf)</code> (C++23, P2590), or <code>memcpy</code> / <code>std::bit_cast</code>, which compile to plain loads.</li>
+<li><code>reinterpret_cast&lt;AddOrder*&gt;(buf)</code> is what most codebases actually do, and it is formally UB (see "Where it breaks").</li>
+<li>Endianness is swapped with <code>bswap</code>. Price stays an <b>integer</b> (1002500), with no floating point.</li>
+</ul>
+
+<p><b>Step 4, book update (≈ 10 ns in our lab).</b></p>
+<ul>
+<li>Look up the order ref in an open-addressing hash map (order-ref → level/qty), preallocated.</li>
+<li>Then update the ask side: a <code>std::vector&lt;pair&lt;Price,Qty&gt;&gt;</code> stored <b>in reverse</b> (asks descending), so the best ask is at <code>back()</code>.</li>
+<li>The new 100.25 beats the old best ask of 100.27. A linear scan from the back finds the slot in <b>zero steps</b>, and <code>insert</code> at the end shifts nothing. This is Gross's version 3.</li>
+</ul>
+<pre><code>before asks (desc): ... 100.31x900  100.29x200  100.27x400   ← back() = best
+after:              ... 100.31x900  100.29x200  100.27x400  100.25x500  ← push near end, 0 shifts</code></pre>
+
+<p><b>Step 5, strategy (≈ tens of ns).</b></p>
+<ul>
+<li><code>Strategy&lt;Side::Buy&gt;::decide</code> is a template specialization. There is no <code>side == Buy ? … : …</code> branch and no virtual call.</li>
+<li>Read best ask 1002500 ≤ trigger 1003000 → fill the preallocated <code>Order{BUY, ABCD, 500, 1002500, IOC}</code>.</li>
+</ul>
+
+<p><b>Step 6, risk check (≈ few ns, one branch).</b></p>
+<ul>
+<li>Each check (max qty, max notional, price band versus reference, position limit, kill switch) sets a bit in <code>uint64_t err</code>.</li>
+<li><b>Single branch</b>: <code>if (!err) send(); else handle(err);</code>, and the handler is <code>noinline, cold</code> (Cook slide 16).</li>
+<li>This is the SEC Rule 15c3-5 pre-trade control, and it lives on the hot path, unlike in the Knight Capital story (see "Where it breaks").</li>
+</ul>
+
+<p><b>Step 7, send (≈ hundreds of ns, hardware).</b></p>
+<ul>
+<li>The order bytes (OUCH-like, mostly a pre-built template; only the price, qty and token fields are patched) go into a TX buffer.</li>
+<li>ef_vi / TCPDirect pushes the descriptor (or PIO-writes small frames) and rings the doorbell.</li>
+<li>The NIC timestamps TX.</li>
+<li>On a warm-up pass (<code>dry_run</code>), everything up to here ran, and only the doorbell is skipped.</li>
+</ul>
+
+<p><b>Step 8, measure (offline).</b></p>
+<ul>
+<li>A switch or Layer-1 tap (e.g. Arista 7130 / MetaWatch, sub-ns timestamps) stamps the inbound market-data frame and the outbound order frame.</li>
+<li>A capture server matches them and records <b>wire-to-wire</b> latency for <i>every</i> packet into a histogram (Cook slides 50–52). There is no sampling and no in-process observer effect.</li>
+</ul>
+
+<p>Illustrative budget (orders of magnitude only; firms don't publish exact splits):</p>
+<ul>
+<li>NIC + PCIe in ≈ 300–500 ns,</li>
+<li>software ≈ 100–300 ns,</li>
+<li>NIC + PCIe out ≈ 300–500 ns,</li>
+<li>total ≈ 1–2.5 µs.</li>
+</ul>
+<p>The point: <b>PCIe and the NIC dominate</b>, which is why the next step is FPGA (see "Design knobs").</p>
