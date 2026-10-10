@@ -9,6 +9,12 @@
   "date": "2026-10-04"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 8 scrolls",
+  "title": "A bias that only steers picks brings a toy layer from MaxVio 2.57 to 0.084"
+ },
  "tldr": "A Mixture-of-Experts router sends each token to its top-k experts, and left alone it collapses onto a few favourites, so the busiest expert sets the speed of the whole layer. The classic fix adds a loss that fights the real objective. DeepSeek-V3 instead keeps a per-expert <b>bias that steers selection only</b>, not the gate, and a toy controller with <b>u = 0.001</b> settles where no balancing stays at MaxVio 2.57.",
  "why": "<b>Why it matters:</b> under expert parallelism every layer waits for its hottest expert, and at 3B the aux-loss method sits at MaxVio <b>0.52</b> against <b>0.04</b> for the bias method.",
  "stats": [
@@ -92,7 +98,8 @@
    "title": "One token through four experts, then one bias update",
    "visual": "img/mech.svg",
    "brief": "<p>Sigmoid affinities plus a running bias pick experts 3 and 1 instead of 0 and 3. The gate still uses the unbiased scores. After the batch, loads of [820, 430, 300, 450] move the bias by 0.001 per step, with no gradient involved.</p><p class=\"mini\">Step-through of the routing inside.</p>",
-   "file": "sections/05-mechanism.html"
+   "file": "sections/05-mechanism.html",
+   "guess": "sel"
   },
   {
    "id": "math",
@@ -100,7 +107,8 @@
    "title": "The aux loss is a second objective; the bias is a controller",
    "visual": "img/math.svg",
    "brief": "<p>The Switch aux loss is <code>α N Σ f_i P_i</code>, and its gradient fights the LM loss on the same router weights. Loss-free balancing is an integral controller on load, <code>b_i += u·sign(mean − load_i)</code>, with u = 0.001 and no gradient path.</p>",
-   "file": "sections/06-math.html"
+   "file": "sections/06-math.html",
+   "guess": "auxgrad"
   },
   {
    "id": "why",
@@ -124,7 +132,8 @@
    "title": "Collapse loops, micro-batch bugs and batch-coupled leaks",
    "visual": "img/breaks.svg",
    "brief": "<p>Collapse is self-reinforcing. Micro-batch balance loss punishes code-only sequences for using code experts. Under capacity limits, an attacker’s co-batched queries can drop your tokens: in Hayes et al., a victim’s tokens fall from 6 to 0 in one expert.</p><p class=\"mini\">Two figures from the attack paper inside.</p>",
-   "file": "sections/09-where-it-breaks.html"
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "hijack"
   },
   {
    "id": "wild",
@@ -132,7 +141,8 @@
    "title": "DeepSeek-V3, Mixtral, Megablocks and OLMoE choose differently",
    "visual": "img/wild.svg",
    "brief": "<p>V3 uses a sigmoid score, a bias with γ = 0.001 that is later annealed to 0, and a tiny sequence-wise loss. Mixtral and Megatron use a Switch-style aux loss near 1e-2. Megablocks makes imbalance free in FLOPs, and OLMoE is dropless.</p>",
-   "file": "sections/10-in-the-wild.html"
+   "file": "sections/10-in-the-wild.html",
+   "guess": "mixtral"
   },
   {
    "id": "frontier",
@@ -195,6 +205,63 @@
    "credits": true
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "In the toy run, how many times the balanced time does the layer take?",
+   "min": 1,
+   "max": 8,
+   "step": 0.1,
+   "unit": "×",
+   "answer": 3.5,
+   "start": 6,
+   "tol": 0.4,
+   "reveal": "<p>About <b>3.5×</b>. The busiest expert gets 1,750 tokens against a balanced 500, and the layer waits for it. Under expert parallelism, a layer ends only when its hottest GPU does.</p>"
+  },
+  "sel": {
+   "q": "In DeepSeek-V3 style routing, which score multiplies the expert's output?",
+   "options": [
+    "The biased selection score",
+    "The raw sigmoid affinity",
+    "A softmax over all experts",
+    "The learned bias vector"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>The raw sigmoid affinity</b>, normalised over the selected experts. The bias only decides which experts are picked. Gating from the biased score would leak the bias into the output.</p>"
+  },
+  "auxgrad": {
+   "q": "In the Switch aux loss, which factor carries the gradient?",
+   "options": [
+    "f_i, the hard fraction of tokens sent to expert i",
+    "P_i, the mean router probability for expert i",
+    "Both, equally",
+    "Neither"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>P_i.</b> <code>f_i</code> counts argmax picks, so it has no gradient. The loss flows through <code>P_i</code>, weighted by how loaded each expert is.</p>"
+  },
+  "hijack": {
+   "q": "Under a capacity limit, how can a request sharing your batch change your output?",
+   "options": [
+    "It cannot",
+    "By flooding an expert so your tokens overflow and are dropped",
+    "By changing your gate weights directly",
+    "Only through the KV cache"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>By flooding an expert.</b> Overflowing tokens are dropped and skip the expert, so the victim's output changes. This is the buffer-overflow attack of Hayes et al., 2024.</p>"
+  },
+  "mixtral": {
+   "q": "Mixtral 8x7B has about 47B parameters in total. How many are active for each token?",
+   "min": 1,
+   "max": 60,
+   "step": 1,
+   "unit": "B",
+   "answer": 13,
+   "start": 40,
+   "tol": 3,
+   "reveal": "<p><b>About 13B.</b> Only 2 of 8 experts run per token, so compute tracks the active size. All ~47B still have to sit in memory.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

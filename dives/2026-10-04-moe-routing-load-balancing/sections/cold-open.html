@@ -1,0 +1,23 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.mc-row{margin:0 0 12px}
+.mc-row b{color:var(--ink)}
+.mc-track{height:18px;border-radius:4px;background:var(--code);border:1px solid var(--line);margin:6px 0 4px;overflow:hidden}
+.mc-fill{height:100%;background:var(--accent);transform-origin:left;transform:scaleX(var(--w))}
+.js .mc-fill{transform:scaleX(0)}
+.mc-fill.hot{background:var(--warn)}
+.js .guess.done ~ .cold-viz .mc-fill{animation:mc-grow .9s var(--ease) forwards}
+.js .guess.done ~ .cold-viz .mc-fill.hot{animation-delay:.25s}
+@keyframes mc-grow{to{transform:scaleX(var(--w))}}
+</style>
+<p class="cold-line">Under expert parallelism, a layer waits for its busiest expert.</p>
+<p class="cold-line sm">A <em>Mixture-of-Experts</em> router sends each token to its top 2 of 4 experts. Left alone, it piles traffic onto a few favourites, and one hot expert holds up the whole layer.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="mc-row"><b>Balanced: 500 tokens per expert.</b>
+    <div class="mc-track"><div class="mc-fill" style="--w:0.286"></div></div></div>
+  <div class="mc-row"><b>Busiest expert: 1,750 tokens, so the layer takes 3.5× as long.</b>
+    <div class="mc-track"><div class="mc-fill hot" style="--w:1"></div></div></div>
+</div>

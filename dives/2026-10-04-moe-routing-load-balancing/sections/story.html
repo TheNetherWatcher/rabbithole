@@ -1,0 +1,73 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four experts receive 2,000 picks. Without balancing one expert takes 820. A per-expert bias steers picks until loads settle near the fair share of 500.">
+<rect x="45" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="85" y="322" class="sf-lab" text-anchor="middle">E0</text>
+<rect x="145" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="185" y="322" class="sf-lab" text-anchor="middle">E1</text>
+<rect x="245" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="285" y="322" class="sf-lab" text-anchor="middle">E2</text>
+<rect x="345" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="385" y="322" class="sf-lab" text-anchor="middle">E3</text>
+<line x1="30" y1="200" x2="450" y2="200" class="s-mute" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">1,000 tokens, top 2 each: fair share 500</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">No balancing: expert 0 takes 820</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">A bias per expert steers selection</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">This token picks experts 3 and 1</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">After the batch, the bias moves</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Keep going: loads settle near 500</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">Step too big: it jitters, never settles</text>
+<text x="20" y="396" class="sf-lab" data-in="2" data-out="3">Toy run, u = 0: MaxVio stays at 2.57</text>
+<text x="20" y="396" class="sf-lab" data-in="3" data-out="4">Bias changes selection, not the gate</text>
+<text x="20" y="396" class="sf-lab" data-in="4" data-out="5">Gate weights use raw scores 0.599 and 0.711</text>
+<text x="20" y="396" class="sf-lab" data-in="5" data-out="6">One batch: b moves 0.001 per step, sign only</text>
+<text x="20" y="396" class="sf-lab" data-in="6" data-out="7">Toy run, u = 0.001: MaxVio 0.084 over last 100</text>
+<text x="20" y="396" class="sf-lab" data-in="7" data-out="8">Toy run, u = 0.05: MaxVio 0.492, no settling</text>
+<rect x="60" y="136.0" width="50" height="164.0" rx="4" class="f-warn" data-in="2" data-out="6" data-hl="2 3"/>
+<text x="85" y="129.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">820</text>
+<rect x="160" y="214.0" width="50" height="86.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="185" y="207.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">430</text>
+<rect x="260" y="240.0" width="50" height="60.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="285" y="233.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">300</text>
+<rect x="360" y="210.0" width="50" height="90.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="385" y="203.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">450</text>
+<text x="85" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b -0.20</text>
+<text x="185" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b +0.05</text>
+<text x="285" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b +0.12</text>
+<text x="385" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b 0.00</text>
+<rect x="141" y="116" width="88" height="190" rx="10" class="f-none s-acc" stroke-width="2.5" data-in="4" data-out="5"/>
+<rect x="341" y="116" width="88" height="190" rx="10" class="f-none s-acc" stroke-width="2.5" data-in="4" data-out="5"/>
+<text x="85" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b -0.201</text>
+<text x="185" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.051</text>
+<text x="285" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.121</text>
+<text x="385" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.001</text>
+<g data-in="6">
+<rect x="60" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="160" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="260" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="360" y="200" width="50" height="100" rx="4" class="f-ok"/>
+</g>
+<rect x="10" y="10" width="460" height="400" rx="12" class="f-bg" opacity="0.97" data-in="8"/>
+<text x="20" y="110" class="sf-num" data-in="8">2.57 → 0.084</text>
+<text x="20" y="134" class="sf-lab" data-in="8">Toy run MaxVio: no balancing, then bias at u = 0.001</text>
+<text x="20" y="200" class="sf-num" data-in="8">0.52 → 0.04</text>
+<text x="20" y="224" class="sf-lab" data-in="8">3B model MaxVio: aux loss, then loss-free bias</text>
+<text x="20" y="300" class="sf-big" data-in="8">The bias gets no gradient. The gate ignores it.</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Four experts and 1,000 tokens, each token sent to its top 2. That is 2,000 picks, so a fair router gives each expert <b>500</b>. The dashed line marks that share.</p></div>
+<div class="step"><p><b>The naive way.</b> With no balancing, the same favourites keep winning. In one traced batch, expert 0 takes <b>820</b> of the 2,000 picks. In a 16-expert toy run with no balancing, MaxVio stays at <b>2.57</b>.</p></div>
+<div class="step"><p><b>The key idea.</b> Give each expert a bias that only changes which experts get picked. Hot experts get a negative bias and idle ones a positive bias. The bias is controller state, not a learned weight.</p></div>
+<div class="step"><p><b>Selection, then gate.</b> After its bias, expert 0 drops to 0.569 and expert 1 rises to 0.649. This token picks experts <b>3 and 1</b> instead of 0 and 3. Its gate weights still come from the raw scores.</p></div>
+<div class="step"><p><b>The update.</b> After the batch, each bias moves by a fixed step of <b>0.001</b>, using only the sign of its load error. Expert 0 goes from −0.20 to −0.201. No gradient is involved.</p></div>
+<div class="step"><p><b>Repeat.</b> Run the update for 400 steps and the loads settle near the fair share. In the toy run with u = 0.001, MaxVio averages <b>0.084</b> over the last 100 steps.</p></div>
+<div class="step"><p><b>The trade-off.</b> The step size sets speed against jitter. At u = 0.05 the bias overshoots and never settles, with MaxVio <b>0.492</b> over the last 100 steps.</p></div>
+<div class="step"><p><b>The headline numbers.</b> In the toy run, MaxVio falls from <b>2.57</b> to <b>0.084</b>. At 3B, the aux-loss method sits at <b>0.52</b> and the loss-free bias at <b>0.04</b>. The cards below cover the mechanism, the math and where it breaks.</p></div>
+</div>
+</div>

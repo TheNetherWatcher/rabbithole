@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,31 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.mc-row{margin:0 0 12px}
+.mc-row b{color:var(--ink)}
+.mc-track{height:18px;border-radius:4px;background:var(--code);border:1px solid var(--line);margin:6px 0 4px;overflow:hidden}
+.mc-fill{height:100%;background:var(--accent);transform-origin:left;transform:scaleX(var(--w))}
+.js .mc-fill{transform:scaleX(0)}
+.mc-fill.hot{background:var(--warn)}
+.js .guess.done ~ .cold-viz .mc-fill{animation:mc-grow .9s var(--ease) forwards}
+.js .guess.done ~ .cold-viz .mc-fill.hot{animation-delay:.25s}
+@keyframes mc-grow{to{transform:scaleX(var(--w))}}
+</style>
+<p class="cold-line">Under expert parallelism, a layer waits for its busiest expert.</p>
+<p class="cold-line sm">A <em>Mixture-of-Experts</em> router sends each token to its top 2 of 4 experts. Left alone, it piles traffic onto a few favourites, and one hot expert holds up the whole layer.</p>
+<div class="guess" data-g="cold" data-kind="range" data-min="1" data-max="8" data-lo="3.5" data-hi="3.5" data-tol="0.4" data-unit="×"><p class="g-q"><span class="g-tag">Guess first</span> In the toy run, how many times the balanced time does the layer take?</p><div class="g-ctl"><input type="range" min="1" max="8" step="0.1" value="6" aria-label="Your guess"><output>6×</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>1×</span><span>8×</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>About <b>3.5×</b>. The busiest expert gets 1,750 tokens against a balanced 500, and the layer waits for it. Under expert parallelism, a layer ends only when its hottest GPU does.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="mc-row"><b>Balanced: 500 tokens per expert.</b>
+    <div class="mc-track"><div class="mc-fill" style="--w:0.286"></div></div></div>
+  <div class="mc-row"><b>Busiest expert: 1,750 tokens, so the layer takes 3.5× as long.</b>
+    <div class="mc-track"><div class="mc-fill hot" style="--w:1"></div></div></div>
+</div>
+</div><a class="cold-cue" href="#top">MoE load balancing <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs><g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g><g class="layer" data-depth="0.14"><rect x="260" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="272" y="90" width="28" height="14" rx="4" class="f-warn s-warn" opacity=".7"/><rect x="340" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="352" y="83" width="28" height="21" rx="4" class="f-ok s-ok" opacity=".7"/><rect x="420" y="128" width="52" height="96" rx="8" class="f-acc2 s-acc2" stroke-width="1.5"/><rect x="432" y="76" width="28" height="28" rx="4" class="f-ok s-ok" opacity=".7"/><rect x="500" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="512" y="69" width="28" height="35" rx="4" class="f-warn s-warn" opacity=".7"/><rect x="700" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="712" y="84" width="28" height="20" rx="4" class="f-ok s-ok" opacity=".7"/><rect x="780" y="128" width="52" height="96" rx="8" class="f-acc2 s-acc2" stroke-width="1.5"/><rect x="792" y="77" width="28" height="27" rx="4" class="f-ok s-ok" opacity=".7"/><rect x="860" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="872" y="70" width="28" height="34" rx="4" class="f-ok s-ok" opacity=".7"/><rect x="940" y="128" width="52" height="96" rx="8" class="f-panel s-line" stroke-width="1.5"/><rect x="952" y="85" width="28" height="19" rx="4" class="f-ok s-ok" opacity=".7"/></g><g class="layer" data-depth="0.22"><circle cx="600" cy="70" r="26" class="f-acc s-acc" stroke-width="2"/><path d="M600 96 C600 110 420 112 420 128" class="f-none s-acc flow" stroke-width="2" stroke-dasharray="6 5"/><path d="M600 96 C600 110 808 112 808 128" class="f-none s-acc flow" stroke-width="2" stroke-dasharray="6 5"/><path d="M600 96 V128" class="f-none s-line" stroke-width="1.5"/></g><g class="layer" data-depth="0.32"><path d="M140 250 H1060" class="f-none s-mute" stroke-width="1.5" stroke-dasharray="2 6"/><circle cx="600" cy="250" r="7" class="f-ok s-ok pulse"/><circle cx="960" cy="60" r="5" class="f-line s-acc2 blink"/></g></svg></div>
   <div class="hero-text wrap">
     <div class="chips rv"><span class="chip">Computer science</span><span class="chip">ML/AI</span><span class="chip">Depth: hard</span><span class="chip">2026-10-04</span></div>
@@ -307,9 +423,85 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> under expert parallelism every layer waits for its hottest expert, and at 3B the aux-loss method sits at MaxVio <b>0.52</b> against <b>0.04</b> for the bias method.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">2.57</div><div class="l">MaxVio with no balancing (toy run)</div></div><div class="stat rv" style="--i:1"><div class="v">0.52</div><div class="l">MaxVio, aux loss, 3B model</div></div><div class="stat rv" style="--i:2"><div class="v">0.04</div><div class="l">MaxVio, loss-free, 3B model</div></div><div class="stat rv" style="--i:3"><div class="v">37B</div><div class="l">active params per token, DeepSeek-V3 (671B total)</div></div><div class="stat rv" style="--i:4"><div class="v">0.001</div><div class="l">bias step size u (Wang et al.)</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~4 min skim</span><span>· ~25 min deep</span>
+      <span>19 cards</span><span>· ~7 min skim</span><span>· ~26 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 8 scrolls</div><h2>A bias that only steers picks brings a toy layer from MaxVio 2.57 to 0.084</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four experts receive 2,000 picks. Without balancing one expert takes 820. A per-expert bias steers picks until loads settle near the fair share of 500.">
+<rect x="45" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="85" y="322" class="sf-lab" text-anchor="middle">E0</text>
+<rect x="145" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="185" y="322" class="sf-lab" text-anchor="middle">E1</text>
+<rect x="245" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="285" y="322" class="sf-lab" text-anchor="middle">E2</text>
+<rect x="345" y="120" width="80" height="180" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="385" y="322" class="sf-lab" text-anchor="middle">E3</text>
+<line x1="30" y1="200" x2="450" y2="200" class="s-mute" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">1,000 tokens, top 2 each: fair share 500</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">No balancing: expert 0 takes 820</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">A bias per expert steers selection</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">This token picks experts 3 and 1</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">After the batch, the bias moves</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Keep going: loads settle near 500</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">Step too big: it jitters, never settles</text>
+<text x="20" y="396" class="sf-lab" data-in="2" data-out="3">Toy run, u = 0: MaxVio stays at 2.57</text>
+<text x="20" y="396" class="sf-lab" data-in="3" data-out="4">Bias changes selection, not the gate</text>
+<text x="20" y="396" class="sf-lab" data-in="4" data-out="5">Gate weights use raw scores 0.599 and 0.711</text>
+<text x="20" y="396" class="sf-lab" data-in="5" data-out="6">One batch: b moves 0.001 per step, sign only</text>
+<text x="20" y="396" class="sf-lab" data-in="6" data-out="7">Toy run, u = 0.001: MaxVio 0.084 over last 100</text>
+<text x="20" y="396" class="sf-lab" data-in="7" data-out="8">Toy run, u = 0.05: MaxVio 0.492, no settling</text>
+<rect x="60" y="136.0" width="50" height="164.0" rx="4" class="f-warn" data-in="2" data-out="6" data-hl="2 3"/>
+<text x="85" y="129.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">820</text>
+<rect x="160" y="214.0" width="50" height="86.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="185" y="207.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">430</text>
+<rect x="260" y="240.0" width="50" height="60.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="285" y="233.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">300</text>
+<rect x="360" y="210.0" width="50" height="90.0" rx="4" class="f-acc" data-in="2" data-out="6"/>
+<text x="385" y="203.0" class="sf-cell" text-anchor="middle" data-in="2" data-out="6">450</text>
+<text x="85" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b -0.20</text>
+<text x="185" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b +0.05</text>
+<text x="285" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b +0.12</text>
+<text x="385" y="346" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">b 0.00</text>
+<rect x="141" y="116" width="88" height="190" rx="10" class="f-none s-acc" stroke-width="2.5" data-in="4" data-out="5"/>
+<rect x="341" y="116" width="88" height="190" rx="10" class="f-none s-acc" stroke-width="2.5" data-in="4" data-out="5"/>
+<text x="85" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b -0.201</text>
+<text x="185" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.051</text>
+<text x="285" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.121</text>
+<text x="385" y="346" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">b +0.001</text>
+<g data-in="6">
+<rect x="60" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="160" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="260" y="200" width="50" height="100" rx="4" class="f-ok"/>
+<rect x="360" y="200" width="50" height="100" rx="4" class="f-ok"/>
+</g>
+<rect x="10" y="10" width="460" height="400" rx="12" class="f-bg" opacity="0.97" data-in="8"/>
+<text x="20" y="110" class="sf-num" data-in="8">2.57 → 0.084</text>
+<text x="20" y="134" class="sf-lab" data-in="8">Toy run MaxVio: no balancing, then bias at u = 0.001</text>
+<text x="20" y="200" class="sf-num" data-in="8">0.52 → 0.04</text>
+<text x="20" y="224" class="sf-lab" data-in="8">3B model MaxVio: aux loss, then loss-free bias</text>
+<text x="20" y="300" class="sf-big" data-in="8">The bias gets no gradient. The gate ignores it.</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Four experts and 1,000 tokens, each token sent to its top 2. That is 2,000 picks, so a fair router gives each expert <b>500</b>. The dashed line marks that share.</p></div>
+<div class="step"><p><b>The naive way.</b> With no balancing, the same favourites keep winning. In one traced batch, expert 0 takes <b>820</b> of the 2,000 picks. In a 16-expert toy run with no balancing, MaxVio stays at <b>2.57</b>.</p></div>
+<div class="step"><p><b>The key idea.</b> Give each expert a bias that only changes which experts get picked. Hot experts get a negative bias and idle ones a positive bias. The bias is controller state, not a learned weight.</p></div>
+<div class="step"><p><b>Selection, then gate.</b> After its bias, expert 0 drops to 0.569 and expert 1 rises to 0.649. This token picks experts <b>3 and 1</b> instead of 0 and 3. Its gate weights still come from the raw scores.</p></div>
+<div class="step"><p><b>The update.</b> After the batch, each bias moves by a fixed step of <b>0.001</b>, using only the sign of its load error. Expert 0 goes from −0.20 to −0.201. No gradient is involved.</p></div>
+<div class="step"><p><b>Repeat.</b> Run the update for 400 steps and the loads settle near the fair share. In the toy run with u = 0.001, MaxVio averages <b>0.084</b> over the last 100 steps.</p></div>
+<div class="step"><p><b>The trade-off.</b> The step size sets speed against jitter. At u = 0.05 the bias overshoots and never settles, with MaxVio <b>0.492</b> over the last 100 steps.</p></div>
+<div class="step"><p><b>The headline numbers.</b> In the toy run, MaxVio falls from <b>2.57</b> to <b>0.084</b>. At 3B, the aux-loss method sits at <b>0.52</b> and the loss-free bias at <b>0.04</b>. The cards below cover the mechanism, the math and where it breaks.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A nurse with sticky notes, not fines"><span>A nurse with sticky notes, not fines</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six prerequisites: router, top-k, all-to-all, capacity"><span>Six prerequisites: router, top-k, all-to-all, capacity</span></a><a href="#c-world" data-id="world" aria-label="Where MoE ships, and the knobs you actually set"><span>Where MoE ships, and the knobs you actually set</span></a><a href="#c-onel" data-id="onel" aria-label="“Top-k plus a balance loss” hides five things"><span>“Top-k plus a balance loss” hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="The busiest expert sets the speed of every layer"><span>The busiest expert sets the speed of every layer</span></a><a href="#c-model" data-id="model" aria-label="A triage nurse, and where the analogy breaks"><span>A triage nurse, and where the analogy breaks</span></a><a href="#c-mech" data-id="mech" aria-label="One token through four experts, then one bias update"><span>One token through four experts, then one bias update</span></a><a href="#c-math" data-id="math" aria-label="The aux loss is a second objective; the bias is a controller"><span>The aux loss is a second objective; the bias is a controller</span></a><a href="#c-why" data-id="why" aria-label="Selection and weighting can use different scores"><span>Selection and weighting can use different scores</span></a><a href="#c-knobs" data-id="knobs" aria-label="Granularity, shared experts and balance scope are the dials"><span>Granularity, shared experts and balance scope are the dials</span></a><a href="#c-breaks" data-id="breaks" aria-label="Collapse loops, micro-batch bugs and batch-coupled leaks"><span>Collapse loops, micro-batch bugs and batch-coupled leaks</span></a><a href="#c-wild" data-id="wild" aria-label="DeepSeek-V3, Mixtral, Megablocks and OLMoE choose differently"><span>DeepSeek-V3, Mixtral, Megablocks and OLMoE choose differently</span></a><a href="#c-frontier" data-id="frontier" aria-label="Differentiable and similarity-based routers are the 2025–26 frontier"><span>Differentiable and similarity-based routers are the 2025–26 frontier</span></a><a href="#c-open" data-id="open" aria-label="Balance versus specialization has no agreed optimum"><span>Balance versus specialization has no agreed optimum</span></a><a href="#c-lineage" data-id="lineage" aria-label="From 1991 mixtures to bias-based balancing in 2024"><span>From 1991 mixtures to bias-based balancing in 2024</span></a><a href="#c-hands" data-id="hands" aria-label="Run the controller: u = 0 never balances, 0.05 never settles"><span>Run the controller: u = 0 never balances, 0.05 never settles</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three directions to go deeper"><span>Three directions to go deeper</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and docs"><span>Papers, code and docs</span></a></nav>
@@ -323,7 +515,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p>Picture a hospital with 256 specialist doctors and a triage nurse at the door. Each patient (a word, or token, in a sentence) sees the nurse for a second, and the nurse sends them to the 8 doctors who look most relevant. Only those 8 do any work, so the hospital can employ a huge staff without every patient costing 256 consultations. That is a Mixture-of-Experts (MoE) language model: huge total knowledge, small cost per word.</p>
+<p class="dropcap">Picture a hospital with 256 specialist doctors and a triage nurse at the door. Each patient (a word, or token, in a sentence) sees the nurse for a second, and the nurse sends them to the 8 doctors who look most relevant. Only those 8 do any work, so the hospital can employ a huge staff without every patient costing 256 consultations. That is a Mixture-of-Experts (MoE) language model: huge total knowledge, small cost per word.</p>
 <p>The catch: the nurse learns from outcomes. Doctors who see more patients get better at their job, so the nurse sends them even more patients, and the rest sit idle and never improve. Soon 5 doctors do everything and 250 are wasted. Worse, on a real hospital floor the busiest doctor’s queue sets how long everyone waits. Keeping the queues even is <b>load balancing</b>.</p>
 <p>The classic fix is to <i>punish the nurse</i> with an extra fairness penalty on top of the real goal. It works, but the penalty fights the real goal: the nurse stops sending patients to the best doctor just to look fair. The newer fix (DeepSeek, 2024) leaves the nurse alone and puts a <i>sticky note on each doctor’s door</i>: “busy, −0.001” or “idle, +0.001”. The nurse still decides by merit, but the notes tilt close calls toward idle doctors. Notes only change who gets <i>picked</i>, never how much that doctor’s opinion <i>counts</i>.</p>
 <h3>Everyday example</h3>
@@ -414,6 +606,7 @@ out = sum(w[:, j:j+1] * experts[idx[:, j]](h) ...)   # grouped GEMM in practice<
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>1,750</b><span>tokens on the busiest expert in the toy run, against a fair share of 500</span></div>
 <ul>
 <li><b>Compute per layer is gated by the max expert load under EP, not the mean.</b> With a mean of 500 and a max of 1,750 (my toy run below: MaxVio ≈ 2.5), the layer takes about 3.5× the balanced time.</li>
 <li><b>Capacity caps turn imbalance into waste.</b> Switch uses CF 1.0–2.0; ST-MoE uses 1.25 in training and 2.0 in evaluation. Overflow becomes <b>dropped tokens</b> (a quality loss) or padding (wasted FLOPs).</li>
@@ -433,10 +626,10 @@ out = sum(w[:, j:j+1] * experts[idx[:, j]](h) ...)   # grouped GEMM in practice<
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-mech" data-id="mech">
+<article class="card rv gated" id="c-mech" data-id="mech">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="36" width="30" height="16" rx="4" class="f-panel s-acc"/><rect x="14" y="58" width="30" height="16" rx="4" class="f-panel s-acc"/><path d="M44 44 H60 V26 H84" class="s-acc2 draw" stroke-width="1.5" fill="none"/><path d="M44 66 H60 V74 H84" class="s-acc2 draw" stroke-width="1.5" fill="none"/><rect x="84" y="14" width="22" height="22" rx="4" class="f-acc2"/><rect x="84" y="40" width="22" height="22" rx="4" class="f-line s-line"/><rect x="84" y="66" width="22" height="22" rx="4" class="f-acc2"/><rect x="118" y="40" width="26" height="22" rx="4" class="f-line s-line"/></svg></div>
 <div class="card-body"><div class="kicker">§5 · Mechanism, traced</div><h2>One token through four experts, then one bias update</h2>
-<div class="brief"><p>Sigmoid affinities plus a running bias pick experts 3 and 1 instead of 0 and 3. The gate still uses the unbiased scores. After the batch, loads of [820, 430, 300, 450] move the bias by 0.001 per step, with no gradient involved.</p><p class="mini">Step-through of the routing inside.</p></div>
+<div class="guess" data-g="sel" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> In DeepSeek-V3 style routing, which score multiplies the expert's output?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">The biased selection score</button><button class="g-opt" type="button" data-k="1">The raw sigmoid affinity</button><button class="g-opt" type="button" data-k="2">A softmax over all experts</button><button class="g-opt" type="button" data-k="3">The learned bias vector</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>The raw sigmoid affinity</b>, normalised over the selected experts. The bias only decides which experts are picked. Gating from the biased score would leak the bias into the output.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Sigmoid affinities plus a running bias pick experts 3 and 1 instead of 0 and 3. The gate still uses the unbiased scores. After the batch, loads of [820, 430, 300, 450] move the bias by 0.001 per step, with no gradient involved.</p><p class="mini">Step-through of the routing inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
@@ -499,10 +692,10 @@ b_i += gamma * sign(e_i), gamma = 0.001   ->  b = [-0.201, +0.051, +0.121, +0.00
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 18 Q40 88 80 66 T146 22" class="f-none s-acc2 draw" stroke-width="2"/><circle cx="80" cy="66" r="4" class="f-acc"/><path d="M14 90 H146 M14 90 V12" class="s-mute" stroke-width="1"/><text x="98" y="84" class="t-mute" style="font-size:9px">min</text></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>The aux loss is a second objective; the bias is a controller</h2>
-<div class="brief"><p>The Switch aux loss is <code>α N Σ f_i P_i</code>, and its gradient fights the LM loss on the same router weights. Loss-free balancing is an integral controller on load, <code>b_i += u·sign(mean − load_i)</code>, with u = 0.001 and no gradient path.</p></div>
+<div class="guess" data-g="auxgrad" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> In the Switch aux loss, which factor carries the gradient?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">f_i, the hard fraction of tokens sent to expert i</button><button class="g-opt" type="button" data-k="1">P_i, the mean router probability for expert i</button><button class="g-opt" type="button" data-k="2">Both, equally</button><button class="g-opt" type="button" data-k="3">Neither</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>P_i.</b> <code>f_i</code> counts argmax picks, so it has no gradient. The loss flows through <code>P_i</code>, weighted by how loaded each expert is.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>The Switch aux loss is <code>α N Σ f_i P_i</code>, and its gradient fights the LM loss on the same router weights. Loss-free balancing is an integral controller on load, <code>b_i += u·sign(mean − load_i)</code>, with u = 0.001 and no gradient path.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -567,10 +760,10 @@ b_i += gamma * sign(e_i), gamma = 0.001   ->  b = [-0.201, +0.051, +0.121, +0.00
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M40 60 A30 30 0 1 1 100 60" class="f-none s-warn draw" stroke-width="2" marker-end="none"/><path d="M96 54 L100 62 L92 62 Z" class="f-warn"/><circle cx="70" cy="60" r="5" class="f-warn"/><rect x="112" y="28" width="30" height="50" rx="4" class="f-panel s-line"/><rect x="116" y="56" width="22" height="18" rx="2" class="f-bad" opacity=".6"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Collapse loops, micro-batch bugs and batch-coupled leaks</h2>
-<div class="brief"><p>Collapse is self-reinforcing. Micro-batch balance loss punishes code-only sequences for using code experts. Under capacity limits, an attacker’s co-batched queries can drop your tokens: in Hayes et al., a victim’s tokens fall from 6 to 0 in one expert.</p><p class="mini">Two figures from the attack paper inside.</p></div>
+<div class="guess" data-g="hijack" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Under a capacity limit, how can a request sharing your batch change your output?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">It cannot</button><button class="g-opt" type="button" data-k="1">By flooding an expert so your tokens overflow and are dropped</button><button class="g-opt" type="button" data-k="2">By changing your gate weights directly</button><button class="g-opt" type="button" data-k="3">Only through the KV cache</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>By flooding an expert.</b> Overflowing tokens are dropped and skip the expert, so the victim's output changes. This is the buffer-overflow attack of Hayes et al., 2024.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Collapse is self-reinforcing. Micro-batch balance loss punishes code-only sequences for using code experts. Under capacity limits, an attacker’s co-batched queries can drop your tokens: in Hayes et al., a victim’s tokens fall from 6 to 0 in one expert.</p><p class="mini">Two figures from the attack paper inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -592,10 +785,10 @@ b_i += gamma * sign(e_i), gamma = 0.001   ->  b = [-0.201, +0.051, +0.121, +0.00
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="16" width="64" height="30" rx="5" class="f-panel s-acc2"/><rect x="84" y="16" width="64" height="30" rx="5" class="f-panel s-acc"/><rect x="12" y="56" width="64" height="30" rx="5" class="f-panel s-ok"/><rect x="84" y="56" width="64" height="30" rx="5" class="f-panel s-warn"/><path d="M24 31 H64 M96 31 H136 M24 71 H64 M96 71 H136" class="s-mute" stroke-width="2"/></svg></div>
 <div class="card-body"><div class="kicker">§10 · In the wild</div><h2>DeepSeek-V3, Mixtral, Megablocks and OLMoE choose differently</h2>
-<div class="brief"><p>V3 uses a sigmoid score, a bias with γ = 0.001 that is later annealed to 0, and a tiny sequence-wise loss. Mixtral and Megatron use a Switch-style aux loss near 1e-2. Megablocks makes imbalance free in FLOPs, and OLMoE is dropless.</p></div>
+<div class="guess" data-g="mixtral" data-kind="range" data-min="1" data-max="60" data-lo="13" data-hi="13" data-tol="3" data-unit="B"><p class="g-q"><span class="g-tag">Guess first</span> Mixtral 8x7B has about 47B parameters in total. How many are active for each token?</p><div class="g-ctl"><input type="range" min="1" max="60" step="1" value="40" aria-label="Your guess"><output>40B</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>1B</span><span>60B</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 13B.</b> Only 2 of 8 experts run per token, so compute tracks the active size. All ~47B still have to sit in memory.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>V3 uses a sigmoid score, a bias with γ = 0.001 that is later annealed to 0, and a tiny sequence-wise loss. Mixtral and Megatron use a Switch-style aux loss near 1e-2. Megablocks makes imbalance free in FLOPs, and OLMoE is dropless.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -952,13 +1145,45 @@ u=0.05   MaxVio step0=2.523  step100=0.512  mean(last100)=0.492  |b|max=0.500</c
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -978,11 +1203,63 @@ u=0.05   MaxVio step0=2.523  step100=0.512  mean(last100)=0.492  |b|max=0.500</c
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
