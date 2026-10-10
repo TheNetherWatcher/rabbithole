@@ -28,6 +28,8 @@
 <p>Here m<sub>i</sub> = 1 − h<sub>i</sub> is the miss rate at level i. Warm: m<sub>1</sub> ≈ 0, so T ≈ M · 1 ns. Cold, after another workload trashed the caches: m<sub>1</sub> = m<sub>2</sub> = m<sub>3</sub> ≈ 1, so T ≈ M · 80 ns.</p>
 <p>For M = 512 lines (our lab's 32 KiB working set), that is ≈0.5 µs warm and up to ≈40 µs cold. The hardware prefetcher and memory-level parallelism hide most of the sequential case: our lab measured <b>p50 84 ns warm vs 542 ns cold, 6.5×</b>.</p>
 <p class="plainterms">→ <b>In plain terms:</b> latency is multiplied by the miss rate, and an idle path's miss rate tends to 1. Warming forces m<sub>1</sub> → 0 right before the moment that counts.</p>
+<p>The bars show the lab's cold and warm runs of the same path at three percentiles. The gap is widest in the tail.</p>
+<figure data-fig="own-cold-warm"></figure>
 <p>Why this form and not "bytes / bandwidth"? Because the hot path is <b>latency-bound</b>: dependent pointer loads (hash bucket → node → level) can't overlap. Bandwidth only matters for streaming. That is also why node containers (<code>std::map</code>: log N dependent misses) lose to contiguous arrays.</p>
 
 <h3>6.3 Tails compound across stages</h3>
@@ -36,6 +38,8 @@
 <p>With p = 1% and N = 6, that is 5.9%. With N = 100 (fan-out services), 63%. <a href="https://blog.acolyer.org/2015/01/15/the-tail-at-scale/" target="_blank" rel="noopener">Dean &amp; Barroso, The Tail at Scale</a></p>
 <p class="plainterms">→ <b>In plain terms:</b> a path is only as predictable as the product of its stages' predictability, so every stage's p99 matters, not just the slowest stage's p50.</p>
 
+<p>The figure shows how the formula scales with the number of stages at p = 1%.</p>
+<figure data-fig="own-tail-compound"></figure>
 <div class="widget" id="math-tail">
 <h4 style="margin-top:0">Tails compound</h4>
 <label>Per-stage slow probability p <input type="range" id="math-tp" min="0.1" max="10" step="0.1" value="1"> <span id="math-tpv" class="mono"></span> %</label>

@@ -1,0 +1,39 @@
+<svg viewBox="0 0 900 290" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="own-kb-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<text x="30" y="52" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Kernel socket path</text>
+<rect x="30" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="108.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">NIC interrupt</text>
+<text x="108.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">(or NAPI poll)</text>
+<line x1="188" y1="103" x2="196" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="198" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="276.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">driver builds</text>
+<text x="276.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">an skb</text>
+<line x1="356" y1="103" x2="364" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="366" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="444.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">IP/UDP stack</text>
+<text x="444.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">processes it</text>
+<line x1="524" y1="103" x2="532" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="534" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="612.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">queued on</text>
+<text x="612.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">the socket</text>
+<line x1="692" y1="103" x2="700" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="702" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="780.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">thread woken,</text>
+<text x="780.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">syscall copy</text>
+<text x="30" y="160" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Vendor slide: +3.9 µs over raw ef_vi on the TCP path (2017)</text>
+<text x="30" y="200" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Kernel bypass (ef_vi)</text>
+<rect x="30" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="108.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">NIC DMA into</text>
+<text x="108.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">pre-posted RX buffer</text>
+<line x1="188" y1="247" x2="196" y2="247" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="198" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="276.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">busy-poll sees</text>
+<text x="276.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">EF_EVENT_TYPE_RX</text>
+<line x1="356" y1="247" x2="364" y2="247" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-kb-ah)"/>
+<rect x="366" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="444.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">parse in place</text>
+<text x="444.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">(no copy)</text>
+<rect x="534" y="214" width="324" height="66" rx="8" class="f-none s-ok" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="696.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">no syscall, no wake-up,</text>
+<text x="696.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">no context switch</text>
+</svg>

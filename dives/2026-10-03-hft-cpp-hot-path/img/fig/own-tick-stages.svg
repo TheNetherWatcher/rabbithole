@@ -1,0 +1,38 @@
+<svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="own-tick-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<text x="30" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">One tick through the hot thread, stage by stage</text>
+<rect x="30" y="76" width="108" height="92" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="84.0" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" class="t-mute">hardware</text>
+<text x="84.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">NIC RX</text>
+<text x="84.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hundreds ns</text>
+<line x1="140" y1="122" x2="150" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="152" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="206.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Notice</text>
+<text x="206.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">tens ns</text>
+<line x1="262" y1="122" x2="272" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="274" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="328.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Parse</text>
+<text x="328.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">few ns</text>
+<line x1="384" y1="122" x2="394" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="396" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="450.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Book</text>
+<text x="450.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">≈10 ns (lab)</text>
+<line x1="506" y1="122" x2="516" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="518" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="572.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Strategy</text>
+<text x="572.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">tens ns</text>
+<line x1="628" y1="122" x2="638" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="640" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="694.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Risk check</text>
+<text x="694.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">few ns</text>
+<line x1="750" y1="122" x2="760" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-tick-ah)"/>
+<rect x="762" y="76" width="108" height="92" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="816.0" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" class="t-mute">hardware</text>
+<text x="816.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">NIC TX</text>
+<text x="816.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hundreds ns</text>
+<line x1="30" y1="200" x2="870" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<line x1="30" y1="192" x2="30" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<line x1="870" y1="192" x2="870" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<text x="450" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink">Box budget: ≈2.5 µs wire-to-wire minimum for a software trading system (Cook 2017)</text>
+<text x="450" y="258" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Stage values are the dive's orders of magnitude; the two NIC hops are the largest.</text>
+</svg>

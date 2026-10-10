@@ -220,6 +220,8 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
 :root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
 .fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
 .fig figcaption b{color:var(--ink)}
 .fig-cite{display:block;font-size:12px;margin-top:2px}
@@ -311,7 +313,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> in London latency races the modal winning margin is <b>5–10 µs</b>, so a path that is fast on average but stalls now and then loses the race.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">0.01%</div><div class="l">of the time the hot path runs, so it is cold by default</div></div><div class="stat rv" style="--i:1"><div class="v">5–10 µs</div><div class="l">modal winning margin in London latency races</div></div><div class="stat rv" style="--i:2"><div class="v">6.5×</div><div class="l">p50 cost of a cold vs warm hot path (our lab)</div></div><div class="stat rv" style="--i:3"><div class="v">23×</div><div class="l">slowdown from false sharing on one cache line (our lab)</div></div><div class="stat rv" style="--i:4"><div class="v">13.9 ns</div><div class="l">STAC-T0 record tick-to-trade in an FPGA</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~51 min deep</span>
+      <span>19 cards</span><span>· ~5 min skim</span><span>· ~57 min deep</span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
 </section>
@@ -566,7 +568,7 @@ struct Engine {
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="31" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="50" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="69" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="88" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="107" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="126" y="44" width="15" height="24" rx="3" class="f-line s-line" stroke-width="1"/><rect x="136" y="44" width="15" height="24" rx="3" class="f-acc"/><text x="108" y="34" class="t-mute" font-size="9">best</text><path d="M140 74 V82 H118" class="s-acc flow" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/><rect x="136" y="44" width="15" height="24" rx="3" class="f-none s-acc blink" stroke-dasharray="3 2" stroke-width="1.5"/></svg></div>
 <div class="card-body"><div class="kicker">§5 · The mechanism, traced</div><h2>One 500-share sell at 100.25 crosses the trigger in nine stages and no syscalls</h2>
 <div class="brief"><p>A Nasdaq-ITCH-like Add Order arrives. It is polled from the NIC ring, parsed in place, and applied to a reverse-vector book where the update shifts zero elements. A template strategy decides and one risk branch checks it. PCIe and the NIC dominate the roughly 1–2.5 µs total.</p><p class="mini">Interactive step-through inside.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>6 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>7 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
 <style>
@@ -628,6 +630,45 @@ render();
 })();
 </script>
 
+<p>Read the trace as a budget. The figure puts each stage's cost, as the dive states it, on one line.</p>
+<figure class="fig fig-own" id="fig-own-tick-stages"><div class="fig-svg" role="img" aria-label="Each stage of one tick with the dive&#x27;s stated cost: the two NIC hops take hundreds of ns, the software stages tens of ns or less."><svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="wntickstages-own-tick-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<text x="30" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">One tick through the hot thread, stage by stage</text>
+<rect x="30" y="76" width="108" height="92" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="84.0" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" class="t-mute">hardware</text>
+<text x="84.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">NIC RX</text>
+<text x="84.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hundreds ns</text>
+<line x1="140" y1="122" x2="150" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="152" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="206.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Notice</text>
+<text x="206.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">tens ns</text>
+<line x1="262" y1="122" x2="272" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="274" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="328.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Parse</text>
+<text x="328.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">few ns</text>
+<line x1="384" y1="122" x2="394" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="396" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="450.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Book</text>
+<text x="450.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">≈10 ns (lab)</text>
+<line x1="506" y1="122" x2="516" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="518" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="572.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Strategy</text>
+<text x="572.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">tens ns</text>
+<line x1="628" y1="122" x2="638" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="640" y="76" width="108" height="92" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="694.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Risk check</text>
+<text x="694.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">few ns</text>
+<line x1="750" y1="122" x2="760" y2="122" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wntickstages-own-tick-ah)"/>
+<rect x="762" y="76" width="108" height="92" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="816.0" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" class="t-mute">hardware</text>
+<text x="816.0" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">NIC TX</text>
+<text x="816.0" y="140" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hundreds ns</text>
+<line x1="30" y1="200" x2="870" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<line x1="30" y1="192" x2="30" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<line x1="870" y1="192" x2="870" y2="200" class="s-mute" stroke-width="1.5" fill="none"/>
+<text x="450" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" class="t-ink">Box budget: ≈2.5 µs wire-to-wire minimum for a software trading system (Cook 2017)</text>
+<text x="450" y="258" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Stage values are the dive's orders of magnitude; the two NIC hops are the largest.</text>
+</svg></div><figcaption><b>Figure 1.</b> Each stage of one tick with the dive's stated cost: the two NIC hops take hundreds of ns, the software stages tens of ns or less.<span class="fig-cite">Original diagram</span></figcaption></figure>
 <p>The same trace in more detail:</p>
 
 <p><b>Step 0, before the packet (t = −∞).</b></p>
@@ -708,7 +749,7 @@ after:              ... 100.31x900  100.29x200  100.27x400  100.25x500  ← push
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M12.0 88.0 L20.5 86.3 L29.0 84.6 L37.5 82.9 L46.0 81.3 L54.5 79.7 L63.0 78.2 L71.5 76.7 L80.0 75.3 L88.5 73.8 L97.0 72.4 L105.5 71.1 L114.0 69.8 L122.5 68.5 L131.0 67.2 L139.5 66.0 L148.0 64.8 L156.5 63.7 L165.0 62.5 L173.5 61.4 L182.0 60.4 L190.5 59.3 L199.0 58.3 L207.5 57.3 L216.0 56.3 L224.5 55.4 L233.0 54.4 L241.5 53.5 L250.0 52.6 L258.5 51.8 L267.0 50.9 L275.5 50.1 L284.0 49.3 L292.5 48.5 L301.0 47.8 L309.5 47.1 L318.0 46.3 L326.5 45.6 L335.0 44.9 L343.5 44.3 L352.0 43.6" class="f-none s-acc draw" stroke-width="1.8"/><path d="M12 88 H150 M12 88 V14" class="s-line" stroke-width="1"/><circle cx="48" cy="83.9" r="3" class="f-acc"/></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>Latency is miss rate times cost, and tails compound with every stage</h2>
 <div class="brief"><p>A cold path costs about 80 ns per line, a warm one about 1 ns, so p50 moves 6.5× (84 vs 542 ns). With p = 1% and six stages, 5.9% of ticks hit a slow stage. A burst of 5 M msg/s overflows a 4096-slot ring in 2.5 ms, and coordinated omission hides the worst stalls.</p><p class="mini">Three interactive calculators inside.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>8 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>9 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
 <style>
@@ -741,6 +782,30 @@ after:              ... 100.31x900  100.29x200  100.27x400  100.25x500  ← push
 <p>Here m<sub>i</sub> = 1 − h<sub>i</sub> is the miss rate at level i. Warm: m<sub>1</sub> ≈ 0, so T ≈ M · 1 ns. Cold, after another workload trashed the caches: m<sub>1</sub> = m<sub>2</sub> = m<sub>3</sub> ≈ 1, so T ≈ M · 80 ns.</p>
 <p>For M = 512 lines (our lab's 32 KiB working set), that is ≈0.5 µs warm and up to ≈40 µs cold. The hardware prefetcher and memory-level parallelism hide most of the sequential case: our lab measured <b>p50 84 ns warm vs 542 ns cold, 6.5×</b>.</p>
 <p class="plainterms">→ <b>In plain terms:</b> latency is multiplied by the miss rate, and an idle path's miss rate tends to 1. Warming forces m<sub>1</sub> → 0 right before the moment that counts.</p>
+<p>The bars show the lab's cold and warm runs of the same path at three percentiles. The gap is widest in the tail.</p>
+<figure class="fig fig-own" id="fig-own-cold-warm"><div class="fig-svg" role="img" aria-label="The same code is 6.5× slower at p50 and about 8× slower at p99 when cold, so warming targets the miss rate."><svg viewBox="0 0 640 306" xmlns="http://www.w3.org/2000/svg">
+<defs></defs>
+<text x="24" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Same hot path, cold vs warm (lab, ns)</text>
+<text x="24" y="92" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p50</text>
+<rect x="110" y="56" width="98.28266666666667" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="216.28266666666667" y="75" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">542 ns</text>
+<rect x="110" y="88" width="15.232000000000001" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="133.232" y="107" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">84 ns</text>
+<text x="24" y="168" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p99</text>
+<rect x="110" y="132" width="302.10133333333334" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="420.10133333333334" y="151" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">1666 ns</text>
+<rect x="110" y="164" width="37.717333333333336" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="155.71733333333333" y="183" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">208 ns</text>
+<text x="24" y="244" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p99.9</text>
+<rect x="110" y="208" width="340.0" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="458.0" y="227" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">1875 ns</text>
+<rect x="110" y="240" width="45.333333333333336" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="163.33333333333334" y="259" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">250 ns</text>
+<rect x="24" y="284" width="14" height="14" rx="3" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="46" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">cold: after another workload trashed the caches</text>
+<rect x="350" y="284" width="14" height="14" rx="3" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="372" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">warm: after a warm-up call</text>
+</svg></div><figcaption><b>Figure 2.</b> The same code is 6.5× slower at p50 and about 8× slower at p99 when cold, so warming targets the miss rate.<span class="fig-cite">Original diagram</span></figcaption></figure>
 <p>Why this form and not "bytes / bandwidth"? Because the hot path is <b>latency-bound</b>: dependent pointer loads (hash bucket → node → level) can't overlap. Bandwidth only matters for streaming. That is also why node containers (<code>std::map</code>: log N dependent misses) lose to contiguous arrays.</p>
 
 <h3>6.3 Tails compound across stages</h3>
@@ -749,6 +814,24 @@ after:              ... 100.31x900  100.29x200  100.27x400  100.25x500  ← push
 <p>With p = 1% and N = 6, that is 5.9%. With N = 100 (fan-out services), 63%. <a href="https://blog.acolyer.org/2015/01/15/the-tail-at-scale/" target="_blank" rel="noopener">Dean &amp; Barroso, The Tail at Scale</a></p>
 <p class="plainterms">→ <b>In plain terms:</b> a path is only as predictable as the product of its stages' predictability, so every stage's p99 matters, not just the slowest stage's p50.</p>
 
+<p>The figure shows how the formula scales with the number of stages at p = 1%.</p>
+<figure class="fig fig-own" id="fig-own-tail-compound"><div class="fig-svg" role="img" aria-label="A 1% slow chance per stage grows to 63% over 100 stages, so the tail of a long path is set by how many stages it has."><svg viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg">
+<defs></defs>
+<text x="24" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Chance that a tick hits at least one slow stage (p = 1% per stage)</text>
+<text x="24" y="83" text-anchor="start" font-family="system-ui,sans-serif" font-size="14" class="t-mute">1 stage</text>
+<rect x="230" y="64" width="2" height="28" rx="0" class="f-line s-line" stroke-width="0"/>
+<rect x="230" y="64" width="3.3000000000000003" height="28" rx="4" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<text x="243.3" y="83" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">1%</text>
+<text x="24" y="139" text-anchor="start" font-family="system-ui,sans-serif" font-size="14" class="t-mute">6 stages</text>
+<rect x="230" y="120" width="2" height="28" rx="0" class="f-line s-line" stroke-width="0"/>
+<rect x="230" y="120" width="19.47" height="28" rx="4" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<text x="259.47" y="139" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">5.9%</text>
+<text x="24" y="195" text-anchor="start" font-family="system-ui,sans-serif" font-size="14" class="t-mute">100 stages (fan-out)</text>
+<rect x="230" y="176" width="2" height="28" rx="0" class="f-line s-line" stroke-width="0"/>
+<rect x="230" y="176" width="207.9" height="28" rx="4" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="447.9" y="195" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">63%</text>
+<text x="24" y="226" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">P = 1 − (1 − p)^N: every stage's slow tail multiplies into the path's tail.</text>
+</svg></div><figcaption><b>Figure 3.</b> A 1% slow chance per stage grows to 63% over 100 stages, so the tail of a long path is set by how many stages it has.<span class="fig-cite">Original diagram</span></figcaption></figure>
 <div class="widget" id="math-tail">
 <h4 style="margin-top:0">Tails compound</h4>
 <label>Per-stage slow probability p <input type="range" id="math-tp" min="0.1" max="10" step="0.1" value="1"> <span id="math-tpv" class="mono"></span> %</label>
@@ -834,7 +917,7 @@ tail();
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="10" y="30" class="t-mute" font-size="9">same line</text><rect x="10" y="34" width="140" height="14" rx="3" class="f-bad" opacity=".7"/><text x="10" y="70" class="t-mute" font-size="9">padded</text><rect x="10" y="74" width="6" height="14" rx="3" class="f-ok"/></svg></div>
 <div class="card-body"><div class="kicker">§7 · Why it works</div><h2>Events, not instructions, set the latency, so the craft removes events</h2>
 <div class="brief"><p>A few hundred cache-resident instructions cost tens of ns; one cache miss, syscall, page fault or C-state exit costs 100 ns to 100 µs. Removing false sharing costs 23× (1908 vs 82 ms in our lab). Removing cache warming costs 6.5× at p50.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
 <p><b>The core insight:</b> latency on a modern CPU is dominated by <i>events</i>, not <i>instructions</i>: cache misses, TLB misses, mispredicts, syscalls, interrupts, page faults, frequency transitions. A few hundred well-predicted, cache-resident instructions cost tens of ns. One event costs 100 ns–100 µs. So the craft is <b>eliminating events on the hot path, and pre-paying the unavoidable ones off the hot path</b>.</p>
@@ -855,6 +938,46 @@ tail();
 <tr><td>Wire-level measurement</td><td>You optimise the wrong thing. Sampling profilers "miss the key events" (Cook).</td></tr>
 </tbody>
 </table>
+<p>The bypass row is easiest to see as two lanes. The kernel lane has steps that the bypass lane never runs.</p>
+<figure class="fig fig-own" id="fig-own-kernel-vs-bypass"><div class="fig-svg" role="img" aria-label="The kernel socket path adds an interrupt, a stack traversal and a wake-up that the bypass lane skips; the vendor measured +3.9 µs for TCP."><svg viewBox="0 0 900 290" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="rnelvsbypass-own-kb-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<text x="30" y="52" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Kernel socket path</text>
+<rect x="30" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="108.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">NIC interrupt</text>
+<text x="108.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">(or NAPI poll)</text>
+<line x1="188" y1="103" x2="196" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="198" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="276.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">driver builds</text>
+<text x="276.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">an skb</text>
+<line x1="356" y1="103" x2="364" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="366" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="444.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">IP/UDP stack</text>
+<text x="444.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">processes it</text>
+<line x1="524" y1="103" x2="532" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="534" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="612.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">queued on</text>
+<text x="612.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">the socket</text>
+<line x1="692" y1="103" x2="700" y2="103" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="702" y="70" width="156" height="66" rx="8" class="f-panel s-mute" stroke-width="1.5"/>
+<text x="780.0" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">thread woken,</text>
+<text x="780.0" y="120" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">syscall copy</text>
+<text x="30" y="160" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Vendor slide: +3.9 µs over raw ef_vi on the TCP path (2017)</text>
+<text x="30" y="200" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Kernel bypass (ef_vi)</text>
+<rect x="30" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="108.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">NIC DMA into</text>
+<text x="108.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">pre-posted RX buffer</text>
+<line x1="188" y1="247" x2="196" y2="247" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="198" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="276.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">busy-poll sees</text>
+<text x="276.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">EF_EVENT_TYPE_RX</text>
+<line x1="356" y1="247" x2="364" y2="247" class="s-mute" stroke-width="2" fill="none" marker-end="url(#rnelvsbypass-own-kb-ah)"/>
+<rect x="366" y="214" width="156" height="66" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="444.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">parse in place</text>
+<text x="444.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">(no copy)</text>
+<rect x="534" y="214" width="324" height="66" rx="8" class="f-none s-ok" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="696.0" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">no syscall, no wake-up,</text>
+<text x="696.0" y="264" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">no context switch</text>
+</svg></div><figcaption><b>Figure 4.</b> The kernel socket path adds an interrupt, a stack traversal and a wake-up that the bypass lane skips; the vendor measured +3.9 µs for TCP.<span class="fig-cite">Original diagram</span></figcaption></figure>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
@@ -862,7 +985,7 @@ tail();
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="140" height="12" rx="3" class="f-panel s-line" stroke-width="1.2"/><rect x="10" y="30" width="96" height="12" rx="3" class="f-panel s-line" stroke-width="1.2"/><rect x="10" y="48" width="60" height="12" rx="3" class="f-panel s-line" stroke-width="1.2"/><rect x="10" y="66" width="30" height="12" rx="3" class="f-acc s-line" stroke-width="1.2"/><rect x="10" y="84" width="12" height="12" rx="3" class="f-panel s-line" stroke-width="1.2"/></svg></div>
 <div class="card-body"><div class="kicker">§8 · Design knobs &amp; alternatives</div><h2>Pick the cheapest network layer your budget allows, then tune CPU and data</h2>
 <div class="brief"><p>Kernel plus busy-poll adds 3.9 µs; Onload adds about 300 ns of UDP overhead; TCPDirect adds 15 ns; raw ef_vi adds nothing; FPGAs reach 13.9 ns. Also: SMT off, shallow C-states, single-writer SPSC queues with a cached opposite index, and integer ticks.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>4 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
 <p><b>Network path.</b> Pick the cheapest layer that meets your budget:</p>
@@ -887,6 +1010,43 @@ tail();
 <li>Some disable all but one core per L3 or partition the LLC with Intel CAT (Cook slide 40, Rigtorp).</li>
 </ul>
 
+<p>The core layout the dive uses for the hot thread: core 3 is pinned inside the isolated range.</p>
+<figure class="fig fig-own" id="fig-own-core-pinning"><div class="fig-svg" role="img" aria-label="The hot thread on core 3 sits in the range isolcpus and nohz_full cut off from the scheduler and tick; the other cores take the rest."><svg viewBox="0 0 640 270" xmlns="http://www.w3.org/2000/svg">
+<defs></defs>
+<text x="24" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Core layout for the hot thread</text>
+<text x="24" y="54" text-anchor="start" font-family="ui-monospace,monospace" font-size="13" class="t-mute">isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7 nosmt</text>
+<line x1="180" y1="92" x2="604" y2="92" class="s-acc2" stroke-width="1.5" fill="none"/>
+<line x1="180" y1="92" x2="180" y2="100" class="s-acc2" stroke-width="1.5" fill="none"/>
+<line x1="604" y1="92" x2="604" y2="100" class="s-acc2" stroke-width="1.5" fill="none"/>
+<text x="392.0" y="84" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">isolated range</text>
+<rect x="36" y="108" width="64" height="60" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="68.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<text x="68.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">not in list</text>
+<rect x="108" y="108" width="64" height="60" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="140.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<text x="140.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">not in list</text>
+<rect x="180" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="212.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 2</text>
+<text x="212.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="252" y="108" width="64" height="60" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="284.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink" font-weight="600">core 3</text>
+<text x="284.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hot</text>
+<rect x="324" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="356.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 4</text>
+<text x="356.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="396" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="428.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 5</text>
+<text x="428.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="468" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="500.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 6</text>
+<text x="500.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="540" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="572.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 7</text>
+<text x="572.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<text x="284.0" y="192" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">busy-poll, pinned</text>
+<text x="24" y="226" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Timer ticks, RCU callbacks and kworkers land on a core that is not isolated.</text>
+<text x="24" y="250" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Rigtorp still saw 18 µs max jitter on a poorly isolated core.</text>
+</svg></div><figcaption><b>Figure 5.</b> The hot thread on core 3 sits in the range isolcpus and nohz_full cut off from the scheduler and tick; the other cores take the rest.<span class="fig-cite">Original diagram</span></figcaption></figure>
 <p><b>Threading model.</b></p>
 <ul>
 <li>Single-threaded hot path (Cook) vs pipeline over SPSC queues.</li>
@@ -900,6 +1060,33 @@ tail();
 <li>For one-to-many, Gross's FastQueue: seqlock-style write counter / read counter, readers detect overrun and never slow the writer.</li>
 </ul>
 
+<p>The SPSC option keeps the two indices on separate lines. The layout below shows where each index lives.</p>
+<figure class="fig fig-own" id="fig-own-spsc-layout"><div class="fig-svg" role="img" aria-label="Producer and consumer indices sit on separate 64-byte lines, and the consumer&#x27;s cached copy of writeIdx keeps the shared line quiet."><svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="wnspsclayout-own-sp-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<rect x="30" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="96" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="162" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="228" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="294" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="360" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="426" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="492" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<text x="126.0" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">readIdx</text>
+<line x1="126.0" y1="68" x2="126.0" y2="77" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wnspsclayout-own-sp-ah)"/>
+<text x="324.0" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">writeIdx</text>
+<line x1="324.0" y1="68" x2="324.0" y2="77" class="s-mute" stroke-width="2" fill="none" marker-end="url(#wnspsclayout-own-sp-ah)"/>
+<text x="30" y="150" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Ring of slots: filled = queued messages</text>
+<rect x="30" y="176" width="250" height="64" rx="8" class="f-panel s-acc" stroke-width="1.5"/>
+<text x="155" y="200" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">64-byte cache line 0</text>
+<text x="155" y="222" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">writeIdx (producer writes)</text>
+<rect x="286" y="176" width="54" height="64" rx="8" class="f-none s-line" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="313" y="214" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">pad</text>
+<rect x="346" y="176" width="250" height="64" rx="8" class="f-panel s-acc" stroke-width="1.5"/>
+<text x="471" y="200" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">64-byte cache line 1</text>
+<text x="471" y="222" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">readIdx (consumer writes)</text>
+<text x="30" y="268" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Consumer keeps a cached copy of writeIdx and re-reads the shared one only when the copy says empty.</text>
+<text x="30" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Rigtorp: 5.5 M → 112 M ops/s, and ≈3 → 0.15 cache misses per op</text>
+</svg></div><figcaption><b>Figure 6.</b> Producer and consumer indices sit on separate 64-byte lines, and the consumer's cached copy of writeIdx keeps the shared line quiet.<span class="fig-cite">Original diagram</span></figcaption></figure>
 <p><b>Process model.</b></p>
 <ul>
 <li>Multiple processes over shared memory (<code>shm_open</code> + <code>mmap</code>) reduce operational risk; one crash doesn't take down the feed (Gross).</li>
@@ -934,7 +1121,7 @@ tail();
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M8 60 L30 60 L40 56 L52 62 L64 60 L76 58 L86 14 L92 90 L100 60 L120 60 L132 58 L150 60" class="f-none s-bad draw" stroke-width="1.6"/><path d="M8 84 H152" class="s-line" stroke-width="1" stroke-dasharray="3 3"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>A reused flag cost Knight Capital over $460M in 45 minutes</h2>
 <div class="brief"><p>On 1 Aug 2012 new code reached 7 of 8 servers, and a reused flag woke dead code on the eighth. About 4M executions and a loss above $460M followed in 45 minutes. Hardware traps (false sharing, denormals, SMIs, THP) and C++ traps (type-punned buffers, exceptions) are the other ways this path breaks.</p></div>
-<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>4 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
 <h3>Operational: Knight Capital, 1 Aug 2012</h3>
@@ -959,6 +1146,44 @@ tail();
 <li><b>TLB shootdowns.</b> Any <code>munmap</code> / <code>mprotect</code> / <code>MADV_FREE</code> by any thread IPIs every core running the process (Rigtorp).</li>
 <li><b>Spectre mitigations.</b> KPTI made <code>getppid</code> 0.079 → 0.202 µs (+150%) (<a href="https://brendangregg.com/blog/2018-02-09/kpti-kaiser-meltdown-performance.html" target="_blank" rel="noopener">Gregg</a>). Rigtorp lists <code>mitigations=off</code>. I found <b>no primary source</b> that firms do this routinely. It is only defensible on single-tenant, locked-down boxes.</li>
 </ul>
+<p>Two counters that share a line show the cost. Watch the line move between the two cores, then compare the padded layout.</p>
+<figure class="fig fig-own" id="fig-own-false-sharing"><div class="fig-svg" role="img" aria-label="Two cores writing counters on one cache line make the line bounce between them; giving each counter its own line gave 23× in the lab."><svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="falsesharing-own-fs-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker><marker id="falsesharing-own-fs-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-bad"/></marker></defs>
+<rect x="30" y="20" width="420" height="262" rx="12" class="f-panel s-line" stroke-width="1.5"/>
+<text x="240" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">Both counters on one line</text>
+<rect x="60" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="135" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread A</text>
+<text x="135" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<rect x="300" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="375" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread B</text>
+<text x="375" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<rect x="60" y="186" width="390" height="56" rx="8" class="f-warn s-warn" stroke-width="1.5"/>
+<text x="255" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">one 64 B cache line</text>
+<text x="255" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter A  |  counter B</text>
+<line x1="135" y1="130" x2="135" y2="184" class="s-bad" stroke-width="2" fill="none" marker-end="url(#falsesharing-own-fs-ah2)" marker-start="url(#falsesharing-own-fs-ah2)"/>
+<line x1="375" y1="130" x2="375" y2="184" class="s-bad" stroke-width="2" fill="none" marker-end="url(#falsesharing-own-fs-ah2)" marker-start="url(#falsesharing-own-fs-ah2)"/>
+<text x="255" y="164" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">line bounces between cores</text>
+<text x="240" y="270" text-anchor="middle" font-family="system-ui,sans-serif" font-size="20" class="t-ink" font-weight="600">1908 ms</text>
+<text x="240" y="292" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">2 threads × 50M increments</text>
+<rect x="450" y="20" width="420" height="262" rx="12" class="f-panel s-line" stroke-width="1.5"/>
+<text x="660" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">Each counter on its own line</text>
+<rect x="480" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="555" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread A</text>
+<text x="555" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<rect x="720" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="795" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread B</text>
+<text x="795" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<rect x="480" y="186" width="150" height="56" rx="8" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="555" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">line 1</text>
+<text x="555" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter A</text>
+<rect x="720" y="186" width="150" height="56" rx="8" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="795" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">line 2</text>
+<text x="795" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter B</text>
+<line x1="555" y1="130" x2="555" y2="184" class="s-ok" stroke-width="2" fill="none" marker-end="url(#falsesharing-own-fs-ah)"/>
+<line x1="795" y1="130" x2="795" y2="184" class="s-ok" stroke-width="2" fill="none" marker-end="url(#falsesharing-own-fs-ah)"/>
+<text x="660" y="270" text-anchor="middle" font-family="system-ui,sans-serif" font-size="20" class="t-ink" font-weight="600">82 ms</text>
+<text x="660" y="292" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">23× faster in the same run</text>
+</svg></div><figcaption><b>Figure 7.</b> Two cores writing counters on one cache line make the line bounce between them; giving each counter its own line gave 23× in the lab.<span class="fig-cite">Original diagram</span></figcaption></figure>
 
 <h3>C++ traps</h3>
 <ul>

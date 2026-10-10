@@ -20,6 +20,8 @@
 <li><b>TLB shootdowns.</b> Any <code>munmap</code> / <code>mprotect</code> / <code>MADV_FREE</code> by any thread IPIs every core running the process (Rigtorp).</li>
 <li><b>Spectre mitigations.</b> KPTI made <code>getppid</code> 0.079 → 0.202 µs (+150%) (<a href="https://brendangregg.com/blog/2018-02-09/kpti-kaiser-meltdown-performance.html" target="_blank" rel="noopener">Gregg</a>). Rigtorp lists <code>mitigations=off</code>. I found <b>no primary source</b> that firms do this routinely. It is only defensible on single-tenant, locked-down boxes.</li>
 </ul>
+<p>Two counters that share a line show the cost. Watch the line move between the two cores, then compare the padded layout.</p>
+<figure data-fig="own-false-sharing"></figure>
 
 <h3>C++ traps</h3>
 <ul>

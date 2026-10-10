@@ -1,0 +1,37 @@
+<svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="own-fs-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker><marker id="own-fs-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-bad"/></marker></defs>
+<rect x="30" y="20" width="420" height="262" rx="12" class="f-panel s-line" stroke-width="1.5"/>
+<text x="240" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">Both counters on one line</text>
+<rect x="60" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="135" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread A</text>
+<text x="135" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<rect x="300" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="375" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread B</text>
+<text x="375" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<rect x="60" y="186" width="390" height="56" rx="8" class="f-warn s-warn" stroke-width="1.5"/>
+<text x="255" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">one 64 B cache line</text>
+<text x="255" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter A  |  counter B</text>
+<line x1="135" y1="130" x2="135" y2="184" class="s-bad" stroke-width="2" fill="none" marker-end="url(#own-fs-ah2)" marker-start="url(#own-fs-ah2)"/>
+<line x1="375" y1="130" x2="375" y2="184" class="s-bad" stroke-width="2" fill="none" marker-end="url(#own-fs-ah2)" marker-start="url(#own-fs-ah2)"/>
+<text x="255" y="164" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">line bounces between cores</text>
+<text x="240" y="270" text-anchor="middle" font-family="system-ui,sans-serif" font-size="20" class="t-ink" font-weight="600">1908 ms</text>
+<text x="240" y="292" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">2 threads × 50M increments</text>
+<rect x="450" y="20" width="420" height="262" rx="12" class="f-panel s-line" stroke-width="1.5"/>
+<text x="660" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" class="t-ink" font-weight="600">Each counter on its own line</text>
+<rect x="480" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="555" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread A</text>
+<text x="555" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<rect x="720" y="72" width="150" height="56" rx="8" class="f-bg s-line" stroke-width="1.5"/>
+<text x="795" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">thread B</text>
+<text x="795" y="116" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<rect x="480" y="186" width="150" height="56" rx="8" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="555" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">line 1</text>
+<text x="555" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter A</text>
+<rect x="720" y="186" width="150" height="56" rx="8" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="795" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">line 2</text>
+<text x="795" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">counter B</text>
+<line x1="555" y1="130" x2="555" y2="184" class="s-ok" stroke-width="2" fill="none" marker-end="url(#own-fs-ah)"/>
+<line x1="795" y1="130" x2="795" y2="184" class="s-ok" stroke-width="2" fill="none" marker-end="url(#own-fs-ah)"/>
+<text x="660" y="270" text-anchor="middle" font-family="system-ui,sans-serif" font-size="20" class="t-ink" font-weight="600">82 ms</text>
+<text x="660" y="292" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">23× faster in the same run</text>
+</svg>

@@ -1,0 +1,23 @@
+<svg viewBox="0 0 640 306" xmlns="http://www.w3.org/2000/svg">
+<defs></defs>
+<text x="24" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Same hot path, cold vs warm (lab, ns)</text>
+<text x="24" y="92" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p50</text>
+<rect x="110" y="56" width="98.28266666666667" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="216.28266666666667" y="75" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">542 ns</text>
+<rect x="110" y="88" width="15.232000000000001" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="133.232" y="107" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">84 ns</text>
+<text x="24" y="168" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p99</text>
+<rect x="110" y="132" width="302.10133333333334" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="420.10133333333334" y="151" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">1666 ns</text>
+<rect x="110" y="164" width="37.717333333333336" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="155.71733333333333" y="183" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">208 ns</text>
+<text x="24" y="244" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">p99.9</text>
+<rect x="110" y="208" width="340.0" height="26" rx="4" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="458.0" y="227" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">1875 ns</text>
+<rect x="110" y="240" width="45.333333333333336" height="26" rx="4" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="163.33333333333334" y="259" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-ink">250 ns</text>
+<rect x="24" y="284" width="14" height="14" rx="3" class="f-bad s-bad" stroke-width="1.5"/>
+<text x="46" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">cold: after another workload trashed the caches</text>
+<rect x="350" y="284" width="14" height="14" rx="3" class="f-ok s-ok" stroke-width="1.5"/>
+<text x="372" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">warm: after a warm-up call</text>
+</svg>

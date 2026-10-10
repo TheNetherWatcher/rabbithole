@@ -1,0 +1,36 @@
+<svg viewBox="0 0 640 270" xmlns="http://www.w3.org/2000/svg">
+<defs></defs>
+<text x="24" y="30" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Core layout for the hot thread</text>
+<text x="24" y="54" text-anchor="start" font-family="ui-monospace,monospace" font-size="13" class="t-mute">isolcpus=2-7 nohz_full=2-7 rcu_nocbs=2-7 nosmt</text>
+<line x1="180" y1="92" x2="604" y2="92" class="s-acc2" stroke-width="1.5" fill="none"/>
+<line x1="180" y1="92" x2="180" y2="100" class="s-acc2" stroke-width="1.5" fill="none"/>
+<line x1="604" y1="92" x2="604" y2="100" class="s-acc2" stroke-width="1.5" fill="none"/>
+<text x="392.0" y="84" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">isolated range</text>
+<rect x="36" y="108" width="64" height="60" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="68.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 0</text>
+<text x="68.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">not in list</text>
+<rect x="108" y="108" width="64" height="60" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="140.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">core 1</text>
+<text x="140.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">not in list</text>
+<rect x="180" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="212.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 2</text>
+<text x="212.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="252" y="108" width="64" height="60" rx="8" class="f-acc s-acc" stroke-width="1.5"/>
+<text x="284.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink" font-weight="600">core 3</text>
+<text x="284.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">hot</text>
+<rect x="324" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="356.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 4</text>
+<text x="356.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="396" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="428.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 5</text>
+<text x="428.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="468" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="500.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 6</text>
+<text x="500.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<rect x="540" y="108" width="64" height="60" rx="8" class="f-bg s-acc2" stroke-width="1.5"/>
+<text x="572.0" y="134" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">core 7</text>
+<text x="572.0" y="154" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" class="t-mute">isolated</text>
+<text x="284.0" y="192" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-ink">busy-poll, pinned</text>
+<text x="24" y="226" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Timer ticks, RCU callbacks and kworkers land on a core that is not isolated.</text>
+<text x="24" y="250" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Rigtorp still saw 18 µs max jitter on a poorly isolated core.</text>
+</svg>

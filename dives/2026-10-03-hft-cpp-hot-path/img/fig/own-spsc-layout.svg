@@ -1,0 +1,26 @@
+<svg viewBox="0 0 900 310" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="own-sp-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-mute"/></marker></defs>
+<rect x="30" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="96" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="162" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="228" y="80" width="60" height="44" rx="6" class="f-acc2 s-acc2" stroke-width="1.5"/>
+<rect x="294" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="360" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="426" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="492" y="80" width="60" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/>
+<text x="126.0" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">readIdx</text>
+<line x1="126.0" y1="68" x2="126.0" y2="77" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-sp-ah)"/>
+<text x="324.0" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink" font-weight="600">writeIdx</text>
+<line x1="324.0" y1="68" x2="324.0" y2="77" class="s-mute" stroke-width="2" fill="none" marker-end="url(#own-sp-ah)"/>
+<text x="30" y="150" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Ring of slots: filled = queued messages</text>
+<rect x="30" y="176" width="250" height="64" rx="8" class="f-panel s-acc" stroke-width="1.5"/>
+<text x="155" y="200" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">64-byte cache line 0</text>
+<text x="155" y="222" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">writeIdx (producer writes)</text>
+<rect x="286" y="176" width="54" height="64" rx="8" class="f-none s-line" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="313" y="214" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">pad</text>
+<rect x="346" y="176" width="250" height="64" rx="8" class="f-panel s-acc" stroke-width="1.5"/>
+<text x="471" y="200" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" class="t-mute">64-byte cache line 1</text>
+<text x="471" y="222" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" class="t-ink">readIdx (consumer writes)</text>
+<text x="30" y="268" text-anchor="start" font-family="system-ui,sans-serif" font-size="13" class="t-mute">Consumer keeps a cached copy of writeIdx and re-reads the shared one only when the copy says empty.</text>
+<text x="30" y="296" text-anchor="start" font-family="system-ui,sans-serif" font-size="15" class="t-ink" font-weight="600">Rigtorp: 5.5 M → 112 M ops/s, and ≈3 → 0.15 cache misses per op</text>
+</svg>

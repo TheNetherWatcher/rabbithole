@@ -20,6 +20,8 @@
 <li>Some disable all but one core per L3 or partition the LLC with Intel CAT (Cook slide 40, Rigtorp).</li>
 </ul>
 
+<p>The core layout the dive uses for the hot thread: core 3 is pinned inside the isolated range.</p>
+<figure data-fig="own-core-pinning"></figure>
 <p><b>Threading model.</b></p>
 <ul>
 <li>Single-threaded hot path (Cook) vs pipeline over SPSC queues.</li>
@@ -33,6 +35,8 @@
 <li>For one-to-many, Gross's FastQueue: seqlock-style write counter / read counter, readers detect overrun and never slow the writer.</li>
 </ul>
 
+<p>The SPSC option keeps the two indices on separate lines. The layout below shows where each index lives.</p>
+<figure data-fig="own-spsc-layout"></figure>
 <p><b>Process model.</b></p>
 <ul>
 <li>Multiple processes over shared memory (<code>shm_open</code> + <code>mmap</code>) reduce operational risk; one crash doesn't take down the feed (Gross).</li>
