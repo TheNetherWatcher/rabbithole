@@ -1,0 +1,131 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One server at 100 requests a second, a 10-second stall, a queue that keeps growing with dead requests, and the fix that drains it">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Normal: 70 req/s in, 100 req/s capacity</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Trigger: the server stalls for 10 s</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Every timeout sends another attempt</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Stall over. Server is back at 100/s.</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Queue grows, though the trigger is gone</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Still stuck, with 0/s goodput</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Skip dead requests, or serve newest first</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Or cut the retries, or cap them with a budget</text>
+<rect x="20" y="44" width="120" height="34" rx="4" class="f-panel s-line" stroke-width="1.5"/>
+<text x="80" y="66" class="sf-lab" text-anchor="middle">users 70/s</text>
+<rect x="340" y="44" width="120" height="34" rx="4" class="f-panel s-line" stroke-width="1.5" data-hl="2 3"/>
+<text x="400" y="66" class="sf-lab" text-anchor="middle">server 100/s</text>
+<rect x="336" y="40" width="128" height="42" rx="7" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="6 4" data-in="2" data-out="4"/>
+<line x1="80" y1="78" x2="80" y2="110" class="s-mute" stroke-width="2"/>
+<line x1="400" y1="110" x2="400" y2="78" class="s-mute" stroke-width="2"/>
+<rect x="20" y="112" width="440" height="30" rx="6" class="f-code s-line" stroke-width="1"/>
+<rect x="22" y="115" width="4" height="24" rx="2" class="f-ok"/>
+<rect x="22" y="115" width="70" height="24" rx="2" class="f-warn" data-in="2" data-out="4"/>
+<rect x="22" y="115" width="111" height="24" rx="2" class="f-warn" data-in="4" data-out="5"/>
+<rect x="22" y="115" width="193" height="24" rx="2" class="f-warn" data-in="5" data-out="6"/>
+<rect x="22" y="115" width="436" height="24" rx="2" class="f-bad" data-in="6" data-out="7"/>
+<text x="20" y="170" class="sf-lab" data-in="1" data-out="2">queue ~2</text>
+<text x="20" y="170" class="sf-lab" data-in="2" data-out="4">queue 1,870 when the stall ends</text>
+<text x="20" y="170" class="sf-lab" data-in="4" data-out="5">queue 2,971 at t = 40 s</text>
+<text x="20" y="170" class="sf-lab" data-in="5" data-out="6">queue 5,191 at t = 60 s</text>
+<text x="20" y="170" class="sf-lab" data-in="6" data-out="7">queue 11,826 at t = 120 s</text>
+<text x="20" y="170" class="sf-lab" data-in="7" data-out="9">queue drains at once</text>
+<text x="20" y="204" class="sf-lab" data-in="1" data-out="3">in: 70/s</text>
+<text x="20" y="204" class="sf-lab" data-in="3" data-out="7">in: 210/s, every user sends 3 attempts</text>
+<text x="20" y="204" class="sf-lab" data-in="7" data-out="9">in: 70/s, retries stop</text>
+<rect x="20" y="210" width="440" height="18" rx="4" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="210" width="147" height="18" rx="4" class="f-acc" data-in="1" data-out="3"/>
+<rect x="20" y="210" width="440" height="18" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="20" y="210" width="147" height="18" rx="4" class="f-acc" data-in="7" data-out="9"/>
+<text x="20" y="254" class="sf-lab" data-in="1" data-out="2">goodput: 70/s</text>
+<text x="20" y="254" class="sf-lab" data-in="2" data-out="7">goodput: 0/s</text>
+<text x="20" y="254" class="sf-lab" data-in="7" data-out="9">goodput: 70/s</text>
+<rect x="20" y="260" width="440" height="18" rx="4" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="260" width="147" height="18" rx="4" class="f-ok" data-in="1" data-out="2"/>
+<rect x="20" y="260" width="147" height="18" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<text x="20" y="318" class="sf-lab" data-in="1" data-out="2">Every request is served within its 1 s timeout.</text>
+<text x="20" y="318" class="sf-lab sf-bad" data-in="2" data-out="3">Requests wait; nothing is served.</text>
+<text x="20" y="318" class="sf-lab" data-in="3" data-out="4">3 attempts per user: 210/s into 100/s.</text>
+<text x="20" y="318" class="sf-lab" data-in="4" data-out="5">Each served attempt is work nobody reads.</text>
+<text x="20" y="318" class="sf-lab" data-in="5" data-out="6">Queue grows by about 110/s, trigger gone.</text>
+<text x="20" y="318" class="sf-lab sf-bad" data-in="6" data-out="7">Goodput stays 0/s, server 100% busy.</text>
+<text x="20" y="318" class="sf-lab" data-in="7" data-out="8">Goodput back to 70/s at t = 30 s.</text>
+<text x="20" y="318" class="sf-lab" data-in="8" data-out="9">No retries also recovers, at t = 51 s.</text>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<text x="20" y="386" class="sf-lab" data-in="1" data-out="3">live: the client is still waiting</text>
+<text x="20" y="386" class="sf-lab sf-bad" data-in="3" data-out="7">dead: the client has already left</text>
+<text x="20" y="386" class="sf-lab" data-in="7" data-out="9">live: the remaining requests still wait</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">What the loop costs</text><text x="60" y="160" class="sf-lab">attempts per user request (2 retries)</text><text x="420" y="160" class="sf-num" text-anchor="end">3×</text><text x="60" y="240" class="sf-lab">stable band, req/s</text><text x="420" y="240" class="sf-num" text-anchor="end">33–100</text><rect x="60" y="252" width="360" height="14" rx="4" class="f-code s-line" stroke-width="1"/><rect x="178.8" y="252" width="241.2" height="14" rx="4" class="f-warn"/><text x="60" y="320" class="sf-lab">goodput while stuck</text><text x="420" y="320" class="sf-num" text-anchor="end">0/s</text><text x="240" y="380" class="sf-big" text-anchor="middle">The loop, not the trigger, keeps it down.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">One server does <b>100 requests a second</b>. Users send 70 a second, so the queue stays short and every request is served. Each user waits up to 1 s, and if nothing comes back, sends again, up to two times.</p></div>
+<div class="step"><p><b>The trigger.</b> For 10 seconds, from t = 20 s to t = 30 s, the server does no work. Requests keep arriving and pile up behind it, to about <b>1,870</b> by the time it comes back.</p></div>
+<div class="step"><p><b>The naive way.</b> Every request that waits longer than 1 s times out and is sent again. Each user request now costs <b>3 attempts</b>, so 210 a second reach a server that does 100. The old copy stays in the queue.</p></div>
+<div class="step"><p><b>The stall ends, the queue does not.</b> At t = 40 s the queue holds 2,971 requests. The server takes the oldest first, and those clients left long ago, so each request it serves is wasted work.</p></div>
+<div class="step"><p><b>The loop keeps it going.</b> Arrivals run at 210 a second and capacity at 100, so the queue grows by about <b>110 a second</b>. At t = 60 s it holds 5,191. The trigger is no longer needed to keep it that way.</p></div>
+<div class="step"><p><b>Still stuck.</b> At t = 120 s the queue holds 11,826, and the server is 100% busy with <b>0 goodput</b>. A fresh attempt now waits about 30 s for a 1 s timeout.</p></div>
+<div class="step"><p><b>The fix: skip the dead work.</b> Drop each request whose client has already left, as soon as it is dequeued. Skipping costs nothing, and goodput is back at 70 a second when the stall ends at t = 30 s. Serving the newest request first does the same.</p></div>
+<div class="step"><p><b>Or cut the retries.</b> With no retries the queue drains and the system is healthy again at <b>t = 51 s</b>. A retry budget of 10% gets there by t = 64 s. Each fix removes one leg of the loop.</p></div>
+<div class="step"><p><b>The headline numbers.</b> Two retries triple the work per user. The two stable states sit between <b>33 and 100 req/s</b>, so the same load can be healthy or stuck. The cards below cover the fixes and where they fail.</p></div>
+</div>
+</div>

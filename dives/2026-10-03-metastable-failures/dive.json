@@ -9,6 +9,12 @@
     "date": "2026-10-03"
   },
   "hero": "img/hero.svg",
+  "cold_open": "sections/cold-open.html",
+  "story": {
+    "file": "sections/story.html",
+    "kicker": "The whole idea in 9 scrolls",
+    "title": "A 10-second stall, and a queue that never drains"
+  },
   "tldr": "A short outage can leave a service down long after it ends. Retries turn each failed request into up to <b>3 attempts</b>, and the server then spends its capacity on attempts whose clients have already given up. With μ = 100 and two retries, any load between <b>33 and 100 req/s</b> admits two stable states, so history, not the current load, decides which one you are in.",
   "why": "<b>Why it matters:</b> these are the long outages. In OSDI'22's 22 incidents the outage ran <b>1.5 to 73.5 hours</b>, and the trigger usually gets blamed while the loop keeps the system down.",
   "stats": [
@@ -92,7 +98,8 @@
       "title": "Retries turn 70 req/s into 210 attempts, and the queue never drains",
       "visual": "img/mech.svg",
       "file": "sections/05-mechanism.html",
-      "brief": "<p>After a 10 s outage with μ = 100 and λ = 70, every request makes 3 attempts. Each attempt waits about 30 s, far past its 1 s timeout, so the server serves dead work. Attempts arrive at 210/s against 100/s capacity, so the queue grows by ~110/s with the trigger long gone.</p><p class=\"mini\">Seven-step walkthrough and live simulator inside.</p>"
+      "brief": "<p>After a 10 s outage with μ = 100 and λ = 70, every request makes 3 attempts. Each attempt waits about 30 s, far past its 1 s timeout, so the server serves dead work. Attempts arrive at 210/s against 100/s capacity, so the queue grows by ~110/s with the trigger long gone.</p><p class=\"mini\">Seven-step walkthrough and live simulator inside.</p>",
+      "guess": "queue"
     },
     {
       "id": "math",
@@ -100,7 +107,8 @@
       "title": "Two stable states exist for any load between μ/(r+1) and μ",
       "visual": "img/math.svg",
       "file": "sections/06-math.html",
-      "brief": "<p>If each request can make r+1 attempts, the collapsed state sustains itself when (r+1)λ &gt; μ. With μ = 100 and r = 2, any load from 33 to 100 req/s admits both states. A retry budget that caps amplification near 1.1× shrinks that band to almost nothing.</p>"
+      "brief": "<p>If each request can make r+1 attempts, the collapsed state sustains itself when (r+1)λ &gt; μ. With μ = 100 and r = 2, any load from 33 to 100 req/s admits both states. A retry budget that caps amplification near 1.1× shrinks that band to almost nothing.</p>",
+      "guess": "layers"
     },
     {
       "id": "why",
@@ -124,7 +132,8 @@
       "title": "Cold caches, GC and health checks sustain the same loop",
       "visual": "img/breaks.svg",
       "file": "sections/09-where-it-breaks.html",
-      "brief": "<p>Cold caches, GC death spirals, slow error paths and health checks that pull healthy hosts all sustain the loop. Retry budgets are per client, so 10,000 clients at a 10 retries/s floor means 100k retries/s. Backoff with jitter spreads the load but doesn't reduce it.</p>"
+      "brief": "<p>Cold caches, GC death spirals, slow error paths and health checks that pull healthy hosts all sustain the loop. Retry budgets are per client, so 10,000 clients at a 10 retries/s floor means 100k retries/s. Backoff with jitter spreads the load but doesn't reduce it.</p>",
+      "guess": "floor"
     },
     {
       "id": "wild",
@@ -194,6 +203,52 @@
       "brief": "<p>Over 20 papers, code references and postmortems, plus the claims I couldn't verify.</p>"
     }
   ],
+  "guesses": {
+    "cold": {
+      "q": "Each slow query gets one retry. What is the highest steady load, in queries a second, that still recovers from a 10-second blip?",
+      "min": 0,
+      "max": 300,
+      "step": 10,
+      "unit": "queries/s",
+      "answer": 150,
+      "start": 280,
+      "tol": 10,
+      "reveal": "<p><b>Under 150 queries a second.</b> With one retry, each query can cost two requests, so the database needs load under 300 ÷ 2. At 280 it looks fine. A 10 s blip doubles the load to 560, and every query times out, so goodput is zero.</p>"
+    },
+    "queue": {
+      "q": "The trigger ends at t = 30 s, and the server is back at full speed. How many requests are waiting in the queue at t = 120 s?",
+      "options": [
+        "About 300",
+        "About 2,000",
+        "About 12,000",
+        "About 60,000"
+      ],
+      "answer": 2,
+      "reveal": "<p><b>About 11,800</b> (11,826 in the sim). Arrivals run at 210/s against 100/s of service, so the queue grows by about 110 a second and never drains.</p>"
+    },
+    "layers": {
+      "q": "Three layers of a stack each retry up to 4 times. How much load reaches the database, compared with one request?",
+      "options": [
+        "4×",
+        "12×",
+        "64×",
+        "256×"
+      ],
+      "answer": 2,
+      "reveal": "<p><b>64×.</b> The multipliers stack: 4 × 4 × 4. This is the Google SRE book's example, and it is why one layer of retries is not the whole story.</p>"
+    },
+    "floor": {
+      "q": "10,000 clients each keep a retry budget of at least 10 retries a second. How many retries a second is that floor?",
+      "options": [
+        "10,000",
+        "10,010",
+        "100,000",
+        "1,000,000"
+      ],
+      "answer": 2,
+      "reveal": "<p><b>100,000 a second.</b> Budgets are per client, so the minimums add up: 10,000 × 10. A small limit on one client becomes a large load across a fleet.</p>"
+    }
+  },
   "questions": [
     {
       "type": "Mechanism",

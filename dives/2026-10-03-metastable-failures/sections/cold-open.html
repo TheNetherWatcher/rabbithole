@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv2-row{margin:0 0 12px}
+.cv2-row b{color:var(--ink)}
+.cv2-track{height:14px;border-radius:3px;background:var(--code);border:1px solid var(--line);margin:5px 0 0;overflow:hidden}
+.cv2-track i{display:block;height:100%}
+</style>
+<p class="cold-line">A database handles 300 queries a second.</p>
+<p class="cold-line sm">Normal load is 280, and it looks healthy. Each slow query gets one <em>retry</em>, so a 10-second blip can keep it down after it ends.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv2-row"><b>Recovery needs under 150 queries/s.</b> The scale below runs to 600.</div>
+  <div class="cv2-row">Normal: 280/s
+    <div class="cv2-track"><i style="width:47%;background:var(--accent)"></i></div></div>
+  <div class="cv2-row">Blip: 560/s, goodput 0
+    <div class="cv2-track"><i style="width:93%;background:var(--bad)"></i></div></div>
+  <div class="cv2-row">Recovery: under 150/s
+    <div class="cv2-track"><i style="width:25%;background:var(--ok)"></i></div></div>
+</div>

@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,29 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv2-row{margin:0 0 12px}
+.cv2-row b{color:var(--ink)}
+.cv2-track{height:14px;border-radius:3px;background:var(--code);border:1px solid var(--line);margin:5px 0 0;overflow:hidden}
+.cv2-track i{display:block;height:100%}
+</style>
+<p class="cold-line">A database handles 300 queries a second.</p>
+<p class="cold-line sm">Normal load is 280, and it looks healthy. Each slow query gets one <em>retry</em>, so a 10-second blip can keep it down after it ends.</p>
+<div class="guess" data-g="cold" data-kind="range" data-min="0" data-max="300" data-lo="150" data-hi="150" data-tol="10" data-unit="queries/s"><p class="g-q"><span class="g-tag">Guess first</span> Each slow query gets one retry. What is the highest steady load, in queries a second, that still recovers from a 10-second blip?</p><div class="g-ctl"><input type="range" min="0" max="300" step="10" value="280" aria-label="Your guess"><output>280queries/s</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0queries/s</span><span>300queries/s</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Under 150 queries a second.</b> With one retry, each query can cost two requests, so the database needs load under 300 ÷ 2. At 280 it looks fine. A 10 s blip doubles the load to 560, and every query times out, so goodput is zero.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv2-row"><b>Recovery needs under 150 queries/s.</b> The scale below runs to 600.</div>
+  <div class="cv2-row">Normal: 280/s
+    <div class="cv2-track"><i style="width:47%;background:var(--accent)"></i></div></div>
+  <div class="cv2-row">Blip: 560/s, goodput 0
+    <div class="cv2-track"><i style="width:93%;background:var(--bad)"></i></div></div>
+  <div class="cv2-row">Recovery: under 150/s
+    <div class="cv2-track"><i style="width:25%;background:var(--ok)"></i></div></div>
+</div>
+</div><a class="cold-cue" href="#top">Metastable failures <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><pattern id="hero-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs><g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#hero-dots)"/></g><g class="layer" data-depth="0.14"><path d="M60 96 C210 96 260 214 420 214 S560 84 700 84 S940 236 1140 236" class="s-line f-none" stroke-width="3"/><path d="M60 150 H1140" class="s-line" stroke-dasharray="2 8" opacity=".6"/></g><g class="layer" data-depth="0.22"><path d="M420 176 C430 40 640 30 700 84" class="flow s-acc f-none" stroke-width="3"/><path d="M250 150 C300 60 380 60 420 176" class="s-mute f-none" stroke-width="2"/><path d="M700 84 L706 96 L690 92" class="s-acc f-none" stroke-width="2.5"/><circle cx="420" cy="180" r="13" class="f-acc"/><circle cx="860" cy="226" r="14" class="f-bad pulse"/><circle cx="250" cy="130" r="9" class="f-ok"/></g><g class="layer" data-depth="0.32"><rect x="300" y="270" width="34" height="22" rx="4" class="f-ok"/><rect x="346" y="270" width="34" height="22" rx="4" class="f-line"/><rect x="392" y="270" width="34" height="22" rx="4" class="f-line"/><rect x="438" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="484" y="270" width="34" height="22" rx="4" class="f-line"/><rect x="530" y="270" width="34" height="22" rx="4" class="f-line"/><rect x="576" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="622" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="668" y="270" width="34" height="22" rx="4" class="f-line"/><rect x="714" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="760" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="806" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="852" y="270" width="34" height="22" rx="4" class="f-bad"/><rect x="898" y="270" width="34" height="22" rx="4" class="f-ok"/></g></svg></div>
   <div class="hero-text wrap">
     <div class="chips rv"><span class="chip">Distributed systems</span><span class="chip">System design</span><span class="chip">Depth: hard</span><span class="chip">2026-10-03</span></div>
@@ -307,9 +421,143 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> these are the long outages. In OSDI'22's 22 incidents the outage ran <b>1.5 to 73.5 hours</b>, and the trigger usually gets blamed while the loop keeps the system down.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">3×</div><div class="l">attempts per user request at 2 retries, if every attempt times out</div></div><div class="stat rv" style="--i:1"><div class="v">33 req/s</div><div class="l">lower edge of the two-state band, μ/(r+1) with μ = 100, r = 2</div></div><div class="stat rv" style="--i:2"><div class="v">0/s</div><div class="l">goodput while the server is 100% busy (sim, stuck state)</div></div><div class="stat rv" style="--i:3"><div class="v">64×</div><div class="l">load on the database from 3 layers × 4 attempts (Google SRE)</div></div><div class="stat rv" style="--i:4"><div class="v">22</div><div class="l">incidents in the OSDI'22 study of metastable failures</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~53 min deep</span>
+      <span>19 cards</span><span>· ~9 min skim</span><span>· ~53 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>A 10-second stall, and a queue that never drains</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One server at 100 requests a second, a 10-second stall, a queue that keeps growing with dead requests, and the fix that drains it">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Normal: 70 req/s in, 100 req/s capacity</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Trigger: the server stalls for 10 s</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Every timeout sends another attempt</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Stall over. Server is back at 100/s.</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Queue grows, though the trigger is gone</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Still stuck, with 0/s goodput</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Skip dead requests, or serve newest first</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Or cut the retries, or cap them with a budget</text>
+<rect x="20" y="44" width="120" height="34" rx="4" class="f-panel s-line" stroke-width="1.5"/>
+<text x="80" y="66" class="sf-lab" text-anchor="middle">users 70/s</text>
+<rect x="340" y="44" width="120" height="34" rx="4" class="f-panel s-line" stroke-width="1.5" data-hl="2 3"/>
+<text x="400" y="66" class="sf-lab" text-anchor="middle">server 100/s</text>
+<rect x="336" y="40" width="128" height="42" rx="7" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="6 4" data-in="2" data-out="4"/>
+<line x1="80" y1="78" x2="80" y2="110" class="s-mute" stroke-width="2"/>
+<line x1="400" y1="110" x2="400" y2="78" class="s-mute" stroke-width="2"/>
+<rect x="20" y="112" width="440" height="30" rx="6" class="f-code s-line" stroke-width="1"/>
+<rect x="22" y="115" width="4" height="24" rx="2" class="f-ok"/>
+<rect x="22" y="115" width="70" height="24" rx="2" class="f-warn" data-in="2" data-out="4"/>
+<rect x="22" y="115" width="111" height="24" rx="2" class="f-warn" data-in="4" data-out="5"/>
+<rect x="22" y="115" width="193" height="24" rx="2" class="f-warn" data-in="5" data-out="6"/>
+<rect x="22" y="115" width="436" height="24" rx="2" class="f-bad" data-in="6" data-out="7"/>
+<text x="20" y="170" class="sf-lab" data-in="1" data-out="2">queue ~2</text>
+<text x="20" y="170" class="sf-lab" data-in="2" data-out="4">queue 1,870 when the stall ends</text>
+<text x="20" y="170" class="sf-lab" data-in="4" data-out="5">queue 2,971 at t = 40 s</text>
+<text x="20" y="170" class="sf-lab" data-in="5" data-out="6">queue 5,191 at t = 60 s</text>
+<text x="20" y="170" class="sf-lab" data-in="6" data-out="7">queue 11,826 at t = 120 s</text>
+<text x="20" y="170" class="sf-lab" data-in="7" data-out="9">queue drains at once</text>
+<text x="20" y="204" class="sf-lab" data-in="1" data-out="3">in: 70/s</text>
+<text x="20" y="204" class="sf-lab" data-in="3" data-out="7">in: 210/s, every user sends 3 attempts</text>
+<text x="20" y="204" class="sf-lab" data-in="7" data-out="9">in: 70/s, retries stop</text>
+<rect x="20" y="210" width="440" height="18" rx="4" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="210" width="147" height="18" rx="4" class="f-acc" data-in="1" data-out="3"/>
+<rect x="20" y="210" width="440" height="18" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="20" y="210" width="147" height="18" rx="4" class="f-acc" data-in="7" data-out="9"/>
+<text x="20" y="254" class="sf-lab" data-in="1" data-out="2">goodput: 70/s</text>
+<text x="20" y="254" class="sf-lab" data-in="2" data-out="7">goodput: 0/s</text>
+<text x="20" y="254" class="sf-lab" data-in="7" data-out="9">goodput: 70/s</text>
+<rect x="20" y="260" width="440" height="18" rx="4" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="260" width="147" height="18" rx="4" class="f-ok" data-in="1" data-out="2"/>
+<rect x="20" y="260" width="147" height="18" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<text x="20" y="318" class="sf-lab" data-in="1" data-out="2">Every request is served within its 1 s timeout.</text>
+<text x="20" y="318" class="sf-lab sf-bad" data-in="2" data-out="3">Requests wait; nothing is served.</text>
+<text x="20" y="318" class="sf-lab" data-in="3" data-out="4">3 attempts per user: 210/s into 100/s.</text>
+<text x="20" y="318" class="sf-lab" data-in="4" data-out="5">Each served attempt is work nobody reads.</text>
+<text x="20" y="318" class="sf-lab" data-in="5" data-out="6">Queue grows by about 110/s, trigger gone.</text>
+<text x="20" y="318" class="sf-lab sf-bad" data-in="6" data-out="7">Goodput stays 0/s, server 100% busy.</text>
+<text x="20" y="318" class="sf-lab" data-in="7" data-out="8">Goodput back to 70/s at t = 30 s.</text>
+<text x="20" y="318" class="sf-lab" data-in="8" data-out="9">No retries also recovers, at t = 51 s.</text>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="20.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="43.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="67.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="90.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="114.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="137.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="161.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="184.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="208.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="231.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="255.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="278.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="302.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="325.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="349.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="372.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="396.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="419.5" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="1" data-out="3"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-bad" data-in="3" data-out="7"/>
+<rect x="443.0" y="338" width="18" height="24" rx="4" class="f-ok" data-in="7" data-out="9"/>
+<text x="20" y="386" class="sf-lab" data-in="1" data-out="3">live: the client is still waiting</text>
+<text x="20" y="386" class="sf-lab sf-bad" data-in="3" data-out="7">dead: the client has already left</text>
+<text x="20" y="386" class="sf-lab" data-in="7" data-out="9">live: the remaining requests still wait</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">What the loop costs</text><text x="60" y="160" class="sf-lab">attempts per user request (2 retries)</text><text x="420" y="160" class="sf-num" text-anchor="end">3×</text><text x="60" y="240" class="sf-lab">stable band, req/s</text><text x="420" y="240" class="sf-num" text-anchor="end">33–100</text><rect x="60" y="252" width="360" height="14" rx="4" class="f-code s-line" stroke-width="1"/><rect x="178.8" y="252" width="241.2" height="14" rx="4" class="f-warn"/><text x="60" y="320" class="sf-lab">goodput while stuck</text><text x="420" y="320" class="sf-num" text-anchor="end">0/s</text><text x="240" y="380" class="sf-big" text-anchor="middle">The loop, not the trigger, keeps it down.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">One server does <b>100 requests a second</b>. Users send 70 a second, so the queue stays short and every request is served. Each user waits up to 1 s, and if nothing comes back, sends again, up to two times.</p></div>
+<div class="step"><p><b>The trigger.</b> For 10 seconds, from t = 20 s to t = 30 s, the server does no work. Requests keep arriving and pile up behind it, to about <b>1,870</b> by the time it comes back.</p></div>
+<div class="step"><p><b>The naive way.</b> Every request that waits longer than 1 s times out and is sent again. Each user request now costs <b>3 attempts</b>, so 210 a second reach a server that does 100. The old copy stays in the queue.</p></div>
+<div class="step"><p><b>The stall ends, the queue does not.</b> At t = 40 s the queue holds 2,971 requests. The server takes the oldest first, and those clients left long ago, so each request it serves is wasted work.</p></div>
+<div class="step"><p><b>The loop keeps it going.</b> Arrivals run at 210 a second and capacity at 100, so the queue grows by about <b>110 a second</b>. At t = 60 s it holds 5,191. The trigger is no longer needed to keep it that way.</p></div>
+<div class="step"><p><b>Still stuck.</b> At t = 120 s the queue holds 11,826, and the server is 100% busy with <b>0 goodput</b>. A fresh attempt now waits about 30 s for a 1 s timeout.</p></div>
+<div class="step"><p><b>The fix: skip the dead work.</b> Drop each request whose client has already left, as soon as it is dequeued. Skipping costs nothing, and goodput is back at 70 a second when the stall ends at t = 30 s. Serving the newest request first does the same.</p></div>
+<div class="step"><p><b>Or cut the retries.</b> With no retries the queue drains and the system is healthy again at <b>t = 51 s</b>. A retry budget of 10% gets there by t = 64 s. Each fix removes one leg of the loop.</p></div>
+<div class="step"><p><b>The headline numbers.</b> Two retries triple the work per user. The two stable states sit between <b>33 and 100 req/s</b>, so the same load can be healthy or stuck. The cards below cover the fixes and where they fail.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Re-ordering keeps the kitchen busy after the stove is fixed"><span>Re-ordering keeps the kitchen busy after the stove is fixed</span></a><a href="#c-ctx" data-id="ctx" aria-label="Five ideas make a retry storm easy to see"><span>Five ideas make a retry storm easy to see</span></a><a href="#c-world" data-id="world" aria-label="Real outages kept going after their trigger was gone"><span>Real outages kept going after their trigger was gone</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Retry storms&quot; hides five separate ideas"><span>&quot;Retry storms&quot; hides five separate ideas</span></a><a href="#c-problem" data-id="problem" aria-label="Hidden capacity can sit 10× below advertised capacity"><span>Hidden capacity can sit 10× below advertised capacity</span></a><a href="#c-model" data-id="model" aria-label="The trap lives in the landscape, not in the kick"><span>The trap lives in the landscape, not in the kick</span></a><a href="#c-mech" data-id="mech" aria-label="Retries turn 70 req/s into 210 attempts, and the queue never drains"><span>Retries turn 70 req/s into 210 attempts, and the queue never drains</span></a><a href="#c-math" data-id="math" aria-label="Two stable states exist for any load between μ/(r+1) and μ"><span>Two stable states exist for any load between μ/(r+1) and μ</span></a><a href="#c-why" data-id="why" aria-label="Each cure removes one leg of a loop that needs all three"><span>Each cure removes one leg of a loop that needs all three</span></a><a href="#c-knobs" data-id="knobs" aria-label="Attempts, budget ratio and timeout set where the band sits"><span>Attempts, budget ratio and timeout set where the band sits</span></a><a href="#c-breaks" data-id="breaks" aria-label="Cold caches, GC and health checks sustain the same loop"><span>Cold caches, GC and health checks sustain the same loop</span></a><a href="#c-wild" data-id="wild" aria-label="Real engines use budgets, leases and gutter pools"><span>Real engines use budgets, leases and gutter pools</span></a><a href="#c-frontier" data-id="frontier" aria-label="The field moved from naming the trap to modelling and finding it"><span>The field moved from naming the trap to modelling and finding it</span></a><a href="#c-open" data-id="open" aria-label="Nobody can yet predict the vulnerable band from normal telemetry"><span>Nobody can yet predict the vulnerable band from normal telemetry</span></a><a href="#c-lineage" data-id="lineage" aria-label="From Nagle&#x27;s 1984 congestion collapse to the 2021 name"><span>From Nagle&#x27;s 1984 congestion collapse to the 2021 name</span></a><a href="#c-hands" data-id="hands" aria-label="Simulate the trap in under a second, with no dependencies"><span>Simulate the trap in under a second, with no dependencies</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three follow-ups: CoDel, adaptive limits, shuffle sharding"><span>Three follow-ups: CoDel, adaptive limits, shuffle sharding</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and postmortems behind each claim"><span>Papers, code and postmortems behind each claim</span></a></nav>
@@ -323,7 +571,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p>Picture a popular sandwich shop with one cook who can make 100 sandwiches an hour. On a normal lunch rush about 70 people an hour come in, so the cook keeps up and nobody waits long. Customers have a rule: if no sandwich arrives within ten minutes, they assume the order got lost and <b>order again</b>, without cancelling the first one. On a normal day nobody waits ten minutes, so the rule never fires.</p>
+<p class="dropcap">Picture a popular sandwich shop with one cook who can make 100 sandwiches an hour. On a normal lunch rush about 70 people an hour come in, so the cook keeps up and nobody waits long. Customers have a rule: if no sandwich arrives within ten minutes, they assume the order got lost and <b>order again</b>, without cancelling the first one. On a normal day nobody waits ten minutes, so the rule never fires.</p>
 <p>Now the stove goes out for fifteen minutes. Orders pile up. When the stove comes back, every waiting customer has already hit the ten-minute mark and re-ordered, so the cook faces two or three tickets for each hungry person. The cook works flat out, but by the time any sandwich is ready its customer has given up and placed another order. The kitchen is 100% busy and <b>nobody eats</b>. The stove is fine; it's the re-ordering rule that keeps the kitchen drowning. That is a metastable failure: a short trigger (stove out) pushes the system into a bad state that a <b>feedback loop</b> (re-ordering) keeps going after the trigger is gone. The only way out is to do something drastic: turn customers away for a while, throw out stale tickets, or stop accepting duplicate orders.</p>
 <h3>Everyday example</h3>
 <p>The shop normally takes 70 orders an hour and can cook 100. At 12:20 the stove dies for 10 minutes; about 12 orders pile up. At 12:30 the stove is back. The oldest tickets are now 10 minutes old, so those customers re-order, adding 12 more tickets on top of the 12 pending, while new customers keep arriving. The cook starts on the oldest ticket. By the time it's done its customer has left (and re-ordered), so the sandwich goes in the bin. Every ticket the cook picks up is already "dead", because the line is longer than ten minutes. The shop now gets roughly 210 tickets an hour (70 people × up to 3 tries) against capacity for 100. The line never gets shorter. At 13:30, an hour after the stove was fixed, the cook is still busy and still nobody is eating. The manager finally announces "we're discarding every ticket older than ten minutes": the cook skips the dead tickets in seconds, the line clears, and the shop is back to normal within a minute.</p>
@@ -455,6 +703,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>150 QPS</b><span>the highest load that still recovers, half of the 300 it can serve</span></div>
 <p>Production systems run in what Bronson calls the <b>vulnerable state</b>, deliberately: "many production systems choose to run in the vulnerable state all the time because it has much higher efficiency than the stable state." HotOS'21's worked example:</p>
 <ul>
 <li>A database answers in under 100 ms below 300 QPS. Above that, latency is "an order of magnitude worse".</li>
@@ -512,10 +761,10 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-mech" data-id="mech">
+<article class="card rv gated" id="c-mech" data-id="mech">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="40" width="140" height="22" rx="4" class="f-panel s-line"/><rect x="16" y="46" width="18" height="10" rx="2" class="f-bad"/><rect x="38" y="46" width="18" height="10" rx="2" class="f-bad"/><rect x="60" y="46" width="18" height="10" rx="2" class="f-bad"/><rect x="82" y="46" width="18" height="10" rx="2" class="f-bad"/><rect x="104" y="46" width="18" height="10" rx="2" class="f-ok"/><path d="M124 72 C150 92 20 92 30 66" class="flow s-acc f-none"/></svg></div>
 <div class="card-body"><div class="kicker">§5 · Mechanism, traced</div><h2>Retries turn 70 req/s into 210 attempts, and the queue never drains</h2>
-<div class="brief"><p>After a 10 s outage with μ = 100 and λ = 70, every request makes 3 attempts. Each attempt waits about 30 s, far past its 1 s timeout, so the server serves dead work. Attempts arrive at 210/s against 100/s capacity, so the queue grows by ~110/s with the trigger long gone.</p><p class="mini">Seven-step walkthrough and live simulator inside.</p></div>
+<div class="guess" data-g="queue" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> The trigger ends at t = 30 s, and the server is back at full speed. How many requests are waiting in the queue at t = 120 s?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 300</button><button class="g-opt" type="button" data-k="1">About 2,000</button><button class="g-opt" type="button" data-k="2">About 12,000</button><button class="g-opt" type="button" data-k="3">About 60,000</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 11,800</b> (11,826 in the sim). Arrivals run at 210/s against 100/s of service, so the queue grows by about 110 a second and never drains.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>After a 10 s outage with μ = 100 and λ = 70, every request makes 3 attempts. Each attempt waits about 30 s, far past its 1 s timeout, so the server serves dead work. Attempts arrive at 210/s against 100/s capacity, so the queue grows by ~110/s with the trigger long gone.</p><p class="mini">Seven-step walkthrough and live simulator inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>6 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
@@ -700,10 +949,10 @@ if($('sim')){['iLam','iOut','iR','iT','iB','iD','iL'].forEach(function(k){$(k).a
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="30" width="140" height="40" class="f-hl" opacity=".5"/><line x1="10" y1="50" x2="150" y2="50" class="s-mute" stroke-dasharray="3 3"/><path d="M10 80 C50 80 60 40 80 40 S110 20 150 20" class="s-acc f-none" stroke-width="2"/><circle cx="48" cy="72" r="3" class="f-ok"/><circle cx="120" cy="30" r="3" class="f-bad"/></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>Two stable states exist for any load between μ/(r+1) and μ</h2>
-<div class="brief"><p>If each request can make r+1 attempts, the collapsed state sustains itself when (r+1)λ &gt; μ. With μ = 100 and r = 2, any load from 33 to 100 req/s admits both states. A retry budget that caps amplification near 1.1× shrinks that band to almost nothing.</p></div>
+<div class="guess" data-g="layers" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> Three layers of a stack each retry up to 4 times. How much load reaches the database, compared with one request?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">4×</button><button class="g-opt" type="button" data-k="1">12×</button><button class="g-opt" type="button" data-k="2">64×</button><button class="g-opt" type="button" data-k="3">256×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>64×.</b> The multipliers stack: 4 × 4 × 4. This is the Google SRE book's example, and it is why one layer of retries is not the whole story.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>If each request can make r+1 attempts, the collapsed state sustains itself when (r+1)λ &gt; μ. With μ = 100 and r = 2, any load from 33 to 100 req/s admits both states. A retry budget that caps amplification near 1.1× shrinks that band to almost nothing.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>7 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -831,10 +1080,10 @@ if($('sim')){['iLam','iOut','iR','iT','iB','iD','iL'].forEach(function(k){$(k).a
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M10 70 L30 30 L40 70 L60 22 L70 70 L90 14 L100 70 L120 10 L130 70 L150 60" class="s-bad f-none" stroke-width="2"/><line x1="10" y1="80" x2="150" y2="80" class="s-line"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Cold caches, GC and health checks sustain the same loop</h2>
-<div class="brief"><p>Cold caches, GC death spirals, slow error paths and health checks that pull healthy hosts all sustain the loop. Retry budgets are per client, so 10,000 clients at a 10 retries/s floor means 100k retries/s. Backoff with jitter spreads the load but doesn't reduce it.</p></div>
+<div class="guess" data-g="floor" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> 10,000 clients each keep a retry budget of at least 10 retries a second. How many retries a second is that floor?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">10,000</button><button class="g-opt" type="button" data-k="1">10,010</button><button class="g-opt" type="button" data-k="2">100,000</button><button class="g-opt" type="button" data-k="3">1,000,000</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>100,000 a second.</b> Budgets are per client, so the minimums add up: 10,000 × 10. A small limit on one client becomes a large load across a fleet.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Cold caches, GC death spirals, slow error paths and health checks that pull healthy hosts all sustain the loop. Retry budgets are per client, so 10,000 clients at a 10 retries/s floor means 100k retries/s. Backoff with jitter spreads the load but doesn't reduce it.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -1243,13 +1492,45 @@ python3 metastable_sim.py --lam 70 --outage 10 --policy lifo</code></pre>
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1269,11 +1550,63 @@ python3 metastable_sim.py --lam 70 --outage 10 --policy lifo</code></pre>
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
