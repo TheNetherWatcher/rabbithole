@@ -1,0 +1,30 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-bars{display:block;width:100%;height:auto;margin:6px 0 10px}
+.cv-bars text{font:600 13px var(--mono);fill:var(--ink)}
+.cv-bars .cv-tick{stroke:var(--mute);stroke-dasharray:3 3}
+.cv-bars .cv-bar{transform-box:fill-box;transform-origin:left center}
+.js .cv-bars .cv-bar{transform:scaleX(0);animation:cv-grow .6s var(--ease) forwards}
+.js .cv-bars .cv-b56{animation-delay:.5s}
+@keyframes cv-grow{to{transform:scaleX(1)}}
+.cv-row{margin:0}
+.cv-row b{color:var(--ink)}
+</style>
+<p class="cold-line">An 8B model runs 1.75× faster with this trick.</p>
+<p class="cold-line sm">That is with 2 requests in flight. Real servers batch dozens at once, and <em>a drafter that guesses ahead</em> has to share the GPU with all of them.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <svg class="cv-bars" viewBox="0 0 360 116" role="img" aria-label="Speedup of EAGLE-3 on an 8B model: 1.75 times at batch 2, 1.01 times at batch 56.">
+    <text x="0" y="36">batch 2</text>
+    <rect class="f-ok cv-bar" x="96" y="18" width="150" height="24" rx="4"/>
+    <text x="254" y="36">1.75×</text>
+    <text x="0" y="86">batch 56</text>
+    <rect class="f-warn cv-bar cv-b56" x="96" y="68" width="87" height="24" rx="4"/>
+    <text x="191" y="86">1.01×</text>
+    <line class="cv-tick" x1="182" y1="8" x2="182" y2="102"/>
+    <text x="182" y="112" text-anchor="middle" style="font-weight:400;fill:var(--mute)">1×</text>
+  </svg>
+  <p class="cv-row"><b>8B model, one RTX 3090: 1.75× at batch 2, 1.01× at batch 56.</b></p>
+</div>

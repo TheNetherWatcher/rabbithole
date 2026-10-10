@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,38 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-bars{display:block;width:100%;height:auto;margin:6px 0 10px}
+.cv-bars text{font:600 13px var(--mono);fill:var(--ink)}
+.cv-bars .cv-tick{stroke:var(--mute);stroke-dasharray:3 3}
+.cv-bars .cv-bar{transform-box:fill-box;transform-origin:left center}
+.js .cv-bars .cv-bar{transform:scaleX(0);animation:cv-grow .6s var(--ease) forwards}
+.js .cv-bars .cv-b56{animation-delay:.5s}
+@keyframes cv-grow{to{transform:scaleX(1)}}
+.cv-row{margin:0}
+.cv-row b{color:var(--ink)}
+</style>
+<p class="cold-line">An 8B model runs 1.75× faster with this trick.</p>
+<p class="cold-line sm">That is with 2 requests in flight. Real servers batch dozens at once, and <em>a drafter that guesses ahead</em> has to share the GPU with all of them.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> A small drafter guesses ahead for an 8B model on one RTX 3090. With 56 requests at once, how much faster is it than plain decoding?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 1.75×, same as at batch 2</button><button class="g-opt" type="button" data-k="1">About 1.4×</button><button class="g-opt" type="button" data-k="2">About 1.01×</button><button class="g-opt" type="button" data-k="3">About 2.5×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>1.01×.</b> At batch 2 the same setup gives 1.75×. With 56 requests the GPU is already doing real work, so the spare compute the trick spends is gone. Source: EAGLE-3 paper, as reported in the where-it-breaks section.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <svg class="cv-bars" viewBox="0 0 360 116" role="img" aria-label="Speedup of EAGLE-3 on an 8B model: 1.75 times at batch 2, 1.01 times at batch 56.">
+    <text x="0" y="36">batch 2</text>
+    <rect class="f-ok cv-bar" x="96" y="18" width="150" height="24" rx="4"/>
+    <text x="254" y="36">1.75×</text>
+    <text x="0" y="86">batch 56</text>
+    <rect class="f-warn cv-bar cv-b56" x="96" y="68" width="87" height="24" rx="4"/>
+    <text x="191" y="86">1.01×</text>
+    <line class="cv-tick" x1="182" y1="8" x2="182" y2="102"/>
+    <text x="182" y="112" text-anchor="middle" style="font-weight:400;fill:var(--mute)">1×</text>
+  </svg>
+  <p class="cv-row"><b>8B model, one RTX 3090: 1.75× at batch 2, 1.01× at batch 56.</b></p>
+</div>
+</div><a class="cold-cue" href="#top">Speculative decoding <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
 <g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
@@ -348,9 +471,93 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> at low batch, decoding leaves compute idle. This spends that spare compute to cut latency, with no change to the output distribution.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">~3×</div><div class="l">T5-XXL 11B with a 60M drafter, same output distribution (Google)</div></div><div class="stat rv" style="--i:1"><div class="v">85–90%</div><div class="l">DeepSeek-V3 MTP second-token acceptance</div></div><div class="stat rv" style="--i:2"><div class="v">1 − TV</div><div class="l">acceptance rate: the overlap of draft and target</div></div><div class="stat rv" style="--i:3"><div class="v">1.4–1.8×</div><div class="l">slowdown at high QPS in vLLM 2024 measurements</div></div><div class="stat rv" style="--i:4"><div class="v">2.8×</div><div class="l">vLLM on summarization at low QPS (best case)</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~4 min skim</span><span>· ~48 min deep</span>
+      <span>19 cards</span><span>· ~8 min skim</span><span>· ~48 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Guess three tokens, check them in one pass, keep the output exact</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 14px var(--mono)}
+#story-fig .sf-mute{fill:var(--mute);font:700 14px var(--mono)}
+#story-fig .sf-ok{fill:var(--ok)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A target model writes one token per pass. A drafter guesses three tokens, the target checks them in one pass, keeps the first match, resamples one, and at high batch the gain falls to 1.01x.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="3">Plain decoding: one pass per token</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="5">Speculative: guess 3, then check in one pass</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="8">Keep the matches, resample at the first miss</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Batch grows, and the spare compute runs out</text>
+<rect x="20" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="42.0" y="70.0" class="sf-cell" text-anchor="middle">The</text>
+<rect x="70" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="92.0" y="70.0" class="sf-cell" text-anchor="middle">cat</text>
+<rect x="120" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="142.0" y="70.0" class="sf-cell" text-anchor="middle">sat</text>
+<rect x="170" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="192.0" y="70.0" class="sf-cell" text-anchor="middle">on</text>
+<rect x="220" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="242.0" y="70.0" class="sf-cell" text-anchor="middle">the</text>
+<rect x="270" y="50" width="44" height="30" rx="6" class="f-ok" data-in="7"/>
+<text x="292.0" y="70.0" class="sf-cell" text-anchor="middle" data-in="7">mat</text>
+<rect x="320" y="50" width="44" height="30" rx="6" class="f-ok" data-in="7"/>
+<text x="342.0" y="70.0" class="sf-cell" text-anchor="middle" data-in="7">.</text>
+<rect x="20" y="150" width="440" height="44" rx="6" class="f-panel s-line" stroke-width="1.5" data-hl="4"/>
+<text x="32" y="177" class="sf-lab">Target model: big, slow, exact</text>
+<rect x="20" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="89" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 1: 1 token</text>
+<rect x="171" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="240" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 2: 1 token</text>
+<rect x="322" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="391" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 3: 1 token</text>
+<text x="20" y="120" class="sf-lab" data-in="3" data-out="7">drafter guesses</text>
+<text x="20" y="120" class="sf-lab sf-ok" data-in="7" data-out="9">one target pass gave 2 tokens</text>
+<rect x="288" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="317.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">mat</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">and</text>
+<rect x="412" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="441.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">purred</text>
+<rect x="288" y="100" width="58" height="30" rx="6" class="f-ok" data-in="5" data-out="9"/>
+<text x="317.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="5" data-out="9">mat</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-bad" data-in="5" data-out="6"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">and</text>
+<rect x="412" y="100" width="58" height="30" rx="6" class="f-none s-mute" data-in="5" data-out="9"/>
+<text x="441.0" y="120.0" class="sf-mute" text-anchor="middle" data-in="5" data-out="9">purred</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-warn" data-in="6" data-out="9"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">.</text>
+<text x="20" y="226" class="sf-lab" data-in="8" data-out="9">batch 2</text>
+<rect x="100" y="212" width="175" height="20" rx="6" class="f-ok" data-in="8" data-out="9"/>
+<text x="282" y="228" class="sf-lab" data-in="8" data-out="9">1.75×</text>
+<text x="20" y="266" class="sf-lab" data-in="8" data-out="9">batch 56</text>
+<rect x="100" y="252" width="101" height="20" rx="6" class="f-warn" data-in="8" data-out="9"/>
+<text x="208" y="268" class="sf-lab" data-in="8" data-out="9">1.01×</text>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Chinchilla 70B on 16 TPU v4: 14.1 ms per token.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Tokens come one after another, one pass each.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">A small drafter writes 3 guesses, cheaply.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">The target scores all 3 positions in one pass.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">'mat' is kept. 'and' is rejected, so 'purred' goes.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">'and' is replaced from the leftover mass.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Two new tokens for one target pass.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">At batch 56, EAGLE-3's gain falls to 1.01×.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">Speedup from speculative decoding</text><text x="60" y="150" class="sf-lab">Google, T5-XXL 11B, 60M drafter</text><text x="420" y="152" class="sf-num" text-anchor="end">~3×</text><text x="60" y="194" class="sf-lab">EAGLE-3, 8B, batch 2</text><text x="420" y="196" class="sf-num" text-anchor="end">1.75×</text><text x="60" y="238" class="sf-lab">EAGLE-3, 8B, batch 56</text><text x="420" y="240" class="sf-num" text-anchor="end">1.01×</text><text x="240" y="308" class="sf-big" text-anchor="middle">Same output distribution, in exact arithmetic</text><text x="240" y="346" class="sf-lab" text-anchor="middle">The cards below cover the proof, the knobs and the failure cases.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A large target model writes one token at a time, and each token needs a full pass over its weights. Chinchilla 70B on 16 TPU v4 takes <b>14.1 ms per token</b> with plain sampling.</p></div>
+<div class="step"><p><b>The naive way is serial.</b> Token t+1 cannot start before token t exists. At batch 1, a 70B model reads about <b>140 GB</b> of weights for each token, while the compute units sit mostly idle.</p></div>
+<div class="step"><p><b>The key idea:</b> a cheap drafter writes <b>three guesses</b> ahead. The drafter is a small model, or a few heads on the target itself.</p></div>
+<div class="step"><p>The target then scores all three guesses in <b>one pass</b>. Scoring known tokens is parallel, so at small k it costs about the same as one decode step.</p></div>
+<div class="step"><p>Each guess is checked with <b>min(1, p/q)</b>. "mat" has p 0.60 and q 0.50, so it is kept. "and" has p 0.10 and q 0.40, so it passes with probability 0.25. The draw of 0.83 is above that, so it fails, and "purred" goes with it.</p></div>
+<div class="step"><p>The target writes a replacement for "and" itself, sampled from the leftover mass <b>max(0, p − q)</b>. Here it is ".", because the drafter had already over-proposed "and".</p></div>
+<div class="step"><p>Two new tokens came out of <b>one target pass</b>: "mat" and ".". Had all three guesses passed, a fourth token would have come free from the target.</p></div>
+<div class="step"><p><b>The trick spends spare compute.</b> Once batches are big, there is none left. EAGLE-3 on an 8B model in vLLM falls from <b>1.75×</b> at batch 2 to <b>1.01×</b> at batch 56 on an RTX 3090.</p></div>
+<div class="step"><p><b>The headline.</b> Google reports about <b>3×</b> on T5-XXL, and the output distribution stays the target's, in exact arithmetic. The gain can vanish at high load. The cards below cover the proof, the knobs and the failure cases.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A quick guesser writes ahead, and one library trip checks it"><span>A quick guesser writes ahead, and one library trip checks it</span></a><a href="#c-ctx" data-id="ctx" aria-label="Three things to know first"><span>Three things to know first</span></a><a href="#c-world" data-id="world" aria-label="Every major engine ships it behind one config object"><span>Every major engine ships it behind one config object</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;A small model guesses, a big one checks&quot; hides five things"><span>&quot;A small model guesses, a big one checks&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Decode reads every weight per token while compute sits idle"><span>Decode reads every weight per token while compute sits idle</span></a><a href="#c-model" data-id="model" aria-label="An intern and an editor, and where the analogy breaks"><span>An intern and an editor, and where the analogy breaks</span></a><a href="#c-mech" data-id="mech" aria-label="Draft three, verify in one pass, reject at the first mismatch"><span>Draft three, verify in one pass, reject at the first mismatch</span></a><a href="#c-math" data-id="math" aria-label="Acceptance is exactly 1 − TV, and the speedup has a closed form"><span>Acceptance is exactly 1 − TV, and the speedup has a closed form</span></a><a href="#c-why" data-id="why" aria-label="Exactness comes from the maximal coupling, not from the drafter"><span>Exactness comes from the maximal coupling, not from the drafter</span></a><a href="#c-knobs" data-id="knobs" aria-label="Draft length, drafter type and verifier rule are the three knobs"><span>Draft length, drafter type and verifier rule are the three knobs</span></a><a href="#c-breaks" data-id="breaks" aria-label="Speedup dies at large batch, and &quot;lossless&quot; is not bitwise"><span>Speedup dies at large batch, and &quot;lossless&quot; is not bitwise</span></a><a href="#c-wild" data-id="wild" aria-label="Engines share the exact-sampling idea but differ in the defaults"><span>Engines share the exact-sampling idea but differ in the defaults</span></a><a href="#c-frontier" data-id="frontier" aria-label="From small drafters to heads, then to parallel block-diffusion drafters"><span>From small drafters to heads, then to parallel block-diffusion drafters</span></a><a href="#c-open" data-id="open" aria-label="Multi-draft optimality, tree shape and batched exactness are open"><span>Multi-draft optimality, tree shape and batched exactness are open</span></a><a href="#c-lineage" data-id="lineage" aria-label="From greedy heads in 2018 to exact sampling in 2023"><span>From greedy heads in 2018 to exact sampling in 2023</span></a><a href="#c-hands" data-id="hands" aria-label="Simulate 200k speculative samples in two seconds to see exactness"><span>Simulate 200k speculative samples in two seconds to see exactness</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three dives that build on this"><span>Three dives that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and docs, plus the claims I could not verify"><span>Papers, code and docs, plus the claims I could not verify</span></a></nav>
@@ -364,7 +571,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
-<p><b>Explained simply.</b> Imagine a famous author who writes brilliant letters but is painfully slow: for every single word, they have to walk down to a huge library, look things up, and walk back. Now give them a quick assistant who just guesses the next few words. The author doesn't write the words one at a time anymore. They read the assistant's guess for the whole line in one trip to the library, tick off the words they would have written themselves, and cross out the first one they wouldn't have. Everything before the crossed-out word is kept for free.</p>
+<p class="dropcap"><b>Explained simply.</b> Imagine a famous author who writes brilliant letters but is painfully slow: for every single word, they have to walk down to a huge library, look things up, and walk back. Now give them a quick assistant who just guesses the next few words. The author doesn't write the words one at a time anymore. They read the assistant's guess for the whole line in one trip to the library, tick off the words they would have written themselves, and cross out the first one they wouldn't have. Everything before the crossed-out word is kept for free.</p>
 <p>The clever part is how the author decides what to keep. The rule is tuned so that the finished letter reads exactly as if the author had written every word alone, no matter how good or bad the assistant's guesses are. Good guesses just mean fewer library trips. That is the whole trick: same words, less waiting.</p>
 <h3>Everyday example</h3>
 <p>The letter so far says "The cat sat on the". The assistant guesses the next three words: "mat", "and", "purred". The author makes one trip to the library and checks all three guesses together. "mat" is something they would happily write, so it stays. "and" is not what they had in mind, so it gets crossed out, and "purred" goes with it because it was a guess built on "and". The author then writes their own word in the crossed-out spot, say a full stop, and the letter now ends "...on the mat." That is two new words for a single trip to the library. Had all three guesses been fine, the author would have added one more word of their own, for four words in one trip.</p>
@@ -483,13 +690,14 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-problem" data-id="problem">
+<article class="card rv gated" id="c-problem" data-id="problem">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="18" width="132" height="12" rx="3" class="f-none s-line" stroke-dasharray="3 2"/><rect x="14" y="18" width="44" height="12" rx="3" class="f-acc"/><rect x="14" y="37" width="132" height="12" rx="3" class="f-none s-line" stroke-dasharray="3 2"/><rect x="14" y="37" width="28" height="12" rx="3" class="f-acc"/><rect x="14" y="56" width="132" height="12" rx="3" class="f-none s-line" stroke-dasharray="3 2"/><rect x="14" y="56" width="60" height="12" rx="3" class="f-acc"/><rect x="14" y="75" width="132" height="12" rx="3" class="f-none s-line" stroke-dasharray="3 2"/><rect x="14" y="75" width="36" height="12" rx="3" class="f-acc"/></svg></div>
 <div class="card-body"><div class="kicker">§3 · The problem</div><h2>Decode reads every weight per token while compute sits idle</h2>
-<div class="brief"><p>On Chinchilla 70B, plain sampling took <b>14.1 ms per token</b> at batch 1. Tokens depend on each other, so you cannot parallelize across positions. Scoring a known guess of k tokens is parallel, and costs about one decode step.</p></div>
+<div class="guess" data-g="bytes" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> How many GB of bf16 weights does a 70B model read for each token at batch 1?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 14 GB</button><button class="g-opt" type="button" data-k="1">About 70 GB</button><button class="g-opt" type="button" data-k="2">About 140 GB</button><button class="g-opt" type="button" data-k="3">About 700 GB</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 140 GB.</b> The dive gives ~140 GB of bf16 weights per token for a 70B model at batch 1. Every token re-reads them, so the time floor is set by memory bandwidth, not by math.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>On Chinchilla 70B, plain sampling took <b>14.1 ms per token</b> at batch 1. Tokens depend on each other, so you cannot parallelize across positions. Scoring a known guess of k tokens is parallel, and costs about one decode step.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>14.1 ms</b><span>per token for plain sampling on Chinchilla 70B across 16 TPU v4.</span></div>
 <p>Decoding a 70B model at batch 1 reads ~140 GB of bf16 weights per token. On Chinchilla 70B across 16 TPU v4, Chen et al. measured <b>14.1 ms/token</b> for plain sampling. The hardware is mostly idle on compute: the minimum time per token is model bytes ÷ memory bandwidth, and that floor holds no matter how many FLOPs remain unused.</p>
 <p>The constraint that forces the design: <b>you can't parallelize across output positions</b>, because token t+1 needs token t. But scoring a <i>known</i> sequence of k tokens <i>is</i> parallel (it's a prefill), and at small k it costs about the same wall time as one decode step. Chen et al. give three reasons:</p>
 <ol>
@@ -641,10 +849,10 @@ p2−q2 clipped = [0, 0.20, 0.10, 0]  →  normalized [0, 0.667, 0.333, 0]</code
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M16 84 V12 M16 84 H146" class="s-line" fill="none" stroke-width="1.5"/><path d="M20 78 Q 60 20 140 62" class="s-acc" fill="none" stroke-width="2.5"/><circle cx="70" cy="33" r="5" class="f-ok"/><path d="M20 50 H146" class="s-mute" fill="none" stroke-width="1" stroke-dasharray="3 3"/></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>Acceptance is exactly 1 − TV, and the speedup has a closed form</h2>
-<div class="brief"><p>Acceptance α = Σ min(p,q) = 1 − TV, the overlap of draft and target. Expected tokens per iteration are (1 − α<sup>γ+1</sup>)/(1 − α). At α = 0.8 and c = 0.05 the best γ is 8, for <b>3.1×</b>.</p><p class="mini">Speedup explorer inside.</p></div>
+<div class="guess" data-g="toy" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> On a toy with a visibly different draft, the exact rule min(1, p/q) accepts what share of the drafted tokens?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 23%</button><button class="g-opt" type="button" data-k="1">About 50%</button><button class="g-opt" type="button" data-k="2">About 83%</button><button class="g-opt" type="button" data-k="3">About 100%</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>83%</b> (0.8256). That equals 1 − TV between the two distributions. Sample-and-match accepts only 0.23 on the same draft, about 3.6× fewer.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Acceptance α = Σ min(p,q) = 1 − TV, the overlap of draft and target. Expected tokens per iteration are (1 − α<sup>γ+1</sup>)/(1 − α). At α = 0.8 and c = 0.05 the best γ is 8, for <b>3.1×</b>.</p><p class="mini">Speedup explorer inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>7 min · 2 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -782,10 +990,10 @@ p2−q2 clipped = [0, 0.20, 0.10, 0]  →  normalized [0, 0.667, 0.333, 0]</code
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-knobs" data-id="knobs">
+<article class="card rv gated" id="c-knobs" data-id="knobs">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="18" y="58" width="16" height="28" rx="3" class="f-acc2"/><rect x="44" y="44" width="16" height="42" rx="3" class="f-acc2"/><rect x="70" y="28" width="16" height="58" rx="3" class="f-ok"/><rect x="96" y="50" width="16" height="36" rx="3" class="f-acc2"/><rect x="122" y="64" width="16" height="22" rx="3" class="f-acc2"/><path d="M12 86 H150" class="s-line" fill="none" stroke-width="1.2"/></svg></div>
 <div class="card-body"><div class="kicker">§8 · Knobs &amp; alternatives</div><h2>Draft length, drafter type and verifier rule are the three knobs</h2>
-<div class="brief"><p>The optimal draft length grows with acceptance and shrinks with cost. Heads on the target (EAGLE-3, MTP) beat separate models. Block verification is provably optimal. Lossy rules trade the exact distribution for speed. Chen et al. found K = 3 best on XSum.</p></div>
+<div class="guess" data-g="gamma" data-kind="range" data-min="1" data-max="5" data-lo="3.09" data-hi="3.09" data-tol="0.15" data-unit="×"><p class="g-q"><span class="g-tag">Guess first</span> A drafter costs 5% of one target pass, and 80% of its tokens are accepted. With the best draft length, what speedup does the formula give?</p><div class="g-ctl"><input type="range" min="1" max="5" step="0.01" value="1.5" aria-label="Your guess"><output>1.5×</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>1×</span><span>5×</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>3.09×</b> at draft length 8. The formula is (1 − α^(γ+1)) / ((1 − α)(γc + 1)). The numerator rewards drafting and the denominator charges for it.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>The optimal draft length grows with acceptance and shrinks with cost. Heads on the target (EAGLE-3, MTP) beat separate models. Block verification is provably optimal. Lossy rules trade the exact distribution for speed. Chen et al. found K = 3 best on XSum.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>3 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
@@ -1327,13 +1535,45 @@ sample-and-match acceptance = sum p*q = 0.2297</code></pre>
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1353,11 +1593,63 @@ sample-and-match acceptance = sum p*q = 0.2297</code></pre>
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');

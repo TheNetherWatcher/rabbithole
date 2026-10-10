@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Guess three tokens, check them in one pass, keep the output exact"
+ },
  "tldr": "A cheap drafter guesses γ tokens, and the target scores all of them in <b>one forward pass</b>. A modified rejection rule (accept with min(1, p/q), otherwise resample from the residual max(0, p − q)) keeps the output <b>exactly</b> target-distributed. You gain <b>1 to γ+1 tokens per target pass</b>, which pays only while the target is memory-bound.",
  "why": "<b>Why it matters:</b> at low batch, decoding leaves compute idle. This spends that spare compute to cut latency, with no change to the output distribution.",
  "stats": [
@@ -76,7 +82,8 @@
    "title": "Decode reads every weight per token while compute sits idle",
    "visual": "img/problem.svg",
    "file": "sections/03-problem.html",
-   "brief": "<p>On Chinchilla 70B, plain sampling took <b>14.1 ms per token</b> at batch 1. Tokens depend on each other, so you cannot parallelize across positions. Scoring a known guess of k tokens is parallel, and costs about one decode step.</p>"
+   "brief": "<p>On Chinchilla 70B, plain sampling took <b>14.1 ms per token</b> at batch 1. Tokens depend on each other, so you cannot parallelize across positions. Scoring a known guess of k tokens is parallel, and costs about one decode step.</p>",
+   "guess": "bytes"
   },
   {
    "id": "model",
@@ -100,7 +107,8 @@
    "title": "Acceptance is exactly 1 − TV, and the speedup has a closed form",
    "visual": "img/math.svg",
    "file": "sections/06-math.html",
-   "brief": "<p>Acceptance α = Σ min(p,q) = 1 − TV, the overlap of draft and target. Expected tokens per iteration are (1 − α<sup>γ+1</sup>)/(1 − α). At α = 0.8 and c = 0.05 the best γ is 8, for <b>3.1×</b>.</p><p class=\"mini\">Speedup explorer inside.</p>"
+   "brief": "<p>Acceptance α = Σ min(p,q) = 1 − TV, the overlap of draft and target. Expected tokens per iteration are (1 − α<sup>γ+1</sup>)/(1 − α). At α = 0.8 and c = 0.05 the best γ is 8, for <b>3.1×</b>.</p><p class=\"mini\">Speedup explorer inside.</p>",
+   "guess": "toy"
   },
   {
    "id": "why",
@@ -116,7 +124,8 @@
    "title": "Draft length, drafter type and verifier rule are the three knobs",
    "visual": "img/knobs.svg",
    "file": "sections/08-knobs.html",
-   "brief": "<p>The optimal draft length grows with acceptance and shrinks with cost. Heads on the target (EAGLE-3, MTP) beat separate models. Block verification is provably optimal. Lossy rules trade the exact distribution for speed. Chen et al. found K = 3 best on XSum.</p>"
+   "brief": "<p>The optimal draft length grows with acceptance and shrinks with cost. Heads on the target (EAGLE-3, MTP) beat separate models. Block verification is provably optimal. Lossy rules trade the exact distribution for speed. Chen et al. found K = 3 best on XSum.</p>",
+   "guess": "gamma"
   },
   {
    "id": "breaks",
@@ -194,6 +203,52 @@
    "brief": "<p>35 papers, 13 code and doc references, 7 articles, plus the flags for claims that could not be verified or come from abstracts only.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "A small drafter guesses ahead for an 8B model on one RTX 3090. With 56 requests at once, how much faster is it than plain decoding?",
+   "options": [
+    "About 1.75×, same as at batch 2",
+    "About 1.4×",
+    "About 1.01×",
+    "About 2.5×"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>1.01×.</b> At batch 2 the same setup gives 1.75×. With 56 requests the GPU is already doing real work, so the spare compute the trick spends is gone. Source: EAGLE-3 paper, as reported in the where-it-breaks section.</p>"
+  },
+  "bytes": {
+   "q": "How many GB of bf16 weights does a 70B model read for each token at batch 1?",
+   "options": [
+    "About 14 GB",
+    "About 70 GB",
+    "About 140 GB",
+    "About 700 GB"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 140 GB.</b> The dive gives ~140 GB of bf16 weights per token for a 70B model at batch 1. Every token re-reads them, so the time floor is set by memory bandwidth, not by math.</p>"
+  },
+  "toy": {
+   "q": "On a toy with a visibly different draft, the exact rule min(1, p/q) accepts what share of the drafted tokens?",
+   "options": [
+    "About 23%",
+    "About 50%",
+    "About 83%",
+    "About 100%"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>83%</b> (0.8256). That equals 1 − TV between the two distributions. Sample-and-match accepts only 0.23 on the same draft, about 3.6× fewer.</p>"
+  },
+  "gamma": {
+   "q": "A drafter costs 5% of one target pass, and 80% of its tokens are accepted. With the best draft length, what speedup does the formula give?",
+   "min": 1,
+   "max": 5,
+   "step": 0.01,
+   "unit": "×",
+   "answer": 3.09,
+   "start": 1.5,
+   "tol": 0.15,
+   "reveal": "<p><b>3.09×</b> at draft length 8. The formula is (1 − α^(γ+1)) / ((1 − α)(γc + 1)). The numerator rewards drafting and the denominator charges for it.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

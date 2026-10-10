@@ -1,0 +1,81 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 14px var(--mono)}
+#story-fig .sf-mute{fill:var(--mute);font:700 14px var(--mono)}
+#story-fig .sf-ok{fill:var(--ok)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A target model writes one token per pass. A drafter guesses three tokens, the target checks them in one pass, keeps the first match, resamples one, and at high batch the gain falls to 1.01x.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="3">Plain decoding: one pass per token</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="5">Speculative: guess 3, then check in one pass</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="8">Keep the matches, resample at the first miss</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Batch grows, and the spare compute runs out</text>
+<rect x="20" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="42.0" y="70.0" class="sf-cell" text-anchor="middle">The</text>
+<rect x="70" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="92.0" y="70.0" class="sf-cell" text-anchor="middle">cat</text>
+<rect x="120" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="142.0" y="70.0" class="sf-cell" text-anchor="middle">sat</text>
+<rect x="170" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="192.0" y="70.0" class="sf-cell" text-anchor="middle">on</text>
+<rect x="220" y="50" width="44" height="30" rx="6" class="f-panel s-line"/>
+<text x="242.0" y="70.0" class="sf-cell" text-anchor="middle">the</text>
+<rect x="270" y="50" width="44" height="30" rx="6" class="f-ok" data-in="7"/>
+<text x="292.0" y="70.0" class="sf-cell" text-anchor="middle" data-in="7">mat</text>
+<rect x="320" y="50" width="44" height="30" rx="6" class="f-ok" data-in="7"/>
+<text x="342.0" y="70.0" class="sf-cell" text-anchor="middle" data-in="7">.</text>
+<rect x="20" y="150" width="440" height="44" rx="6" class="f-panel s-line" stroke-width="1.5" data-hl="4"/>
+<text x="32" y="177" class="sf-lab">Target model: big, slow, exact</text>
+<rect x="20" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="89" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 1: 1 token</text>
+<rect x="171" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="240" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 2: 1 token</text>
+<rect x="322" y="214" width="138" height="28" rx="6" class="f-panel s-line" data-in="2" data-out="3"/>
+<text x="391" y="233" class="sf-lab" text-anchor="middle" data-in="2" data-out="3">pass 3: 1 token</text>
+<text x="20" y="120" class="sf-lab" data-in="3" data-out="7">drafter guesses</text>
+<text x="20" y="120" class="sf-lab sf-ok" data-in="7" data-out="9">one target pass gave 2 tokens</text>
+<rect x="288" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="317.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">mat</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">and</text>
+<rect x="412" y="100" width="58" height="30" rx="6" class="f-acc2" data-in="3" data-out="5"/>
+<text x="441.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="3" data-out="5">purred</text>
+<rect x="288" y="100" width="58" height="30" rx="6" class="f-ok" data-in="5" data-out="9"/>
+<text x="317.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="5" data-out="9">mat</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-bad" data-in="5" data-out="6"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="5" data-out="6">and</text>
+<rect x="412" y="100" width="58" height="30" rx="6" class="f-none s-mute" data-in="5" data-out="9"/>
+<text x="441.0" y="120.0" class="sf-mute" text-anchor="middle" data-in="5" data-out="9">purred</text>
+<rect x="350" y="100" width="58" height="30" rx="6" class="f-warn" data-in="6" data-out="9"/>
+<text x="379.0" y="120.0" class="sf-cell" text-anchor="middle" data-in="6" data-out="9">.</text>
+<text x="20" y="226" class="sf-lab" data-in="8" data-out="9">batch 2</text>
+<rect x="100" y="212" width="175" height="20" rx="6" class="f-ok" data-in="8" data-out="9"/>
+<text x="282" y="228" class="sf-lab" data-in="8" data-out="9">1.75×</text>
+<text x="20" y="266" class="sf-lab" data-in="8" data-out="9">batch 56</text>
+<rect x="100" y="252" width="101" height="20" rx="6" class="f-warn" data-in="8" data-out="9"/>
+<text x="208" y="268" class="sf-lab" data-in="8" data-out="9">1.01×</text>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Chinchilla 70B on 16 TPU v4: 14.1 ms per token.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Tokens come one after another, one pass each.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">A small drafter writes 3 guesses, cheaply.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">The target scores all 3 positions in one pass.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">'mat' is kept. 'and' is rejected, so 'purred' goes.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">'and' is replaced from the leftover mass.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Two new tokens for one target pass.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">At batch 56, EAGLE-3's gain falls to 1.01×.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">Speedup from speculative decoding</text><text x="60" y="150" class="sf-lab">Google, T5-XXL 11B, 60M drafter</text><text x="420" y="152" class="sf-num" text-anchor="end">~3×</text><text x="60" y="194" class="sf-lab">EAGLE-3, 8B, batch 2</text><text x="420" y="196" class="sf-num" text-anchor="end">1.75×</text><text x="60" y="238" class="sf-lab">EAGLE-3, 8B, batch 56</text><text x="420" y="240" class="sf-num" text-anchor="end">1.01×</text><text x="240" y="308" class="sf-big" text-anchor="middle">Same output distribution, in exact arithmetic</text><text x="240" y="346" class="sf-lab" text-anchor="middle">The cards below cover the proof, the knobs and the failure cases.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A large target model writes one token at a time, and each token needs a full pass over its weights. Chinchilla 70B on 16 TPU v4 takes <b>14.1 ms per token</b> with plain sampling.</p></div>
+<div class="step"><p><b>The naive way is serial.</b> Token t+1 cannot start before token t exists. At batch 1, a 70B model reads about <b>140 GB</b> of weights for each token, while the compute units sit mostly idle.</p></div>
+<div class="step"><p><b>The key idea:</b> a cheap drafter writes <b>three guesses</b> ahead. The drafter is a small model, or a few heads on the target itself.</p></div>
+<div class="step"><p>The target then scores all three guesses in <b>one pass</b>. Scoring known tokens is parallel, so at small k it costs about the same as one decode step.</p></div>
+<div class="step"><p>Each guess is checked with <b>min(1, p/q)</b>. "mat" has p 0.60 and q 0.50, so it is kept. "and" has p 0.10 and q 0.40, so it passes with probability 0.25. The draw of 0.83 is above that, so it fails, and "purred" goes with it.</p></div>
+<div class="step"><p>The target writes a replacement for "and" itself, sampled from the leftover mass <b>max(0, p − q)</b>. Here it is ".", because the drafter had already over-proposed "and".</p></div>
+<div class="step"><p>Two new tokens came out of <b>one target pass</b>: "mat" and ".". Had all three guesses passed, a fourth token would have come free from the target.</p></div>
+<div class="step"><p><b>The trick spends spare compute.</b> Once batches are big, there is none left. EAGLE-3 on an 8B model in vLLM falls from <b>1.75×</b> at batch 2 to <b>1.01×</b> at batch 56 on an RTX 3090.</p></div>
+<div class="step"><p><b>The headline.</b> Google reports about <b>3×</b> on T5-XXL, and the output distribution stays the target's, in exact arithmetic. The gain can vanish at high load. The cards below cover the proof, the knobs and the failure cases.</p></div>
+</div>
+</div>

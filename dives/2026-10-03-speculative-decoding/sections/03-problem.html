@@ -1,3 +1,4 @@
+<div class="pull"><b>14.1 ms</b><span>per token for plain sampling on Chinchilla 70B across 16 TPU v4.</span></div>
 <p>Decoding a 70B model at batch 1 reads ~140 GB of bf16 weights per token. On Chinchilla 70B across 16 TPU v4, Chen et al. measured <b>14.1 ms/token</b> for plain sampling. The hardware is mostly idle on compute: the minimum time per token is model bytes ÷ memory bandwidth, and that floor holds no matter how many FLOPs remain unused.</p>
 <p>The constraint that forces the design: <b>you can't parallelize across output positions</b>, because token t+1 needs token t. But scoring a <i>known</i> sequence of k tokens <i>is</i> parallel (it's a prefill), and at small k it costs about the same wall time as one decode step. Chen et al. give three reasons:</p>
 <ol>
