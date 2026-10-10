@@ -1,0 +1,8 @@
+<p><i>"XOR filters are Bloom filters that are smaller and faster because you precompute a table where three cells XOR to the fingerprint."</i> It hides five things:</p>
+<ol>
+<li><b>Why the table can always be computed</b>: only if the 3-uniform hypergraph is peelable, which needs at least 1.22× slots per key. That is a phase transition, not a heuristic.</li>
+<li><b>Why the FPR is exactly 2<sup>-f</sup></b> (and when it isn't).</li>
+<li><b>How binary fuse beats the threshold</b> (1.22 down to 1.13 and 1.08) by restricting each key to a window of consecutive segments (spatial coupling).</li>
+<li><b>That Ribbon abandons hypergraphs entirely</b>: banded linear algebra, a different space/time tradeoff.</li>
+<li><b>What breaks</b>: duplicates, construction-failure retries, adversarial keys, a memory spike at build, the 64-bit hash assumption, and no updates.</li>
+</ol>

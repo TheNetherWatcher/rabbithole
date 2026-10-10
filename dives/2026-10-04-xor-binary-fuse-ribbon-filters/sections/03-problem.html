@@ -1,0 +1,2 @@
+<p>A Bloom filter at ε = 1% needs about 9.6 bits per key with the optimal number of probes (k ≈ 7) into a large bit array, and each probe is a likely cache miss. The information minimum is log₂(100) ≈ 6.64 bits per key. For ε = 2<sup>-8</sup>, Bloom needs about 11.5 bits against an 8-bit minimum. In a 10-billion-key LSM tree, 3 bits per key is 3.75 GB of RAM.</p>
+<p><b>Forcing constraint:</b> static sets do not need Bloom's incremental insertability. The requirement that keys be insertable one at a time is what costs the 44%.</p>

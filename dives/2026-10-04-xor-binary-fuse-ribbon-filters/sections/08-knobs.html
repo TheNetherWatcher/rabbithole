@@ -1,0 +1,11 @@
+<table><thead><tr><th>Knob</th><th>Effect</th></tr></thead><tbody>
+<tr><td>Fingerprint bits f</td><td>FPR 2<sup>-f</sup>; bits per key = f × slot factor</td></tr>
+<tr><td>Arity 3 vs 4 (fuse)</td><td>1.125 vs 1.075 factor; arity 4 queries cost 4 loads</td></tr>
+<tr><td>Segment length</td><td>Locality vs peeling success; a power of two from an empirical formula</td></tr>
+<tr><td>Ribbon width w, r</td><td>Space overhead vs CPU; r bits of solution per row</td></tr>
+<tr><td>Ribbon standard / homogeneous / balanced / BuRR</td><td>Speed ↔ space ↔ never-fails ↔ under 1%</td></tr>
+<tr><td>Bloom/Ribbon hybrid (RocksDB)</td><td>Bloom where filter lifetime is short</td></tr>
+</tbody></table>
+<p><b>Alternatives:</b> Bloom and blocked Bloom (streaming insert), cuckoo, quotient and vector-quotient filters (delete and resize), the prefix filter, and Aleph and InfiniFilter (growing). Static filters win where the set is immutable and RAM matters.</p>
+<figure data-fig="fuse3"></figure>
+<p>The size factor rises for small n because the windowed structure needs more slack when there are few segments. The plot shows the 3-wise curve settling near 9 bits per key and the 4-wise curve near 8.6, with plain XOR flat near 9.8.</p>

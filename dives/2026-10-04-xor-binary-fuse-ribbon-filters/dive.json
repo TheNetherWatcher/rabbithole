@@ -1,0 +1,387 @@
+{
+ "meta": {
+  "title": "Static approximate-membership filters: XOR and binary fuse (peeling) vs Ribbon (banded elimination)",
+  "short": "XOR, fuse & Ribbon filters",
+  "subject": "Computer science",
+  "domain": "Algorithms & data structures",
+  "topic": "XOR and binary fuse filters via hypergraph peeling vs Ribbon filters",
+  "depth": "hard",
+  "date": "2026-10-04"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "A static filter for a fixed key set stores one fingerprint per key in a table where three cells XOR to that fingerprint. Solving the table is a peeling game on a random 3-uniform hypergraph, and it succeeds only above <b>1.22 slots per key</b>. Binary fuse windows push this to <b>1.125</b>, and Ribbon trades hypergraphs for banded Gaussian elimination to reach <b>under 10%</b> overhead.",
+ "why": "<b>Why it matters:</b> LSM trees keep filters in RAM for hours, so every saved bit is paid again and again. RocksDB and Firefox certificate revocation now run on these structures.",
+ "stats": [
+  {
+   "v": "1.23",
+   "l": "slots per key, the XOR peeling threshold (3-uniform)"
+  },
+  {
+   "v": "1.125",
+   "l": "slots per key, 3-wise binary fuse at large n"
+  },
+  {
+   "v": "0.39%",
+   "l": "false-positive rate of an 8-bit fingerprint"
+  },
+  {
+   "v": "3",
+   "l": "memory reads per query for XOR and fuse"
+  },
+  {
+   "v": "30%",
+   "l": "less filter RAM than Bloom in RocksDB's Ribbon setting"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "A guest list kept as a board of numbered slots",
+   "visual": "img/plain.svg",
+   "brief": "<p>A bouncer cannot carry a million names, so he carries a board of numbered slots. Each guest's name hashes to three slots whose numbers XOR to a short code. Everyone on the list always matches; a stranger matches with probability 1 in 256 at 8 bits.</p><p>The board is filled by peeling guests who own a private slot, then filling in reverse.</p>",
+   "group": "Plain English",
+   "file": "sections/00-plain.html",
+   "tone": "plain"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "brief": "<ul><li><b>AMQ filter</b>: no false negatives, false-positive rate ε.</li><li><b>Fingerprint</b>: a random f-bit hash, so a stranger collides with probability 2<sup>-f</sup>.</li><li><b>Random hypergraph</b>: each key is an edge over three slots; peeling removes degree-1 slots.</li><li><b>Static</b>: the key set is fixed before the build.</li></ul>",
+   "group": "Context",
+   "file": "sections/01-context.html"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Where it runs: RocksDB, Firefox CRLite and the xor libraries",
+   "visual": "img/world.svg",
+   "brief": "<p>RocksDB's Ribbon filter saves about 30% of filter RAM against Bloom. Firefox revocation checks ship a Ribbon cascade of about 300 kB/day. The xor and fuse libraries in C, Go and Rust are the reference code. Pick them for immutable sets; avoid them when keys change.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "\"A precomputed table where three cells XOR to the fingerprint\" hides five things",
+   "visual": "img/onel.svg",
+   "brief": "<p>The table exists only when the random hypergraph is peelable, which needs at least 1.22 slots per key. Binary fuse pushes that to 1.13 with windows. Ribbon drops hypergraphs for banded elimination. Duplicates, retries, adversarial seeds and build memory are the costs.</p>",
+   "group": "Technical deep dive",
+   "file": "sections/02-one-liner.html"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Bloom filters waste 44% over the information minimum",
+   "visual": "img/problem.svg",
+   "brief": "<p>An optimal Bloom filter at ε = 1% needs about 9.6 bits per key, against a 6.64-bit minimum. Each probe is a cache miss. In a 10-billion-key LSM tree, 3 bits per key is 3.75 GB of RAM. Static sets do not need insertability, and that is what costs the 44%.</p>",
+   "file": "sections/03-problem.html"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A bulletin board of sticky notes solved all at once",
+   "visual": "img/model.svg",
+   "brief": "<p>Each guest owns three notes that must XOR to their code. Peeling sets aside a guest with a private note, and filling in reverse lets that note absorb the slack. The board has only 1.23 slots per guest, so the analogy breaks: solvability is a global property of the random hypergraph.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "Peeling three keys by hand, then filling the board backwards",
+   "visual": "img/mech.svg",
+   "brief": "<p>Three keys over six slots. Peel C0, then A1, then A0, which empties the 2-core. Assign in reverse: A0 = 3, A1 = 6, C0 = 6. Ana checks out (3 ^ 0 ^ 6 = 5), and a stranger with code 4 is rejected.</p><p class=\"mini\">7-step interactive walkthrough inside.</p>",
+   "file": "sections/05-mechanism.html"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Peeling holds at 1.2218 slots per key, and the Bloom gap is 1.44 bits",
+   "visual": "img/math.svg",
+   "brief": "<p>The information bound is n·log₂(1/ε) bits. Bloom needs 1.44·log₂(1/ε). A random 3-hypergraph peels only above c* = 0.8185, so 1.2218 slots per key. XOR's FPR is exactly 2<sup>-f</sup>.</p><p class=\"mini\">Plots of the theory and the peeling success rate inside.</p>",
+   "file": "sections/06-math.html"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Sparse random equations are solvable by one greedy pass",
+   "visual": "img/why.svg",
+   "brief": "<p>At about 1.22 variables per equation, a trivial peeling order always works above threshold. Remove the three-way split and you need 2.0 slots per key. Remove the seed retry and near-threshold builds fail. Remove the random fingerprint and the FPR is no longer 2<sup>-f</sup>.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Fingerprint width, arity, window size and Ribbon's band set the tradeoff",
+   "visual": "img/knobs.svg",
+   "brief": "<p>Fingerprint bits set the FPR, and arity 3 vs 4 trades 1.125 for 1.075 slots per key. Small n inflates the size factor, as the plot shows. Ribbon width w is the dial between slack and CPU. Bloom and cuckoo remain the choice for insertable sets.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Construction failures, duplicates and seed-aware attackers",
+   "visual": "img/breaks.svg",
+   "brief": "<p>Near threshold, builds fail often, so the library retries up to 100 seeds. Duplicate keys form a 2-core that peeling cannot clear. An attacker who knows the seed can force a failure, so use a secret 64-bit seed. Updates mean a full rebuild.</p>",
+   "file": "sections/09-where-it-breaks.html"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "RocksDB's hybrid, CRLite's cascade and the library deviations",
+   "visual": "img/wild.svg",
+   "brief": "<p>RocksDB uses Ribbon for compaction output and Bloom for flushes, with one filter per SST file. Firefox's CRLite uses a two-level Ribbon cascade rebuilt on a schedule. The fuse code sorts into segment buckets and uses mulhi, which the paper's textbook peeling does not.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier",
+   "title": "Deterministic, restart-free peeling is the new race",
+   "visual": "img/frontier.svg",
+   "brief": "<p>ZOR (2026) abandons under 1% of keys into a side structure instead of restarting, landing within 1% of the bound. Dynamic filters cost n·log ε⁻¹ + Ω(n) bits, a provable gap to static. Grafite and Memento extend the idea to range filters.</p>",
+   "group": "Research edge",
+   "file": "sections/11-frontier.html"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Fast construction near the bound is still unsolved",
+   "visual": "img/open.svg",
+   "brief": "<p>Ribbon and ZOR reach about 1% overhead but pay in build time, while fuse builds fast at 8% or more over. Adversarially robust static filters, GPU peeling and learned filters with drift guarantees are all open.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Bloom 1970, XOR 2019, binary fuse 2022, ZOR 2026",
+   "visual": "img/lineage.svg",
+   "brief": "<p>Carter's fingerprint bound (1978) → Botelho–Pagh–Ziviani peeling (2013) → XOR filters (Graf–Lemire 2019) → Ribbon (Dillinger–Walzer 2021) → binary fuse (2022) → ZOR (2026).</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "Watch the peeling threshold appear in 30 seconds",
+   "visual": "img/hands.svg",
+   "brief": "<p><code>python3 peel_demo.py</code> shows success at 1.23 slots per key (82%) and 0% at 1.21. The in-page simulator sweeps the same threshold, with fuse windows peeling earlier at large n.</p><p class=\"mini\">Simulator inside.</p>",
+   "group": "Practice & self-test",
+   "file": "sections/13-hands-on.html"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>21 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "brief": "<p>Minimal perfect hashing (BDZ to ShockHash) · spatial coupling in LDPC codes and hash tables · adaptive and robust filters.</p>",
+   "group": "Further",
+   "file": "sections/15-go-deeper.html"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and docs",
+   "visual": "img/sources.svg",
+   "brief": "<p>13 papers and 3 code or docs references, five CC BY figures, and a list of claims I could not verify.</p>",
+   "file": "sections/99-sources.html"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "In the 3-key trace, why is it safe to assign Ana's slot C0 after Ben's and Cy's?",
+   "a": "Ana's slot C0 was touched by no other unpeeled key when she was peeled, so no later-assigned key writes it, and no earlier-assigned key reads it before it is set. Her other two cells, A0 and B0, are already final when she is assigned.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does each cell get written at most once?",
+   "a": "Each key is assigned exactly one cell: the one through which it was peeled. A cell is peeled through only one key, since it has degree 1 at that moment.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "In a Ribbon insert, what does c &amp; -c compute and why do we shift?",
+   "a": "It isolates the lowest set bit. Its bit-length minus one is the number j of trailing zeros. The reduced equation now starts at row i+j, so shifting the word right by j realigns coefficient bit 0 with that pivot.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "In binary_fuse8_contain, why XOR the in-segment offset instead of adding it?",
+   "a": "XOR with a mask smaller than SegmentLength permutes positions inside the segment-aligned block and stays in-segment. Adding could cross into the next segment and break the window structure.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why 3 hash positions and not 2 or 4?",
+   "a": "Arity 2 peels only below load 0.5, which means 2.0 slots per key. Arity 4 raises the requirement to 1.295 slots per key without windows, and costs another memory read. Arity 3 minimizes slots per key for plain peeling.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why is the FPR exactly 2<sup>-f</sup>, and what must be true of the fingerprint hash?",
+   "a": "The XOR of three cells is uniform on f bits and independent of fp(y), because the cells were set from other keys' independent random fingerprints. The fingerprint hash must behave like a random function independent of the positions.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does a windowed hypergraph peel at lower density than a uniform one?",
+   "a": "The end segments have lower degree, which seeds peeling. Once boundary keys peel, their neighbours drop to degree 1 in a wave (spatial coupling, threshold saturation), reaching beyond the uniform threshold.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why is Ribbon's query cache-friendlier than XOR's?",
+   "a": "A window of w consecutive rows fits about one cache line, versus three random cache lines for XOR.",
+   "sec": "wild"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if all keys had the same fingerprint? What if fingerprints were chosen non-randomly?",
+   "a": "If all keys shared one fingerprint, the FPR would reach 100% for that fingerprint. Non-random fingerprints let queries correlated with them be accepted systematically. Solvability is unaffected in both cases.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if the array were 1.20n for plain XOR with n = 10<sup>6</sup>?",
+   "a": "At load 0.833 you are above 0.8185, so a 2-core of about Θ(n) keys remains with high probability, and construction fails on essentially every seed.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if w = 64 were w = 1024 in Ribbon?",
+   "a": "Less slack would be needed, because the band is wider and packs tighter. But elimination cost per key grows, and the query window would span 16 cache lines.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if a duplicate key is inserted twice?",
+   "a": "The two identical edges sit on the same 3 slots. Peeling cannot reduce them below degree 2, so the build fails on every seed unless duplicates are detected and removed. The current C binary-fuse code does that after a failing round.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would an attacker who knows the seed force a build failure?",
+   "a": "Pick keys that all hash into the same few slots (at least 1.23 times the slot count), which guarantees a 2-core.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could an attacker find queries that are false positives?",
+   "a": "With the filter or seed known, test candidate queries offline until about 2<sup>f</sup> of them yield a false positive. With a secret seed, the attacker only sees accept or reject, so each probe succeeds with probability 2<sup>-f</sup>. Once found, a false positive stays one, since the filter is not adaptive.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you make build-time hash flooding harmless?",
+   "a": "Use a per-build random secret 64-bit seed with a strong mixer, and reject and retry on failure.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How does peeling relate to LDPC decoding and erasure codes?",
+   "a": "Both peel sparse random graphs. The threshold of about 0.818 is the same object as the belief-propagation erasure-decoding threshold of LDPC codes, and spatial coupling is the same fix.",
+   "sec": "next"
+  },
+  {
+   "type": "Connection",
+   "q": "How does this relate to cuckoo hashing's orientability threshold?",
+   "a": "Orientability means each key can be assigned its own cell (threshold about 0.918). Peeling is a stricter, greedy-solvable subset of that.",
+   "sec": "math"
+  },
+  {
+   "type": "Connection",
+   "q": "How do minimal perfect hash functions (BDZ, RecSplit, ShockHash) reuse these ideas?",
+   "a": "BDZ builds an MPHF via peeling. RecSplit and ShockHash use brute-force and cuckoo-style seeds. They target about 1.44 to 1.5 bits per key for an MPHF.",
+   "sec": "next"
+  },
+  {
+   "type": "Open",
+   "q": "Can a fast, restart-free construction reach under 1% overhead without a side structure?",
+   "a": "Open. ZOR trades determinism for a side structure, and spatial coupling with parallelism are active directions.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Is there an adversarially robust static filter at about 1.1× the information bound?",
+   "a": "Open.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Do learned filters beat fuse and Ribbon on realistic non-stationary workloads?",
+   "a": "Open. The answer depends on drift and on adversarial queries.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "fuse0": {
+   "file": "img/fig/fuse-fig0-theory-bits.png",
+   "caption": "Theoretical bits per key against false-positive rate: the 4-wise fuse curve sits about 10% under plain XOR across this range.",
+   "source": {
+    "cite": "Graf & Lemire, \"Binary Fuse Filters: Fast and Smaller Than Xor Filters\", JEA 2022",
+    "url": "https://arxiv.org/abs/2201.01174",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fuse3": {
+   "file": "img/fig/fuse-fig3-bits-vs-keys.png",
+   "caption": "Bits per key for 3-wise and 4-wise binary fuse filters as the key count grows: small sets pay extra slack, and both curves flatten past about 10<sup>6</sup> keys.",
+   "source": {
+    "cite": "Graf & Lemire, \"Binary Fuse Filters: Fast and Smaller Than Xor Filters\", JEA 2022",
+    "url": "https://arxiv.org/abs/2201.01174",
+    "figure": "Fig. 3b"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "xor0": {
+   "file": "img/fig/xor-fig0-mapping-step.png",
+   "caption": "Measured probability that the mapping step succeeds against set size, for three table sizes: success dips near 10<sup>3</sup> keys and recovers as the set grows.",
+   "source": {
+    "cite": "Graf & Lemire, \"Xor Filters: Faster and Smaller Than Bloom and Cuckoo Filters\", JEA 2020",
+    "url": "https://arxiv.org/abs/1912.08258",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "xor1": {
+   "file": "img/fig/xor-fig1-theory-memory.png",
+   "caption": "Theoretical bits per entry against false-positive percentage for the filter families compared, with XOR and xor+ below Bloom and cuckoo.",
+   "source": {
+    "cite": "Graf & Lemire, \"Xor Filters: Faster and Smaller Than Bloom and Cuckoo Filters\", JEA 2020",
+    "url": "https://arxiv.org/abs/1912.08258",
+    "figure": "Fig. 2a"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "xor2": {
+   "file": "img/fig/xor-fig2-fpp-vs-bits.png",
+   "caption": "False-positive rate against bits per entry on a log scale: at every rate shown, XOR needs fewer bits than Bloom.",
+   "source": {
+    "cite": "Graf & Lemire, \"Xor Filters: Faster and Smaller Than Bloom and Cuckoo Filters\", JEA 2020",
+    "url": "https://arxiv.org/abs/1912.08258",
+    "figure": "Fig. 2b"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

@@ -1,0 +1,8 @@
+<ul>
+<li><b>AMQ filter</b>: answers "is x in S?" with no false negatives and false-positive rate ε. Information-theoretic minimum ≈ log₂(1/ε) bits per key (Carter et al. 1978; Pagh–Pagh–Rao 2005).</li>
+<li><b>Bloom filter</b>: k hash positions in a bit array; needs ≈ 1.44·log₂(1/ε) bits/key, 44% over the minimum.</li>
+<li><b>Fingerprint</b>: f-bit hash of the key; collision with a random stranger has probability 2<sup>-f</sup>.</li>
+<li><b>XOR / GF(2) linear algebra</b>: addition mod 2; a system of XOR equations can be solved with Gaussian elimination.</li>
+<li><b>Random hypergraph</b>: each key is an edge joining 3 slots (vertices). <i>Peeling</i> removes degree-1 vertices repeatedly; the leftover is the <i>2-core</i>.</li>
+<li><b>Static</b>: the full key set is known up front; no inserts or deletes after build (LSM SSTables, Parquet segments, blocklists).</li>
+</ul>

@@ -1,0 +1,6 @@
+<ul>
+<li><b>RocksDB</b>: hybrid by level. <code>bloom_equivalent_bits_per_key</code> keeps the same FPR as Bloom while spending about 30% less. One full filter per SST file.</li>
+<li><b>Firefox CRLite / Clubcard</b>: Ribbon in a two-level cascade. Filters are rebuilt on a schedule, so a static structure is natural.</li>
+<li><b>xor_singleheader</b>: 8, 16 and 32-bit variants, serialization and mmap (flat array + seed + segment parameters), pre-hashed uint64 keys.</li>
+<li><b>Where the code departs from the paper</b>: fuse construction sorts hashes into segment buckets (not in the textbook peeling), uses <code>mulhi</code> instead of <code>%</code>, and XOR-offsets within a segment instead of using independent hashes.</li>
+</ul>

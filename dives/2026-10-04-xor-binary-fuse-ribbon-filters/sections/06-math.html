@@ -1,0 +1,19 @@
+<h3>(a) Information bound</h3>
+<div class="eq">n · log₂(1/ε) bits<small>→ in plain terms: each key must "pay" for forgetting everything except its ε-sized neighbourhood. A filter for S accepts a set A ⊇ S with |A| ≈ n + εu; the states needed are about C(u,n)/C(εu,n) ≈ (1/ε)<sup>n</sup>.</small></div>
+<h3>(b) Why Bloom wastes 44%</h3>
+<div class="eq">m/n = log₂e · log₂(1/ε) ≈ 1.44 · log₂(1/ε)<small>→ in plain terms: an optimal Bloom filter has half its bits set, so each bit carries less than one bit of information.</small></div>
+<figure data-fig="fuse0"></figure>
+<div class="fig-pair"><figure data-fig="xor1"></figure><figure data-fig="xor2"></figure></div>
+<h3>(c) Why FPR = 2<sup>-f</sup></h3>
+<div class="eq">P[false positive] = 2<sup>-f</sup>, bits per key = f × (slots per key)<small>→ in plain terms: for y not in S, the three cells hold values set by other keys' random fingerprints. Their XOR is effectively uniform on f bits and independent of fp(y). Space is the fingerprint width times the slot overhead: 1.23f for XOR, about 1.13f for fuse-3 and 1.08f for fuse-4.</small></div>
+<h3>(d) Peeling threshold</h3>
+<p>Let m be the slots, n the keys and c = n/m. Each slot has Poisson(3c) incident edges. Let q be the probability that an edge, seen from one endpoint, survives peeling. An endpoint keeps the edge alive if it has at least one other surviving edge, with probability 1 − e^(−3cq). The edge survives if both other endpoints do:</p>
+<div class="eq">q = (1 − e^(−3cq))²<small>→ q = 0 is always a solution (full peeling). A nonzero solution (a 2-core) appears at the smallest c where c(q) = −ln(1−√q) / (3q) bottoms out.</small></div>
+<p>Numerically (my run): c* = 0.8185 for arity 3, so slots per key ≥ 1/c* = <b>1.2218</b> (about 1.23 with slack). Arity 4 gives c* = 0.7723 (1.295), and arity 5 gives c* = 0.7018 (1.425). Below about 82% load a random 3-hypergraph has no dense knot; above it, a knot of unsolvable keys appears suddenly. Larger arity peels worse, which makes arity 3 the sweet spot.</p>
+<figure data-fig="xor0"></figure>
+<p>Why not use orientability instead (every key gets its own cell; threshold about 0.918, giving 1.089 for arity 3, quoted from the literature and not re-derived here)? Orientable is not the same as peelable. A solution exists, but greedy peeling cannot find it. Gaussian elimination can, at O(n³)-ish cost, or banded cost, which is where Ribbon comes in.</p>
+<h3>(e) Fuse windows</h3>
+<p>Keys pick a start segment s and use segments s, s+1 and s+2. The two end segments have lower degree, so peeling starts there and a wave moves inward. This is the spatial-coupling and threshold-saturation effect that Walzer proved (arXiv:2001.10500), which moves the peeling threshold toward the orientability bound. The result is 1.125 for arity 3 or 1.075 for arity 4 at large n, with the size factor growing for small n (the formula above).</p>
+<h3>(f) Ribbon</h3>
+<div class="eq">⟨h(x), Z⟩ = b(x) over GF(2), with h(x) = 0<sup>s</sup> · c · 0<sup>m−s−w</sup><small>→ in plain terms: every key is one row with a random block of width w. Dietzfelbinger and Walzer (arXiv:1907.04750) show that with m = n/(1−ε) columns, such matrices have full row rank with high probability for w = O(log n / ε), and elimination costs O(n/ε²).</small></div>
+<p>Ribbon uses w = 64 (one machine word) and reaches an overhead of a few percent. The paper reports under 10% overhead at modest CPU cost, and under 1% with an experimental balanced variant. The follow-up BuRR (SEA 2022) reaches "well below 1%" by bumping the few rows that do not fit into a fallback structure. A shorter band solves faster but needs more slack; a wider band packs tighter. The width w is the dial.</p>

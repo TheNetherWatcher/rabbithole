@@ -1,0 +1,10 @@
+<ul>
+<li><b>Construction can fail.</b> Retry with a new seed (at most 100 in the C library; about 1.1 tries expected). Close to the threshold, failures are common (my demo: 82% at 1.23, n = 20000).</li>
+<li><b>Duplicates</b> can prevent peeling, because two identical edges form a 2-core. The current C binary-fuse code detects and removes them on a failing round; older or other ports may just error. Deduplicate first.</li>
+<li><b>Adversarial keys.</b> An attacker who knows a fixed seed can pick keys that build a 2-core. Use a secret, random 64-bit seed per build. The filter is also not robust for queries: a false positive is deterministic for a given seed (see Naor–Yogev-style models).</li>
+<li><b>Build memory.</b> Peeling holds all key hashes plus counters. Sorting into segment buckets helps cache behaviour but not memory.</li>
+<li><b>Size limits.</b> The library's size is <code>uint32_t</code>. 8-bit fingerprints cap ε at 2<sup>-8</sup>, and 64-bit hashes are assumed (a 32-bit hash over 10⁸ keys collides).</li>
+<li><b>Small n.</b> The size factor rises sharply below about 10⁵ keys (1.2 or more), so XOR and fuse can be bigger than Bloom at high ε.</li>
+<li><b>No updates.</b> Any change means a rebuild. Dynamic filters have a provable Ω(n)-bit penalty (Kuszmaul–Walzer, STOC 2024).</li>
+<li><b>Misconceptions.</b> "XOR always beats Bloom" (not at large ε or tiny n). "Static is useless" (most big filters live in immutable files). "Ribbon is slow" (queries are about 20% slower in RocksDB's own numbers; construction is the cost).</li>
+</ul>

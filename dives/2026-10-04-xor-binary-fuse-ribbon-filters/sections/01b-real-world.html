@@ -1,0 +1,27 @@
+<h3>What it is</h3>
+<p>A way to store an immutable set of keys so you can ask "might x be in it?" in about 3 memory reads, using about 9 bits per key for a 0.4% false-positive rate. Instead of <i>inserting</i> keys, you <i>solve</i> for a table such that the XOR of three cells equals each key's fingerprint.</p>
+<h3>Why it exists</h3>
+<p>Bloom filters guard disk and network lookups but waste 44% over the information-theoretic minimum and need k scattered probes. For data that never changes, the table can be <i>computed</i>, not grown: 23% overhead (XOR, 2019), 13% and 8% (binary fuse, 2022), or under 10% with a tunable knob (Ribbon, 2021), and under 1% with experimental variants. Filters in an LSM tree stay in RAM for hours, so every saved bit is multiplied by lifetime.</p>
+<h3>Where it's used (verified)</h3>
+<ul>
+<li><b>RocksDB</b>: <code>NewRibbonFilterPolicy</code>, with Ribbon for compaction output and Bloom for flushes. The RocksDB blog reports about 30% memory saved versus Bloom (7 vs 10 bits/key typical), about 4.4× construction CPU (140 vs 32 ns/key), and about 20% more query CPU; break-even at roughly one hour of filter lifetime.</li>
+<li><b>Mozilla Firefox CRLite</b>: certificate revocation moved from Bloom cascades to "Clubcard", a partitioned two-level cascade of Ribbon filters. Users download about 300 kB/day (a 4 MB snapshot every 45 days plus deltas).</li>
+<li><b>FastFilter/xor_singleheader</b> (C), <b>xorfilter</b> (Go), <b>xorf</b> (Rust), fastfilter_java and fastfilter_cpp: reference implementations of XOR and binary fuse filters.</li>
+<li><b>Bioinformatics, analytics, networking</b>: the ZOR abstract lists storage systems, analytics, networking and bioinformatics as consumers of peeling-based filters.</li>
+<li><b>Not adopted (as far as I found)</b>: ClickHouse, DuckDB and Parquet use split-block Bloom filters; I found no evidence of XOR or fuse there.</li>
+</ul>
+<h3>How it's used</h3>
+<pre><code>#include "binaryfusefilter.h"             // FastFilter/xor_singleheader
+binary_fuse8_t f;
+binary_fuse8_allocate(n, &amp;f);             // ~1.13*n bytes
+binary_fuse8_populate(keys, n, &amp;f);      // keys: uint64_t[n], pre-hashed; false after 100 failed seeds
+bool maybe = binary_fuse8_contain(x, &amp;f); // 3 loads + XOR + compare; FPR ~ 1/256
+binary_fuse8_free(&amp;f);</code></pre>
+<pre><code>// RocksDB: Ribbon with Bloom-equivalent 10 bits/key; Bloom for L0/flush
+table_options.filter_policy.reset(rocksdb::NewRibbonFilterPolicy(10.0));
+// bloom_before_level (since 6.24): use Bloom on levels below the given one</code></pre>
+<p>Typical: 8-bit fingerprints (ε ≈ 0.39%, about 9 bits/key) or 16-bit (ε ≈ 1.5e-5, about 18 bits/key); keys pre-hashed to 64 bits.</p>
+<h3>When to use, and when not</h3>
+<p>Use when the set is built once and queried many times (SSTables, immutable segments, blocklists, k-mer sets). Avoid when you need inserts or deletes (Bloom, cuckoo, quotient filters), when the build must stream (Bloom), or when build memory is tight (peeling holds all hashes: about 24 B/key transient per implementation notes, unverified exactly). Pick binary fuse for speed, Ribbon for tunable, smaller space and LSM integration, and Bloom for very short-lived filters such as L0.</p>
+<h3>Who should care</h3>
+<p>Storage and DB engineers (LSM filters), infra teams (blocklists, certificate revocation), search and genomics engineers (membership over huge immutable sets), and anyone paying RAM per key.</p>

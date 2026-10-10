@@ -1,0 +1,95 @@
+<style>
+#mech-trace .s-box{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+#mech-trace .s-box.hl{fill:var(--panel);stroke:var(--warn);stroke-width:2.5}
+#mech-trace .s-txt{fill:var(--ink);font:13px ui-monospace,monospace}
+#mech-trace .s-lab{fill:var(--mute);font:12px system-ui}
+#mech-trace .s-edge{stroke:var(--mute);stroke-width:1.5;opacity:.45}
+#mech-trace .s-edge.on{stroke:var(--ok);opacity:1;stroke-width:2.5}
+#mech-trace .s-edge.dead{stroke-dasharray:3 4;opacity:.25}
+#mech-trace .s-key{fill:var(--panel);stroke:var(--ok);stroke-width:2}
+#mech-trace .s-key.dead{stroke:var(--mute);opacity:.5}
+#mech-trace .s-key.hl{fill:var(--panel);stroke:var(--warn);stroke-width:2.5}
+</style>
+<p>Three keys, six slots, 3-bit fingerprints. Each block holds one slot per key position:</p>
+<pre><code>Ana: A0 B0 C0   fp=5 (101)      slots: A0 A1 | B0 B1 | C0 C1
+Ben: A0 B1 C1   fp=3 (011)
+Cy : A1 B0 C1   fp=6 (110)
+degrees: A0=2 A1=1 B0=2 B1=1 C0=1 C1=2</code></pre>
+<div class="widget" id="mech-trace" role="group" aria-label="Step-through of the traced example">
+  <svg viewBox="0 0 520 250" role="img" aria-label="Hypergraph of three keys over six slots"></svg>
+  <div class="stepbar">
+    <button class="btn" id="mech-tb" type="button">← Back</button>
+    <button class="btn" id="mech-tn" type="button">Next →</button>
+    <span class="mini" id="mech-tc">Step 0 / 7</span>
+    <div class="info" id="mech-ti" aria-live="polite"></div>
+  </div>
+</div>
+<p><b>Peeling.</b> The queue starts with the degree-1 vertices {A1, B1, C0}. Pop C0 (only Ana) and push (Ana via C0). Pop A1 (only Cy) and push (Cy via A1). Pop A0, which now touches only Ben, and push (Ben via A0). The stack is [Ana/C0, Cy/A1, Ben/A0]; all three keys peeled means the 2-core is empty, so construction succeeds.</p>
+<p><b>Assignment, in reverse stack order</b> (the board starts all zero):</p>
+<ul>
+<li>Ben via A0: A0 = fp(Ben) ^ B1 ^ C1 = 3 ^ 0 ^ 0 = <b>3</b></li>
+<li>Cy via A1: A1 = 6 ^ B0 ^ C1 = <b>6</b></li>
+<li>Ana via C0: C0 = 5 ^ A0 ^ B0 = 5 ^ 3 ^ 0 = <b>6</b></li>
+</ul>
+<pre><code>Board: A0=3 A1=6 | B0=0 B1=0 | C0=6 C1=0
+Check Ana: 3^0^6 = 5 ✓   Ben: 3^0^0 = 3 ✓   Cy: 6^0^0 = 6 ✓</code></pre>
+<p><b>Why reverse order works.</b> The vertex a key was peeled through was touched by no other <i>unpeeled</i> key at that moment. In reverse, any key assigned later was peeled earlier and writes only its own private vertex, so it never disturbs a key assigned before it. Each cell is written at most once.</p>
+<p><b>Query</b> a stranger y: h = (A1, B1, C0), fp(y) = 4 (100). The sum is 6 ^ 0 ^ 6 = 0 ≠ 4, so reject. If fp(y) were 0, that would be a false positive.</p>
+<h3>Binary fuse query, as shipped</h3>
+<pre><code>hash = murmur64(key + seed);   f = (uint8_t)(hash ^ (hash &gt;&gt; 32));
+h0 = mulhi(hash, SegmentCountLength);                        // uniform over first SegmentCount segments
+h1 = (h0 + SegmentLength)   ^ ((hash &gt;&gt; 18) &amp; SegmentLengthMask);  // next segment, random in-segment offset
+h2 = (h0 + 2*SegmentLength) ^ ( hash        &amp; SegmentLengthMask);  // segment after that
+return f == (F[h0] ^ F[h1] ^ F[h2]);</code></pre>
+<p>Segment length is a power of two, 2<sup>floor(ln n / ln 3.33 + 2.25)</sup> for arity 3. The array size factor is max(1.125, 0.875 + 0.25·ln(10⁶)/ln n). Build retries up to <code>XOR_MAX_ITERATIONS = 100</code> seeds. Keys are sorted into segment-order buckets first for cache locality, and the current C code detects and drops duplicate keys when a round fails (source: FastFilter/xor_singleheader, read directly).</p>
+<h3>Ribbon, traced</h3>
+<p>Each key becomes (start s, w-bit coefficient word c with bit 0 set, r-bit fingerprint b). On insert, if pivot row s is empty, store the equation. Otherwise XOR it with the stored equation, shift out the leading zeros (c ← c≫j, s ← s+j) and continue. If c becomes 0 with b = 0, the equation was redundant; with b ≠ 0 the system is inconsistent and you retry with a new seed. Back-substitute from the last row up: Z[i] = b<sub>i</sub> ⊕ ⨁<sub>j&gt;0, c<sub>i</sub>[j]=1</sub> Z[i+j]. A query XORs the Z rows picked by c's set bits, all inside one w-row window (64 rows × 8 bits = 64 B, about one cache line), versus three random cache lines for XOR.</p>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var slots=['A0','A1','B0','B1','C0','C1'];
+  var sx={A0:50,A1:120,B0:210,B1:280,C0:370,C1:440};
+  var keys=[{n:'Ana',fp:5,s:['A0','B0','C0'],x:100},{n:'Ben',fp:3,s:['A0','B1','C1'],x:260},{n:'Cy',fp:6,s:['A1','B0','C1'],x:420}];
+  var steps=[
+    {t:'Start. Each key is an edge over three slots. Degrees: A0=2 A1=1 B0=2 B1=1 C0=1 C1=2. Board all zero.',peeled:[],vals:{},hl:[],hk:null},
+    {t:'Peel: C0 has degree 1 (only Ana). Push (Ana via C0). A0 and B0 lose a neighbour.',peeled:['Ana'],vals:{},hl:['C0'],hk:'Ana'},
+    {t:'Peel: A1 has degree 1 (only Cy). Push (Cy via A1). B0 drops to 0, C1 drops to 1.',peeled:['Ana','Cy'],vals:{},hl:['A1'],hk:'Cy'},
+    {t:'Peel: A0 now only touches Ben. Push (Ben via A0). All 3 keys peeled, so the 2-core is empty.',peeled:['Ana','Cy','Ben'],vals:{},hl:['A0'],hk:'Ben'},
+    {t:'Assign in reverse. Ben: A0 = 3 ^ B1 ^ C1 = 3 ^ 0 ^ 0 = 3.',peeled:['Ana','Cy','Ben'],vals:{A0:3},hl:['A0'],hk:'Ben'},
+    {t:'Cy: A1 = 6 ^ B0 ^ C1 = 6.',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6},hl:['A1'],hk:'Cy'},
+    {t:'Ana: C0 = 5 ^ A0 ^ B0 = 5 ^ 3 ^ 0 = 6. Check Ana: 3^0^6 = 5 ✓.',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6,C0:6},hl:['C0'],hk:'Ana'},
+    {t:'Query stranger y → (A1,B1,C0): 6^0^6 = 0 ≠ fp(y)=4, so reject. (If fp(y) were 0, that would be a false positive.)',peeled:['Ana','Cy','Ben'],vals:{A0:3,A1:6,C0:6},hl:['A1','B1','C0'],hk:null}
+  ];
+  var cur=0,svg=document.querySelector('#mech-trace svg');
+  function el(n,a,txt){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e}
+  function draw(){
+    var st=steps[cur];svg.innerHTML='';
+    keys.forEach(function(k){
+      var dead=st.peeled.indexOf(k.n)>=0&&cur<4;
+      k.s.forEach(function(s){
+        var on=(st.hk===k.n);
+        svg.appendChild(el('line',{x1:k.x,y1:185,x2:sx[s]+25,y2:90,'class':'s-edge'+(on?' on':'')+(dead?' dead':'')}));
+      });
+    });
+    slots.forEach(function(s){
+      var hl=st.hl.indexOf(s)>=0;
+      svg.appendChild(el('rect',{x:sx[s],y:50,width:50,height:40,rx:6,'class':'s-box'+(hl?' hl':'')}));
+      svg.appendChild(el('text',{x:sx[s]+25,y:44,'text-anchor':'middle','class':'s-lab'},s));
+      svg.appendChild(el('text',{x:sx[s]+25,y:76,'text-anchor':'middle','class':'s-txt'},st.vals[s]!=null?st.vals[s]:'0'));
+    });
+    keys.forEach(function(k){
+      var dead=st.peeled.indexOf(k.n)>=0&&cur<4;
+      svg.appendChild(el('rect',{x:k.x-40,y:185,width:80,height:46,rx:23,'class':'s-key'+(dead?' dead':'')+(st.hk===k.n?' hl':'')}));
+      svg.appendChild(el('text',{x:k.x,y:205,'text-anchor':'middle','class':'s-txt'},k.n));
+      svg.appendChild(el('text',{x:k.x,y:221,'text-anchor':'middle','class':'s-lab'},'fp='+k.fp));
+    });
+    document.getElementById('mech-ti').textContent=st.t;
+    document.getElementById('mech-tc').textContent='Step '+cur+' / '+(steps.length-1);
+    document.getElementById('mech-tb').disabled=cur===0;
+    document.getElementById('mech-tn').disabled=cur===steps.length-1;
+  }
+  document.getElementById('mech-tb').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('mech-tn').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+})();
+</script>

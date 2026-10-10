@@ -1,0 +1,13 @@
+<p>Verified against arXiv or abstract pages unless flagged.</p>
+<ol>
+<li><b>ZOR filters</b>: Limasset, arXiv:2602.03525 (Feb 2026). Deterministic peeling. Instead of restarting on failure, it abandons under 1% of keys into a small side structure, landing within 1% of the information bound with fuse-like query speed (build is slower in the prototype).</li>
+<li><b>Fingerprint Filters Are Optimal</b>: Kuszmaul, Liang, Zhou, FOCS 2025, arXiv:2510.18129. Any dynamic filter needs at least n·log ε⁻¹ + n·log e − o(n) bits, so fingerprinting (Carter et al. 1978) is tight for dynamic filters.</li>
+<li><b>Space Lower Bounds for Dynamic Filters and Value-Dynamic Retrieval</b>: Kuszmaul &amp; Walzer, STOC 2024, DOI 10.1145/3618260.3649649. Dynamic filters need n·log ε⁻¹ + Ω(n) bits: a provable gap to static.</li>
+<li><b>Tight Bounds and Phase Transitions for Incremental and Dynamic Retrieval</b>: Kuszmaul et al., SODA 2025, arXiv:2410.10002.</li>
+<li><b>Grafite</b>: Costa, Ferragina, Vinciguerra, SIGMOD 2024, arXiv:2311.15380. A range filter with O(1) query and FPR ≤ ℓ/2<sup>B−2</sup> for any data and any query workload, robust to adversarial or correlated queries.</li>
+<li><b>Memento filter</b>: Eslami &amp; Dayan, SIGMOD 2025, arXiv:2408.05625. A dynamic range filter; in WiredTiger it doubles range-query throughput when 50% of queries are empty.</li>
+<li><b>Aleph filter</b>: Dayan, Bercea, Pagh, arXiv:2404.04703 (VLDB 2024, per search results). An expandable filter with constant-time operations and memory-vs-FPR close to static filters if growth is predicted.</li>
+<li><b>Peeling close to the orientability threshold</b>: Walzer, arXiv:2001.10500. Spatial coupling is the theory behind fuse-style windows.</li>
+<li><b>BuRR / Fast succinct retrieval and AMQ using Ribbon</b>: Dillinger, Hübschle-Schneider, Sanders, Walzer, SEA 2022, arXiv:2109.01892. Space overhead well below 1%.</li>
+<li><i>Unverified by me, flagged:</i> Diva (VLDB 2025), Zeno filter (SIGMOD 2026), and parallel BuRR construction (arXiv:2411.12365). They appear in search results, but I did not open them.</li>
+</ol>

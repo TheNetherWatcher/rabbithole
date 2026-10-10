@@ -1,0 +1,8 @@
+<ul>
+<li><b>Fast construction near the bound.</b> Ribbon and ZOR reach about 1% overhead but pay in build time (RocksDB: about 4.4× Bloom's build CPU). Fuse is fast but at least 8% over. Nobody has both at all scales.</li>
+<li><b>Deterministic, restart-free build</b> with no side structure (ZOR still needs one).</li>
+<li><b>Adversarial robustness.</b> Static fuse and Ribbon filters give no guarantee against adaptive query adversaries. Adaptive or robust Bloom constructions (Naor–Yogev) cost extra and rely on one-way-function-like assumptions.</li>
+<li><b>Range filters with worst-case guarantees at static-filter space.</b> Grafite closes much of the gap; correlated and adaptive workloads are still contested.</li>
+<li><b>External-memory, SIMD and GPU peeling.</b> The peeling phase is inherently sequential and cache-hostile. I found no mature GPU XOR or fuse builder.</li>
+<li><b>Learned filters</b> (partitioned learned Bloom filters, NeurIPS 2024): the gains depend on the query distribution, and adversarial robustness and drift are unresolved.</li>
+</ul>

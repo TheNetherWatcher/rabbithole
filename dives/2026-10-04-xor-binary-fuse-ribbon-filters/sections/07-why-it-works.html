@@ -1,0 +1,8 @@
+<p>Core insight: <b>sparse random constraint systems with about 1.22 variables per equation are solvable by a trivial greedy order</b>. A solved table plus a random fingerprint gives an exact 2<sup>-f</sup> false-positive rate with one XOR. Ablations:</p>
+<ul>
+<li>Remove the 3-way split and arity 2 peels only up to c &lt; 0.5, which means 2.0 slots per key.</li>
+<li>Remove the retry with a new seed, and the failures near threshold (about 18% at 1.23 for n = 20000 in my demo) become hard errors.</li>
+<li>Remove the fingerprint randomness, and the FPR is no longer 2<sup>-f</sup>; adversarial queries could pick a y whose XOR equals fp(y).</li>
+<li>Remove the windows, and you are back at 1.22.</li>
+<li>Ribbon: remove the band, and you get dense Gaussian elimination at O(n³).</li>
+</ul>
