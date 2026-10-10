@@ -1,0 +1,10 @@
+<blockquote>"EEVDF runs the eligible task with the earliest virtual deadline."</blockquote>
+
+<p>That sentence hides five things:</p>
+<ol>
+<li><b>"Virtual"</b>: what clock? V is a <i>weighted average</i> of all vruntimes, and it moves when tasks join, leave, or get reweighted.</li>
+<li><b>"Eligible"</b>: lag <code>≥ 0</code>, tested without division in fixed point, with overflow handling. What if lag is large, or a task sleeps?</li>
+<li><b>Sleep</b>: a task that sleeps leaves the average. If its lag is forgotten at sleep, tasks can game it; if it is remembered, placement must compensate for the task's own effect on V.</li>
+<li><b>Slice vs weight</b>: slice sets <i>when</i>, weight sets <i>how much</i>. They are orthogonal.</li>
+<li><b>One CPU only</b>: EEVDF decides within one runqueue. Cross-CPU fairness is the (unchanged) load balancer's job.</li>
+</ol>

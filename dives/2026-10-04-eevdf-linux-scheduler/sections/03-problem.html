@@ -1,0 +1,10 @@
+<p>CFS picks the task with the smallest vruntime. That gives long-run fairness, but a task that wakes after sleeping is placed near <code>min_vruntime</code> and wins immediately. Placement was the only latency lever, controlled by tunables with mixed units (ns, scaled by log2 of the CPU count). A task that wants 100 µs turns and a task that wants 10 ms turns got the same treatment unless priority was abused.</p>
+
+<p>Lag was unbounded in theory for unfairly placed sleepers, and was not even a tracked quantity. Server regressions and desktop stutter were each fixed by retuning one knob and breaking another.</p>
+
+<p>What was needed:</p>
+<ul>
+<li>(a) a <b>bounded-error</b> fairness guarantee,</li>
+<li>(b) a per-task latency request <b>orthogonal to weight</b>,</li>
+<li>(c) fewer magic numbers.</li>
+</ul>

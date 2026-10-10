@@ -1,0 +1,9 @@
+<ol>
+<li><b>Expressing latency SLOs.</b> Slice is only a proxy. "p99 ≤ 5 ms" cannot be expressed without changing weight or relying on RT. The custom slice (6.12) is the first step.</li>
+<li><b>Cross-CPU fairness.</b> EEVDF's theorem is per runqueue. Global share depends on a periodic load balancer that predates it. There is no global lag.</li>
+<li><b>Cgroup hierarchy correctness.</b> Reweighting nested group entities moves vruntime units. Clamping and reweight cascades have produced bugs; CVE-2024-35985 was one.</li>
+<li><b>Heterogeneous, SMT and NUMA.</b> Capacity, cache and sibling-thread effects are not in the lag model.</li>
+<li><b>Tick-free precision.</b> Deadline-hit detection is quantised by the tick unless hrtick is used, and hrtick is costly.</li>
+<li><b>Interactive tuning.</b> Gaming and desktop communities still ship BORE or tuned slice defaults (CachyOS). That suggests the default slice (0.7–2.8 ms) and parity protection don't fit every interactive profile (<i>anecdotal</i>).</li>
+<li><b>Policy synthesis safety.</b> For LLM-written BPF schedulers, the verifier proves memory safety, not fairness or starvation-freedom.</li>
+</ol>

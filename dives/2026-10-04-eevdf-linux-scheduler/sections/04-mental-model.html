@@ -1,0 +1,3 @@
+<p><b>Bank ledger plus stopwatch.</b> Lag is your account balance with the CPU. Positive means the CPU owes you time; negative means you overdrew. Only non-negative accounts may be served (eligibility). Each request carries a due date (its virtual deadline), and the scheduler serves the earliest due date among the eligible.</p>
+
+<div class="callout mis"><b>Where the analogy breaks.</b> The "bank" is a <i>relative</i> ledger. V (the reference) is the weighted mean of everyone currently queued, so balances change when others arrive or leave, without you doing anything. That is why sleeping and waking, reweighting, and cgroups produce most of the real bugs.</div>

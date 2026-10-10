@@ -1,0 +1,28 @@
+<h3>Setup (paper)</h3>
+<p>Tasks <code>i</code> have weights <code>w_i</code>. Virtual time advances at a rate inversely proportional to the total weight:</p>
+<div class="eq">V(t) = ∫<sub>0</sub><sup>t</sup> dτ / Σ<sub>j</sub> w<sub>j</sub>(τ)<small>→ in plain terms: V is "how much service one unit of weight should have received so far". A task with weight w ideally got w · ΔV of CPU.</small></div>
+
+<p><b>Lag.</b> lag<sub>i</sub>(t) = S<sub>i</sub>(t₀, t) − s<sub>i</sub>(t₀, t): ideal minus actual service. Positive means owed.</p>
+
+<h3>Kernel form</h3>
+<p>The kernel tracks virtual lag, which avoids carrying a <code>w_i</code> everywhere:</p>
+<div class="eq">lag<sub>i</sub> = w<sub>i</sub> (V − v<sub>i</sub>), &nbsp; vlag<sub>i</sub> = V − v<sub>i</sub>, &nbsp; V = Σ w<sub>j</sub> v<sub>j</sub> / Σ w<sub>j</sub><small>→ in plain terms: V is the weighted mean vruntime. Being left of the mean means being owed.</small></div>
+
+<h3>Eligibility</h3>
+<div class="eq">lag<sub>i</sub> ≥ 0 ⇔ V ≥ v<sub>i</sub> ⇔ Σ w<sub>j</sub> (v<sub>j</sub> − v<sub>0</sub>) ≥ (v<sub>i</sub> − v<sub>0</sub>) Σ w<sub>j</sub><small>→ the kernel uses the right-hand side, cross-multiplied, because division loses precision (the comment in <code>fair.c</code> says "using <code>avg_vruntime() &gt; se-&gt;vruntime</code> is inaccurate").</small></div>
+<p>It also keeps <code>sum_w_vruntime = Σ (v_j − v_0) w_j</code> relative to a moving <code>zero_vruntime</code>, so the sums don't overflow, and it uses <code>__int128</code> for the product.</p>
+
+<h3>Virtual eligible time and deadline (paper)</h3>
+<div class="eq">V(e) = V(t₀) + s(t₀, t) / w &nbsp;&nbsp; V(d) = V(e) + c / w<small>→ c is the request size. In the kernel, vd = ve + r/w with ve = v and r the slice in ns, scaled by <code>calc_delta_fair</code>. A request of size c at weight w "costs" c/w virtual time, so heavy tasks have short virtual deadlines per real millisecond and run more often.</small></div>
+
+<h3>Placement derivation (from the kernel comment)</h3>
+<p>Add entity <code>i</code> with virtual lag <code>vl_i</code> and weight <code>w_i</code> to a queue with total weight <code>W</code> and mean <code>V</code>:</p>
+<div class="eq">V′ = (W·V + w<sub>i</sub>(V − vl<sub>i</sub>)) / (W + w<sub>i</sub>) = V − w<sub>i</sub>·vl<sub>i</sub> / (W + w<sub>i</sub>)<br>vl′<sub>i</sub> = V′ − v<sub>i</sub> = vl<sub>i</sub> · W / (W + w<sub>i</sub>)<small>→ the lag after joining is strictly smaller than before: the newcomer drags the mean toward itself. To preserve lag, inflate it: vl<sub>i</sub> = vl′<sub>i</sub> · (W + w<sub>i</sub>) / W. This is the <code>lag *= load + weight; lag /= load</code> step in <code>place_entity()</code>. A creditor who walks in changes the average, so you must pre-compensate or their credit evaporates.</small></div>
+
+<h3>Lag conservation and bounds (paper)</h3>
+<p>Σ<sub>i</sub> lag<sub>i</sub>(t) = 0 always, because everyone's ledger sums to zero when V is the weighted mean. The theorem from Stoica's 1995 slides: with request size <code>c</code> for task <code>k</code> and quantum <code>q</code>:</p>
+<div class="eq">−c &lt; lag<sub>k</sub>(t) &lt; max(c<sub>max</sub>, q)<small>→ a request completes no later than d + q after its virtual deadline. The proof sketch splits tasks by whether their deadline is before or after d. Since lags sum to zero and the "after" group can't be owed more than q, every request in the "before" group finishes by d + q. In plain terms: nobody is ever more than about one maximum slice ahead of or behind the ideal fluid schedule, which is the best you can do for a quantised scheduler.</small></div>
+
+<p><b>Why not something simpler?</b> WFQ-style "smallest virtual finish time" with no eligibility test can serve a task <i>ahead</i> of its fluid schedule (the observation behind WF2Q). The eligibility gate is what gives the lower lag bound.</p>
+
+<p class="mini">Interactive version of the same schedule: the step-through in the mechanism card. Slices and weights are the knobs in the design-knobs card.</p>

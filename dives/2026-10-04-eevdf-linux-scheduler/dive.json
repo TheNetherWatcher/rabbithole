@@ -1,0 +1,365 @@
+{
+ "meta": {
+  "title": "Linux EEVDF scheduler: virtual lag, eligibility, virtual deadlines",
+  "short": "EEVDF, the Linux fair scheduler",
+  "subject": "Computer science",
+  "domain": "OS / kernels",
+  "topic": "EEVDF (Earliest Eligible Virtual Deadline First) in Linux",
+  "depth": "hard",
+  "date": "2026-10-04"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "Linux 6.6 replaced CFS's \"smallest vruntime\" rule and its pile of latency heuristics with two checks. A task is <b>eligible</b> only if it is not ahead of the weighted average, and among eligible tasks the one with the <b>earliest virtual deadline</b> runs. Each request's size sets its deadline, so latency is chosen per task while long-run share is still set by <b>weight</b>.",
+ "why": "<b>Why it matters:</b> every mainline kernel from 6.6 on runs it, and it is the source of most latency tuning questions and kernel-upgrade regressions in CPU-bound services.",
+ "stats": [
+  {
+   "v": "0.7–2.8 ms",
+   "l": "default base slice, from 1 CPU to 8 or more"
+  },
+  {
+   "v": "6.6",
+   "l": "first mainline kernel with EEVDF (Oct 2023)"
+  },
+  {
+   "v": "8 / 8 / 8",
+   "l": "equal CPU over 24 ms, despite unequal slices"
+  },
+  {
+   "v": "2 : 1",
+   "l": "CPU ratio for weights 2048 vs 1024"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A fair barista who lets short turns jump the line",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>Everyone gets an equal share of the barista's day. EEVDF keeps a ledger of who is owed time, and gives each customer a finish-by time that is earlier for shorter turns.</p><p>Short turns are served sooner, while total time over the day stays equal.</p>"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "group": "Context",
+   "brief": "<ul><li><b>Runqueue</b>: the per-CPU list of runnable tasks.</li><li><b>Weight</b>: nice 0 is 1024; each nice step is about 1.25×.</li><li><b>vruntime</b>: CPU time scaled by 1024/w, so heavy tasks age slower.</li><li><b>Red-black tree</b> of runnable entities; cgroups nest them.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Every mainline kernel since 6.6 runs it, mostly unseen",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Default on Ubuntu 24.04, Debian 13, Fedora and Arch, on Android GKI 6.6+, and in containers through <code>cpu.weight</code>. Knobs: <code>nice</code>, a per-thread custom slice (6.12+), and <code>sched_ext</code> for whole custom policies.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"Earliest virtual deadline among the eligible\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The slogan hides what the \"virtual\" clock is, how eligibility is tested, what sleep does to lag, that slice and weight are orthogonal, and that the decision covers one runqueue only.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "CFS let sleepers jump the queue, and each tuning knob broke another",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>CFS placed a waking task near the minimum vruntime, so it won at once. Latency came from tunables in mixed units that fought each other. Needed: a bounded fairness error, a latency request independent of weight, and fewer magic numbers.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A bank ledger with a stopwatch: lag is the balance, deadline the due date",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Lag is your balance with the CPU, and positive means it owes you. Only non-negative accounts get served. The catch: the reference point is a weighted mean that moves whenever tasks join, leave or reweight.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "Equal 8/8/8 shares, with the 1 ms task bursting twice as often",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>Three equal-weight tasks ask for 3 ms, 3 ms and 1 ms slices. Over 24 ms each gets eight turns, and the short-slice task runs about twice as often. The deadline ordering is the only reason.</p><p class=\"mini\">Step-through trace inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Lag stays within one request of the ideal share",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>The bound is <b>−c &lt; lag &lt; max(c<sub>max</sub>, q)</b>, where c is the request size and q the quantum. Lags sum to zero because V is the weighted mean. A joining task's saved lag is inflated by (W+w)/W.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Eligibility bounds unfairness; deadlines let each task choose its latency",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Remove eligibility and tiny-slice tasks starve the rest. Remove deadlines and you get CFS, fair with no latency control. Remove lag memory and one sleep wipes out a debt. Each piece covers a different failure.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Slice sets when a task runs, weight sets how much",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Slice and weight are orthogonal. Custom slices run from 100 µs to 100 ms. Alternatives are CFS-style heuristics, SCHED_DEADLINE reservations and BPF sched_ext.</p><p class=\"mini\">Slice and weight simulator inside.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "A 2024 overflow turned a weight change into a NULL dereference",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>CVE-2024-35985 made every entity look ineligible, so the picker returned NULL. Tick granularity, per-CPU-only fairness and cgroup reweighting also bite, and \"short slice = more CPU\" is a myth.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Linux adds clamped lag, parity protection and delayed dequeue to the paper",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>RUN_TO_PARITY protects the running task. Delayed dequeue (6.12) stops sleep-based lag gaming. Cgroups each get their own EEVDF, and an augmented tree prunes subtrees with no eligible task. The 1995 paper has none of these.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "Policy moved into BPF and LLM-written schedulers",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>Once fairness and latency were settled per runqueue, the work moved to policy (sched_ext, synthesised schedulers), locality hints and proxy execution for priority inversion. SchedCP claims 1.79× on a kernel build, unreplicated.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Latency SLOs, global fairness and heterogeneous cores are still open",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Slices are the only latency handle, and per-runqueue bounds don't compose into a global one under a periodic balancer. Cgroup reweighting and asymmetric cores are unsolved. LLM-written BPF schedulers are checked for memory safety, not fairness.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From GPS (1993) through CFS (2007) to EEVDF in Linux (2023)",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>GPS (1993) → WFQ and WF2Q → stride scheduling and the EEVDF paper (1995) → CFS (Linux 2.6.23, 2007) → EEVDF in Linux 6.6 (2023) → custom slices and sched_ext (6.12).</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "A 30-second simulator shows equal shares despite unequal slices",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p><code>python3 eevdf_sim.py</code> reproduces the 8/8/8 trace. Shrink C's slice, or delete the eligibility filter and watch C monopolise. On Linux ≥ 6.12, try <code>NO_RUN_TO_PARITY</code> and compare <code>perf sched latency</code>.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>22 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three follow-ups: PELT, sched_ext, SCHED_DEADLINE",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>PELT and load balancing, sched_ext with BPF schedulers, and SCHED_DEADLINE's CBS admission control. These are the parts EEVDF does not cover.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, kernel source and articles, plus unverified claims",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>The 1995 paper, kernel source and docs, LWN and Phoronix, seven arXiv entries, and a list of claims I could not verify.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "Walk <code>pick_eevdf()</code> when the leftmost-by-deadline node is ineligible. Which subtree does it descend?",
+   "a": "Loop: go to the left child while the left subtree's <code>min_vruntime</code> is eligible, because an eligible task with an earlier deadline exists there. Otherwise test the current node, and otherwise go right. The first eligible node found is the earliest-deadline eligible task.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does <code>update_deadline()</code> do, and when?",
+   "a": "When <code>v ≥ vd</code>, the request is used up. It sets <code>vd = v + slice·1024/w</code> and requests a reschedule.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does the kernel compare <code>avg ≥ key·load</code> rather than <code>avg/load ≥ key</code>?",
+   "a": "Division truncates and loses precision, while cross-multiplication is exact. The cost is a 128-bit product or overflow checks.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does <code>place_entity()</code> multiply lag by, and why <code>(W+w)/W</code>?",
+   "a": "It multiplies by <code>(W+w)/W</code> because adding the task pulls V toward its own vruntime and shrinks its apparent lag by W/(W+w). Inflating the lag pre-compensates; the derivation is in the math card.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What state does a <code>sched_delayed</code> task hold?",
+   "a": "Its clamped (≤ 0) vlag and its deadline. It stays on the tree, ineligible, aging in virtual time until it is picked or woken.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why must V be the <i>weighted</i> average?",
+   "a": "So that Σ lag<sub>i</sub> = 0 (conservation), and V is the fluid-model reference: each task should have received w<sub>i</sub>·ΔV.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why is the tree keyed on deadline but augmented with <code>min_vruntime</code>?",
+   "a": "Deadline order gives the answer among the eligible. <code>min_vruntime</code> lets whole subtrees with no eligible task be pruned, so the pick is O(log n).",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why is lag stored as <i>virtual</i> lag?",
+   "a": "Because <code>lag = w·vlag</code>, and vlag does not depend on weight. A reweight becomes one scaling, and comparisons avoid multiplying by w.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why do deadlines use <code>slice/weight</code>?",
+   "a": "The same request costs less virtual time at higher weight. Heavier tasks therefore get earlier deadlines and more CPU per unit of V.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "Remove eligibility: what pathological workload appears?",
+   "a": "A flood of tiny-slice tasks always holds the earliest deadline and starves the long-slice tasks. Lag is unbounded.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "Every slice is 0.1 ms: what happens to throughput and fairness?",
+   "a": "Context-switch and cache costs rise sharply, throughput drops, and the fairness error shrinks to about one slice.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "<code>PLACE_LAG</code> is off: describe an exploit.",
+   "a": "Sleep briefly each slice and wake. The negative lag is discarded, so you re-enter near V and never pay back the overconsumption.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "A task's weight doubles while it is queued: what must be rescaled?",
+   "a": "Its vruntime, vlag and deadline must be rescaled (the reweight path), with the same lag clamp. Without the clamp the arithmetic can overflow, as in CVE-2024-35985.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How can a task game EEVDF through sleeping, and which feature closes that?",
+   "a": "Short sleeps reset its negative lag. <code>DELAY_DEQUEUE</code> keeps such a task queued and ineligible, so it burns off its lag instead.",
+   "sec": "why"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How can unprivileged code shorten its slice to hurt others, and what bounds the damage?",
+   "a": "A short <code>sched_runtime</code> makes the task preempt-prone with early deadlines. Eligibility caps its share at its weight, so the damage is extra context switches, not extra CPU.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How did CVE-2024-35985 turn a weight change into a kernel NULL dereference?",
+   "a": "<code>reweight_eevdf()</code> computed vlag without the clamp. Weight is 20-bit fixed point, so the s64 product overflowed. <code>entity_eligible()</code> then returned false for every task, and <code>pick_eevdf()</code> returned NULL.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How does EEVDF relate to WF2Q, and why does the eligibility test match?",
+   "a": "Both use the same eligibility gate, start time ≤ virtual time. WF2Q uses it to cap how far ahead of GPS a flow can run, and EEVDF uses it to bound lag.",
+   "sec": "math"
+  },
+  {
+   "type": "Connection",
+   "q": "How does <code>cpu.weight</code> interact with hierarchical group entities?",
+   "a": "Each group has a scheduling entity per CPU, weighted from <code>cpu.weight</code>. It competes in its parent's EEVDF, while its inner tasks run their own EEVDF. <code>h_load</code> carries the effective weight.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is <code>SCHED_DEADLINE</code> different from a virtual deadline?",
+   "a": "<code>SCHED_DEADLINE</code> uses wall-clock runtime, deadline and period, with admission control and CBS. EEVDF's deadlines are virtual, relative to a fair-share reference, and carry no guarantee.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Open",
+   "q": "Can per-runqueue lag bounds compose into a global fairness bound with a periodic balancer?",
+   "a": "Open. The balancer equalises load rather than lag, and it runs on timescales much longer than a slice.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "What would a latency-SLO interface look like, instead of a slice?",
+   "a": "Open. Candidates include latency-nice, SLO hints passed through sched_ext maps, and proxy-execution-aware slices.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "How should lag be defined across heterogeneous cores?",
+   "a": "Open. Capacity-scaling vruntime, as PELT does for utilisation, is the obvious approach but unsettled.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "schedcp-arch": {
+   "file": "img/fig/schedcp-fig-arch.png",
+   "caption": "SchedCP's split as the paper draws it: an agent layer decides what to optimise, while a verified control plane observes the workload and loads eBPF into sched_ext.",
+   "source": {
+    "cite": "Zheng et al., \"Towards Agentic OS: An LLM Agent Framework for Linux Schedulers\", arXiv 2025",
+    "url": "https://arxiv.org/abs/2509.01245",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "ekiben-design": {
+   "file": "img/fig/ekiben-fig3-design.png",
+   "caption": "Ekiben's structure: a user-space manager upgrades the scheduler module under a read-write lock, with a dispatch path shared between the scheduler and the library.",
+   "source": {
+    "cite": "Miller et al., \"Agile Development of Linux Schedulers with Ekiben\", arXiv 2023",
+    "url": "https://arxiv.org/abs/2306.15076",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "schedcp-perf": {
+   "file": "img/fig/schedcp-fig-perf.png",
+   "caption": "The paper's own wall-clock benchmark on eight workloads, default versus a custom sched_ext scheduler. These are the authors' numbers and were not reproduced here.",
+   "source": {
+    "cite": "Zheng et al., \"Towards Agentic OS: An LLM Agent Framework for Linux Schedulers\", arXiv 2025",
+    "url": "https://arxiv.org/abs/2509.01245",
+    "figure": "Fig. 2 (c)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

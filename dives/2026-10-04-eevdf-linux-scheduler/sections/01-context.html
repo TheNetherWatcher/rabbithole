@@ -1,0 +1,8 @@
+<ul>
+<li>A CPU scheduler picks which runnable task runs next on each core's <b>runqueue</b> (per-CPU; the load balancer separately moves tasks between runqueues).</li>
+<li><b>Weight</b> <code>w</code> comes from nice value (nice 0 → 1024; each nice step ≈ 1.25×).</li>
+<li><b>vruntime</b> <code>v</code> = CPU time consumed scaled by <code>1024/w</code>, so heavy tasks age slower.</li>
+<li><b>Proportional share / GPS</b>: the ideal fluid scheduler gives each task <code>w_i/Σw</code> of the CPU at every instant. Real schedulers approximate it with discrete slices.</li>
+<li>Linux keeps runnable entities in a <b>red-black tree</b>; <code>sched_entity</code> is the schedulable unit (a task or a cgroup group).</li>
+<li><b>cgroups</b> nest entities hierarchically; each level has its own runqueue.</li>
+</ul>

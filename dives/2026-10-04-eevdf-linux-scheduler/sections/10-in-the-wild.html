@@ -1,0 +1,11 @@
+<p>Linux deviates from the 1995 paper in several ways:</p>
+<ul>
+<li><b>Clock-driven, not exact quanta.</b> The deadline is updated in <code>update_deadline()</code> once <code>v ≥ vd</code>. The source comment calls the update "good enough" next to the strict <code>vd_i += N*r_i/w_i</code>.</li>
+<li><b>Lag is clamped</b> on dequeue and remembered across sleep. The paper assumes tasks leave and arrive with zero or positive lag.</li>
+<li><b>RUN_TO_PARITY</b> (not in the paper) protects the current task, so wakeups don't thrash.</li>
+<li><b>Slice protection with the shortest slice in the queue</b> (<code>cfs_rq_min_slice</code>) while running to parity.</li>
+<li><b>Hierarchical.</b> Each cgroup has its own cfs_rq. Group entities take part in their parent's EEVDF with <code>h_load</code> weights.</li>
+<li><b>Augmented red-black tree.</b> The key is the deadline; the augmentation is the subtree <code>min_vruntime</code> (and <code>min_slice</code>), used for pruning.</li>
+<li><b>Delayed dequeue</b> (6.12) is a Linux-specific answer to sleep-based lag gaming. The paper has none.</li>
+<li>The kernel docs say: "There are ongoing discussions on how to manage lag, especially for sleeping tasks."</li>
+</ul>

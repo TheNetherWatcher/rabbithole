@@ -1,0 +1,8 @@
+<p><b>Explain it simply.</b> Picture one barista (the CPU) and a line of customers (programs). Everyone should get a fair share of the barista's time. The old Linux rule (CFS) was: "serve whoever has been served the least so far." Fair, but it had no way to say "this customer only wants a 20-second chat, serve them quickly." Linux bolted on a pile of guesses (heuristics) about who "seems interactive."</p>
+
+<p>EEVDF replaces the guesses with two honest ideas. <b>Fairness</b>: keep a running ledger of who is owed time and who has had too much. Only people who are owed time (or square) are allowed to be served next. <b>Urgency</b>: every customer states how long a turn they want. Short-turn customers get an earlier "finish-by" time. Among everyone allowed, serve whoever's finish-by time comes first. Short turn = served sooner, but total time over the day is still equal. Latency and fairness become two separate dials.</p>
+
+<h3>Everyday example</h3>
+<p>Three people share a whiteboard: Ann and Bob each want 3-minute turns, Cy wants 1-minute turns. All three are equally "owed" at the start. Cy's finish-by is earliest (1 min vs 3), so Cy goes first for 1 minute. Now Cy has had more than average, so Cy is <i>not allowed</i> until the others catch up. Ann goes (her finish-by ties with Bob's), then Bob. When everybody is square again, Cy's next finish-by is again the earliest, so Cy jumps in. After a full day each has had exactly the same total minutes, but Cy got many more, shorter turns, so Cy never waited long.</p>
+
+<p class="mini">The technical version follows in the next cards: the ledger is <i>lag</i>, the finish-by time is the <i>virtual deadline</i>, and "allowed" is <i>eligible</i>.</p>

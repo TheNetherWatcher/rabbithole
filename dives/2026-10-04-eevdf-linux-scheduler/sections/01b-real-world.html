@@ -1,0 +1,42 @@
+<h3>What it is</h3>
+<p>EEVDF is a proportional-share scheduling algorithm from Stoica &amp; Abdel-Wahab (1995). Linux 6.6 (Oct 2023) replaced CFS's "pick smallest vruntime" logic with it. Each task has a <i>weight</i> (how much CPU it deserves) and a <i>request size/slice</i> (how long a turn it wants). The scheduler runs the <i>eligible</i> task (not ahead of its fair share) with the <i>earliest virtual deadline</i>.</p>
+
+<h3>Why it exists</h3>
+<p>CFS equalised vruntime but had no notion of latency, so Linux accreted heuristics: <code>sched_latency_ns</code>, <code>sched_min_granularity_ns</code>, <code>sched_wakeup_granularity_ns</code>, <code>GENTLE_FAIR_SLEEPERS</code>, sleeper bonuses. They conflicted and were hard to reason about. Corbet's LWN piece reports EEVDF let Zijlstra delete ~450 lines of such code (a secondary claim, not re-counted here). Latency-sensitive workloads (audio, UI, RPC servers) needed a first-class way to ask for short turns without raising weight (which would steal CPU share).</p>
+
+<h3>Where it's used</h3>
+<p>All via mainline Linux ≥ 6.6:</p>
+<div class="grid">
+<div class="gc"><b>Ubuntu 24.04 LTS, Debian 13, Fedora, Arch</b>Every default desktop and server on a modern kernel runs it (Ubuntu 24.04 ships kernel 6.8, Debian 13 ships 6.12).</div>
+<div class="gc"><b>Android GKI on 6.6+</b>The fair class for apps and system_server.</div>
+<div class="gc"><b>Kubernetes / containers</b><code>cpu.weight</code> (cgroup v2) maps to entity weight; EEVDF arbitrates inside each group runqueue.</div>
+<div class="gc"><b>sched_ext schedulers</b>Meta and Valve. <code>scx_lavd</code> is named after a "latency-criticality-aware virtual deadline", the same idea re-implemented in BPF.</div>
+<div class="gc"><b>Game and audio stacks</b>PipeWire and Steam rely on short-slice requests and <code>sched_setattr</code>.</div>
+<div class="gc"><b>Cloud databases and RPC servers</b>p99 wakeup latency is the visible effect.</div>
+</div>
+
+<h3>How it's used</h3>
+<p>Most users touch nothing. The knobs:</p>
+<pre><code>// per-task custom slice (Linux &gt;= 6.12): ask for 0.5 ms turns, normal weight
+struct sched_attr a = {
+    .size = sizeof(a),
+    .sched_policy = SCHED_OTHER,
+    .sched_nice = 0,
+    .sched_runtime = 500 * 1000,   // ns; kernel clamps to [100us, 100ms]
+};
+syscall(SYS_sched_setattr, 0, &amp;a, 0);   // 0 = calling thread</code></pre>
+<pre><code>nice -n -5 ./app                           # weight, i.e. CPU share
+cat /sys/kernel/debug/sched/base_slice_ns  # default slice (needs debugfs)
+cat /sys/kernel/debug/sched/features       # PLACE_LAG RUN_TO_PARITY DELAY_DEQUEUE ...
+echo NO_RUN_TO_PARITY &gt; /sys/kernel/debug/sched/features   # A/B test a feature</code></pre>
+<p>Default base slice (verified in <code>fair.c</code>): <code>700000 ns × (1 + ilog2(min(ncpu, 8)))</code> = 0.7 / 1.4 / 2.1 / 2.8 ms for 1 / 2 / 4 / ≥8 CPUs. Distro docs often say "3 ms" (an older constant of 0.75 ms × 4).</p>
+
+<h3>When to use it, and when not</h3>
+<ul>
+<li><b>Use</b> the fair class plus a custom slice for latency-sensitive but non-RT work: UI threads, RPC workers, audio mixers that aren't hard real-time.</li>
+<li><b>Skip</b> for hard deadlines. Use <code>SCHED_DEADLINE</code> (admission-controlled CBS/EDF) or <code>SCHED_FIFO/RR</code>. EEVDF <i>virtual</i> deadlines give uniform allocation, not timeliness guarantees against arbitrary load.</li>
+<li><b>Skip</b> for workload-specific policy (database background-task isolation, game frame pacing). Use <code>sched_ext</code>.</li>
+<li><b>Signs you picked wrong:</b> p99 latency tracks <code>nr_running</code> even with tiny slices (you need RT or isolation), or short-slice threads thrash caches with context switches.</li>
+</ul>
+
+<p><b>Who should care:</b> backend and infra engineers chasing tail latency; SREs reading regressions after a kernel upgrade (6.5 → 6.6); audio and game developers; kernel and BPF-scheduler authors; anyone running tight cgroup CPU limits.</p>

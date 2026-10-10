@@ -1,0 +1,10 @@
+<ul>
+<li><b>Regressions at merge (6.6):</b> over-scheduling when lag ≈ slice (fixed by "curb wakeup preemption" and RUN_TO_PARITY, per LKML and LWN reporting). vhost/netperf and schbench/tbench shifts were attributed to lag-based placement. These are secondary reports, and the magnitudes vary by hardware (<i>unverified</i>).</li>
+<li><b>CVE-2024-35985</b> (verified, Debian tracker): <code>reweight_eevdf()</code> scaled vlag without the clamp used elsewhere. An s64 multiply overflowed, <code>entity_eligible()</code> returned false for everything, and <code>pick_eevdf()</code> returned NULL, which led to a NULL dereference. "Rare, but fatal when it does happen." Fixed in 6.9-rc6 (commit 1560d1f6eb6b) and backported. The overflow-guarded <code>vruntime_eligible()</code> (<code>check_mul_overflow</code>, <code>__int128</code>) in current source is the same class of defence.</li>
+<li><b>Per-CPU only:</b> no cross-CPU fairness. Bursty tasks pile onto one CPU until the load balancer reacts, which takes tens to 100+ ms.</li>
+<li><b>cgroup hierarchies:</b> reweighting a group entity changes the vruntime <i>units</i> of its queued members, and lag clamping and deadline pushes interact. Entity-placement fixes were still landing around 6.13 (a January 2025 last-minute fix, per Phoronix) and later. <i>The exact later commit history is unverified: research notes had inconsistent dates.</i></li>
+<li><b>Tick granularity:</b> accounting is tick-based. With a 3 ms slice and HZ=1000, a task can hit its deadline up to 1 ms early or late. hrtick exists but is off by default (the <code>HRTICK</code> feature is false in the file fetched).</li>
+<li><b>Misconception: "short slice = more CPU."</b> No. Same weight means the same long-run share. You get it in smaller, earlier pieces, and you pay the switch cost.</li>
+<li><b>Misconception: "EEVDF is real-time."</b> Virtual deadlines are not wall-clock deadlines. The bound is <code>d + q</code> in <i>virtual</i> terms on one runqueue.</li>
+<li><b>Heterogeneous cores:</b> EEVDF itself is capacity-blind. P/E-core and energy-aware decisions live in wakeup placement and load balancing.</li>
+</ul>

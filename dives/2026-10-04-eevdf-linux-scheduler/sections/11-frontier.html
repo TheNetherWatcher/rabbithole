@@ -1,0 +1,20 @@
+<p>All arXiv entries were confirmed to exist through the arXiv API on 2026-10-04. Titles and dates below come from it. Research-agent summaries about venues and speedups are <i>not</i> independently verified unless stated.</p>
+
+<ul>
+<li><b>Proxy Execution (Stultz et al., Google)</b> generalises priority inheritance. A mutex-blocked task stays queued, and the lock owner runs <i>on its behalf</i>. The Kconfig option <code>SCHED_PROXY_EXEC</code> exists in master, depends on <code>EXPERT</code> and <code>!SCHED_CLASS_EXT</code>. It is merged and experimental, and not yet combined with sched_ext (verified in <code>init/Kconfig</code>).</li>
+<li><b>sched_ext</b> (merged in Linux 6.12) is a BPF-defined scheduler class. Production examples include Valve/Igalia's <code>scx_lavd</code> (latency-criticality-aware virtual deadline), with reported fleet use at Meta per Phoronix and LPC 2025 (<i>secondary</i>). Docs: <a href="https://docs.kernel.org/scheduler/sched-ext.html" target="_blank" rel="noopener">docs.kernel.org/scheduler/sched-ext</a>.</li>
+<li><b>SchedCP</b>, "Towards Agentic OS: An LLM Agent Framework for Linux Schedulers" (<a href="https://arxiv.org/abs/2509.01245" target="_blank" rel="noopener">arXiv 2509.01245</a>, Sep 2025). An MCP-server control plane where LLM agents synthesise and deploy sched_ext policies. It claims up to 1.79× on a kernel build. That is an abstract-level claim and <i>unreplicated</i>. The figure below shows the authors' own benchmark.</li>
+<li><b>Mixture-of-Schedulers</b> (<a href="https://arxiv.org/abs/2511.11628" target="_blank" rel="noopener">arXiv 2511.11628</a>, Nov 2025): a learned router over expert scheduling policies.</li>
+<li><b>UFS, "Unfair by design"</b> (<a href="https://arxiv.org/abs/2605.02377" target="_blank" rel="noopener">arXiv 2605.02377</a>, May 2026): an eBPF sched_ext scheduler for mixed database workloads. It restricts background tasks to idle CPUs, preempts instantly, and uses eBPF-map hints against priority inversion. Its motivating claim is that OS priorities don't isolate.</li>
+<li><b>Affinity Tailor</b> (<a href="https://arxiv.org/abs/2604.27915" target="_blank" rel="noopener">arXiv 2604.27915</a>, Apr 2026): userspace-guided kernel scheduling at Google. It uses compact CPU sets as <i>affinity hints</i> rather than hard partitions, to recover locality (cache and chiplet LLC). Headline numbers in the research notes (+12% / +7%) are <i>not verified</i>; check the paper.</li>
+<li><b>Latency-Aware Group Scheduling</b> (<a href="https://arxiv.org/abs/2508.15703" target="_blank" rel="noopener">arXiv 2508.15703</a>, Aug 2025): reduces context switching in densely packed clusters.</li>
+<li><b>AKTS</b> (<a href="https://arxiv.org/abs/2609.12276" target="_blank" rel="noopener">arXiv 2609.12276</a>, Sep 2026): sub-microsecond kernel policy switching for LM agents. The title and date are verified; the content is unread.</li>
+<li><b>Ekiben</b> (<a href="https://arxiv.org/abs/2306.15076" target="_blank" rel="noopener">arXiv 2306.15076</a>, EuroSys 2024 per research notes): a safe Rust scheduler framework with live upgrade. It is older, but it is the basis of the "scheduler development velocity" line.</li>
+</ul>
+
+<div class="fig-pair"><figure data-fig="schedcp-arch"></figure><figure data-fig="ekiben-design"></figure></div>
+<p>Left: SchedCP's split between an AI agent layer (what to optimise) and a safe control plane (how to observe and act, with eBPF loaded through a verifier). Right: Ekiben's design, with a user-space manager that upgrades a live scheduler module.</p>
+
+<figure data-fig="schedcp-perf"></figure>
+
+<p>Common thread: once EEVDF had fixed the <i>mechanism</i> for per-runqueue fairness and latency, active work moved to <b>policy</b> (BPF or LLM-synthesised schedulers), to <b>locality</b> (affinity hints), and to <b>priority inversion</b> (proxy execution).</p>

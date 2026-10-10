@@ -1,0 +1,116 @@
+<style>
+#mech-w .mech-t{font-size:13px;margin:4px 0 8px}
+#mech-w .mech-t th,#mech-w .mech-t td{padding:4px 8px;text-align:left;border-bottom:1px solid var(--line)}
+#mech-w .mech-t td.el{color:var(--ok)}
+#mech-w .mech-t td.pk{font-weight:700;color:var(--accent)}
+#mech-w .mech-tl{display:flex;flex-wrap:wrap;gap:3px;margin:6px 0}
+#mech-w .mech-tl i{font-style:normal;color:#fff;font-family:var(--mono);font-size:12px;width:22px;height:22px;line-height:22px;text-align:center;border-radius:4px}
+</style>
+<p>Runnable by <code>python3 eevdf_sim.py</code> (this folder). Three equal-weight (1024) CPU-bound tasks: A and B ask for a 3 ms slice, C asks for 1 ms. Virtual time advances 1 per ms because the weights are equal. <code>*</code> marks an eligible task.</p>
+
+<pre><code>t= 0 V= 0.00 A(v=0.00,vd=3.00*) B(v=0.00,vd=3.00*) C(v=0.00,vd=1.00*) -&gt; C   # earliest deadline wins
+t= 1 V= 0.33 A(v=0.00,vd=3.00*) B(v=0.00,vd=3.00*) C(v=1.00,vd=2.00 ) -&gt; A   # C ran: v=1 &gt; V, ineligible
+t= 2 V= 0.67 A(v=1.00,vd=3.00 ) B(v=0.00,vd=3.00*) C(v=1.00,vd=2.00 ) -&gt; B   # A ineligible too
+t= 3 V= 1.00 A(v=1.00,vd=3.00*) B(v=1.00,vd=3.00*) C(v=1.00,vd=2.00*) -&gt; C   # all square: C deadline 2 &lt; 3
+t= 4 V= 1.33 A(v=1.00,vd=3.00*) B(v=1.00,vd=3.00*) C(v=2.00,vd=3.00 ) -&gt; A
+...
+CABCABABCCABCABABCCABCAB      # 24 ms: A=8, B=8, C=8</code></pre>
+
+<div class="widget" id="mech-w" role="group" aria-label="EEVDF schedule step-through">
+<div class="stepbar">
+  <button class="btn" id="mech-back" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+</div>
+<table class="mech-t" id="mech-t"></table>
+<div class="mech-tl" id="mech-tl" aria-label="Schedule so far"></div>
+<p class="mini" id="mech-sum" aria-live="polite"></p>
+</div>
+
+<p>What to see:</p>
+<ul>
+<li><b>Equal CPU</b> (8 / 8 / 8) because eligibility forces everyone back to V.</li>
+<li><b>C runs in 1 ms bursts, about twice as often</b>, because its deadline <code>ve + 1</code> is always earlier than <code>ve + 3</code>. A short slice buys low latency, not extra share.</li>
+<li>At <code>t = 7 → 8</code> B finishes its 3 ms request (<code>v = 3 ≥ vd = 3</code>) and gets <code>vd = 3 + 3 = 6</code> (<code>update_deadline()</code>).</li>
+<li><b>Weights:</b> H (w = 2048) vs L (w = 1024) with equal slices gives <code>HLHHLHHLHHLH</code>: H 8, L 4, a 2:1 ratio. H's vruntime advances at half speed, so it stays eligible longer.</li>
+</ul>
+
+<p>Kernel flow for the same events:</p>
+<pre><code>tick / wakeup
+  update_curr(): vruntime += delta * 1024 / w          # real time -&gt; virtual
+  update_deadline(): if v &gt;= vd: vd = v + slice*1024/w # new request
+  -&gt; need resched?  pick_eevdf():
+        if only 1 queued: return it
+        if curr eligible &amp;&amp; still inside protected slice (RUN_TO_PARITY): keep curr
+        if leftmost (min deadline) is eligible: take it       # common O(1) path
+        else heap-descend: go left while left-&gt;min_vruntime is eligible
+                           (tree sorted by deadline, augmented with subtree min vruntime)</code></pre>
+
+<p>Real code (<code>kernel/sched/fair.c</code>, current master, fetched 2026-10-04):</p>
+<pre><code>static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
+{
+	...
+	/* Pick the leftmost entity if it's eligible */
+	if (se &amp;&amp; entity_eligible(cfs_rq, se)) { best = se; goto found; }
+	/* Heap search for the EEVD entity */
+	while (node) {
+		struct rb_node *left = node-&gt;rb_left;
+		/* Eligible entities in left subtree are always better choices, since they have earlier deadlines. */
+		if (left &amp;&amp; vruntime_eligible(cfs_rq, __node_2_se(left)-&gt;min_vruntime)) { node = left; continue; }
+		se = __node_2_se(node);
+		if (entity_eligible(cfs_rq, se)) { best = se; break; }
+		node = node-&gt;rb_right;
+	}
+found:
+	if (!best || (curr &amp;&amp; entity_before(curr, best))) best = curr;
+	return best;
+}</code></pre>
+
+<p>The tree key is the <i>deadline</i>. Each node stores the <code>min_vruntime</code> of its subtree, so whole subtrees with no eligible task are pruned. Pick is O(log n).</p>
+
+<h3>Sleep and wake</h3>
+<p>The subtle part. On dequeue, <code>update_entity_lag()</code> stores <code>vlag = V − v</code>, clamped. On enqueue, <code>place_entity()</code> restores it:</p>
+<div class="eq">v<sub>i</sub> = V − vlag<sub>i</sub>′, &nbsp; where vlag<sub>i</sub>′ = vlag<sub>i</sub> · (W + w<sub>i</sub>) / W<small>→ in plain terms: remember how far behind you were, then inflate it, because adding yourself moves the average.</small></div>
+<div class="eq">deadline = v<sub>i</sub> + slice · 1024 / w<sub>i</sub><small>→ new tasks get half a slice instead (PLACE_DEADLINE_INITIAL).</small></div>
+<p>The inflation exists because adding the entity changes V itself. The derivation is in the next card.</p>
+<p><code>DELAY_DEQUEUE</code> (6.12): a task going to sleep with <i>negative</i> lag stays on the tree as <code>sched_delayed</code>, ineligible, burning off its lag in virtual time. It is only really dequeued when it is picked (then its lag is ≥ 0 by definition) or woken. <code>DELAY_ZERO</code> clips lag to ≤ 0 on a delayed dequeue.</p>
+
+<script>
+(function(){
+  var NICE0=1024;
+  function mk(name,w,s){return{name:name,w:w,slice:s,v:0,vd:s*NICE0/w,ran:0}}
+  function Vavg(ts){var W=0,S=0;ts.forEach(function(t){W+=t.w;S+=t.w*t.v});return S/W}
+  function elig(ts,t){var W=0,S=0;ts.forEach(function(x){W+=x.w;S+=x.w*x.v});return S>=t.v*W-1e-9}
+  function pick(ts,gate){var c=ts.filter(function(t){return !gate||elig(ts,t)});return c.reduce(function(a,b){return b.vd<a.vd-1e-9?b:a},c[0])}
+  function advance(cur){cur.v+=NICE0/cur.w;cur.ran++;if(cur.v>=cur.vd-1e-9)cur.vd=cur.v+cur.slice*NICE0/cur.w}
+  var COL={A:'var(--accent2)',B:'var(--ok)',C:'var(--accent)'};
+  var f=function(x){return (Math.round(x*100)/100).toFixed(2)};
+  var st=[mk('A',1024,3),mk('B',1024,3),mk('C',1024,1)];
+  var frames=[];
+  for(var t=0;t<24;t++){
+    var V=Vavg(st);
+    var row=st.map(function(x){return{n:x.name,v:x.v,vd:x.vd,e:elig(st,x)}});
+    var c=pick(st,true);
+    frames.push({t:t,V:V,row:row,pick:c.name});
+    advance(c);
+  }
+  var k=0;
+  var T=document.getElementById('mech-t'),TL=document.getElementById('mech-tl'),N=document.getElementById('mech-n'),S=document.getElementById('mech-sum');
+  var back=document.getElementById('mech-back'),next=document.getElementById('mech-next');
+  function draw(){
+    var fr=frames[k];
+    var h='<tr><th>task</th><th>v (vruntime)</th><th>vd (deadline)</th><th>eligible?</th></tr>';
+    fr.row.forEach(function(r){
+      h+='<tr><td>'+r.n+'</td><td>'+f(r.v)+'</td><td>'+f(r.vd)+'</td><td class="'+(r.e?'el':'')+' '+(r.n===fr.pick?'pk':'')+'">'+(r.e?'yes (V ≥ v)':'no')+(r.n===fr.pick?' ← picked':'')+'</td></tr>';
+    });
+    T.innerHTML=h;
+    N.textContent='step '+(k+1)+' of '+frames.length+' · t = '+fr.t+' ms';
+    S.textContent='V = '+f(fr.V)+'. The scheduler picks '+fr.pick+' (earliest deadline among the eligible).';
+    TL.innerHTML=frames.slice(0,k+1).map(function(x){return '<i style="background:'+COL[x.pick]+'">'+x.pick+'</i>'}).join('');
+    back.disabled=k===0; next.disabled=k===frames.length-1;
+  }
+  back.onclick=function(){if(k>0){k--;draw()}};
+  next.onclick=function(){if(k<frames.length-1){k++;draw()}};
+  draw();
+})();
+</script>

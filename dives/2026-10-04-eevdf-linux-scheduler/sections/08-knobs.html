@@ -1,0 +1,70 @@
+<table>
+<thead><tr><th>Knob</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>nice</code> / <code>cpu.weight</code></td><td>Share of CPU (the slope of vruntime)</td></tr>
+<tr><td><code>sched_runtime</code> (custom slice, ≥ 6.12)</td><td>Latency vs switch rate; 100 µs to 100 ms</td></tr>
+<tr><td><code>base_slice_ns</code> (debugfs)</td><td>Default slice; scaled by 1 + log2(ncpu)</td></tr>
+<tr><td><code>RUN_TO_PARITY</code></td><td>Protects the current task until its lag reaches 0 or its minimum slice ends; fewer switches</td></tr>
+<tr><td><code>PREEMPT_SHORT</code></td><td>A shorter-slice wakeup may cancel parity protection</td></tr>
+<tr><td><code>PLACE_LAG</code>, <code>DELAY_DEQUEUE</code>, <code>DELAY_ZERO</code></td><td>Sleep and wake lag policy</td></tr>
+<tr><td><code>PLACE_DEADLINE_INITIAL</code></td><td>New tasks start with half a slice</td></tr>
+<tr><td><code>NEXT_BUDDY</code> (default false)</td><td>Cache-locality hint, off by default in current master</td></tr>
+</tbody>
+</table>
+
+<p>Alternatives:</p>
+<ul>
+<li><b>CFS:</b> minimum vruntime plus heuristics. Easier to reason about in isolation, but latency is controlled by tuning.</li>
+<li><b>BFS, MuQSS, BORE:</b> burst-score heuristics, favoured on some desktop kernels.</li>
+<li><b>SCHED_DEADLINE:</b> hard EDF plus CBS reservations.</li>
+<li><b>Stride and lottery scheduling:</b> O(1) or probabilistic, with no latency input.</li>
+<li><b>BPF sched_ext:</b> an arbitrary policy.</li>
+</ul>
+<p>EEVDF won mainline because it has <i>one</i> theory-backed rule and removes tunables.</p>
+
+<h3>Try it: slice vs share</h3>
+<div class="widget" id="kn-w" role="group" aria-label="Slice and weight simulator">
+<div class="ctl">
+  <label>A slice (ms) <b id="kn-vA">3</b> <input type="range" id="kn-sA" min="1" max="8" value="3"></label>
+  <label>B slice (ms) <b id="kn-vB">3</b> <input type="range" id="kn-sB" min="1" max="8" value="3"></label>
+  <label>C slice (ms) <b id="kn-vC">1</b> <input type="range" id="kn-sC" min="1" max="8" value="1"></label>
+  <label>C weight (×1024) <b id="kn-wC">1</b> <input type="range" id="kn-swC" min="1" max="4" value="1"></label>
+  <label><input type="checkbox" id="kn-elig" checked> eligibility gate on</label>
+</div>
+<div class="mech-tl" id="kn-tl" aria-label="Schedule over 48 ms" style="display:flex;flex-wrap:wrap;gap:3px;margin:8px 0"></div>
+<div id="kn-bars"></div>
+<p class="mini" id="kn-txt" aria-live="polite"></p>
+</div>
+<style>
+#kn-w .mech-tl i{font-style:normal;color:#fff;font-family:var(--mono);font-size:12px;width:20px;height:20px;line-height:20px;text-align:center;border-radius:4px}
+#kn-w .lbl{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:13px}
+#kn-w .lbl span:first-child{width:24px;font-family:var(--mono)}
+#kn-w .lbl .bar{flex:1}
+#kn-w .lbl .bar i{transition:width .3s var(--ease)}
+</style>
+<p>Try it. Shrink C's slice: more switches, same share. Raise C's weight: more share. Untick eligibility: C with a tiny slice starves A and B, which is pure virtual EDF with no lag bound.</p>
+
+<script>
+(function(){
+  var NICE0=1024;
+  function mk(name,w,s){return{name:name,w:w,slice:s,v:0,vd:s*NICE0/w,ran:0}}
+  function elig(ts,t){var W=0,S=0;ts.forEach(function(x){W+=x.w;S+=x.w*x.v});return S>=t.v*W-1e-9}
+  function pick(ts,gate){var c=ts.filter(function(t){return !gate||elig(ts,t)});return c.reduce(function(a,b){return b.vd<a.vd-1e-9?b:a},c[0])}
+  function advance(cur){cur.v+=NICE0/cur.w;cur.ran++;if(cur.v>=cur.vd-1e-9)cur.vd=cur.v+cur.slice*NICE0/cur.w}
+  var COL={A:'var(--accent2)',B:'var(--ok)',C:'var(--accent)'};
+  function $(id){return document.getElementById(id)}
+  function sim(){
+    var sA=+$('kn-sA').value,sB=+$('kn-sB').value,sC=+$('kn-sC').value,wC=+$('kn-swC').value,gate=$('kn-elig').checked;
+    $('kn-vA').textContent=sA;$('kn-vB').textContent=sB;$('kn-vC').textContent=sC;$('kn-wC').textContent=wC;
+    var ts=[mk('A',1024,sA),mk('B',1024,sB),mk('C',1024*wC,sC)];
+    var N=48,seq=[],sw=0,prev=null;
+    for(var i=0;i<N;i++){var c=pick(ts,gate);seq.push(c.name);if(prev&&prev!==c.name)sw++;prev=c.name;advance(c)}
+    $('kn-tl').innerHTML=seq.map(function(n){return '<i style="background:'+COL[n]+'">'+n+'</i>'}).join('');
+    $('kn-bars').innerHTML=ts.map(function(t){var p=Math.round(t.ran/N*100);return '<div class="lbl"><span>'+t.name+'</span><div class="bar"><i style="display:block;height:100%;width:'+p+'%;background:'+COL[t.name]+'"></i></div><span>'+t.ran+' ms ('+p+'%)</span></div>'}).join('');
+    var exp=wC/(2+wC);
+    $('kn-txt').textContent=sw+' context switches in '+N+' ms. Fair share of C by weight: '+Math.round(exp*100)+'%; actual: '+Math.round(ts[2].ran/N*100)+'%.'+(gate?'':' Eligibility off: share is no longer tied to weight.');
+  }
+  ['kn-sA','kn-sB','kn-sC','kn-swC','kn-elig'].forEach(function(i){$(i).addEventListener('input',sim)});
+  sim();
+})();
+</script>

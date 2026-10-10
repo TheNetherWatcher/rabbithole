@@ -1,0 +1,14 @@
+<p>Two properties factor the problem:</p>
+<ul>
+<li><b>Eligibility ⇒ bounded unfairness.</b> A task ahead of V cannot be picked. Time is only handed to tasks at or behind the mean.</li>
+<li><b>Deadline order among eligibles ⇒ latency chosen by the task.</b> A short <code>r_i</code> gives an earlier <code>vd_i</code>, so the task is picked first among the eligible.</li>
+</ul>
+
+<h3>Ablations</h3>
+<ul>
+<li><b>Remove eligibility:</b> pure EDF on virtual deadlines. A stream of tiny-slice tasks starves the rest, and lag is unbounded.</li>
+<li><b>Remove deadlines (pick minimum vruntime):</b> that is CFS. Fair, but with no latency control.</li>
+<li><b>Remove lag memory (PLACE_LAG off):</b> a sleep resets debt, so a task can sleep briefly each slice and wipe out its negative lag.</li>
+<li><b>Remove DELAY_DEQUEUE:</b> the same exploit comes back through ineligible-then-sleep. Or lag is preserved forever, which penalises long sleepers.</li>
+<li><b>Remove RUN_TO_PARITY:</b> every wakeup with a slightly earlier deadline preempts, so context switches explode (the hackbench-style regressions after the merge).</li>
+</ul>
