@@ -1,0 +1,22 @@
+<table>
+<thead><tr><th>Knob</th><th>v1</th><th>v3</th><th>Tradeoff</th></tr></thead>
+<tbody>
+<tr><td>BtlBw window</td><td>10 rounds</td><td>2 ProbeBW cycles</td><td>longer → stickier to stale bandwidth after capacity drops</td></tr>
+<tr><td>RTprop window</td><td>10 s</td><td>10 s (ProbeRTT every 5 s)</td><td>shorter → more ProbeRTT dips; longer → slow to see route changes</td></tr>
+<tr><td>ProbeBW down gain</td><td>0.75</td><td>0.90</td><td>lower drains faster; higher converges to fairness better (draft)</td></tr>
+<tr><td>ProbeRTT inflight</td><td>4 pkts</td><td>0.5·BDP</td><td>4 pkts gets a cleaner min_rtt but a 2% throughput hit and big sawtooth</td></tr>
+<tr><td>Loss threshold</td><td>none</td><td>2%/round</td><td>lower is more CUBIC-friendly; higher tolerates random loss</td></tr>
+<tr><td>Inter-probe time</td><td>8 RTprop</td><td>min(2–3 s, 62–63 rounds)</td><td>shorter grabs freed bandwidth faster but hurts Reno</td></tr>
+<tr><td>ECN</td><td>ignored</td><td>DCTCP/L4S-style shallow-threshold response</td><td>stronger signal, but classic-ECN AQMs make it collapse CUBIC (§9)</td></tr>
+</tbody>
+</table>
+<p>Alternatives:</p>
+<ul>
+<li><b>CUBIC + HyStart++</b> is the default almost everywhere, well understood and fair to itself, but bufferbloat-prone and loss-fragile.</li>
+<li><b>Delay-based (Vegas, Copa)</b> have a low standing queue but lose to buffer-fillers. Copa switches modes to compete, and both are subject to the starvation theorem.</li>
+<li><b>Online-learning (PCC Vivace, Sage, Astraea, Orca)</b> optimize a utility function from experiments or traces. They're good in benchmarks, but deployment needs fairness and compute guarantees (<a href="https://arxiv.org/abs/2510.25105" target="_blank" rel="noopener">Learning vs human-derived CC, 2025</a>).</li>
+<li><b>L4S / TCP Prague with DualPQ AQM</b> move the problem into the network. Routers give immediate fine-grained ECN, and the sender runs a scalable (DCTCP-like) response. With an L4S AQM you get the latency without guessing.</li>
+<li><b>Receiver/in-network</b> (DCTCP, HPCC, Swift in DCs) use explicit signals. Inside Google's DC the CC is BBR.Swift, which uses network_RTT excluding receiver delay (<a href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00" target="_blank" rel="noopener">IETF 119</a>).</li>
+</ul>
+<figure data-fig="fig4"></figure>
+<p>BBR won where you control only the sender and serve the open Internet. It lost, or needs care, where everyone shares a shallow buffer with legacy CC.</p>

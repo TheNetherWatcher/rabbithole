@@ -1,0 +1,9 @@
+<ol>
+<li><b>What does "fair" even mean between different CCAs?</b> Jain's index treats every unequal split as equally bad and ignores how long it lasts. Ware et al. (HotNets 2019, "Beyond Jain's Fairness Index") argue for <i>harm</i>-based metrics: how much worse off am I because you showed up? Nobody agrees on the target, so nobody can say v3 is "done".</li>
+<li><b>Coexistence with CUBIC in shallow buffers.</b> Any rate-based scheme that probes above its estimate overflows a sub-BDP buffer. A loss bound (v3's 2%) helps, but CUBIC halves at <i>any</i> loss, so the two respond on different scales. PAM 2024 shows the v3 gap ≈ v1's.</li>
+<li><b>Jitter-robust delay signals.</b> The starvation theorem says a delay-convergent CCA must oscillate by at least jitter/2. That conflicts with the low-delay goal. FRCC is one exit, but it isn't deployed and hasn't been evaluated at Internet scale.</li>
+<li><b>No validated analytical model of v3.</b> The 2025 IFIP paper finds existing models diverge for v3. Without one, every tuning change needs a testbed campaign.</li>
+<li><b>ECN semantics.</b> v3 treats CE as a DCTCP/L4S-style signal. Classic RFC 3168 AQMs mark like loss. With mixed deployment the same bit means two different things, and CUBIC gets crushed (ANRW 2024). L4S's dual-queue isolation is the proposed fix but isn't widely deployed yet.</li>
+<li><b>LEO and 5G.</b> Capacity and RTT change every few seconds (Starlink reconfigures roughly every 15 s). A 10 s min filter and 2–3 s probe cadence are too slow, so you get overshoot or underuse (<a href="https://conferences.sigcomm.org/hotnets/2024/papers/hotnets24-79.pdf" target="_blank" rel="noopener">HotNets 2024 LEO mobility</a>).</li>
+<li><b>Multipath QUIC coupling.</b> Coupled BBR across subflows that may share a bottleneck has no standard. Reno-style coupled CC (LIA/OLIA) doesn't translate to rate-based control.</li>
+</ol>

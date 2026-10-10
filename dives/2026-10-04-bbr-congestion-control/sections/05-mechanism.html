@@ -1,0 +1,145 @@
+<p>One BBRv1-style flow, 12 Mbit/s bottleneck, RTprop 40 ms, buffer 320 packets. These are output lines from <code>bbr_sim.py --trace</code> (state every 100 ms):</p>
+<pre><code>t=0.0s STARTUP   queue=  0  btlbw= 0.00 Mbit/s
+t=0.1s STARTUP   queue=  1  btlbw= 2.96      ← exponential growth, gain 2.885
+t=0.2s STARTUP   queue= 72  btlbw=11.43      ← overshoot: pacing &gt; bottleneck
+t=0.3s STARTUP   queue= 78  btlbw=12.09      ← bw stopped growing
+t=0.4s STARTUP   queue= 78  btlbw=12.09      ← 3 rounds &lt;25% growth → exit
+t=0.5s DRAIN     queue= 71  btlbw=12.09      ← gain 0.347 drains queue
+t=0.6s PROBE_BW  queue=  1  btlbw=12.09      ← inflight ≤ BDP → cruise
+t=0.9s PROBE_BW  queue=  9  btlbw=12.09      ← the 1.25 probe phase
+t=1.0s PROBE_BW  queue=  3                    ← the 0.75 phase drains it
+</code></pre>
+
+<style>
+#mech-st .blk{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+#mech-st .lab{fill:var(--mute);font:12px system-ui,sans-serif}
+#mech-st .txt{fill:var(--ink);font:13px ui-monospace,monospace}
+#mech-st .mech-qbar{fill:var(--hl);stroke:var(--accent);stroke-width:1.5}
+#mech-st .wire{stroke:var(--accent2);stroke-width:2;fill:none}
+#mech-st{color:var(--mute)}
+</style>
+<div class="widget" id="mech-st" role="group" aria-label="BBR pipeline stepper">
+<svg viewBox="0 0 640 170" role="img" aria-label="Sender, bottleneck queue, link">
+ <rect class="blk" x="10" y="50" width="110" height="70" rx="10"/><text class="txt" x="65" y="80" text-anchor="middle">sender</text>
+ <text id="mech-state" class="lab" x="65" y="102" text-anchor="middle" style="fill:var(--accent2)">STARTUP</text>
+ <line class="wire" x1="120" y1="85" x2="200" y2="85"/><text id="mech-pace" class="lab" x="160" y="74" text-anchor="middle">pace</text>
+ <rect class="blk" x="200" y="55" width="260" height="60" rx="6"/>
+ <rect id="mech-q" class="mech-qbar" x="200" y="55" width="4" height="60" rx="6"/>
+ <text class="lab" x="330" y="135" text-anchor="middle">bottleneck queue (320 pkt buffer, scaled)</text>
+ <text id="mech-qn" class="txt" x="330" y="90" text-anchor="middle">0 pkts</text>
+ <line class="wire" x1="460" y1="85" x2="530" y2="85"/>
+ <rect class="blk" x="530" y="50" width="100" height="70" rx="10"/><text class="txt" x="580" y="80" text-anchor="middle">12 Mbit/s</text><text class="lab" x="580" y="100" text-anchor="middle">link</text>
+ <text id="mech-bw" class="lab" x="10" y="30">btlbw est: 0.00 Mbit/s</text><text id="mech-t" class="lab" x="630" y="30" text-anchor="end">t = 0.0 s</text>
+</svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" type="button">← Back</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+  <button class="btn" id="mech-next" type="button">Next →</button>
+</div>
+<p id="mech-text" aria-live="polite"></p>
+<p class="mini">Real rows from <code>bbr_sim.py --trace</code> (12 Mbit/s, 40 ms, buffer 8 × BDP). 8-step walkthrough inside.</p>
+</div>
+
+<h3>Step 1 — one ACK → one delivery-rate sample</h3>
+<p>Each packet carries a snapshot taken at send time: <code>(delivered, delivered_time, first_sent_time, is_app_limited)</code>. When its ACK arrives at time <code>now</code>:</p>
+<pre><code>send_elapsed = P.sent_time  - P.first_sent_time
+ack_elapsed  = now          - P.delivered_time
+interval     = max(send_elapsed, ack_elapsed)        # guards against ACK compression
+delivery_rate = (C.delivered - P.delivered) / interval
+if interval &lt; min_rtt: discard sample                 # too short to trust
+</code></pre>
+<p>Concrete numbers. Packet P was sent when <code>C.delivered = 120</code> packets and <code>delivered_time = 0.210 s</code>. Its ACK arrives at 0.252 s, when <code>C.delivered = 160</code>. Then <code>ack_elapsed = 42 ms</code> and the rate = 40 / 0.042 = 952 pkt/s ≈ <b>11.4 Mbit/s</b>. That's one sample, and it is a lower bound on BtlBw.</p>
+<p>Taking <code>max(send_elapsed, ack_elapsed)</code> matters. If ACKs were compressed (arriving in a clump), <code>ack_elapsed</code> is too short and inflates the rate. The send-side interval can't be compressed by the network, so the max of the two is the honest choice. (<a href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06" target="_blank" rel="noopener">draft-ietf-ccwg-bbr-06 §4.1</a>)</p>
+
+<h3>Step 2 — update the model</h3>
+<pre><code>max_bw  = windowed_max(delivery_rate, window = 10 round trips (v1) / 2 ProbeBW cycles (v3))
+min_rtt = windowed_min(rtt_sample,    window = 10 s)
+BDP     = max_bw × min_rtt     = 12 Mbit/s × 0.040 s = 480 kbit = 40 packets
+</code></pre>
+<p>Samples marked <b>app-limited</b> (the app had nothing to send, so the pipe wasn't full) can only <i>raise</i> max_bw, never lower it. Otherwise a video player pausing would teach BBR that the network got slow.</p>
+
+<h3>Step 3 — turn model into control</h3>
+<pre><code>pacing_rate = pacing_gain × max_bw
+cwnd        = cwnd_gain   × BDP   (+ extra_acked allowance for ACK aggregation)
+</code></pre>
+
+<h3>Step 4 — the state machine</h3>
+<figure>
+<style>
+#mech-sm .n{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#mech-sm .sub{fill:var(--code);stroke:var(--line)}
+#mech-sm .a{stroke:var(--accent2);stroke-width:1.6;fill:none}
+#mech-sm .t{font:12px system-ui,sans-serif;fill:var(--mute)}
+#mech-sm .h{font:600 13px ui-monospace,monospace;fill:var(--ink)}
+</style>
+<svg id="mech-sm" viewBox="0 0 680 270" role="img" aria-label="BBR state machine">
+ <defs><marker id="mech-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--accent2)"/></marker></defs>
+ <rect class="n" x="10" y="30" width="130" height="78" rx="10"/><text class="h" x="75" y="58" text-anchor="middle">STARTUP</text><text class="t" x="75" y="78" text-anchor="middle">g = 2.77 (v1 2.885)</text><text class="t" x="75" y="95" text-anchor="middle">cwnd_gain 2</text>
+ <rect class="n" x="200" y="30" width="110" height="78" rx="10"/><text class="h" x="255" y="58" text-anchor="middle">DRAIN</text><text class="t" x="255" y="78" text-anchor="middle">g = 0.5 (v1 0.347)</text>
+ <rect class="n" x="370" y="10" width="300" height="130" rx="10"/><text class="h" x="520" y="34" text-anchor="middle">PROBE_BW (v3)</text>
+ <rect class="sub" x="385" y="48" width="62" height="40" rx="6"/><text class="t" x="416" y="66" text-anchor="middle">DOWN</text><text class="t" x="416" y="81" text-anchor="middle">0.90</text>
+ <rect class="sub" x="457" y="48" width="62" height="40" rx="6"/><text class="t" x="488" y="66" text-anchor="middle">CRUISE</text><text class="t" x="488" y="81" text-anchor="middle">1.0</text>
+ <rect class="sub" x="529" y="48" width="62" height="40" rx="6"/><text class="t" x="560" y="66" text-anchor="middle">REFILL</text><text class="t" x="560" y="81" text-anchor="middle">1.0</text>
+ <rect class="sub" x="601" y="48" width="62" height="40" rx="6"/><text class="t" x="632" y="66" text-anchor="middle">UP</text><text class="t" x="632" y="81" text-anchor="middle">1.25</text>
+ <text class="t" x="520" y="112" text-anchor="middle">wait min(2–3 s, 62–63 rounds) in CRUISE</text><text class="t" x="520" y="128" text-anchor="middle">v1: fixed 8-phase 1.25, 0.75, 1×6</text>
+ <path class="a" d="M140,69 H198" marker-end="url(#mech-ah)"/><text class="t" x="169" y="125" text-anchor="middle">bw +&lt;25% × 3 rounds</text><text class="t" x="169" y="140" text-anchor="middle">(v3: or loss &gt; 2% / ECN)</text>
+ <path class="a" d="M310,69 H368" marker-end="url(#mech-ah)"/><text class="t" x="339" y="60" text-anchor="middle">inflight</text><text class="t" x="339" y="96" text-anchor="middle">≤ BDP</text>
+ <path class="a" d="M447,68 H455 M519,68 H527 M591,68 H599" marker-end="url(#mech-ah)"/>
+ <rect class="n" x="370" y="190" width="300" height="66" rx="10"/><text class="h" x="520" y="214" text-anchor="middle">PROBE_RTT</text><text class="t" x="520" y="234" text-anchor="middle">v3: cwnd 0.5·BDP · v1: 4 pkts · ≥200 ms</text>
+ <path class="a" d="M480,140 V188" marker-end="url(#mech-ah)"/><text class="t" x="476" y="170" text-anchor="end">min_rtt stale 5 s (v1 10 s)</text>
+ <path class="a" d="M560,188 V142" marker-end="url(#mech-ah)"/><text class="t" x="566" y="170">pipe full</text>
+ <path class="a" d="M370,232 H75 V110" marker-end="url(#mech-ah)"/><text class="t" x="220" y="225" text-anchor="middle">pipe not full</text>
+</svg>
+<figcaption>Constants from draft-ietf-ccwg-bbr-06 (July 2026). g = pacing_gain; numbers inside ProbeBW boxes are pacing gains (UP also raises cwnd_gain to 2.25).</figcaption>
+</figure>
+<p>Constants from the current spec (<a href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06" target="_blank" rel="noopener">draft-ietf-ccwg-bbr-06</a>, July 2026):</p>
+<table>
+<thead><tr><th>State</th><th>pacing_gain</th><th>cwnd_gain</th><th>notes</th></tr></thead>
+<tbody>
+<tr><td>Startup</td><td>2.77 (4 ln 2)</td><td>2</td><td>v1 used 2/ln2 = 2.885 for both</td></tr>
+<tr><td>Drain</td><td>0.5</td><td>2</td><td>v1 used ln2/2 = 0.347</td></tr>
+<tr><td>ProbeBW_DOWN</td><td>0.90</td><td>2</td><td>v1's 0.75 phase</td></tr>
+<tr><td>ProbeBW_CRUISE</td><td>1.0</td><td>2</td><td>inflight ≤ 0.85·inflight_longterm</td></tr>
+<tr><td>ProbeBW_REFILL</td><td>1.0</td><td>2</td><td>one round to refill the pipe</td></tr>
+<tr><td>ProbeBW_UP</td><td>1.25</td><td>2.25</td><td>ends on loss &gt;2% or bw plateau</td></tr>
+<tr><td>ProbeRTT</td><td>1.0</td><td>0.5</td><td>≥200 ms, at most every 5 s</td></tr>
+</tbody>
+</table>
+<p>Other constants: <code>LossThresh = 2%</code>, <code>Beta = 0.7</code> (multiplicative cut on loss), <code>Headroom = 0.15</code>, <code>MinPipeCwnd = 4·SMSS</code>, <code>MinRTTFilterLen = 10 s</code>, <code>StartupFullLossCnt = 6</code>.</p>
+
+<h3>Step 5 — what v2/v3 add: inflight bounds</h3>
+<p>v1 had one model, (bw, rtt). v2/v3 add <b>long-term and short-term bounds</b>:</p>
+<ul>
+<li><code>inflight_longterm</code> (previously <code>inflight_hi</code>) is the largest inflight that did <i>not</i> cause loss &gt;2% or ECN above threshold. It is learned in ProbeBW_UP.</li>
+<li><code>bw_shortterm</code> / <code>inflight_shortterm</code> (previously <code>*_lo</code>) are cut by β = 0.7 per round with loss and recover in REFILL/UP.</li>
+</ul>
+<p>So in CRUISE, v3 deliberately keeps inflight at 85% of the known-safe ceiling (<code>Headroom = 0.15</code>) to leave room for other flows.</p>
+
+<h3>Step 6 — when to probe again</h3>
+<p>v3 doesn't probe on a fixed 8-RTT cycle. It waits <code>T_probe = min(T_bbr, T_reno)</code>:</p>
+<ul>
+<li><code>T_bbr</code> is random in <b>2–3 s</b> wall clock;</li>
+<li><code>T_reno = min(BDP in packets, 62 or 63)</code> round trips, chosen randomly between 62 and 63.</li>
+</ul>
+<p>So on a small-BDP path BBR probes about as often as Reno's sawtooth would. On a huge-BDP path it probes every 2–3 s, which is much faster than Reno, whose cycle there takes minutes. (Draft §5.3.3.8.)</p>
+
+<script>(function(){
+var $=function(id){return document.getElementById(id);};
+var steps=[
+ {t:'0.0',st:'STARTUP',q:0,bw:'0.00',pace:'gain 2.885',tx:'<b>Start.</b> No model yet. BBR sends an initial window of 10 packets and paces at 2.885 × a nominal rate. Nothing is queued.'},
+ {t:'0.1',st:'STARTUP',q:1,bw:'2.96',pace:'gain 2.885',tx:'<b>Exponential search.</b> Each ACK gives a delivery-rate sample. max_bw reads 2.96 Mbit/s and the send rate roughly doubles every round.'},
+ {t:'0.2',st:'STARTUP',q:72,bw:'11.43',pace:'gain 2.885',tx:'<b>Overshoot.</b> Pacing is now well above the 12 Mbit/s link, so 72 packets pile up. That queue is the price of finding BtlBw in log₂(BDP) rounds.'},
+ {t:'0.3',st:'STARTUP',q:78,bw:'12.09',pace:'gain 2.885',tx:'<b>Plateau.</b> max_bw stops growing at ~12.1 Mbit/s. cwnd = 2.885 × BDP now limits inflight, so the queue stops growing at ~78.'},
+ {t:'0.4',st:'STARTUP',q:78,bw:'12.09',pace:'gain 2.885',tx:'<b>Full pipe detected.</b> Three rounds with &lt;25% bandwidth growth. BBR concludes BtlBw ≈ 12 Mbit/s, so BDP = 12 Mbit/s × 40 ms = 40 packets.'},
+ {t:'0.5',st:'DRAIN',q:71,bw:'12.09',pace:'gain 0.347',tx:'<b>Drain.</b> Pacing drops to 0.347 × BtlBw (v1, = ln2/2; v3 uses 0.5) so the link empties the queue faster than BBR refills it.'},
+ {t:'0.6',st:'PROBE_BW',q:1,bw:'12.09',pace:'gain 1.0',tx:'<b>Cruise.</b> inflight ≤ BDP, so BBR enters ProbeBW and paces at 1.0 × BtlBw. Queue ≈ 1 packet and RTT ≈ RTprop. This is the Kleinrock point.'},
+ {t:'0.9',st:'PROBE_BW',q:9,bw:'12.09',pace:'gain 1.25',tx:'<b>Probe and pay back.</b> One RTprop at 1.25 × builds ~9 packets of queue (no new bandwidth showed up). The next RTprop at 0.75 × drains it (t = 1.0 s: queue 3). Average gain = 1.0.'}
+];
+var si=0;
+function rs(){var s=steps[si];$('mech-n').textContent='STEP '+(si+1)+' / '+steps.length;$('mech-state').textContent=s.st;$('mech-pace').textContent=s.pace;
+ $('mech-q').setAttribute('width',Math.max(4,Math.min(260,s.q*260/80)));$('mech-qn').textContent=s.q+' pkts';$('mech-bw').textContent='btlbw est: '+s.bw+' Mbit/s';$('mech-t').textContent='t = '+s.t+' s';
+ $('mech-text').innerHTML=s.tx;$('mech-prev').disabled=si===0;$('mech-next').disabled=si===steps.length-1;}
+$('mech-prev').onclick=function(){if(si>0){si--;rs();}};
+$('mech-next').onclick=function(){if(si<steps.length-1){si++;rs();}};
+rs();
+})();</script>

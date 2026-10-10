@@ -1,0 +1,35 @@
+<p><b>What it is.</b> BBR (Bottleneck Bandwidth and Round-trip propagation time) is a sender-side congestion control algorithm from Google (Cardwell, Cheng, Gunn, Hassas Yeganeh, Jacobson, 2016). It keeps an explicit model of the path, made of a max-filtered delivery rate and a min-filtered RTT. It sets a <b>pacing rate</b> from that model and uses cwnd only as a safety cap. It does not use loss as the main signal.</p>
+<p><b>Why it exists.</b> Loss-based CC has two problems at the ends of the buffer range. With <b>deep buffers</b> it fills them, so a 40 ms path becomes hundreds of ms or seconds. With <b>shallow buffers or random loss</b> it reads a 1% non-congestive loss rate as congestion and collapses. Google's B4 WAN ran into the second problem: BBR's throughput was <b>2–25× CUBIC's</b> there, and on one US–Europe path BBR sustained 2 Gbit/s where CUBIC got 15 Mbit/s (<b>133×</b>). On YouTube, BBR cut <b>median RTT by 53% globally and &gt;80% in the developing world</b> (<a href="https://web.stanford.edu/class/cs244/papers/bbr.pdf" target="_blank" rel="noopener">ACM Queue 2016</a>).</p>
+<p><b>Where it's used.</b></p>
+<table>
+<thead><tr><th>System</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td>Google B4 WAN</td><td>All B4 TCP traffic on BBR since 2016. BBRv3 is now CC for all Google-internal WAN traffic (<a href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00" target="_blank" rel="noopener">IETF 119 slides</a>)</td></tr>
+<tr><td>google.com + YouTube</td><td>BBRv3 is the TCP CC for all public-Internet traffic. QUIC v3 was in A/B tests as of March 2024 (same slides)</td></tr>
+<tr><td>Linux kernel</td><td><code>tcp_bbr.c</code> (BBRv1) mainline since 4.9 (2016). v3 lives out of tree in <a href="https://github.com/google/bbr/blob/v3/README.md" target="_blank" rel="noopener">google/bbr <code>v3</code></a></td></tr>
+<tr><td>AWS CloudFront</td><td>BBR rolled out March–April 2019. Up to 22% higher aggregate throughput (<a href="https://aws.amazon.com/blogs/networking-and-content-delivery/tcp-bbr-congestion-control-with-amazon-cloudfront/" target="_blank" rel="noopener">AWS blog</a>)</td></tr>
+<tr><td>Dropbox edge</td><td>Measured BBRv2 vs v1 vs CUBIC. v2 had 4× lower loss than v1 but still ~2× CUBIC's (<a href="https://dropbox.tech/infrastructure/evaluating-bbrv2-on-the-dropbox-edge-network" target="_blank" rel="noopener">Dropbox tech blog, 2019</a>)</td></tr>
+<tr><td>QUIC stacks</td><td>Google QUICHE (Chromium/Envoy), Meta mvfst and Cloudflare quiche all ship BBR variants in user space</td></tr>
+<tr><td>Verizon Media CDN</td><td>Client-facing gain of 6–8%, but <b>~50% regression on PoP-to-PoP</b> links from RTT unfairness. Kept CUBIC inside the DC (<a href="https://blog.apnic.net/2019/11/01/bbr-evaluation-at-a-large-cdn/" target="_blank" rel="noopener">APNIC 2019</a>)</td></tr>
+</tbody>
+</table>
+<p><b>How it's used.</b></p>
+<pre><code class="language-bash"># system-wide (Linux ≥ 4.9; ≥ 4.13 paces inside TCP if fq absent)
+sysctl -w net.core.default_qdisc=fq
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+
+# per socket
+setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, "bbr", 3);
+
+# inspect live model
+ss -tin dst :443
+#  ... bbr:(bw:160Mbps,mrtt:0.073,pacing_gain:2.88672,cwnd_gain:2.88672) ...
+</code></pre>
+<p><code>bw</code> is the BtlBw estimate and <code>mrtt</code> is the RTprop estimate. A <code>pacing_gain</code> of 2.88672 (= 2/ln2) means the flow is still in Startup. There are no tunables in mainline. The constants are in the source.</p>
+<div class="two">
+<div class="use"><b>Use it</b>
+<p>Server → Internet clients, especially long RTT, lossy (cellular, Wi-Fi, intercontinental), or deep-buffered last miles. Bulk transfer over a WAN with some random loss. Latency-sensitive services co-hosted with bulk traffic on a bloated link.</p></div>
+<div class="skip"><b>Skip it / be careful</b>
+<p>Intra-DC or PoP-to-PoP fabric where flows with very different RTTs share a shallow switch buffer (v1 RTT unfairness). Shallow buffers where you care about other tenants' retransmits (v1 ignores loss). Links behind token-bucket policers or heavy ACK aggregation, unless you test first.</p></div>
+</div>
+<p><b>Who should care.</b> Edge/CDN and video infra engineers (it decides QoE). Backend people debugging p99 on long-haul links. Network ops seeing their CUBIC customers starved. QUIC implementers, since BBR lives in user space there. Researchers in CC fairness.</p>

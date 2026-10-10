@@ -1,0 +1,8 @@
+<ul>
+<li><b>cwnd (congestion window):</b> the cap on unacknowledged bytes in flight, set by the sender. (<a href="https://www.rfc-editor.org/rfc/rfc5681" target="_blank" rel="noopener">RFC 5681</a>)</li>
+<li><b>Loss-based CC:</b> Reno/CUBIC grow cwnd until a packet drops, then multiply it by β (0.5 for Reno, 0.7 for CUBIC). (<a href="https://www.rfc-editor.org/rfc/rfc9438" target="_blank" rel="noopener">RFC 9438 (CUBIC)</a>)</li>
+<li><b>BDP (bandwidth-delay product):</b> bottleneck rate × base RTT, the number of bytes needed to keep the pipe full. (<a href="https://queue.acm.org/detail.cfm?id=3022184" target="_blank" rel="noopener">ACM Queue BBR paper</a>)</li>
+<li><b>Bufferbloat:</b> oversized FIFO buffers that loss-based CC fills, which adds hundreds of ms of queueing delay. (<a href="https://www.bufferbloat.net/" target="_blank" rel="noopener">bufferbloat.net</a>)</li>
+<li><b>Pacing:</b> spacing packets out at a target rate instead of sending a burst whenever cwnd opens. Linux does it in the <code>fq</code> qdisc or inside TCP. (<a href="https://fasterdata.es.net/host-tuning/linux/recent-tcp-enhancements/bbr-tcp/" target="_blank" rel="noopener">fasterdata BBR notes</a>)</li>
+<li><b>ECN:</b> routers set a CE bit instead of dropping. The receiver echoes it back. (<a href="https://www.rfc-editor.org/rfc/rfc3168" target="_blank" rel="noopener">RFC 3168</a>)</li>
+</ul>

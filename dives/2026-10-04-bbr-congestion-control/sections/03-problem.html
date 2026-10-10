@@ -1,0 +1,72 @@
+<style>
+#pr-klein .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+#pr-klein svg{width:100%;height:auto;display:block}
+#pr-klein .band{fill:var(--hl);opacity:.7}
+#pr-klein .ax{stroke:var(--line);stroke-width:1.2}
+#pr-klein .curve{fill:none;stroke:var(--accent);stroke-width:2.5}
+#pr-klein .bad{stroke:var(--bad)}
+#pr-klein .ok-dot{fill:var(--ok)}
+#pr-klein .bad-dot{fill:var(--bad)}
+#pr-klein .cur{fill:var(--accent2);stroke:var(--panel);stroke-width:2}
+#pr-klein .lbl{font:11px system-ui,sans-serif;fill:var(--mute)}
+#pr-klein .verdict{font:13px ui-monospace,monospace;color:var(--ink);margin-top:6px;min-height:1.4em}
+</style>
+<p>Any path has one slowest link, the bottleneck, with rate <b>BtlBw</b>, and a propagation RTT <b>RTprop</b>. There are three operating regions as inflight grows:</p>
+<pre><code>delivery rate                          RTT
+   ^        ┌────────────── BtlBw        ^                    /  slope 1/BtlBw
+   │       /                             │                   /
+   │      /  app-  │ bw-   │ buffer-     │ RTprop __________/
+   │     /  limited│limited│ limited     │                  │
+   │    /          │       │ (loss)      │                  │
+   └───/───────────┴───────┴────► inflight└──────────────────┴────────► inflight
+              BDP=BtlBw·RTprop   BDP+BufSize            BDP
+                  ▲ Kleinrock optimum         ▲ loss-based CC operates here
+</code></pre>
+<ul>
+<li>Below BDP, delivery rate = inflight / RTprop and RTT = RTprop.</li>
+<li>Between BDP and BDP + buffer, delivery rate = BtlBw and RTT grows linearly (queueing).</li>
+<li>Above BDP + buffer, drops.</li>
+</ul>
+<p>Loss-based CC finds the right edge of the middle region, where loss starts. Kleinrock (1979) showed the optimum for each connection is the <b>left</b> edge: max throughput at min delay. Jaffe (1981) showed no distributed algorithm can converge to that point exactly, because a single measurement can't tell BtlBw and RTprop apart. BBR's answer is to estimate them <b>at different times</b> and combine them.</p>
+<p>Size of the gap: a 12 Mbit/s, 40 ms path has BDP = 40 packets of 1500 B. Home routers often buffer hundreds of packets. At 320 packets (8 BDP), Reno's steady-state queue delay averages in the hundreds of ms. Our toy sim gives a <b>221 ms median RTT for Reno vs 55.5 ms for BBR at the same 11.9 Mbit/s goodput</b> (see the hands-on card).</p>
+
+<div class="widget" id="pr-klein" role="group" aria-label="Kleinrock slider">
+<div class="cols">
+<svg viewBox="0 0 320 200" role="img" aria-label="Delivery rate versus inflight">
+ <rect class="band" x="140" y="20" width="100" height="150"/>
+ <line class="ax" x1="40" y1="170" x2="310" y2="170"/><line class="ax" x1="40" y1="20" x2="40" y2="170"/>
+ <polyline class="curve" points="40,170 140,50 240,50"/><line class="bad" x1="240" y1="50" x2="240" y2="170" stroke-dasharray="4 4"/>
+ <text class="lbl" x="44" y="40">delivery rate</text><text class="lbl" x="250" y="46">BtlBw</text>
+ <text class="lbl" x="122" y="186">BDP</text><text class="lbl" x="214" y="186">BDP+buf</text>
+ <text class="lbl" x="250" y="110" style="fill:var(--bad)">loss</text>
+ <circle class="ok-dot" cx="140" cy="50" r="5"/><circle class="bad-dot" cx="240" cy="50" r="5"/>
+ <circle id="pr-kd1" class="cur" cx="100" cy="98" r="6"/>
+</svg>
+<svg viewBox="0 0 320 200" role="img" aria-label="RTT versus inflight">
+ <rect class="band" x="140" y="20" width="100" height="150"/>
+ <line class="ax" x1="40" y1="170" x2="310" y2="170"/><line class="ax" x1="40" y1="20" x2="40" y2="170"/>
+ <polyline class="curve" points="40,140 140,140 240,40"/><line class="bad" x1="240" y1="40" x2="240" y2="170" stroke-dasharray="4 4"/>
+ <text class="lbl" x="44" y="34">RTT</text><text class="lbl" x="44" y="134">RTprop</text>
+ <text class="lbl" x="122" y="186">BDP</text><text class="lbl" x="214" y="186">BDP+buf</text>
+ <circle class="ok-dot" cx="140" cy="140" r="5"/><circle class="bad-dot" cx="240" cy="40" r="5"/>
+ <circle id="pr-kd2" class="cur" cx="100" cy="140" r="6"/>
+</svg>
+</div>
+<label for="pr-kx">Inflight: <b id="pr-kxv">0.6 × BDP</b></label>
+<input id="pr-kx" type="range" min="0.05" max="2.05" step="0.05" value="0.6" aria-describedby="pr-kout" style="width:100%">
+<div class="verdict" id="pr-kout" aria-live="polite"></div>
+<p class="mini">Path: BtlBw 12 Mbit/s, RTprop 40 ms, buffer 1 BDP. Green dot = BBR's target (Kleinrock optimum). Red dot = where loss-based CC finds its signal. Shaded = queue building. Drag the slider.</p>
+</div>
+
+<script>(function(){
+var $=function(id){return document.getElementById(id);};
+var kx=$('pr-kx');
+function klein(){var x=+kx.value,B=12,R=40,px=Math.min(40+x*100,300);
+ var rate=Math.min(x,1)*B,rtt=Math.max(1,x)*R,loss=x>2;
+ $('pr-kd1').setAttribute('cx',px);$('pr-kd1').setAttribute('cy',x<=1?170-120*x:50);
+ $('pr-kd2').setAttribute('cx',px);$('pr-kd2').setAttribute('cy',x<=1?140:Math.max(40,140-100*(x-1)));
+ $('pr-kxv').textContent=x.toFixed(2)+' × BDP ('+Math.round(x*40)+' pkts)';
+ var pw=(rate/rtt*1000).toFixed(0);
+ $('pr-kout').textContent=(loss?'Buffer overflow → drops. ':'')+'delivery '+rate.toFixed(1)+' Mbit/s · RTT '+Math.round(Math.min(rtt,80))+' ms · power '+(loss?'—':pw)+(Math.abs(x-1)<0.03?'  ← Kleinrock optimum (BBR target)':x>1&&!loss?'  · queue adds delay, no throughput':x<1?'  · pipe not full':'');}
+if(kx){kx.addEventListener('input',klein);klein();}
+})();</script>

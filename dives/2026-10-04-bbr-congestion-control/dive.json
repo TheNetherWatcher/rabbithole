@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "title": "BBR congestion control: modeling the pipe instead of waiting for loss (v1 → v3)",
+    "short": "BBR congestion control",
+    "subject": "Computer science",
+    "domain": "Networking/protocols",
+    "topic": "BBR: BtlBw/RTprop model, pacing-gain state machine, v2/v3 loss + ECN bounds, coexistence with CUBIC",
+    "depth": "hard",
+    "date": "2026-10-04"
+  },
+  "hero": "img/hero.svg",
+  "tldr": "BBR estimates the path's bottleneck bandwidth (<b>BtlBw</b>) and propagation delay (<b>RTprop</b>), then paces packets at the rate the bottleneck drains, so the queue stays near empty. It probes up 25% and back down, and re-measures RTprop every few seconds. <b>v1</b> ignored loss; <b>v3</b> bounds loss at 2% per round and is what Google runs on public traffic.",
+  "why": "<b>Why it matters:</b> loss-based CUBIC fills deep buffers and adds hundreds of ms of delay, while BBR keeps the queue near one BDP. Google runs v3 on public traffic and Linux mainline ships v1, so its fairness with CUBIC matters now.",
+  "stats": [
+    {
+      "v": "221 ms",
+      "l": "median RTT, Reno, 8×BDP buffer (sim)"
+    },
+    {
+      "v": "55.5 ms",
+      "l": "median RTT, BBRv1-like, same link (sim)"
+    },
+    {
+      "v": "2.77",
+      "l": "Startup pacing gain, 4 ln 2"
+    },
+    {
+      "v": "40%",
+      "l": "BBR's fixed share vs CUBIC (Ware et al. 2019)"
+    },
+    {
+      "v": "2%",
+      "l": "per-round loss bound in BBRv3"
+    }
+  ],
+  "cards": [
+    {
+      "id": "plain",
+      "group": "Plain English",
+      "tone": "plain",
+      "kicker": "In everyday words",
+      "title": "Send at the booth's speed and the parking lot stays nearly empty",
+      "visual": "img/plain.svg",
+      "file": "sections/00-plain.html",
+      "brief": "<p>Cars queue at a toll booth whenever they arrive too fast. BBR watches how fast cars leave the booth and how short the empty-lot trip is, then sends at the matching pace so the lot stays nearly empty.</p><p>Same 12 Mbit/s, but the café ping stays near 55 ms instead of 220 ms.</p>"
+    },
+    {
+      "id": "ctx",
+      "group": "Context",
+      "kicker": "§1 · Prerequisites",
+      "title": "Six terms cover the whole algorithm",
+      "visual": "img/ctx.svg",
+      "file": "sections/01-context.html",
+      "brief": "<ul><li><b>cwnd</b>: cap on unacknowledged bytes in flight.</li><li><b>Loss-based CC</b>: grow until a drop, then cut (×0.5 Reno, ×0.7 CUBIC).</li><li><b>BDP</b>: rate × RTT, the bytes needed to fill the pipe.</li><li><b>Bufferbloat</b>: oversized buffers that loss-based CC fills.</li><li><b>Pacing</b>: spacing packets at a target rate.</li><li><b>ECN</b>: routers mark instead of drop.</li></ul>"
+    },
+    {
+      "id": "world",
+      "kicker": "§1b · Real-world context",
+      "title": "Google and YouTube run it, Linux ships it, one sysctl away",
+      "visual": "img/world.svg",
+      "file": "sections/01b-real-world.html",
+      "brief": "<p>Google's B4 WAN and YouTube run BBRv3, Linux mainline still ships BBRv1 (since 4.9), and AWS CloudFront saw up to <b>22%</b> more aggregate throughput. Operators switch it on with <code>tcp_congestion_control=bbr</code> and read live state with <code>ss -tin</code>.</p>"
+    },
+    {
+      "id": "onel",
+      "group": "Technical deep dive",
+      "kicker": "§2 · The one-liner",
+      "title": "The one-liner hides five traps, starting with a measurement conflict",
+      "visual": "img/onel.svg",
+      "file": "sections/02-one-liner.html",
+      "brief": "<p>\"Measure bandwidth and min RTT, then pace\" hides five things: you cannot see both at once, gains above and below 1 are required, cwnd still sets the share against CUBIC, v1 ignored loss, and jitter breaks the model.</p>"
+    },
+    {
+      "id": "problem",
+      "kicker": "§3 · The problem",
+      "title": "Loss-based CC fills the buffer, BBR aims for the knee",
+      "visual": "img/problem.svg",
+      "file": "sections/03-problem.html",
+      "brief": "<p>Every path has a bottleneck rate (BtlBw) and a propagation RTT (RTprop). Loss-based CC rides the full-buffer edge. The optimum is the knee at BDP. In the toy sim, Reno's median RTT is <b>221 ms</b> and BBR's is <b>55.5 ms</b> at the same goodput.</p><p class=\"mini\">Interactive Kleinrock slider inside.</p>"
+    },
+    {
+      "id": "model",
+      "kicker": "§4 · Mental model",
+      "title": "Two gauges on one hose: peak flow and fastest transit",
+      "visual": "img/model.svg",
+      "file": "sections/04-mental-model.html",
+      "brief": "<p>A garden hose of unknown width and length: an outflow meter gives the diameter (BtlBw), a dye timer gives the length (RTprop). Set the tap to their product, probe a little wider, then ease off to drain the puddle. The analogy breaks on shared hoses, bursty ACKs and policers.</p>"
+    },
+    {
+      "id": "mech",
+      "kicker": "§5 · Mechanism, traced",
+      "title": "Startup overshoots, drain repairs, then probe and pay back",
+      "visual": "img/mech.svg",
+      "file": "sections/05-mechanism.html",
+      "brief": "<p>Startup grows the send rate by gain 2.77 per round and overshoots to ~72 packets of queue before the plateau near 12 Mbit/s. Drain empties it. ProbeBW then cruises at gain 1.0 and alternates 1.25 and 0.75, so the average gain is 1.0.</p><p class=\"mini\">8-step walkthrough and state machine inside.</p>"
+    },
+    {
+      "id": "math",
+      "kicker": "§6 · The math",
+      "title": "The filters converge from one side, and the gains average to 1",
+      "visual": "img/math.svg",
+      "file": "sections/06-math.html",
+      "brief": "<p>Min RTT converges to R from above and max bandwidth to B from below, so each filter is biased only toward the truth. Startup gain is 4 ln 2 ≈ 2.77. Against 1% loss, BBR must probe within about <b>137</b> rounds, which is why v3 picks 62–63.</p><p class=\"mini\">Shares plot inside.</p>"
+    },
+    {
+      "id": "why",
+      "kicker": "§7 · Why it works",
+      "title": "Two filters on two timescales, with pacing as the control",
+      "visual": "img/why.svg",
+      "file": "sections/07-why-it-works.html",
+      "brief": "<p>Bandwidth changes with competition, so it gets a short max window. Propagation delay changes with routing, so it gets a long min window. Pacing sets the rate. Remove the 1.25 probe and BBR never finds new capacity. Remove ProbeRTT and a route change goes unnoticed.</p>"
+    },
+    {
+      "id": "knobs",
+      "kicker": "§8 · Design knobs and alternatives",
+      "title": "Probe timers and gains trade speed for fairness",
+      "visual": "img/knobs.svg",
+      "file": "sections/08-knobs.html",
+      "brief": "<p>v3 raises the DOWN gain from 0.75 to 0.9 and bounds loss at 2% per round. Alternatives: CUBIC + HyStart++ for the default, Copa and Vegas for low queues that lose to buffer-fillers, learned controllers, and L4S, which moves the signal into the network.</p><p class=\"mini\">Per-CCA fairness plot inside.</p>"
+    },
+    {
+      "id": "breaks",
+      "kicker": "§9 · Where it breaks",
+      "title": "BBR is not delay-based, and its failures are fairness failures",
+      "visual": "img/breaks.svg",
+      "file": "sections/09-where-it-breaks.html",
+      "brief": "<p>Shallow buffers cost v1 <b>324 drops</b> against Reno's 8 in the sim. BBR takes a fixed ~40% against CUBIC. RTT unfairness persists in v3. With ECN on, one BBRv3 flow took ~99% against five CUBIC flows.</p><p class=\"mini\">Queue-trace figure inside.</p>"
+    },
+    {
+      "id": "wild",
+      "kicker": "§10 · In the wild",
+      "title": "Shipped BBR is v3 at Google and v1 in mainline Linux",
+      "visual": "img/wild.svg",
+      "file": "sections/10-in-the-wild.html",
+      "brief": "<p>Google's public traffic runs v3, while Linux mainline still ships v1. Inside datacenters BBR.Swift replaces it. QUIC stacks run BBR in user space, where timer accuracy matters. Verizon saw a ~50% regression on PoP-to-PoP links and kept CUBIC there.</p><p class=\"mini\">BBRv3 queue traces inside.</p>"
+    },
+    {
+      "id": "frontier",
+      "group": "Research edge",
+      "kicker": "§11 · Frontier",
+      "title": "v3 kept the CUBIC unfairness, and the fixes are still open",
+      "visual": "img/frontier.svg",
+      "file": "sections/11-frontier.html",
+      "brief": "<p>Independent 2024–2026 studies found v3 keeps v1's unfairness to CUBIC, and ECN makes it worse. A 2025 IFIP study says no model fits v3 yet. FRCC (NSDI 2026) aims for provable starvation-freedom, and the IETF is standardizing v3 as an Experimental draft.</p><p class=\"mini\">Remedy comparison inside.</p>"
+    },
+    {
+      "id": "open",
+      "kicker": "§11b · Open problems",
+      "title": "Fair share, jitter and a model of v3 remain unsolved",
+      "visual": "img/open.svg",
+      "file": "sections/11b-open-problems.html",
+      "brief": "<p>Four questions have no accepted answer: what \"fair\" means between different CCAs (Jain's index or harm?), coexistence with CUBIC in shallow buffers, delay signals that survive jitter without losing low delay, and an analytical model of v3.</p>"
+    },
+    {
+      "id": "lineage",
+      "kicker": "§12 · Lineage",
+      "title": "From Kleinrock's 1979 power metric to the 2026 IETF draft",
+      "visual": "img/lineage.svg",
+      "file": "sections/12-lineage.html",
+      "brief": "<p>Kleinrock set the optimum at BDP in 1979. Jacobson's ACK clock (1988) and CUBIC (2008) followed. BBRv1 shipped in 2016, BBRv3 in 2023, and BBR became an IETF working-group draft (draft-ietf-ccwg-bbr-06) in 2026.</p>"
+    },
+    {
+      "id": "hands",
+      "group": "Practice and self-test",
+      "kicker": "§13 · Hands-on (≤30 min)",
+      "title": "Drag the buffer: Reno's delay follows it, BBR's does not",
+      "visual": "img/hands.svg",
+      "file": "sections/13-hands-on.html",
+      "brief": "<p>Run the toy simulator and move the buffer. Reno's RTT tracks it (221 → 670 ms) while BBR stays near 55 ms. At 0.5 BDP, the BBRv1-like sender drops 324 packets against Reno's 8, for 5% more goodput.</p><p class=\"mini\">Interactive Reno vs BBR simulator inside.</p>"
+    },
+    {
+      "id": "quiz",
+      "builtin": "quiz",
+      "kicker": "§14 · Question ladder",
+      "title": "Test yourself",
+      "visual": "img/quiz.svg",
+      "brief": "<p>19 questions on mechanism, reasons, counterfactuals, adversarial cases, connections and open problems. Answers reveal on click.</p>"
+    },
+    {
+      "id": "next",
+      "group": "Further",
+      "kicker": "§15 · Go deeper next",
+      "title": "Three threads to pull next",
+      "visual": "img/next.svg",
+      "file": "sections/15-go-deeper.html",
+      "brief": "<p>L4S and DualPI2 for network-side ECN, QUIC ACK-delay and <code>extra_acked</code> sampling, and Swift and HPCC for datacenter congestion control.</p>"
+    },
+    {
+      "id": "sources",
+      "kicker": "Sources",
+      "title": "Core papers, the IETF draft and the v3 measurement studies",
+      "visual": "img/sources.svg",
+      "file": "sections/99-sources.html",
+      "brief": "<p>The 2016 ACM Queue paper, draft-ietf-ccwg-bbr-06, Ware et al. (IMC 2019), Arun et al. (SIGCOMM 2022), the 2024–2026 v3 studies, and Google's and Linux's code.</p>"
+    }
+  ],
+  "questions": [
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "When an ACK arrives, exactly which two intervals does BBR compare to compute a delivery-rate sample, and why the max of the two?",
+      "a": "<code>send_elapsed = P.sent_time − P.first_sent_time</code> (how long the sender took to send the flight) and <code>ack_elapsed = now − P.delivered_time</code> (how long the ACKs for it took to come back). The rate is <code>Δdelivered / max(send_elapsed, ack_elapsed)</code>. ACK compression or aggregation can make <code>ack_elapsed</code> artificially short, and a sender burst can make <code>send_elapsed</code> short. The bottleneck can't deliver faster than either one, so the larger interval gives the conservative, unbiased-low estimate."
+    },
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "What happens to max_bw when the application goes idle for 2 s, then resumes?",
+      "a": "During idle, any samples are marked app-limited and can't lower <code>max_bw</code>. If the idle lasts longer than the filter window (10 rounds in v1), the old peak expires only when it is replaced. Implementations keep the last max because app-limited samples are ignored unless they're higher. On restart BBR paces at the old <code>max_bw</code>, not slow-start. Linux also has a \"restart from idle\" path that paces at <code>pacing_gain=1·bw</code> so it doesn't dump a burst."
+    },
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "Walk through what ProbeBW_UP does in v3 if loss reaches 3% halfway through the phase.",
+      "a": "The loss rate for the round crosses <code>LossThresh = 2%</code>. BBR sets <code>inflight_longterm</code> to the inflight at which loss crossed the threshold (with a correction to estimate where it crossed 2%), sets <code>prev_probe_too_high</code>, exits UP to DOWN, and cuts the short-term bounds by β = 0.7. The next UP is a short \"precautionary\" probe until it shows no excess loss."
+    },
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "Why does ProbeRTT trigger on \"min_rtt not refreshed\" rather than on a fixed timer?",
+      "a": "If the flow naturally observed a new minimum (for example, the app was idle and the queue emptied, or another flow left), there's no need to dip. Triggering only when <code>min_rtt</code> hasn't been refreshed for <code>ProbeRTTInterval</code> (5 s in v3) avoids the throughput cost for flows that see the true RTprop for free. It also tends to synchronize competing BBR flows: they all see the same queue, so they all go stale and dip together, and that dip empties the queue for everyone."
+    },
+    {
+      "type": "Why",
+      "sec": "math",
+      "q": "Why is the Startup gain ~2.77–2.89 and not 2?",
+      "a": "The bandwidth estimate lags: it's the delivery rate of data sent about a round ago, averaged over a round, and reported a round later. For the send rate to double each round, the gain must correct for that lag. Integrating an exponential <code>r₀2^{t/R}</code> over <code>[t−2R, t−R]</code> gives <code>r(t)/(4 ln 2)</code>, so g = 4 ln 2 ≈ 2.77. Gain 2 would grow more slowly than 2× per round, roughly 1.4–1.5×, and take many more rounds to find BtlBw."
+    },
+    {
+      "type": "Why",
+      "sec": "why",
+      "q": "Why does BBR need a cwnd at all if it paces?",
+      "a": "Pacing is open-loop between ACKs. If the path stalls (ACK loss, a delay spike, ACK aggregation gaps) a pure pacer keeps sending at <code>max_bw</code> with no feedback. cwnd = 2·BDP bounds inflight so that a stall costs at most one extra BDP of queue. Against CUBIC, that cap is what sets BBRv1's share."
+    },
+    {
+      "type": "Why",
+      "sec": "knobs",
+      "q": "Why does v3 use 0.9 in DOWN instead of v1's 0.75?",
+      "a": "The draft calls 0.9 \"the minimum pacing_gain that allows bandwidth-based convergence to approximate fairness\", given UP = 1.25. It also gives up less throughput during DOWN. v3 no longer depends on DOWN to empty the queue fully. It uses inflight bounds and <code>Headroom</code> (CRUISE at 0.85 × inflight_longterm) to keep queues low."
+    },
+    {
+      "type": "Why",
+      "sec": "math",
+      "q": "Why 62–63 rounds for T_reno and not, say, 200?",
+      "a": "Two constraints. With much fewer than ~60 rounds between probes (each probe may cause loss), Reno/CUBIC flows can't regrow enough to carry 4K video. With too many rounds, BBR can't tolerate 1% random loss: <code>(0.99)^N · 4 ≥ 1</code> requires N ≤ ~137. 62–63 satisfies both, and the randomization avoids synchronization."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "knobs",
+      "q": "If you made the RTprop filter 60 s instead of 10 s, what breaks?",
+      "a": "ProbeRTT would happen much less often (good for throughput), but a route change that <i>raises</i> propagation delay would go unnoticed for up to 60 s. BDP would be underestimated and BBR would be cwnd-limited below capacity. Competing BBR flows would also stay on standing-queue-inflated estimates longer, and multi-flow queue drains would be rarer."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "why",
+      "q": "If cwnd_gain were 1 instead of 2, what would happen on a Wi-Fi link with ACK aggregation?",
+      "a": "ACKs arrive in clumps separated by gaps. With cwnd = 1·BDP, the sender exhausts cwnd during a gap and idles until the next clump, so throughput drops well below BtlBw. That is exactly the problem behind the Wi-Fi patches. Gain 2 plus <code>extra_acked</code> gives enough headroom to keep sending through gaps."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "breaks",
+      "q": "What if every flow on the Internet ran BBRv1, so there is no CUBIC at all? Does bufferbloat vanish?",
+      "a": "The standing queue would mostly vanish: each flow paces near its share and probes ±25%. But not entirely. Multiple v1 flows each overestimate their share by a bit, and studies found BBR-vs-BBR queues of about 1–2 BDP in deep buffers, plus RTT unfairness and massive loss in shallow buffers. v2/v3 bounds fix much of that."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "How could an on-path middlebox make a BBR sender wildly overestimate bandwidth?",
+      "a": "Hold ACKs and release them in a burst (ACK compression or aggregation) so a short <code>ack_elapsed</code> interval inflates samples. Or ACK data optimistically before it is delivered (a split-TCP or ACK-spoofing proxy). <code>max(send_elapsed, ack_elapsed)</code> and <code>extra_acked</code> bound but don't eliminate the first. The second fools every CC."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "Construct a scenario where two BBR flows on the same bottleneck get a 10:1 split.",
+      "a": "Give the flows very different RTprops on a deep-buffer bottleneck: say 10 ms vs 200 ms. Each caps inflight at 2·its own BDP. The long-RTT flow's cap is 20× larger, so it holds most of the queue, and its delivery rate wins in the max filter. PAM 2024 reports this persists in v3. Alternatively, add non-congestive jitter &gt; 2× the equilibrium delay oscillation to one flow's path (the starvation construction)."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "Why does enabling ECN on a classic-AQM router make BBRv3 <i>more</i> unfair to CUBIC?",
+      "a": "v3 reacts to CE like DCTCP: proportionally to the fraction marked. CUBIC reacts to <i>any</i> CE like a loss, so it cuts its window by 30%. A classic AQM marks well before dropping, so CUBIC keeps backing off on marks while v3 trims only a little. Zeynali et al. (ANRW 2024) measured one v3 flow taking &gt;~99% vs five CUBIC flows with ECN on."
+    },
+    {
+      "type": "Connection",
+      "sec": "why",
+      "q": "How does BBR's delivery-rate estimator relate to TCP's ACK clock from Jacobson '88?",
+      "a": "Jacobson's ACK clock says ACK arrivals are paced by the bottleneck, so sending one packet per ACK self-clocks to the bottleneck rate. BBR measures that clock explicitly (Δdelivered/Δt), filters it with a max, and replaces ACK-clocked sending with timer-driven pacing at that rate. That's why it survives ACK compression better than pure ACK clocking."
+    },
+    {
+      "type": "Connection",
+      "sec": "why",
+      "q": "How is BBR's \"probe up, pay back\" related to CUBIC's concave/convex window curve around W_max?",
+      "a": "CUBIC grows concavely toward the last W_max (cautious near the known ceiling), then convexly beyond it (probing for more). v3's CRUISE at 85% of <code>inflight_longterm</code> then REFILL/UP is the same \"stay below the known-safe ceiling, then periodically probe above it\" idea, with the ceiling learned from loss/ECN rather than from the last drop."
+    },
+    {
+      "type": "Connection",
+      "sec": "frontier",
+      "q": "How does L4S change the problem BBR is trying to solve?",
+      "a": "L4S AQMs mark CE at a very shallow queue threshold with a scalable signal and isolate L4S traffic in its own queue. The sender no longer needs to infer the queue from RTT or probe for bandwidth by overshooting. The network tells it. The BBR question becomes \"how to respond to a scalable ECN signal while sharing with non-L4S flows\", and that is why v3 adopted DCTCP-style ECN."
+    },
+    {
+      "type": "Open",
+      "sec": "open",
+      "q": "Can any sender-only CCA be both starvation-free under jitter and low-delay?",
+      "a": "Unsettled. Arun et al. show delay-convergent CCAs must oscillate by at least half the jitter to avoid starvation, which means some delay floor. FRCC (NSDI 2026) claims provable fairness under jitter by separating flow-count estimation from capacity estimation. Whether that also gives low delay on real Internet paths, and how it coexists with CUBIC, is open."
+    },
+    {
+      "type": "Open",
+      "sec": "open",
+      "q": "What fairness metric should the IETF use to judge whether BBRv3 is \"safe to deploy\"?",
+      "a": "Candidates: Jain's index (simple, ignores duration and harm), max-min fairness (needs to know demand), and \"harm\" (Ware et al. 2019: compare a flow's performance with and without the newcomer, so it's acceptable if you harm others no more than CUBIC harms them). The IETF hasn't standardized one. BBRv3 is on the <i>Experimental</i> track partly for this reason."
+    }
+  ],
+  "figures": {
+    "fig1": {
+      "file": "img/fig/ctrl-fig-bbr-vs-cubic-shares.png",
+      "caption": "Capacity share of BBR (red) and CUBIC (blue) for each split of flows, from 1 vs 9 to 9 vs 1. The model is on top and the testbed below. The shares swing over time and only loosely follow the flow count.",
+      "source": {
+        "cite": "\"Scherrer et al., \\\"A Control-Theoretic Perspective on BBR/CUBIC Congestion-Control Competition\\\", arXiv 2025\"",
+        "url": "https://arxiv.org/abs/2510.22773",
+        "figure": "Fig. 3"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "fig2": {
+      "file": "img/fig/ctrl-fig-bbr1-vs-cubic1-minrtt.png",
+      "caption": "One BBR flow (red) and one CUBIC flow (blue) on the same link. Their shares trade places over a long cycle, and BBR's min-RTT estimate (purple) is refreshed only now and then.",
+      "source": {
+        "cite": "\"Scherrer et al., \\\"A Control-Theoretic Perspective on BBR/CUBIC Congestion-Control Competition\\\", arXiv 2025\"",
+        "url": "https://arxiv.org/abs/2510.22773",
+        "figure": "Fig. 4 (right)"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "fig3": {
+      "file": "img/fig/ctrl-fig-remedies-shares.png",
+      "caption": "Capacity share against CUBIC for standard BBR and two modified variants, with 1 vs 1 (top) and 5 vs 5 (bottom) flows. Random probing lets BBR hold almost the whole link in the 5 vs 5 case.",
+      "source": {
+        "cite": "\"Scherrer et al., \\\"A Control-Theoretic Perspective on BBR/CUBIC Congestion-Control Competition\\\", arXiv 2025\"",
+        "url": "https://arxiv.org/abs/2510.22773",
+        "figure": "Fig. 13"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "fig4": {
+      "file": "img/fig/starlink-fig-per-cca-fairness.png",
+      "caption": "Per-CCA scores under three fairness definitions (fair-share, max-min and proportional-fair), plus the α = 0 throughput share, for downlink (a) and uplink (b). Every BBR version scores above CUBIC on the fair-share bars.",
+      "source": {
+        "cite": "\"De Silva et al., \\\"Unveiling TCP BBR Dominance in Starlink Internet: Experimental Insights and Analysis\\\", arXiv 2026\"",
+        "url": "https://arxiv.org/abs/2607.07133",
+        "figure": "Fig. 14"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "fig5": {
+      "file": "img/fig/starlink-fig-bbrv3-queue.png",
+      "caption": "Bottleneck queue over 300 s for BBRv3 flows in six cities, in dedicated and concurrent runs. The queue repeatedly fills to its 100-packet cap in both.",
+      "source": {
+        "cite": "\"De Silva et al., \\\"Unveiling TCP BBR Dominance in Starlink Internet: Experimental Insights and Analysis\\\", arXiv 2026\"",
+        "url": "https://arxiv.org/abs/2607.07133",
+        "figure": "Fig. 13"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    }
+  }
+}

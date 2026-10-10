@@ -1,0 +1,16 @@
+<div class="callout mis"><b>Misconception: "BBR is delay-based."</b> It isn't. Vegas reacts to RTT <i>rising</i>. BBR uses <i>min</i> RTT as a constant of the path and doesn't back off when RTT rises. That's why v1 kept going under CUBIC's standing queue.</div>
+<div class="callout mis"><b>Misconception: "BBR ignores loss."</b> True only of v1, which looks at loss only for policer detection and recovery. v2/v3 cap the loss rate at 2% per round and cut by β = 0.7.</div>
+<div class="callout mis"><b>Misconception: "BBR needs the fq qdisc."</b> True before Linux 4.13. Since then TCP paces internally via a high-resolution timer. <code>fq</code> is still more efficient with many flows.</div>
+
+<h3>Failure modes</h3>
+<ol>
+<li><b>Shallow buffers (v1).</b> cwnd = 2·BDP with buffer &lt; BDP means constant overflow. Hock, Bless and Zitterbart (ICNP 2017) saw massive loss and unfairness. Our sim shows 324 vs 8 drops.</li>
+<li><b>Deep buffers vs CUBIC (v1).</b> BBR gets a fixed ~40% share regardless of the number of CUBIC flows (Ware 2019). In very deep buffers CUBIC wins, because BBR's inflight cap uses a min_rtt that excludes the standing queue.</li>
+<li><b>RTT unfairness.</b> A longer-RTprop flow has a larger BDP, hence a larger inflight cap and a larger slice of the shared queue. PAM 2024 finds this bias <b>persists in v3 and grows with RTT disparity</b>. This is what bit Verizon's PoP-to-PoP traffic.</li>
+<li><b>ACK aggregation (Wi-Fi, DOCSIS, cellular).</b> ACKs arrive in bursts, so a short interval and an inflated max_bw. Or cwnd = 2·BDP stalls the sender during ACK gaps. The fix is <code>extra_acked</code>, a 10-round max filter of "ACKed more than expected", added to cwnd (<a href="https://blog.apnic.net/2018/04/30/bbr-patches-for-higher-wifi-throughput-and-lower-queuing-delays/" target="_blank" rel="noopener">APNIC 2018</a>).</li>
+<li><b>Token-bucket policers.</b> The bucket gives a burst at line rate, so the max filter sees line rate and then hits ~20% loss at the policed rate. v1 added a separate long-term bandwidth model (<code>lt_bw</code>) to detect this (<a href="https://www.ietf.org/proceedings/97/slides/slides-97-maprg-traffic-policing-in-the-internet-yuchung-cheng-and-neal-cardwell-00.pdf" target="_blank" rel="noopener">IETF 97 policing slides</a>).</li>
+<li><b>ECN + CUBIC.</b> With ECN enabled, <b>one BBRv3 flow takes ~99% of bandwidth against five CUBIC flows</b> (Zeynali et al., ANRW 2024). The paper also says that using RFC-3168 classic marking instead of DCTCP-style shallow marking changes the picture. ECN makes v3 <i>more</i> unfair to CUBIC, not less.</li>
+<li><b>Non-congestive jitter → starvation</b> (§6.7). This one can't be patched away with constants.</li>
+<li><b>Bandwidth drops.</b> The max filter keeps the old peak for its whole window, so BBR overshoots the new capacity until the sample ages out. v1 lost heavily in that window. v2/v3's <code>bw_shortterm</code> cut on loss shortens it.</li>
+</ol>
+<figure data-fig="fig2"></figure>

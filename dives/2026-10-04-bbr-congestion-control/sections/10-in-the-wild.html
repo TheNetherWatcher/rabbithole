@@ -1,0 +1,10 @@
+<ul>
+<li><b>Linux mainline <code>tcp_bbr.c</code></b> is still <b>BBRv1</b> (plus later tweaks like <code>extra_acked</code>). Google's plan since IETF 119 (March 2024) is to replace it in place with v3 because "throughput within 1% of v1 on YouTube" with lower loss. As of the latest public info it has not landed; check upstream for status.</li>
+<li><b>Google production</b> deviates from the paper: v3, not v1, everywhere public. Inside DCs it runs <b>BBR.Swift</b>, which uses network_RTT (excluding receiver delay) as the primary signal.</li>
+<li><b>QUIC stacks</b> run BBR in user space. Pacing precision depends on the event loop timer (Cloudflare quiche issue #514 notes libev/libuv timer accuracy was insufficient for BBR pacing). ACK frequency is under the receiver's control (QUIC ACK-delay), which changes the delivery-rate sampling.</li>
+<li><b>Dropbox (2019, v2 on Linux 5.3 patches):</b> 4× lower loss and 3× lower inflight than v1, but still about 2× CUBIC's loss. Throughput comparable to CUBIC on slow links.</li>
+<li><b>Verizon Media/Edgecast:</b> BBR on client-facing traffic only. Kept CUBIC inside the DC after a ~50% PoP-to-PoP regression.</li>
+<li><b>CloudFront (2019):</b> up to 22% aggregate throughput. Third-party Tutela data saw ~28% in Asia for a 2 MB object.</li>
+</ul>
+<p>Measurements on real paths show how v3 behaves in the wild. The Starlink study logs BBRv3 queue occupancy over 300 s from six cities, in dedicated and concurrent runs. In both, the queue repeatedly fills to its 100-packet cap in bursts, so v3 still drives queues to the limit.</p>
+<figure data-fig="fig5"></figure>

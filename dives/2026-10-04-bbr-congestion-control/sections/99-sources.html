@@ -1,0 +1,35 @@
+<h3>Papers &amp; specs</h3>
+<ul>
+<li>Cardwell et al., "BBR: Congestion-Based Congestion Control", ACM Queue 14(5), 2016 — <a href="https://queue.acm.org/detail.cfm?id=3022184" target="_blank" rel="noopener">queue.acm.org</a> · <a href="https://web.stanford.edu/class/cs244/papers/bbr.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>draft-ietf-ccwg-bbr-06 (July 2026) — <a href="https://datatracker.ietf.org/doc/html/draft-ietf-ccwg-bbr-06" target="_blank" rel="noopener">datatracker</a></li>
+<li>draft-cardwell-iccrg-bbr-congestion-control-02 — <a href="https://datatracker.ietf.org/doc/html/draft-cardwell-iccrg-bbr-congestion-control-02" target="_blank" rel="noopener">datatracker</a></li>
+<li>Ware et al., "Modeling BBR's Interactions with Loss-Based Congestion Control", IMC 2019 — <a href="https://www.cs.cmu.edu/~srini/papers/2019-Ware-imc" target="_blank" rel="noopener">paper</a> · <a href="https://blog.apnic.net/2020/01/24/modelling-bbrs-interactions-with-loss-based-congestion-control/" target="_blank" rel="noopener">APNIC summary</a></li>
+<li>Hock, Bless, Zitterbart, "Experimental Evaluation of BBR Congestion Control", ICNP 2017 — <a href="https://datatracker.ietf.org/meeting/100/materials/slides-100-iccrg-an-experimental-evaluation-of-bbr-congestion-control-00" target="_blank" rel="noopener">slides</a></li>
+<li>Arun, Alizadeh, Balakrishnan, "Starvation in End-to-End Congestion Control", SIGCOMM 2022 — <a href="https://web.stanford.edu/class/cs244/papers/venkat_starvation.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>Scherrer et al., "Model-Based Insights on the Performance, Fairness, and Stability of BBR", IMC 2022 — <a href="https://netsec.ethz.ch/publications/papers/scherrer_bbr_imc22.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>Zeynali et al., "Promises and Potential of BBRv3", PAM 2024 — <a href="https://pam2024.cs.northwestern.edu/pdfs/paper-59.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>Zeynali et al., "BBRv3 in the public Internet: a boon or a bane?", ANRW 2024 — <a href="https://balakrishnanc.github.io/papers/zeynali-anrw2024.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>Sarpkaya et al., "BBR's Sharing Behavior with CUBIC and Reno", IFIP Networking 2025 — <a href="https://arxiv.org/abs/2505.07741" target="_blank" rel="noopener">arXiv</a></li>
+<li>"A Control-Theoretic Perspective on BBR/CUBIC Congestion-Control Competition", PERFORMANCE 2025 — <a href="https://arxiv.org/abs/2510.22773" target="_blank" rel="noopener">arXiv</a></li>
+<li>"To Adopt or Not to Adopt L4S-Compatible Congestion Control?", PAM 2025 — <a href="https://arxiv.org/abs/2411.10952" target="_blank" rel="noopener">arXiv</a></li>
+<li>Agarwal, Arun, Seshan, "FRCC: Towards Provably Fair and Robust Congestion Control", NSDI 2026 — <a href="https://www.usenix.org/conference/nsdi26/presentation/agarwal-anup" target="_blank" rel="noopener">USENIX</a></li>
+<li>"Unveiling TCP BBR Dominance in Starlink Internet", arXiv 2026 — <a href="https://arxiv.org/abs/2607.07133" target="_blank" rel="noopener">arXiv</a></li>
+<li>"Learning-Based vs Human-Derived Congestion Control", arXiv 2025 — <a href="https://arxiv.org/abs/2510.25105" target="_blank" rel="noopener">arXiv</a></li>
+<li>"Mind the Misleading Effects of LEO Mobility on End-to-End CC", HotNets 2024 — <a href="https://conferences.sigcomm.org/hotnets/2024/papers/hotnets24-79.pdf" target="_blank" rel="noopener">PDF</a></li>
+</ul>
+<h3>Code &amp; docs</h3>
+<ul>
+<li>Google BBR repo (v3 branch) — <a href="https://github.com/google/bbr/blob/v3/README.md" target="_blank" rel="noopener">README</a></li>
+<li>Linux <code>tcp_bbr.c</code> — <a href="https://codebrowser.dev/linux/linux/net/ipv4/tcp_bbr.c.html" target="_blank" rel="noopener">codebrowser</a></li>
+<li>IETF 119 BBRv3 overview &amp; Google deployment — <a href="https://datatracker.ietf.org/meeting/119/materials/slides-119-ccwg-bbrv3-overview-and-google-deployment-00" target="_blank" rel="noopener">slides</a></li>
+<li>IETF 97 traffic policing slides — <a href="https://www.ietf.org/proceedings/97/slides/slides-97-maprg-traffic-policing-in-the-internet-yuchung-cheng-and-neal-cardwell-00.pdf" target="_blank" rel="noopener">PDF</a></li>
+<li>ESnet fasterdata BBR — <a href="https://fasterdata.es.net/host-tuning/linux/recent-tcp-enhancements/bbr-tcp/" target="_blank" rel="noopener">page</a></li>
+<li>Cloudflare quiche BBR pacing issue — <a href="https://github.com/cloudflare/quiche/issues/514" target="_blank" rel="noopener">issue #514</a></li>
+</ul>
+<h3>Articles &amp; deployment reports</h3>
+<ul>
+<li>AWS CloudFront BBR — <a href="https://aws.amazon.com/blogs/networking-and-content-delivery/tcp-bbr-congestion-control-with-amazon-cloudfront/" target="_blank" rel="noopener">AWS blog</a></li>
+<li>Dropbox, Evaluating BBRv2 — <a href="https://dropbox.tech/infrastructure/evaluating-bbrv2-on-the-dropbox-edge-network" target="_blank" rel="noopener">Dropbox tech blog</a></li>
+<li>APNIC, BBR evaluation at a large CDN — <a href="https://blog.apnic.net/2019/11/01/bbr-evaluation-at-a-large-cdn/" target="_blank" rel="noopener">APNIC</a></li>
+<li>APNIC, BBR patches for Wi-Fi — <a href="https://blog.apnic.net/2018/04/30/bbr-patches-for-higher-wifi-throughput-and-lower-queuing-delays/" target="_blank" rel="noopener">APNIC</a></li>
+</ul>

@@ -1,0 +1,9 @@
+<blockquote>"BBR measures bottleneck bandwidth and min RTT and sends at that rate instead of waiting for packet loss."</blockquote>
+<p>What this hides:</p>
+<ol>
+<li><b>You can't measure both at once.</b> Seeing max bandwidth needs a full pipe, which means a queue. Seeing min RTT needs an empty queue, which means less than full bandwidth. So BBR has to alternate between them, and that is the reason the state machine exists.</li>
+<li><b>"Sends at that rate" needs gains above and below 1.</b> At gain 1.0 BBR can never learn that bandwidth went up. At gain &gt;1 it builds a queue. So the 1.25/0.75 (v1) or UP/DOWN (v3) cycle is required by the design.</li>
+<li><b>cwnd still matters.</b> It caps inflight at 2×BDP, and in competition with CUBIC that cap, not the rate, decides BBR's share (Ware et al., IMC 2019).</li>
+<li><b>v1 really did ignore loss</b>, and that is why it caused 10× the retransmits of CUBIC in shallow buffers. v2/v3 added a 2% loss bound and ECN, which changed what BBR is.</li>
+<li><b>The model assumes non-congestive delay is zero.</b> Jitter from ACK aggregation, Wi-Fi or scheduling breaks the min-RTT and max-bw filters. There is a theorem saying no delay-bounding CCA can avoid starvation if jitter is large enough.</li>
+</ol>

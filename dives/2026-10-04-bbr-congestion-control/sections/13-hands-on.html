@@ -1,0 +1,97 @@
+<style>
+#hands-sim .ax{stroke:var(--line);stroke-width:1.2}
+#hands-sim .lbl{font:11px system-ui,sans-serif;fill:var(--mute)}
+#hands-sim .sreno{fill:none;stroke:var(--warn);stroke-width:1.8}
+#hands-sim .sbbr{fill:none;stroke:var(--ok);stroke-width:1.8}
+#hands-sim .lreno{fill:var(--warn)}
+#hands-sim .lbbr{fill:var(--ok)}
+#hands-sim svg{width:100%;height:auto;display:block;margin:6px 0}
+#hands-sim table{width:100%}
+#hands-sim input[type=range]{width:100%}
+</style>
+<p>Here is a toy packet-level simulator, <code>bbr_sim.py</code>, in this folder: one bottleneck, a Reno-like sender and a BBRv1-like sender (max/min filters, Startup/Drain/ProbeBW/ProbeRTT, pacing). It's deliberately simple: drops are detected instantly and there are no SACK or RTO details.</p>
+<pre><code class="language-bash">python3 bbr_sim.py --trace       # 12 Mbit/s, 40 ms, buffer 8×BDP, print BBR states
+python3 bbr_sim.py --buf 0.5     # shallow buffer
+python3 bbr_sim.py --buf 32      # bloated buffer
+</code></pre>
+<p>Actual output on this machine:</p>
+<pre><code># --buf 8
+reno  bdp=40.0pkt buf=320pkt  goodput=11.91Mbit/s median_rtt=221.0ms drops=1
+bbr   bdp=40.0pkt buf=320pkt  goodput=11.89Mbit/s median_rtt=55.5ms  drops=0
+# --buf 0.5
+reno  bdp=40.0pkt buf=20pkt   goodput=11.32Mbit/s median_rtt=49.0ms  drops=8
+bbr   bdp=40.0pkt buf=20pkt   goodput=11.89Mbit/s median_rtt=49.5ms  drops=324
+# --buf 32
+reno  bdp=40.0pkt buf=1280pkt goodput=11.91Mbit/s median_rtt=670.0ms drops=1
+bbr   bdp=40.0pkt buf=1280pkt goodput=11.89Mbit/s median_rtt=55.5ms  drops=0
+</code></pre>
+<p>Read it this way: Reno's RTT tracks <i>buffer size</i> (221 → 670 ms), while BBR's stays at about RTprop + ~0.4 BDP of probe queue whatever the buffer. In the shallow buffer BBRv1 gets 5% more goodput by blasting through 40× more drops. That is the v1 retransmit problem in miniature.</p>
+
+<div class="widget" id="hands-sim" role="group" aria-label="Reno vs BBR simulator">
+<h3 style="margin-top:.2em">Try it: Reno vs BBRv1-like on one bottleneck</h3>
+<label for="hands-buf">Buffer: <b id="hands-bufv">8 × BDP</b> (BDP = 40 pkts)</label>
+<input id="hands-buf" type="range" min="0" max="7" step="1" value="5">
+<label for="hands-rtt">RTprop: <b id="hands-rttv">40 ms</b></label>
+<input id="hands-rtt" type="range" min="10" max="200" step="10" value="40">
+<svg id="hands-plot" viewBox="0 0 640 220" role="img" aria-label="Queue length over time for Reno and BBR">
+ <line class="ax" x1="50" y1="190" x2="630" y2="190"/><line class="ax" x1="50" y1="10" x2="50" y2="190"/>
+ <text class="lbl" x="56" y="22" id="hands-ymax">queue</text><text class="lbl" x="620" y="208" text-anchor="end">time (12 s)</text><text class="lbl" x="44" y="194" text-anchor="end">0</text>
+ <polyline id="hands-reno" class="sreno" points=""/><polyline id="hands-bbr" class="sbbr" points=""/>
+ <rect x="460" y="18" width="12" height="4" class="lreno"/><text class="lbl" x="478" y="24">Reno queue</text>
+ <rect x="460" y="34" width="12" height="4" class="lbbr"/><text class="lbl" x="478" y="40">BBR queue</text>
+</svg>
+<table><thead><tr><th></th><th>goodput</th><th>median RTT (2nd half)</th><th>drops</th></tr></thead>
+<tbody><tr><td>Reno</td><td id="hands-rg"></td><td id="hands-rr"></td><td id="hands-rd"></td></tr><tr><td>BBR</td><td id="hands-bg"></td><td id="hands-br"></td><td id="hands-bd"></td></tr></tbody></table>
+<p class="mini">JS port of <code>bbr_sim.py</code> (same toy model, 12 Mbit/s bottleneck). Slide the buffer down to 0.25–0.5 × BDP to see v1's drop storm. Slide it up to watch Reno's RTT follow the buffer while BBR's stays put.</p>
+</div>
+
+<p>Try next:</p>
+<ol>
+<li>Set the Drain gain to 1.0 and watch the Startup queue never drain.</li>
+<li>Remove the 0.75 phase (<code>gains = [1.25, 1, 1, ...]</code>) and watch the median RTT creep up.</li>
+<li>On a real Linux box: <code>tc qdisc add dev lo root netem delay 20ms rate 50mbit limit 1000</code>, run <code>iperf3 -C bbr</code> vs <code>-C cubic</code>, and watch <code>ss -tin</code> show <code>bw</code>, <code>mrtt</code> and <code>pacing_gain</code> cycling through 1.25/0.75.</li>
+</ol>
+
+<script>(function(){
+var $=function(id){return document.getElementById(id);};
+function run(cca,rateMbps,rtpropMs,bufBdp){
+ var MSS=12000,dt=0.0005,secs=12,rate=rateMbps*1e6/MSS,rtprop=rtpropMs/1000,bdp=rate*rtprop,bufCap=Math.max(1,Math.floor(bufBdp*bdp));
+ var queue=[],qh=0,inNet=[],nh=0,serve=0,delivered=0,deliveredTime=0,inflight=0,drops=0;
+ var bwS=[],round=0,nextRound=0,btlbw=0,rtEst=Infinity,rtStamp=0,state='STARTUP',ci=0,cs=0,fullBw=0,fullCnt=0,prDone=0,gains=[1.25,0.75,1,1,1,1,1,1],pc=0;
+ var cwnd=10,ssth=Infinity,t=0,rtts=[],trace=[],lastLog=-1,L2=Math.LN2;
+ while(t<secs){t+=dt;
+  serve+=rate*dt;while(qh<queue.length&&serve>=1){serve-=1;inNet.push([t+rtprop,queue[qh++]]);}
+  if(qh>=queue.length)serve=Math.min(serve,1);
+  while(nh<inNet.length&&inNet[nh][0]<=t){var p=inNet[nh++][1];inflight--;delivered++;deliveredTime=t;var rtt=t-p[0];rtts.push([t,rtt]);
+   if(cca==='bbr'){var iv=Math.max(t-p[2],rtt);if(iv>0)bwS.push([round,(delivered-p[1])/iv]);
+    if(p[1]>=nextRound){nextRound=delivered;round++;if(state==='STARTUP'){if(btlbw>=fullBw*1.25){fullBw=btlbw;fullCnt=0;}else if(++fullCnt>=3)state='DRAIN';}}
+    while(bwS.length&&bwS[0][0]<round-10)bwS.shift();btlbw=0;for(var k=0;k<bwS.length;k++)if(bwS[k][1]>btlbw)btlbw=bwS[k][1];
+    if(rtt<=rtEst||t-rtStamp>10){rtEst=rtt;rtStamp=t;}}
+   else{if(cwnd<ssth)cwnd+=1;else cwnd+=1/cwnd;}}
+  var win=0,pace=0;
+  if(cca==='bbr'){var bdpE=btlbw*(rtEst<1e9?rtEst:rtprop);
+   if(state==='DRAIN'&&inflight<=bdpE){state='PROBE_BW';ci=2;cs=t;}
+   if(state==='PROBE_BW'&&t-cs>rtEst){ci=(ci+1)%8;cs=t;}
+   if(state!=='PROBE_RTT'&&t-rtStamp>10){state='PROBE_RTT';prDone=t+0.2;}
+   if(state==='PROBE_RTT'&&t>=prDone){rtStamp=t;state='PROBE_BW';ci=2;cs=t;}
+   var pg=state==='STARTUP'?2/L2:state==='DRAIN'?L2/2:state==='PROBE_RTT'?1:gains[ci];
+   var cg=state==='STARTUP'?2/L2:2;win=state==='PROBE_RTT'?4:(btlbw?Math.max(4,cg*bdpE):10);
+   pace=btlbw?pg*btlbw:10/rtprop;pc=Math.min(pc+pace*dt,2);}
+  while(cca==='bbr'?(pc>=1&&inflight<win):(inflight<Math.floor(cwnd))){
+   if(cca==='bbr')pc-=1;inflight++;var pkt=[t,delivered,delivered?deliveredTime:t];
+   if(queue.length-qh>=bufCap){drops++;inflight--;if(cca==='reno'){ssth=Math.max(cwnd/2,2);cwnd=ssth;}continue;}
+   queue.push(pkt);}
+  if(qh>8192){queue=queue.slice(qh);qh=0;}if(nh>8192){inNet=inNet.slice(nh);nh=0;}
+  var lg=Math.floor(t*50);if(lg!==lastLog){lastLog=lg;trace.push(queue.length-qh);}}
+ var late=rtts.filter(function(r){return r[0]>secs/2;}).map(function(r){return r[1];}).sort(function(a,b){return a-b;});
+ return {g:(delivered*MSS/secs/1e6).toFixed(2),r:late.length?(late[late.length>>1]*1000).toFixed(1):'—',d:drops,trace:trace,buf:bufCap};}
+var BUFS=[0.25,0.5,1,2,4,8,16,32];
+function sim(){var b=BUFS[+$('hands-buf').value],rt=+$('hands-rtt').value;$('hands-bufv').textContent=b+' × BDP';$('hands-rttv').textContent=rt+' ms';
+ var bdp=Math.round(12e6/12000*rt/1000);$('hands-bufv').parentNode.lastChild.textContent=' (BDP = '+bdp+' pkts)';
+ var R=run('reno',12,rt,b),B=run('bbr',12,rt,b),mx=Math.max(10,Math.max.apply(null,R.trace),Math.max.apply(null,B.trace));
+ function pts(tr){return tr.map(function(v,i){return (50+580*i/(tr.length-1)).toFixed(1)+','+(190-170*v/mx).toFixed(1);}).join(' ');}
+ $('hands-reno').setAttribute('points',pts(R.trace));$('hands-bbr').setAttribute('points',pts(B.trace));$('hands-ymax').textContent='queue (max '+mx+' pkts)';
+ $('hands-rg').textContent=R.g+' Mbit/s';$('hands-rr').textContent=R.r+' ms';$('hands-rd').textContent=R.d;$('hands-bg').textContent=B.g+' Mbit/s';$('hands-br').textContent=B.r+' ms';$('hands-bd').textContent=B.d;}
+var tm;function deb(){clearTimeout(tm);tm=setTimeout(sim,60);}
+$('hands-buf').addEventListener('input',deb);$('hands-rtt').addEventListener('input',deb);sim();
+})();</script>

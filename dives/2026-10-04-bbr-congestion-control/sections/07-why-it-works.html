@@ -1,0 +1,11 @@
+<p><b>Core insight:</b> the two quantities that define the optimum change on different timescales and can each be filtered with a one-sided estimator. Bandwidth changes from competition, so it gets a short max window. Propagation delay changes from routing, so it gets a long min window. Pacing, not cwnd, is the control output, so BBR sends at the rate it believes the bottleneck drains, and that is what prevents the queue.</p>
+<p>Ablations:</p>
+<ul>
+<li><b>Remove pacing (cwnd only):</b> cwnd opens in ACK-clocked bursts, line-rate bursts build queues at the bottleneck, and the RTT samples get inflated. This is why early BBR needed <code>fq</code>.</li>
+<li><b>Remove the 1.25 phase:</b> BBR can never discover added capacity. A flow that starts while another is active stays at its initial share forever.</li>
+<li><b>Remove the 0.75/0.9 phase:</b> each probe leaves 0.25 BDP behind. After a few cycles a standing queue forms and min_rtt samples stop appearing.</li>
+<li><b>Remove ProbeRTT:</b> with ≥2 BBR flows each keeping some queue, nobody ever sees R again. min_rtt is never refreshed, and if a route change raises R, BBR's BDP estimate is permanently too low.</li>
+<li><b>Remove the cwnd cap (pure rate):</b> if ACKs stop (a delay spike), a pure pacer keeps sending at max_bw into a black hole. cwnd = 2·BDP bounds the damage to about 1 BDP of queue.</li>
+<li><b>Remove v2/v3 loss bounds (= v1):</b> in buffers smaller than ~1.5 BDP, the 2·BDP cwnd plus probing overflow the buffer every cycle. Our sim at 0.5 BDP buffer: <b>324 drops for BBRv1-like vs 8 for Reno</b> in 12 s.</li>
+<li><b>Remove app-limited marking:</b> every idle period would pull <code>max_bw</code> down and slow the next burst.</li>
+</ul>

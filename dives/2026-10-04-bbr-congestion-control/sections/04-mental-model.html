@@ -1,0 +1,12 @@
+<p><b>A garden hose of unknown diameter and length.</b> You want the hose full of water but no puddle at the tap. Two gauges:</p>
+<ul>
+<li>an <b>outflow meter</b> at the nozzle, whose peak reading is the hose diameter (BtlBw);</li>
+<li>a <b>dye-transit timer</b>, whose fastest reading is the hose length (RTprop).</li>
+</ul>
+<p>Water in the hose = diameter × length. You turn the tap to the peak outflow rate. Sometimes you open it 25% wider to see if the hose got wider, then close it to 75% to drain the puddle you just made. Sometimes you nearly shut it so the dye timer can get a clean reading.</p>
+<p><b>Where the analogy breaks.</b></p>
+<ul>
+<li>The hose is <b>shared</b>. Other taps make outflow look smaller (your share) and transit look longer (their puddle). A max filter of your own delivery rate measures your current share, not capacity, so the model has no idea of a "fair share".</li>
+<li>Real hoses don't spit water in <b>clumps</b>. Wi-Fi and cellular deliver ACKs in bursts, so the outflow meter shows short spikes far above the true rate.</li>
+<li>Some hoses have a <b>valve that slams shut</b> once you've used your allowance (token-bucket policers). Delivery rate then drops suddenly with heavy loss, and that is not the bottleneck model at all.</li>
+</ul>
