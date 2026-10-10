@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv2-row{margin:0 0 14px}
+.cv2-row b{color:var(--ink)}
+.cv2-track{height:26px;margin:6px 0 0;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv2-bar{height:100%;width:0;border-radius:3px;transition:width .9s var(--ease)}
+.js .guess.done ~ .cold-viz .cv2-bar{width:var(--w)}
+.cv2-bad{background:var(--bad)}
+.cv2-ok{background:var(--ok)}
+</style>
+<p class="cold-line">A CPU moves memory around in small fixed blocks called cache lines.</p>
+<p class="cold-line sm">Two threads that write to different counters can still fight if both counters sit in one block. That is <em>false sharing</em>, and a trading hot path cannot afford it.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv2-row"><b>Top: both counters on one cache line, 1908 ms. Bottom: each padded onto its own, 82 ms. That is 23×.</b>
+    <div class="cv2-track"><div class="cv2-bar cv2-bad" style="--w:100%"></div></div>
+    <div class="cv2-track"><div class="cv2-bar cv2-ok" style="--w:4.3%"></div></div>
+  </div>
+</div>

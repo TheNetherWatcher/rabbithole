@@ -1,362 +1,417 @@
 {
-  "meta": {
-    "title": "The tick-to-trade hot path: how HFT firms engineer C++ for nanoseconds",
-    "short": "HFT C++ hot path",
-    "subject": "Computer science",
-    "domain": "Low-latency systems",
-    "topic": "Tick-to-trade hot path in C++: kernel bypass, cache warming, allocation-free code, tail-latency measurement",
-    "depth": "hard",
-    "date": "2026-10-03"
+ "meta": {
+  "title": "The tick-to-trade hot path: how HFT firms engineer C++ for nanoseconds",
+  "short": "HFT C++ hot path",
+  "subject": "Computer science",
+  "domain": "Low-latency systems",
+  "topic": "Tick-to-trade hot path in C++: kernel bypass, cache warming, allocation-free code, tail-latency measurement",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Why a trading hot path is kept warm, and what one stall costs"
+ },
+ "tldr": "A high-frequency trading firm wins races decided in microseconds, and its hot path runs only about <b>0.01%</b> of the time, so it is cold by default. C++ for this job is written to remove <i>variance</i>: kernel bypass, pinned busy-polling threads, preallocated memory, dummy warm-up ticks, and tails measured at the wire. The fastest decisions have since moved to FPGAs and switches, and C++ moved up a layer to strategy and risk.",
+ "why": "<b>Why it matters:</b> in London latency races the modal winning margin is <b>5–10 µs</b>, so a path that is fast on average but stalls now and then loses the race.",
+ "stats": [
+  {
+   "v": "0.01%",
+   "l": "of the time the hot path runs, so it is cold by default"
   },
-  "hero": "img/hero.svg",
-  "tldr": "A high-frequency trading firm wins races decided in microseconds, and its hot path runs only about <b>0.01%</b> of the time, so it is cold by default. C++ for this job is written to remove <i>variance</i>: kernel bypass, pinned busy-polling threads, preallocated memory, dummy warm-up ticks, and tails measured at the wire. The fastest decisions have since moved to FPGAs and switches, and C++ moved up a layer to strategy and risk.",
-  "why": "<b>Why it matters:</b> in London latency races the modal winning margin is <b>5–10 µs</b>, so a path that is fast on average but stalls now and then loses the race.",
-  "stats": [
-    {
-      "v": "0.01%",
-      "l": "of the time the hot path runs, so it is cold by default"
-    },
-    {
-      "v": "5–10 µs",
-      "l": "modal winning margin in London latency races"
-    },
-    {
-      "v": "6.5×",
-      "l": "p50 cost of a cold vs warm hot path (our lab)"
-    },
-    {
-      "v": "23×",
-      "l": "slowdown from false sharing on one cache line (our lab)"
-    },
-    {
-      "v": "13.9 ns",
-      "l": "STAC-T0 record tick-to-trade in an FPGA"
-    }
-  ],
-  "cards": [
-    {
-      "id": "plain",
-      "group": "Plain English",
-      "tone": "plain",
-      "kicker": "In everyday words",
-      "title": "Winning the auction means being fast every time, not on average",
-      "visual": "img/plain.svg",
-      "file": "sections/00-plain.html",
-      "brief": "<p>Trading programs race to react to news in microseconds, and the fastest reaction wins. Firms write them to be fast <b>every single time</b>, including after a quiet spell. They avoid anything that can pause the computer: no memory tidying, no asking the operating system for permission.</p>"
-    },
-    {
-      "id": "ctx",
-      "group": "Context",
-      "kicker": "§1 · Prerequisites",
-      "title": "Six things to know first: order books, feeds, cache, branches, percentiles",
-      "visual": "img/ctx.svg",
-      "file": "sections/01-context.html",
-      "brief": "<ul><li><b>Order book</b>: resting bids and asks at each price, updated by Add, Modify and Delete messages.</li><li><b>Feeds</b> arrive as UDP multicast; orders leave over TCP.</li><li><b>Cache</b>: L1 about 4 cycles, DRAM 60–100 ns.</li><li><b>Mispredicts</b> cost about 16–20 cycles.</li><li><b>Percentiles</b>: judge p99.9 and max, not the mean.</li></ul>"
-    },
-    {
-      "id": "world",
-      "kicker": "§1b · Real-world context",
-      "title": "Colocated firms fight over single microseconds with C++ on the hot path",
-      "visual": "img/world.svg",
-      "file": "sections/01b-real-world.html",
-      "brief": "<p>The hot path runs from the last bit of a market-data packet to the first bit of the order. Optiver, IMC and HRT write it in C++. You touch core isolation, Onload and <code>taskset</code>. Skip it in cloud VMs or where budgets exceed about 50 µs.</p>"
-    },
-    {
-      "id": "onel",
-      "group": "Technical deep dive",
-      "kicker": "§2 · The one-liner",
-      "title": "\"No allocations, no virtuals, kernel bypass\" hides coldness as the real enemy",
-      "visual": "img/onel.svg",
-      "file": "sections/02-one-liner.html",
-      "brief": "<p>The hot path runs about 0.01% of the time, so caches forget it. Tails decide races, not means. Simple data layouts beat clever ones. BIOS and SMIs are part of the program. FPGAs now take the fastest path (13.9 ns), leaving C++ to parameterise them.</p>"
-    },
-    {
-      "id": "problem",
-      "kicker": "§3 · The problem",
-      "title": "One deep C-state exit costs more than a 2.5 µs software budget",
-      "visual": "img/problem.svg",
-      "file": "sections/03-problem.html",
-      "brief": "<p>Chicago to New Jersey is 1,139.5 km, so light needs 7.6 ms round trip; once everyone uses microwave, what remains is inside the box. A wire-to-wire budget is about 2.5 µs. A kernel TCP path adds 3.9 µs, and a C6 exit costs 90–170 µs.</p>"
-    },
-    {
-      "id": "model",
-      "kicker": "§4 · Mental model",
-      "title": "A Formula 1 pit stop: every tool laid out, the car kept warm",
-      "visual": "img/model.svg",
-      "file": "sections/04-mental-model.html",
-      "brief": "<p>Tools are laid out in advance (preallocated pools), one pinned thread does one job, and a dummy warm-up path keeps the machine lapping. The analogy breaks three ways: warm-up must not send, caches are shared with neighbours, and a faster stop is worthless if an FPGA fires first.</p>"
-    },
-    {
-      "id": "mech",
-      "kicker": "§5 · The mechanism, traced",
-      "title": "One 500-share sell at 100.25 crosses the trigger in nine stages and no syscalls",
-      "visual": "img/mech.svg",
-      "file": "sections/05-mechanism.html",
-      "brief": "<p>A Nasdaq-ITCH-like Add Order arrives. It is polled from the NIC ring, parsed in place, and applied to a reverse-vector book where the update shifts zero elements. A template strategy decides and one risk branch checks it. PCIe and the NIC dominate the roughly 1–2.5 µs total.</p><p class=\"mini\">Interactive step-through inside.</p>"
-    },
-    {
-      "id": "math",
-      "kicker": "§6 · The math",
-      "title": "Latency is miss rate times cost, and tails compound with every stage",
-      "visual": "img/math.svg",
-      "file": "sections/06-math.html",
-      "brief": "<p>A cold path costs about 80 ns per line, a warm one about 1 ns, so p50 moves 6.5× (84 vs 542 ns). With p = 1% and six stages, 5.9% of ticks hit a slow stage. A burst of 5 M msg/s overflows a 4096-slot ring in 2.5 ms, and coordinated omission hides the worst stalls.</p><p class=\"mini\">Three interactive calculators inside.</p>"
-    },
-    {
-      "id": "why",
-      "kicker": "§7 · Why it works",
-      "title": "Events, not instructions, set the latency, so the craft removes events",
-      "visual": "img/why.svg",
-      "file": "sections/07-why-it-works.html",
-      "brief": "<p>A few hundred cache-resident instructions cost tens of ns; one cache miss, syscall, page fault or C-state exit costs 100 ns to 100 µs. Removing false sharing costs 23× (1908 vs 82 ms in our lab). Removing cache warming costs 6.5× at p50.</p>"
-    },
-    {
-      "id": "knobs",
-      "kicker": "§8 · Design knobs & alternatives",
-      "title": "Pick the cheapest network layer your budget allows, then tune CPU and data",
-      "visual": "img/knobs.svg",
-      "file": "sections/08-knobs.html",
-      "brief": "<p>Kernel plus busy-poll adds 3.9 µs; Onload adds about 300 ns of UDP overhead; TCPDirect adds 15 ns; raw ef_vi adds nothing; FPGAs reach 13.9 ns. Also: SMT off, shallow C-states, single-writer SPSC queues with a cached opposite index, and integer ticks.</p>"
-    },
-    {
-      "id": "breaks",
-      "kicker": "§9 · Where it breaks",
-      "title": "A reused flag cost Knight Capital over $460M in 45 minutes",
-      "visual": "img/breaks.svg",
-      "file": "sections/09-where-it-breaks.html",
-      "brief": "<p>On 1 Aug 2012 new code reached 7 of 8 servers, and a reused flag woke dead code on the eighth. About 4M executions and a loss above $460M followed in 45 minutes. Hardware traps (false sharing, denormals, SMIs, THP) and C++ traps (type-punned buffers, exceptions) are the other ways this path breaks.</p>"
-    },
-    {
-      "id": "wild",
-      "kicker": "§10 · In the wild",
-      "title": "Real firms converge on a few moves: one hot thread, dummy warm-up, measurement at the wire",
-      "visual": "img/wild.svg",
-      "file": "sections/10-in-the-wild.html",
-      "brief": "<p>Optiver runs a single-threaded hot path with dummy-path warming and wire-level replay. Gross's FastQueue shares a broadcast over shared memory. HRT uses explicit huge pages (4.5× random access). Hybrid firms precompute \"if X, fire Y\" and let an FPGA fire.</p>"
-    },
-    {
-      "id": "frontier",
-      "group": "Research edge",
-      "kicker": "§11 · Frontier (what's new)",
-      "title": "The fastest decisions moved to FPGAs and switches, and C++ moved up a layer",
-      "visual": "img/frontier.svg",
-      "file": "sections/11-frontier.html",
-      "brief": "<p>STAC-T0 reached 13.9 ns in an FPGA in 2024. LOBIN builds order books and runs inference inside switches, handling about 45% of traffic in-switch (2026 preprint). C++26 adds reflection and <code>inplace_vector</code>. The C++ frontier is a predictable 1–10 µs strategy layer.</p>"
-    },
-    {
-      "id": "open",
-      "kicker": "§11b · Open problems",
-      "title": "Deterministic latency on a general-purpose CPU is still out of software's reach",
-      "visual": "img/open.svg",
-      "file": "sections/11b-open-problems.html",
-      "brief": "<p>SMIs, microcode assists and power transitions sit outside OS control, so no hard bound exists today. Other open problems: verifying lock-free code at scale, measuring below layout noise, one source of truth across CPU and FPGA, and whether races are worth their cost. Batch auctions would cut liquidity cost about 17%.</p>"
-    },
-    {
-      "id": "lineage",
-      "kicker": "§12 · Lineage",
-      "title": "From Drepper's memory paper to Knight's flag: how the craft grew",
-      "visual": "img/lineage.svg",
-      "file": "sections/12-lineage.html",
-      "brief": "<p>2007 Drepper's memory paper; 2008–2011 Solarflare OpenOnload; 2010 SEC Rule 15c3-5; 2011 LMAX Disruptor; 2012 Knight Capital and Tene's measurement talk; 2017 Cook's CppCon talk; 2024 STAC-T0 at 13.9 ns; 2026 C++26 reflection and in-switch order books.</p>"
-    },
-    {
-      "id": "hands",
-      "group": "Practice & self-test",
-      "kicker": "§13 · Hands-on (≤ 30 min)",
-      "title": "Three small experiments reproduce the folklore on a laptop",
-      "visual": "img/hands.svg",
-      "file": "sections/13-hands-on.html",
-      "brief": "<p>Build <code>hotpath_lab.cpp</code> with <code>-O2 -std=c++20</code>. On an Apple M-series it shows false sharing at 23×, cold vs warm p50 at 6.5×, and a reversed vector beating <code>std::map</code> by 1.55× on book updates. Numbers vary by machine; compare ratios.</p>"
-    },
-    {
-      "id": "quiz",
-      "builtin": "quiz",
-      "kicker": "§14 · Question ladder",
-      "title": "Test yourself: 21 questions in six groups",
-      "visual": "img/quiz.svg",
-      "brief": "<p>Twenty-one questions on mechanism, why, counterfactuals, adversarial cases, connections and open problems, with answers hidden until you reveal them.</p>"
-    },
-    {
-      "id": "next",
-      "group": "Further",
-      "kicker": "§15 · Go deeper next",
-      "title": "Three threads to pull next: seqlocks, FPGA pipelines, top-down analysis",
-      "visual": "img/next.svg",
-      "file": "sections/15-go-deeper.html",
-      "brief": "<p>Seqlocks and the C++ memory model (P1478), FPGA tick-to-trade pipelines that never leave the MAC, and top-down microarchitecture analysis (Frontend, Bad Speculation, Backend, Retiring).</p>"
-    },
-    {
-      "id": "sources",
-      "kicker": "Sources",
-      "title": "Every number traces to a paper, talk, standard or vendor document",
-      "visual": "img/sources.svg",
-      "file": "sections/99-sources.html",
-      "brief": "<p>Papers by Aquilina et al. (QJE 2022), Budish et al. (QJE 2015) and Neugebauer et al. (SIGCOMM 2018); Cook's and Gross's CppCon talks; the C++ proposals; the SEC order on Knight Capital; and the Onload and kernel docs. Vendor slides are flagged where they are non-peer-reviewed.</p>"
-    }
-  ],
-  "questions": [
-    {
-      "type": "Mechanism",
-      "q": "What exactly happens, cycle-wise, between the NIC DMA completing and your code seeing the packet with ef_vi vs a kernel socket?",
-      "a": "<p><b>ef_vi:</b> the NIC DMAs into a user-registered buffer and writes an event into a user-mapped event queue. The spinning thread's next <code>ef_eventq_poll</code> load sees it, ideally from cache if DDIO placed it in LLC. No interrupt, no mode switch, no copy.</p><p><b>Kernel:</b> the NIC raises an interrupt (or NAPI polls), the driver builds an skb, the IP/UDP stack processes it, and it is queued on the socket. The thread blocked in <code>recv</code> gets woken through the scheduler, does a syscall return, and the data is copied to the user buffer. Each step adds cache misses and possible context switches. Solarflare measured about +3.9 µs for TCP.</p>",
-      "sec": "mech"
-    },
-    {
-      "type": "Mechanism",
-      "q": "Why does Gross store bids ascending and asks descending, and what's at <code>back()</code>?",
-      "a": "<p>The best price (highest bid, lowest ask) sits at the <b>end</b> of the vector. Most adds, modifies and deletes happen near the top of the book. <code>vector::insert</code> and <code>erase</code> cost is proportional to elements <i>after</i> the position, so operations near the end shift almost nothing. At the front they would shift the whole book.</p>",
-      "sec": "mech"
-    },
-    {
-      "type": "Mechanism",
-      "q": "How does Rigtorp's SPSC queue's cached index reduce cache-coherence traffic?",
-      "a": "<p>Normally the consumer reads <code>writeIdx</code> on every pop. That pulls the producer's cache line into shared state, and the producer's next write must invalidate it, so the line ping-pongs. With a cached copy, the consumer only re-reads <code>writeIdx</code> when its cached value says the queue is empty, and the producer does the same for <code>readIdx</code>. Cross-core transfers drop from about every op to about every batch: Rigtorp saw about 3 → 0.15 misses per op and 20× throughput.</p>",
-      "sec": "knobs"
-    },
-    {
-      "type": "Mechanism",
-      "q": "In FastQueue, why does the reader check the write counter both before and after copying?",
-      "a": "<p>The writer never waits for readers, so it can lap a slow reader and overwrite data mid-copy. Reading the write counter before and after copying (seqlock-style) tells the reader whether the region could have been overwritten during the <code>memcpy</code>. If so, it discards the copy and reports overrun. The copy itself is formally a data race in C++, hence P1478.</p>",
-      "sec": "knobs"
-    },
-    {
-      "type": "Why",
-      "q": "Why does linear search beat binary search on the order book even though it's O(N)?",
-      "a": "<p>Updates are heavily skewed toward the top few levels, so a scan from the best price terminates in 0–3 steps. Each step is a sequential, prefetchable, well-predicted access. Binary search over about 1000 levels does about 10 dependent, unpredictable probes across different cache lines, which means mispredicts or data-dependent loads. Expected cost, not worst-case complexity, matters for skewed data. Our lab: vector 10.9 vs map 16.9 ns/update.</p>",
-      "sec": "why"
-    },
-    {
-      "type": "Why",
-      "q": "Why fold all risk checks into one <code>uint64_t</code> instead of early-returning on each?",
-      "a": "<p>Each early-return branch must be predicted, and their outcome pattern is data-dependent. OR-ing branchless comparisons into a bit mask leaves <b>one</b> branch that is almost always \"no error\" and therefore perfectly predicted. The error handler is out-of-line and cold, so its instructions don't pollute the hot i-cache. You pay a few extra ALU ops to avoid potential 15–20-cycle mispredicts.</p>",
-      "sec": "mech"
-    },
-    {
-      "type": "Why",
-      "q": "Why do firms prefer a busy-spinning <code>SCHED_OTHER</code> thread over <code>SCHED_FIFO</code>?",
-      "a": "<p>On an isolated core with one runnable task, there's nothing to preempt you anyway. <code>SCHED_FIFO</code> adds RT throttling: by default RT tasks are limited to 95% CPU (<code>sched_rt_runtime_us</code>), so a spinning FIFO thread gets forcibly descheduled. It also risks starving per-CPU kernel threads that need to run. Rigtorp recommends a busy-waiting <code>SCHED_OTHER</code> thread.</p>",
-      "sec": "why"
-    },
-    {
-      "type": "Why",
-      "q": "Why explicit hugetlbfs instead of transparent huge pages?",
-      "a": "<p>THP is opportunistic: khugepaged collapses pages in the background and the kernel may do direct compaction on fault. Both cause unpredictable stalls (<code>compact_stall</code>). Explicit hugetlbfs pages are reserved at boot, mapped with <code>MAP_HUGETLB</code>, and prefaulted at startup, so you get the TLB-reach win (about 4 GiB vs 8 MiB) with no runtime surprises.</p>",
-      "sec": "breaks"
-    },
-    {
-      "type": "Counterfactual",
-      "q": "If you removed cache warming but kept everything else, which percentile moves most, and why?",
-      "a": "<p>The <b>first real event after idle</b>, which is the one that matters, gets slow. The tail percentiles and specifically \"latency after quiet period\" move most. The median might barely change during busy periods, because back-to-back packets keep things warm naturally. In our lab, cold vs warm is 6.5× at p50 and 8× at p99.</p>",
-      "sec": "why"
-    },
-    {
-      "type": "Counterfactual",
-      "q": "If the market became a frequent batch auction every 100 ms, which of these techniques would still matter?",
-      "a": "<p>Sub-ms speed would stop deciding who wins: orders arriving anywhere within the 100 ms window are treated equally. What survives:</p><ul><li><b>throughput</b> (process the whole batch's data),</li><li><b>correctness</b> and risk,</li><li><b>avoiding drops</b>,</li><li>maybe compute-heavy pricing before the auction deadline.</li></ul><p>Kernel bypass and the ns-level micro-optimisations would matter far less. That is the point of Budish et al.</p>",
-      "sec": "open"
-    },
-    {
-      "type": "Counterfactual",
-      "q": "What if you used <code>std::map</code> but with a pool allocator? What's fixed, and what isn't?",
-      "a": "<p>The pool fixes allocation cost and fragmentation, and improves locality somewhat if nodes come from one arena. It doesn't fix:</p><ul><li>the <b>log N dependent pointer chases</b> with unpredictable branches,</li><li>the larger node footprint (3 pointers + colour per entry), so fewer levels per cache line,</li><li>the lack of sequential prefetchability.</li></ul>",
-      "sec": "why"
-    },
-    {
-      "type": "Adversarial",
-      "q": "How could a dummy warm-up order end up sent to the exchange, and how do you make that impossible?",
-      "a": "<p>How it could happen: the \"don't send\" decision is one runtime flag. A bug, a reused flag (Knight!), or a refactor that moves the check can turn warm-up into real orders.</p><p>Defences:</p><ul><li>make the dry-run send target a <b>different sink</b> (a null TX object chosen by template/type, or a TX ring the NIC never transmits);</li><li>give warm-up orders an exchange-invalid or self-rejecting field;</li><li>add independent risk checks, including on the FPGA/NIC or a gateway;</li><li>add a wire-level monitor that kills the session on unexpected orders.</li></ul>",
-      "sec": "mech"
-    },
-    {
-      "type": "Adversarial",
-      "q": "You see a 3% p50 improvement after an unrelated commit. How do you decide if it's real?",
-      "a": "<p>Treat it as layout noise until proven otherwise (Mytkowicz ASPLOS'09; Stabilizer ASPLOS'13).</p><ul><li>Rerun with different link orders and alignments, or with randomisation.</li><li>Use many runs and look at distributions and confidence intervals, not single numbers.</li><li>Check top-down counters for a plausible mechanism (fewer misses or mispredicts).</li><li>Confirm at the wire with hardware timestamps under replayed production data, not a microbenchmark.</li></ul>",
-      "sec": "breaks"
-    },
-    {
-      "type": "Adversarial",
-      "q": "Which jitter source would you blame for a 2 ms spike that hits all isolated cores at once, and how do you confirm it?",
-      "a": "<p>Prime suspect: an <b>SMI</b>. It stalls all cores invisibly to the OS and can last ms. Other candidates: a TLB-shootdown storm, or the memory/uncore power state.</p><p>To confirm: run <code>hwlatdetect</code> / the hwlat tracer on the box (it spins with IRQs off and looks for TSC gaps), and correlate with BIOS settings (disable features like memory patrol scrub if allowed). Check <code>/proc/interrupts</code> deltas to rule out OS-visible interrupts.</p>",
-      "sec": "breaks"
-    },
-    {
-      "type": "Adversarial",
-      "q": "Where is the UB in <code>auto* m = reinterpret_cast&lt;const AddOrder*&gt;(buf); return m-&gt;price;</code>, and why might it \"work\" for years?",
-      "a": "<p>No <code>AddOrder</code> object exists at <code>buf</code>; there is only a char/byte array. Accessing it through <code>const AddOrder*</code> violates object-lifetime and strict-aliasing rules. Misalignment can be UB too if the struct needs alignment the buffer doesn't provide.</p><p>It \"works\" because compilers usually emit plain loads and nothing in the translation unit lets them exploit the UB. Inlining, LTO, or a new optimisation can reorder or eliminate loads based on aliasing assumptions.</p><p>Fixes: <code>memcpy</code> / <code>std::bit_cast</code> (optimised to loads) or C++23 <code>std::start_lifetime_as&lt;AddOrder&gt;(buf)</code>.</p>",
-      "sec": "breaks"
-    },
-    {
-      "type": "Connection",
-      "q": "How is cache warming related to JIT warm-up in the JVM?",
-      "a": "<p>Both pre-pay one-time or decaying costs before the critical moment: the JIT compiles hot methods and builds profiles; cache warming loads lines and trains predictors. The difference: JIT warm-up is mostly one-time (compiled code stays), while cache/predictor state <b>decays</b> whenever other code runs, so HFT warming must be <b>continuous</b>. JVM trading shops (LMAX, Chronicle) need both.</p>",
-      "sec": "mech"
-    },
-    {
-      "type": "Connection",
-      "q": "How does the Little's-law burst analysis relate to io_uring's CQ overflow or a Kafka consumer lag?",
-      "a": "<p>Same math: when arrival rate &gt; service rate, backlog grows at λ−μ until a bounded buffer overflows. That buffer could be the NIC ring here, an io_uring CQ (overflow → <code>-EBUSY</code> / dropped completions handled via the overflow list), or a Kafka consumer (lag grows until retention deletes unconsumed data). The cliff is the same; only the buffer differs.</p>",
-      "sec": "math"
-    },
-    {
-      "type": "Connection",
-      "q": "How does the Knight Capital failure map onto feature-flag practice in ordinary web services?",
-      "a": "<p>Lessons for any service:</p><ul><li>Dead code behind a flag is live.</li><li>Reusing a flag's meaning across versions is dangerous during <b>partial rollouts</b>: old binaries interpret the bit the old way.</li><li>Verify version consistency across the fleet before enabling.</li><li>Rollback is a deployment too, so reason about the state you're rolling back to.</li><li>Alerts must be designed as alerts (97 unread emails).</li></ul>",
-      "sec": "breaks"
-    },
-    {
-      "type": "Open",
-      "q": "Can a general-purpose CPU ever offer a hard upper bound on tick-to-trade latency?",
-      "a": "<p>Not today. SMIs, microcode assists, DRAM refresh and power-management transitions are outside OS control, and caches/coherence add data-dependent timing. You can make violations rare and characterise them statistically, not bound them. Hard real-time systems use simpler cores, locked caches/scratchpads, or FPGAs, which is partly why the hardest deadlines moved to FPGAs.</p>",
-      "sec": "open"
-    },
-    {
-      "type": "Open",
-      "q": "Will C++26 reflection make hand-written codecs and SBE-style generators obsolete in HFT?",
-      "a": "<p>Plausibly it replaces external generators for <i>simple</i> schemas: reflection can generate field-by-field encode/decode at compile time from a struct with zero runtime cost.</p><p>But exchange schemas (SBE XML, ITCH specs) originate <i>outside</i> C++. Generators also handle versioning, multiple languages, and documentation. Open question: adoption depends on compiler maturity and on whether teams trust compile-time-generated hot code.</p>",
-      "sec": "frontier"
-    },
-    {
-      "type": "Open",
-      "q": "If FPGAs and switches take every simple decision, what's left for C++, and does \"nanosecond C++\" still matter?",
-      "a": "<p>Open. One view: C++ becomes the \"control plane\": strategy, risk, parameter computation, model inference at 1–10 µs, while FPGAs fire. Predictability still matters there (falling behind on parameters = stale triggers). Another view: as exchange architecture (cloud regions, speed bumps, batch auctions) changes, the payoff for the last ns shrinks. Expect the skill set to shift toward co-design and measurement rather than micro-tricks.</p>",
-      "sec": "open"
-    }
-  ],
-  "figures": {
-    "own-tick-stages": {
-      "original": true,
-      "file": "img/fig/own-tick-stages.svg",
-      "caption": "Each stage of one tick with the dive's stated cost: the two NIC hops take hundreds of ns, the software stages tens of ns or less."
-    },
-    "own-kernel-vs-bypass": {
-      "original": true,
-      "file": "img/fig/own-kernel-vs-bypass.svg",
-      "caption": "The kernel socket path adds an interrupt, a stack traversal and a wake-up that the bypass lane skips; the vendor measured +3.9 µs for TCP."
-    },
-    "own-false-sharing": {
-      "original": true,
-      "file": "img/fig/own-false-sharing.svg",
-      "caption": "Two cores writing counters on one cache line make the line bounce between them; giving each counter its own line gave 23× in the lab."
-    },
-    "own-spsc-layout": {
-      "original": true,
-      "file": "img/fig/own-spsc-layout.svg",
-      "caption": "Producer and consumer indices sit on separate 64-byte lines, and the consumer's cached copy of writeIdx keeps the shared line quiet."
-    },
-    "own-tail-compound": {
-      "original": true,
-      "file": "img/fig/own-tail-compound.svg",
-      "caption": "A 1% slow chance per stage grows to 63% over 100 stages, so the tail of a long path is set by how many stages it has."
-    },
-    "own-cold-warm": {
-      "original": true,
-      "file": "img/fig/own-cold-warm.svg",
-      "caption": "The same code is 6.5× slower at p50 and about 8× slower at p99 when cold, so warming targets the miss rate."
-    },
-    "own-core-pinning": {
-      "original": true,
-      "file": "img/fig/own-core-pinning.svg",
-      "caption": "The hot thread on core 3 sits in the range isolcpus and nohz_full cut off from the scheduler and tick; the other cores take the rest."
-    }
+  {
+   "v": "5–10 µs",
+   "l": "modal winning margin in London latency races"
+  },
+  {
+   "v": "6.5×",
+   "l": "p50 cost of a cold vs warm hot path (our lab)"
+  },
+  {
+   "v": "23×",
+   "l": "slowdown from false sharing on one cache line (our lab)"
+  },
+  {
+   "v": "13.9 ns",
+   "l": "STAC-T0 record tick-to-trade in an FPGA"
   }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "Winning the auction means being fast every time, not on average",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>Trading programs race to react to news in microseconds, and the fastest reaction wins. Firms write them to be fast <b>every single time</b>, including after a quiet spell. They avoid anything that can pause the computer: no memory tidying, no asking the operating system for permission.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first: order books, feeds, cache, branches, percentiles",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Order book</b>: resting bids and asks at each price, updated by Add, Modify and Delete messages.</li><li><b>Feeds</b> arrive as UDP multicast; orders leave over TCP.</li><li><b>Cache</b>: L1 about 4 cycles, DRAM 60–100 ns.</li><li><b>Mispredicts</b> cost about 16–20 cycles.</li><li><b>Percentiles</b>: judge p99.9 and max, not the mean.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Colocated firms fight over single microseconds with C++ on the hot path",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>The hot path runs from the last bit of a market-data packet to the first bit of the order. Optiver, IMC and HRT write it in C++. You touch core isolation, Onload and <code>taskset</code>. Skip it in cloud VMs or where budgets exceed about 50 µs.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"No allocations, no virtuals, kernel bypass\" hides coldness as the real enemy",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The hot path runs about 0.01% of the time, so caches forget it. Tails decide races, not means. Simple data layouts beat clever ones. BIOS and SMIs are part of the program. FPGAs now take the fastest path (13.9 ns), leaving C++ to parameterise them.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "One deep C-state exit costs more than a 2.5 µs software budget",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>Chicago to New Jersey is 1,139.5 km, so light needs 7.6 ms round trip; once everyone uses microwave, what remains is inside the box. A wire-to-wire budget is about 2.5 µs. A kernel TCP path adds 3.9 µs, and a C6 exit costs 90–170 µs.</p>",
+   "guess": "c6"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A Formula 1 pit stop: every tool laid out, the car kept warm",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Tools are laid out in advance (preallocated pools), one pinned thread does one job, and a dummy warm-up path keeps the machine lapping. The analogy breaks three ways: warm-up must not send, caches are shared with neighbours, and a faster stop is worthless if an FPGA fires first.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · The mechanism, traced",
+   "title": "One 500-share sell at 100.25 crosses the trigger in nine stages and no syscalls",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>A Nasdaq-ITCH-like Add Order arrives. It is polled from the NIC ring, parsed in place, and applied to a reverse-vector book where the update shifts zero elements. A template strategy decides and one risk branch checks it. PCIe and the NIC dominate the roughly 1–2.5 µs total.</p><p class=\"mini\">Interactive step-through inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Latency is miss rate times cost, and tails compound with every stage",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>A cold path costs about 80 ns per line, a warm one about 1 ns, so p50 moves 6.5× (84 vs 542 ns). With p = 1% and six stages, 5.9% of ticks hit a slow stage. A burst of 5 M msg/s overflows a 4096-slot ring in 2.5 ms, and coordinated omission hides the worst stalls.</p><p class=\"mini\">Three interactive calculators inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Events, not instructions, set the latency, so the craft removes events",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>A few hundred cache-resident instructions cost tens of ns; one cache miss, syscall, page fault or C-state exit costs 100 ns to 100 µs. Removing false sharing costs 23× (1908 vs 82 ms in our lab). Removing cache warming costs 6.5× at p50.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs & alternatives",
+   "title": "Pick the cheapest network layer your budget allows, then tune CPU and data",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Kernel plus busy-poll adds 3.9 µs; Onload adds about 300 ns of UDP overhead; TCPDirect adds 15 ns; raw ef_vi adds nothing; FPGAs reach 13.9 ns. Also: SMT off, shallow C-states, single-writer SPSC queues with a cached opposite index, and integer ticks.</p>",
+   "guess": "kernel"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "A reused flag cost Knight Capital in under an hour",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>On 1 Aug 2012 new code reached 7 of 8 servers, and a reused flag woke dead code on the eighth. About 4M executions and a loss above $460M followed in 45 minutes. Hardware traps (false sharing, denormals, SMIs, THP) and C++ traps (type-punned buffers, exceptions) are the other ways this path breaks.</p>",
+   "guess": "knight"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Real firms converge on a few moves: one hot thread, dummy warm-up, measurement at the wire",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>Optiver runs a single-threaded hot path with dummy-path warming and wire-level replay. Gross's FastQueue shares a broadcast over shared memory. HRT uses explicit huge pages (4.5× random access). Hybrid firms precompute \"if X, fire Y\" and let an FPGA fire.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier (what's new)",
+   "title": "The fastest decisions moved to FPGAs and switches, and C++ moved up a layer",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>STAC-T0 reached 13.9 ns in an FPGA in 2024. LOBIN builds order books and runs inference inside switches, handling about 45% of traffic in-switch (2026 preprint). C++26 adds reflection and <code>inplace_vector</code>. The C++ frontier is a predictable 1–10 µs strategy layer.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Deterministic latency on a general-purpose CPU is still out of software's reach",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>SMIs, microcode assists and power transitions sit outside OS control, so no hard bound exists today. Other open problems: verifying lock-free code at scale, measuring below layout noise, one source of truth across CPU and FPGA, and whether races are worth their cost. Batch auctions would cut liquidity cost about 17%.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From Drepper's memory paper to Knight's flag: how the craft grew",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>2007 Drepper's memory paper; 2008–2011 Solarflare OpenOnload; 2010 SEC Rule 15c3-5; 2011 LMAX Disruptor; 2012 Knight Capital and Tene's measurement talk; 2017 Cook's CppCon talk; 2024 STAC-T0 at 13.9 ns; 2026 C++26 reflection and in-switch order books.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on (≤ 30 min)",
+   "title": "Three small experiments reproduce the folklore on a laptop",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p>Build <code>hotpath_lab.cpp</code> with <code>-O2 -std=c++20</code>. On an Apple M-series it shows false sharing at 23×, cold vs warm p50 at 6.5×, and a reversed vector beating <code>std::map</code> by 1.55× on book updates. Numbers vary by machine; compare ratios.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself: 21 questions in six groups",
+   "visual": "img/quiz.svg",
+   "brief": "<p>Twenty-one questions on mechanism, why, counterfactuals, adversarial cases, connections and open problems, with answers hidden until you reveal them.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three threads to pull next: seqlocks, FPGA pipelines, top-down analysis",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Seqlocks and the C++ memory model (P1478), FPGA tick-to-trade pipelines that never leave the MAC, and top-down microarchitecture analysis (Frontend, Bad Speculation, Backend, Retiring).</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Every number traces to a paper, talk, standard or vendor document",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Papers by Aquilina et al. (QJE 2022), Budish et al. (QJE 2015) and Neugebauer et al. (SIGCOMM 2018); Cook's and Gross's CppCon talks; the C++ proposals; the SEC order on Knight Capital; and the Onload and kernel docs. Vendor slides are flagged where they are non-peer-reviewed.</p>"
+  }
+ ],
+ "guesses": {
+  "cold": {
+   "q": "Two threads each add to their own counter, but both counters sit on one cache line. How much slower is that than giving each counter its own line?",
+   "options": [
+    "About 1.1× slower",
+    "2× slower",
+    "23× slower",
+    "100× slower"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>23×.</b> In our lab on an Apple M-series laptop, two threads doing 50M relaxed adds each took 1908 ms on one line and 82 ms padded. Each write moves the line between the two cores.</p>"
+  },
+  "c6": {
+   "q": "Once a core has been idle, how long does one deep core C6 exit take?",
+   "options": [
+    "About 1 µs",
+    "About 9 µs",
+    "About 90 µs",
+    "About 900 µs"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 90 µs</b>, measured. The intel_idle driver table lists 133–170 µs. Either way, one exit is many times the 2.5 µs budget.</p>"
+  },
+  "kernel": {
+   "q": "Compared with raw ef_vi frames, how much extra latency does the kernel TCP path add?",
+   "options": [
+    "+39 ns",
+    "+390 ns",
+    "+3.9 µs",
+    "+39 µs"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>+3.9 µs.</b> That is the kernel path over raw ef_vi, from a 2017 vendor slide. Onload and TCPDirect add tens to hundreds of nanoseconds instead.</p>"
+  },
+  "knight": {
+   "q": "How much did Knight Capital lose in the 45 minutes its bad code ran in 2012?",
+   "options": [
+    "About $44M",
+    "About $440M",
+    "Over $460M",
+    "About $4.6B"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Over $460M.</b> The $440M figure often quoted was Knight's early estimate. Over those 45 minutes there were about 4M executions and 397M shares.</p>"
+  }
+ },
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly happens, cycle-wise, between the NIC DMA completing and your code seeing the packet with ef_vi vs a kernel socket?",
+   "a": "<p><b>ef_vi:</b> the NIC DMAs into a user-registered buffer and writes an event into a user-mapped event queue. The spinning thread's next <code>ef_eventq_poll</code> load sees it, ideally from cache if DDIO placed it in LLC. No interrupt, no mode switch, no copy.</p><p><b>Kernel:</b> the NIC raises an interrupt (or NAPI polls), the driver builds an skb, the IP/UDP stack processes it, and it is queued on the socket. The thread blocked in <code>recv</code> gets woken through the scheduler, does a syscall return, and the data is copied to the user buffer. Each step adds cache misses and possible context switches. Solarflare measured about +3.9 µs for TCP.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does Gross store bids ascending and asks descending, and what's at <code>back()</code>?",
+   "a": "<p>The best price (highest bid, lowest ask) sits at the <b>end</b> of the vector. Most adds, modifies and deletes happen near the top of the book. <code>vector::insert</code> and <code>erase</code> cost is proportional to elements <i>after</i> the position, so operations near the end shift almost nothing. At the front they would shift the whole book.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "How does Rigtorp's SPSC queue's cached index reduce cache-coherence traffic?",
+   "a": "<p>Normally the consumer reads <code>writeIdx</code> on every pop. That pulls the producer's cache line into shared state, and the producer's next write must invalidate it, so the line ping-pongs. With a cached copy, the consumer only re-reads <code>writeIdx</code> when its cached value says the queue is empty, and the producer does the same for <code>readIdx</code>. Cross-core transfers drop from about every op to about every batch: Rigtorp saw about 3 → 0.15 misses per op and 20× throughput.</p>",
+   "sec": "knobs"
+  },
+  {
+   "type": "Mechanism",
+   "q": "In FastQueue, why does the reader check the write counter both before and after copying?",
+   "a": "<p>The writer never waits for readers, so it can lap a slow reader and overwrite data mid-copy. Reading the write counter before and after copying (seqlock-style) tells the reader whether the region could have been overwritten during the <code>memcpy</code>. If so, it discards the copy and reports overrun. The copy itself is formally a data race in C++, hence P1478.</p>",
+   "sec": "knobs"
+  },
+  {
+   "type": "Why",
+   "q": "Why does linear search beat binary search on the order book even though it's O(N)?",
+   "a": "<p>Updates are heavily skewed toward the top few levels, so a scan from the best price terminates in 0–3 steps. Each step is a sequential, prefetchable, well-predicted access. Binary search over about 1000 levels does about 10 dependent, unpredictable probes across different cache lines, which means mispredicts or data-dependent loads. Expected cost, not worst-case complexity, matters for skewed data. Our lab: vector 10.9 vs map 16.9 ns/update.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why fold all risk checks into one <code>uint64_t</code> instead of early-returning on each?",
+   "a": "<p>Each early-return branch must be predicted, and their outcome pattern is data-dependent. OR-ing branchless comparisons into a bit mask leaves <b>one</b> branch that is almost always \"no error\" and therefore perfectly predicted. The error handler is out-of-line and cold, so its instructions don't pollute the hot i-cache. You pay a few extra ALU ops to avoid potential 15–20-cycle mispredicts.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why do firms prefer a busy-spinning <code>SCHED_OTHER</code> thread over <code>SCHED_FIFO</code>?",
+   "a": "<p>On an isolated core with one runnable task, there's nothing to preempt you anyway. <code>SCHED_FIFO</code> adds RT throttling: by default RT tasks are limited to 95% CPU (<code>sched_rt_runtime_us</code>), so a spinning FIFO thread gets forcibly descheduled. It also risks starving per-CPU kernel threads that need to run. Rigtorp recommends a busy-waiting <code>SCHED_OTHER</code> thread.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why explicit hugetlbfs instead of transparent huge pages?",
+   "a": "<p>THP is opportunistic: khugepaged collapses pages in the background and the kernel may do direct compaction on fault. Both cause unpredictable stalls (<code>compact_stall</code>). Explicit hugetlbfs pages are reserved at boot, mapped with <code>MAP_HUGETLB</code>, and prefaulted at startup, so you get the TLB-reach win (about 4 GiB vs 8 MiB) with no runtime surprises.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If you removed cache warming but kept everything else, which percentile moves most, and why?",
+   "a": "<p>The <b>first real event after idle</b>, which is the one that matters, gets slow. The tail percentiles and specifically \"latency after quiet period\" move most. The median might barely change during busy periods, because back-to-back packets keep things warm naturally. In our lab, cold vs warm is 6.5× at p50 and 8× at p99.</p>",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If the market became a frequent batch auction every 100 ms, which of these techniques would still matter?",
+   "a": "<p>Sub-ms speed would stop deciding who wins: orders arriving anywhere within the 100 ms window are treated equally. What survives:</p><ul><li><b>throughput</b> (process the whole batch's data),</li><li><b>correctness</b> and risk,</li><li><b>avoiding drops</b>,</li><li>maybe compute-heavy pricing before the auction deadline.</li></ul><p>Kernel bypass and the ns-level micro-optimisations would matter far less. That is the point of Budish et al.</p>",
+   "sec": "open"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if you used <code>std::map</code> but with a pool allocator? What's fixed, and what isn't?",
+   "a": "<p>The pool fixes allocation cost and fragmentation, and improves locality somewhat if nodes come from one arena. It doesn't fix:</p><ul><li>the <b>log N dependent pointer chases</b> with unpredictable branches,</li><li>the larger node footprint (3 pointers + colour per entry), so fewer levels per cache line,</li><li>the lack of sequential prefetchability.</li></ul>",
+   "sec": "why"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could a dummy warm-up order end up sent to the exchange, and how do you make that impossible?",
+   "a": "<p>How it could happen: the \"don't send\" decision is one runtime flag. A bug, a reused flag (Knight!), or a refactor that moves the check can turn warm-up into real orders.</p><p>Defences:</p><ul><li>make the dry-run send target a <b>different sink</b> (a null TX object chosen by template/type, or a TX ring the NIC never transmits);</li><li>give warm-up orders an exchange-invalid or self-rejecting field;</li><li>add independent risk checks, including on the FPGA/NIC or a gateway;</li><li>add a wire-level monitor that kills the session on unexpected orders.</li></ul>",
+   "sec": "mech"
+  },
+  {
+   "type": "Adversarial",
+   "q": "You see a 3% p50 improvement after an unrelated commit. How do you decide if it's real?",
+   "a": "<p>Treat it as layout noise until proven otherwise (Mytkowicz ASPLOS'09; Stabilizer ASPLOS'13).</p><ul><li>Rerun with different link orders and alignments, or with randomisation.</li><li>Use many runs and look at distributions and confidence intervals, not single numbers.</li><li>Check top-down counters for a plausible mechanism (fewer misses or mispredicts).</li><li>Confirm at the wire with hardware timestamps under replayed production data, not a microbenchmark.</li></ul>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Which jitter source would you blame for a 2 ms spike that hits all isolated cores at once, and how do you confirm it?",
+   "a": "<p>Prime suspect: an <b>SMI</b>. It stalls all cores invisibly to the OS and can last ms. Other candidates: a TLB-shootdown storm, or the memory/uncore power state.</p><p>To confirm: run <code>hwlatdetect</code> / the hwlat tracer on the box (it spins with IRQs off and looks for TSC gaps), and correlate with BIOS settings (disable features like memory patrol scrub if allowed). Check <code>/proc/interrupts</code> deltas to rule out OS-visible interrupts.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Where is the UB in <code>auto* m = reinterpret_cast&lt;const AddOrder*&gt;(buf); return m-&gt;price;</code>, and why might it \"work\" for years?",
+   "a": "<p>No <code>AddOrder</code> object exists at <code>buf</code>; there is only a char/byte array. Accessing it through <code>const AddOrder*</code> violates object-lifetime and strict-aliasing rules. Misalignment can be UB too if the struct needs alignment the buffer doesn't provide.</p><p>It \"works\" because compilers usually emit plain loads and nothing in the translation unit lets them exploit the UB. Inlining, LTO, or a new optimisation can reorder or eliminate loads based on aliasing assumptions.</p><p>Fixes: <code>memcpy</code> / <code>std::bit_cast</code> (optimised to loads) or C++23 <code>std::start_lifetime_as&lt;AddOrder&gt;(buf)</code>.</p>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How is cache warming related to JIT warm-up in the JVM?",
+   "a": "<p>Both pre-pay one-time or decaying costs before the critical moment: the JIT compiles hot methods and builds profiles; cache warming loads lines and trains predictors. The difference: JIT warm-up is mostly one-time (compiled code stays), while cache/predictor state <b>decays</b> whenever other code runs, so HFT warming must be <b>continuous</b>. JVM trading shops (LMAX, Chronicle) need both.</p>",
+   "sec": "mech"
+  },
+  {
+   "type": "Connection",
+   "q": "How does the Little's-law burst analysis relate to io_uring's CQ overflow or a Kafka consumer lag?",
+   "a": "<p>Same math: when arrival rate &gt; service rate, backlog grows at λ−μ until a bounded buffer overflows. That buffer could be the NIC ring here, an io_uring CQ (overflow → <code>-EBUSY</code> / dropped completions handled via the overflow list), or a Kafka consumer (lag grows until retention deletes unconsumed data). The cliff is the same; only the buffer differs.</p>",
+   "sec": "math"
+  },
+  {
+   "type": "Connection",
+   "q": "How does the Knight Capital failure map onto feature-flag practice in ordinary web services?",
+   "a": "<p>Lessons for any service:</p><ul><li>Dead code behind a flag is live.</li><li>Reusing a flag's meaning across versions is dangerous during <b>partial rollouts</b>: old binaries interpret the bit the old way.</li><li>Verify version consistency across the fleet before enabling.</li><li>Rollback is a deployment too, so reason about the state you're rolling back to.</li><li>Alerts must be designed as alerts (97 unread emails).</li></ul>",
+   "sec": "breaks"
+  },
+  {
+   "type": "Open",
+   "q": "Can a general-purpose CPU ever offer a hard upper bound on tick-to-trade latency?",
+   "a": "<p>Not today. SMIs, microcode assists, DRAM refresh and power-management transitions are outside OS control, and caches/coherence add data-dependent timing. You can make violations rare and characterise them statistically, not bound them. Hard real-time systems use simpler cores, locked caches/scratchpads, or FPGAs, which is partly why the hardest deadlines moved to FPGAs.</p>",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Will C++26 reflection make hand-written codecs and SBE-style generators obsolete in HFT?",
+   "a": "<p>Plausibly it replaces external generators for <i>simple</i> schemas: reflection can generate field-by-field encode/decode at compile time from a struct with zero runtime cost.</p><p>But exchange schemas (SBE XML, ITCH specs) originate <i>outside</i> C++. Generators also handle versioning, multiple languages, and documentation. Open question: adoption depends on compiler maturity and on whether teams trust compile-time-generated hot code.</p>",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "If FPGAs and switches take every simple decision, what's left for C++, and does \"nanosecond C++\" still matter?",
+   "a": "<p>Open. One view: C++ becomes the \"control plane\": strategy, risk, parameter computation, model inference at 1–10 µs, while FPGAs fire. Predictability still matters there (falling behind on parameters = stale triggers). Another view: as exchange architecture (cloud regions, speed bumps, batch auctions) changes, the payoff for the last ns shrinks. Expect the skill set to shift toward co-design and measurement rather than micro-tricks.</p>",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "own-tick-stages": {
+   "original": true,
+   "file": "img/fig/own-tick-stages.svg",
+   "caption": "Each stage of one tick with the dive's stated cost: the two NIC hops take hundreds of ns, the software stages tens of ns or less."
+  },
+  "own-kernel-vs-bypass": {
+   "original": true,
+   "file": "img/fig/own-kernel-vs-bypass.svg",
+   "caption": "The kernel socket path adds an interrupt, a stack traversal and a wake-up that the bypass lane skips; the vendor measured +3.9 µs for TCP."
+  },
+  "own-false-sharing": {
+   "original": true,
+   "file": "img/fig/own-false-sharing.svg",
+   "caption": "Two cores writing counters on one cache line make the line bounce between them; giving each counter its own line gave 23× in the lab."
+  },
+  "own-spsc-layout": {
+   "original": true,
+   "file": "img/fig/own-spsc-layout.svg",
+   "caption": "Producer and consumer indices sit on separate 64-byte lines, and the consumer's cached copy of writeIdx keeps the shared line quiet."
+  },
+  "own-tail-compound": {
+   "original": true,
+   "file": "img/fig/own-tail-compound.svg",
+   "caption": "A 1% slow chance per stage grows to 63% over 100 stages, so the tail of a long path is set by how many stages it has."
+  },
+  "own-cold-warm": {
+   "original": true,
+   "file": "img/fig/own-cold-warm.svg",
+   "caption": "The same code is 6.5× slower at p50 and about 8× slower at p99 when cold, so warming targets the miss rate."
+  },
+  "own-core-pinning": {
+   "original": true,
+   "file": "img/fig/own-core-pinning.svg",
+   "caption": "The hot thread on core 3 sits in the range isolcpus and nohz_full cut off from the scheduler and tick; the other cores take the rest."
+  }
+ }
 }

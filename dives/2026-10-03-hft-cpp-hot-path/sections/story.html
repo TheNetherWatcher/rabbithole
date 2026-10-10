@@ -1,0 +1,85 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-stg{fill:var(--ink);font:600 14px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A trading hot path kept warm: a cold run is 6.5 times slower at the median, one packet walks six stages, and a shared cache line costs 23 times more.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Most of the time, the hot path sits idle.</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Cold: the path pays for cache misses</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Warm: a dummy tick keeps code and data hot</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="6">One packet, no syscalls, no allocation</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Budget: about 2.5 µs for the whole box</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Shared line: false sharing</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Speed is worthless without blocking risk gates</text>
+<rect x="20" y="140" width="440" height="24" class="f-code" data-in="1" data-out="2"/>
+<rect x="20" y="140" width="2" height="24" class="f-acc" data-in="1" data-out="2"/>
+<text x="240" y="200" class="sf-num" text-anchor="middle" data-in="1" data-out="2">0.01%</text>
+<text x="240" y="226" class="sf-lab" text-anchor="middle" data-in="1" data-out="2">of the time the hot path runs</text>
+<text x="20" y="104" class="sf-lab" data-in="2" data-out="3">Cold (after cache trash): p50 542 ns</text>
+<rect x="20" y="112" width="420" height="30" class="f-bad" data-in="2" data-out="3"/>
+<text x="20" y="166" class="sf-lab" data-in="2" data-out="3">Warm (after a warm-up call): p50 84 ns</text>
+<rect x="20" y="174" width="65.1" height="30" class="f-ok" data-in="2" data-out="3"/>
+<text x="20" y="240" class="sf-big" data-in="2" data-out="3">6.5× slower at the median</text>
+<rect x="20" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="54.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Receive</text>
+<rect x="96" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="130.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Parse</text>
+<rect x="172" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="206.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Book</text>
+<rect x="248" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="282.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Strategy</text>
+<rect x="324" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="358.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Risk</text>
+<rect x="400" y="130" width="68" height="56" class="f-panel s-line sf-blk" rx="7" stroke-width="1.5" data-in="3" data-out="7"/>
+<text x="434.0" y="163" class="sf-stg" text-anchor="middle" data-in="3" data-out="7">Send</text>
+<rect x="20" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="4" data-out="5"/>
+<rect x="96" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="4" data-out="5"/>
+<rect x="172" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="4" data-out="5"/>
+<rect x="248" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="5" data-out="6"/>
+<rect x="324" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="5" data-out="6"/>
+<rect x="400" y="130" width="68" height="56" class="f-acc" rx="7" opacity=".45" data-in="5" data-out="6"/>
+<text x="20" y="215" class="sf-lab" data-in="3" data-out="4">Warm-up tick: same code, dry_run, no order</text>
+<text x="20" y="215" class="sf-lab" data-in="4" data-out="5">Receive, parse, then book update in place</text>
+<text x="20" y="215" class="sf-lab" data-in="5" data-out="6">Strategy, risk check, then send</text>
+<text x="20" y="262" class="sf-lab" data-in="6" data-out="7">Software budget, wire to wire: about 2.5 µs</text>
+<rect x="20" y="270" width="12.2" height="20" class="f-ok" data-in="6" data-out="7"/>
+<text x="20" y="308" class="sf-lab" data-in="6" data-out="7">One deep core C6 exit: about 90 µs</text>
+<rect x="20" y="316" width="440" height="20" class="f-bad" data-in="6" data-out="7"/>
+<rect x="40" y="262" width="400" height="44" class="f-none s-warn" rx="8" stroke-width="2" data-in="7" data-out="8"/>
+<text x="60" y="289" class="sf-lab" data-in="7" data-out="8">counter A</text>
+<text x="270" y="289" class="sf-lab" data-in="7" data-out="8">counter B</text>
+<text x="240" y="326" class="sf-lab" text-anchor="middle" data-in="7" data-out="8">each write moves the line to the other core</text>
+<text x="240" y="358" class="sf-big" text-anchor="middle" data-in="7" data-out="8">23× slower than padded, in our lab</text>
+<text x="240" y="268" class="sf-num" text-anchor="middle" data-in="8" data-out="9">45 minutes</text>
+<text x="240" y="302" class="sf-big sf-bad" text-anchor="middle" data-in="8" data-out="9">over $460M lost</text>
+<text x="240" y="330" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">One reused flag, on one of eight servers</text>
+<g data-in="9">
+<rect x="12" y="38" width="456" height="370" class="f-bg" rx="14" opacity=".97"/>
+<text x="240" y="80" class="sf-cap" text-anchor="middle">The whole idea, in four numbers</text>
+<text x="40" y="134" class="sf-lab">cold vs warm hot path, median</text>
+<text x="440" y="142" class="sf-num" text-anchor="end">6.5×</text>
+<text x="40" y="192" class="sf-lab">two counters on one cache line</text>
+<text x="440" y="200" class="sf-num" text-anchor="end">23×</text>
+<text x="40" y="250" class="sf-lab">reversed vector vs std::map, book</text>
+<text x="440" y="258" class="sf-num" text-anchor="end">1.55×</text>
+<text x="40" y="308" class="sf-lab">software budget, wire to wire</text>
+<text x="440" y="316" class="sf-num" text-anchor="end">2.5 µs</text>
+<text x="240" y="388" class="sf-big" text-anchor="middle">Each number has a card below.</text>
+</g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap"><b>Most of the time, nothing runs.</b> A trading firm's hot path runs about 0.01% of the time, so it is cold by default. It still has to be fast on the one call that matters, every time.</p></div>
+<div class="step"><p><b>The naive way: let it go cold.</b> After the cache is flushed, the path takes p50 542 ns. Warm, the same path takes 84 ns. That is 6.5× at the median, and the gap is cache misses.</p></div>
+<div class="step"><p><b>The fix: a dummy tick.</b> Every few µs to ms, a synthetic tick runs the full path with <code>dry_run</code> set. The book, the parameters and the branch predictor stay trained, and no order goes out.</p></div>
+<div class="step"><p><b>One packet, no syscalls.</b> The NIC writes the frame into a ring the thread is already polling. The message is parsed in place, and the book update takes about 10 ns in our lab.</p></div>
+<div class="step"><p><b>Then the decision.</b> The strategy compares the best ask with its trigger, and the risk check is a single branch on one flag word. The order is built from preallocated memory.</p></div>
+<div class="step"><p><b>The budget.</b> A very good wire-to-wire time for a software trading system is about 2.5 µs. One deep core C6 exit costs about 90 µs, so a single stall is far over the whole budget.</p></div>
+<div class="step"><p><b>The trap: false sharing.</b> Two counters on one cache line make every write move that line between cores. In our lab, the shared layout ran 23× slower than the padded one.</p></div>
+<div class="step"><p><b>Speed is not enough.</b> Knight Capital lost over $460M in 45 minutes when a reused flag woke dead code on one of eight servers. Automated, blocking risk gates are what keep fast code safe. The cards below take each piece in turn.</p></div>
+<div class="step"><p><b>The whole idea, in four numbers.</b> Keep the path warm, let the packet take no detours, and measure the tail at the wire. The cards below show where each number comes from.</p></div>
+</div>
+</div>
