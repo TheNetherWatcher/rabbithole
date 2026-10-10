@@ -220,6 +220,8 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
 :root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
 .fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
 .fig figcaption b{color:var(--ink)}
 .fig-cite{display:block;font-size:12px;margin-top:2px}
@@ -816,7 +818,7 @@ u=0.05   MaxVio step0=2.523  step100=0.512  mean(last100)=0.492  |b|max=0.500</c
 </ul>
 <h3>Verification note</h3>
 <p>Formulas and numbers for loss-free balancing and V3 (γ, α, expert counts, M, Wang tables) were checked against the arXiv HTML. The Hayes, Yona, Qiu and ReMoE abstracts were fetched. Research subagents (Haiku) produced the rest. One of them stated γ ≈ 0.01 for Wang, which is wrong (the paper says u = 0.001), and I used the paper’s value.</p>
-<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced under their open licenses; changes limited to what is noted.</p><ol class="credits"><li><a href="#fig-fig1">Figure 1</a>: <a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Hayes, Shumailov and Yona et al., &quot;Buffer Overflow in Mixture of Experts&quot;, arXiv 2024</a>, Fig. 1. <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Cropped and recompressed.</li><li><a href="#fig-fig3">Figure 2</a>: <a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Hayes, Shumailov and Yona et al., &quot;Buffer Overflow in Mixture of Experts&quot;, arXiv 2024</a>, Fig. 3. <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Cropped and recompressed.</li></ol>
+<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced figures are used under their open licenses, with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits"><li><a href="#fig-fig1">Figure 1</a>: <a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Hayes, Shumailov and Yona et al., &quot;Buffer Overflow in Mixture of Experts&quot;, arXiv 2024</a>, Fig. 1. <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Cropped and recompressed.</li><li><a href="#fig-fig3">Figure 2</a>: <a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Hayes, Shumailov and Yona et al., &quot;Buffer Overflow in Mixture of Experts&quot;, arXiv 2024</a>, Fig. 3. <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Cropped and recompressed.</li></ol>
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
 </main>
