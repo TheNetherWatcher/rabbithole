@@ -1,0 +1,30 @@
+<p><b>Why the U-Net worked first:</b></p>
+<ul>
+<li>It gives multi-scale receptive fields cheaply: global layout at 8², texture at 64².</li>
+<li>Attention runs only where it is affordable.</li>
+<li>Skip connections let high-frequency detail bypass the bottleneck, which is essential at low t.</li>
+<li>Remove the skips and small models lose detail. SiD2 found small models lose about 0.2 FID without blockwise skips, while large ones do not care (<a href="https://arxiv.org/abs/2410.19324" target="_blank" rel="noopener">SiD2</a>).</li>
+</ul>
+<p><b>Why DiT won the 2023–26 default:</b></p>
+<ol>
+<li><b>A one-knob scaling law.</b> Depth, width and patch size map onto Gflops, and Gflops map onto FID (r = −0.93). Bigger models are also more <i>compute</i>-efficient: XL/2 beats XL/4 after about 10¹⁰ training Gflops (<a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">DiT</a>).</li>
+<li><b>The LLM stack transfers:</b> FlashAttention, FSDP and sequence parallelism, fp8, RoPE, QK-norm, MoE, torch.compile.</li>
+<li><b>Any-shape inputs are just token sequences:</b> video spacetime patches, variable aspect ratio, multiple images (Flux Kontext concatenates context tokens).</li>
+<li><b>Joint attention gives bidirectional text–image flow.</b> On CC12M, SD3 found that DiT &lt; UViT &lt; CrossDiT &lt; <b>MMDiT</b> (<a href="https://arxiv.org/abs/2403.03206" target="_blank" rel="noopener">SD3 §5.2</a>).</li>
+</ol>
+<figure data-fig="dit-gflops"></figure>
+<p>Each point is one DiT model (sizes S to XL, patch sizes 8 to 2) at 400K training steps. Lower FID goes with more transformer Gflops, on a log axis.</p>
+
+<p><b>Ablation thinking: remove each piece of a modern MMDiT.</b></p>
+<table>
+<thead><tr><th>Remove…</th><th>What breaks</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>adaLN-Zero gating</td><td>Convergence is about 2× slower (FID 19.5 → 25 at 400K)</td><td>DiT</td></tr>
+<tr><td>QK-norm</td><td>Attention logits grow, attention entropy collapses, bf16 training diverges at high resolution</td><td>SD3; ViT-22B (<a href="https://arxiv.org/abs/2302.05442" target="_blank" rel="noopener">2302.05442</a>)</td></tr>
+<tr><td>Separate per-modality weights (→ DiT with concatenation)</td><td>Worse validation loss, CLIP score and GenEval</td><td>SD3 §5.2</td></tr>
+<tr><td>T5 (keep only CLIP)</td><td>Typography win rate falls to 38%, prompt adherence to 46%; aesthetics unchanged</td><td>SD3</td></tr>
+<tr><td>RoPE / position embedding</td><td>U-ViT: "fails" with no position embedding</td><td>U-ViT</td></tr>
+<tr><td>Resolution shift</td><td>Washed-out, under-structured images at 1024²</td><td>SD3 human eval</td></tr>
+<tr><td>16-channel VAE (→ 4)</td><td>Reconstruction FID 1.06 → 2.41, which caps sample quality</td><td>SD3 Tbl</td></tr>
+</tbody>
+</table>

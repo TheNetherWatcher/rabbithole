@@ -1,0 +1,22 @@
+<p><b>Experiment 1: verify that tokens, not parameters, set the cost.</b> No GPU needed. Run <code>backbone_flops.py</code> (in this folder):</p>
+<pre><code>python3 backbone_flops.py</code></pre>
+<p>It checks the per-layer cost formula 12Td² + 2T²d against all 12 Gflops numbers in DiT's Table 4 (they match within 0.2–5%). It then shows:</p>
+<ul>
+<li>DiT-XL's cost going 7 → 29 → 118 → 524 GMACs as p goes 8 → 4 → 2 → 1, with <i>identical</i> parameters;</li>
+<li>token counts for SD1.5, Flux, SANA and 720p video;</li>
+<li>the attention share of a Flux-width layer climbing from 18% at 4K tokens to 87% at video scale.</li>
+</ul>
+<p><b>Experiment 2 (GPU, about 10 min): see the backbone swap in diffusers.</b></p>
+<pre><code>import torch
+from diffusers import DiffusionPipeline
+
+for repo in ["stable-diffusion-v1-5/stable-diffusion-v1-5", "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS"]:
+    pipe = DiffusionPipeline.from_pretrained(repo, torch_dtype=torch.float16).to("cuda")
+    net = getattr(pipe, "unet", None) or pipe.transformer
+    print(repo, type(net).__name__, f"{sum(p.numel() for p in net.parameters())/1e6:.0f}M params")
+    # Time one forward at increasing resolution to watch the scaling differ.</code></pre>
+<p><b>Things to observe:</b></p>
+<ul>
+<li>Time each backbone's forward pass at 512² and 1024². The U-Net's time grows roughly with pixels (it is conv-dominated). The DiT's grows faster once attention dominates.</li>
+<li>Then try <code>height=width=1536</code> on SD1.5 and look for duplicated subjects (§9).</li>
+</ul>

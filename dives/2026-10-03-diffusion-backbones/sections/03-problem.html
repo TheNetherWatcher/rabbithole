@@ -1,0 +1,18 @@
+<p>A denoiser must predict a dense, image-shaped output from a noisy input, <b>at every noise level t, with one shared set of weights</b>. That imposes four constraints:</p>
+<ul>
+<li><b>Two jobs at different scales.</b>
+<ul>
+<li>At high t the input is nearly pure noise, so the network must produce global layout. That needs a large receptive field.</li>
+<li>At low t it must restore texture. That needs precise local, high-frequency output.</li>
+<li>A pure conv stack has a small receptive field. A pure global-attention stack is quadratic in resolution.</li>
+</ul></li>
+<li><b>Resolution is enormous.</b>
+<ul>
+<li>A 256² RGB image has 196,608 numbers. Attention over every pixel would mean 65,536 tokens at 256², which is impossible in 2020.</li>
+<li>DDPM therefore used a U-Net with attention only at 16×16 (<a href="https://arxiv.org/abs/2006.11239" target="_blank" rel="noopener">DDPM App. B</a>).</li>
+<li>ADM, still in pixel space, cost <b>1120 GFLOPs per forward</b> at 256² (<a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">DiT Tbl 2 notes</a>). Times 250 sampling steps, that is about 280 TFLOPs per image.</li>
+</ul></li>
+<li><b>Conditioning has to reach every layer.</b> The network must behave very differently at t=0.9 than at t=0.1. DDPM added a sinusoidal t-embedding inside each ResBlock. Changing that to scale-and-shift (AdaGN) alone moved ImageNet-128 FID from 15.08 to 13.06 (<a href="https://arxiv.org/abs/2105.05233" target="_blank" rel="noopener">ADM Tbl 3</a>).</li>
+<li><b>No scaling recipe.</b> U-Nets have many coupled hyperparameters: channel multipliers, ResBlocks per level, which resolutions get attention. In 2022 there was no simple rule for "make it 10× bigger". LLMs had one.</li>
+</ul>
+<p>The latent-diffusion move (f=8 VAE) cut spatial positions by 64× and made attention-everywhere affordable. Once tokens were cheap, the question became: <i>do we still need the U-Net at all?</i></p>

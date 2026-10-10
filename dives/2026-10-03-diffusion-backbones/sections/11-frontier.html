@@ -1,0 +1,138 @@
+<h3>ImageNet-256 FID progression (class-conditional, FID-50K)</h3>
+<table>
+<thead><tr><th>Year</th><th>Model</th><th>Main lever</th><th>FID</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>2022</td><td>DiT-XL/2</td><td>Transformer on SD-VAE latents</td><td>2.27 (CFG 1.5)</td><td><a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">2212.09748</a></td></tr>
+<tr><td>2024</td><td>SiT-XL/2</td><td>Interpolant / flow objective, same net</td><td>2.06</td><td><a href="https://arxiv.org/abs/2401.08740" target="_blank" rel="noopener">2401.08740</a></td></tr>
+<tr><td>2024</td><td>REPA + SiT-XL/2</td><td>Align early hidden states to DINOv2</td><td>1.42 (interval CFG, 800 ep)</td><td><a href="https://arxiv.org/abs/2410.06940" target="_blank" rel="noopener">2410.06940</a></td></tr>
+<tr><td>2025</td><td>LightningDiT + VA-VAE</td><td>DINOv2-aligned latent, modern DiT</td><td>1.35</td><td><a href="https://arxiv.org/abs/2501.01423" target="_blank" rel="noopener">2501.01423</a></td></tr>
+<tr><td>2025</td><td>DDT-XL/2</td><td>Encoder/decoder split</td><td>1.31 (256 ep), 1.26 (400 ep)</td><td><a href="https://arxiv.org/abs/2504.05741" target="_blank" rel="noopener">2504.05741</a></td></tr>
+<tr><td>2025</td><td>REPA-E</td><td>End-to-end VAE + diffusion</td><td>1.12 (CFG) / 1.69 (none)</td><td><a href="https://arxiv.org/abs/2504.10483" target="_blank" rel="noopener">2504.10483</a></td></tr>
+<tr><td>2025</td><td>RAE (DiT^DH-XL, DINOv2-B)</td><td>Frozen representation encoder as latent</td><td>1.13 (guided) / 1.51 (none)</td><td><a href="https://arxiv.org/abs/2510.11690" target="_blank" rel="noopener">2510.11690</a></td></tr>
+<tr><td>2026</td><td>RAEv2</td><td>Sum of last-k encoder layers</td><td>1.06 (80 ep)</td><td><a href="https://arxiv.org/abs/2605.18324" target="_blank" rel="noopener">2605.18324</a></td></tr>
+<tr><td>2026</td><td>PAE</td><td>Prior-aligned AE (abstract only; guidance setting unverified)</td><td>1.03</td><td><a href="https://arxiv.org/abs/2605.07915" target="_blank" rel="noopener">2605.07915</a></td></tr>
+</tbody>
+</table>
+<p>Pixel space on ImageNet-256:</p>
+<table>
+<thead><tr><th>Model</th><th>FID</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>PixelFlow</td><td>1.98</td><td><a href="https://arxiv.org/abs/2504.07963" target="_blank" rel="noopener">2504.07963</a></td></tr>
+<tr><td>JiT-G/16</td><td>1.82</td><td><a href="https://arxiv.org/abs/2511.13720" target="_blank" rel="noopener">2511.13720</a></td></tr>
+<tr><td>DeCo</td><td>1.62</td><td><a href="https://arxiv.org/abs/2511.19365" target="_blank" rel="noopener">2511.19365</a></td></tr>
+<tr><td>EPG</td><td>1.58</td><td><a href="https://arxiv.org/abs/2510.12586" target="_blank" rel="noopener">2510.12586</a></td></tr>
+<tr><td>PixelDiT2</td><td>1.46</td><td><a href="https://arxiv.org/abs/2609.24919" target="_blank" rel="noopener">2609.24919</a></td></tr>
+</tbody>
+</table>
+<p><b>Read this table carefully.</b></p>
+<ul>
+<li>Guidance methods differ (CFG, interval CFG, AutoGuidance), and that alone moves FID by about 0.1–0.3.</li>
+<li>Several 2026 entries are unreviewed preprints.</li>
+<li>The gains since 2024 came mostly from the <b>latent space and the training signal, not the block design</b>.</li>
+</ul>
+
+<h3>Deep dive A: Representation Autoencoders (RAE)</h3>
+<p>Zheng, Ma, Tong, Xie (NYU), ICLR 2026. <a href="https://arxiv.org/abs/2510.11690" target="_blank" rel="noopener">arXiv 2510.11690</a></p>
+<ul>
+<li><b>Problem.</b> The SD-VAE is a ceiling. It has a low-dimensional latent (32×32×4), is trained only on reconstruction, and carries weak semantics. DDT's 1.26 already sits near the SD-VAE reconstruction floor (rFID about 1.2).</li>
+<li><b>Mechanism.</b>
+<ul>
+<li>Swap the VAE encoder for a <i>frozen</i> DINOv2-B (patch 14 → 256 tokens × 768 dimensions at 256²) and train only a ViT-XL decoder (L1 + LPIPS + adversarial loss).</li>
+<li>Reconstruction is <i>better</i> than SD-VAE: rFID 0.49 vs 0.62. With MAE it is 0.16.</li>
+<li>Three fixes make diffusion work on 768-dimensional tokens:
+<ol>
+<li>Width ≥ token dimension (Theorem 1, §6.5).</li>
+<li>A dimension-dependent timestep shift (FID 23.1 → 4.81).</li>
+<li>A noise-augmented decoder (4.81 → 4.28).</li>
+</ol></li>
+<li>The <b>DiT^DH</b> design adds a shallow, wide head (2 layers, width 2048) to get width cheaply.</li>
+</ul></li>
+<li><b>Results.</b> FID 2.16 at 80 epochs and 1.51 at 800 without guidance; 1.13 guided at both 256 and 512. About 16× faster convergence than REPA at matched compute.</li>
+<li><b>Limitations.</b>
+<ul>
+<li>The DDT head <i>hurts</i> on low-dimensional SD-VAE latents (11.70 vs 7.13).</li>
+<li>Raw pixels at equal dimension do much worse, which suggests structure matters, though JiT partly contests this through x-prediction.</li>
+<li>Weaker fine reconstruction, which matters for editing (<a href="https://arxiv.org/abs/2512.17909" target="_blank" rel="noopener">2512.17909</a>).</li>
+</ul></li>
+<li><b>Follow-ups.</b>
+<ul>
+<li><b>Scale-RAE</b> (<a href="https://arxiv.org/abs/2601.16208" target="_blank" rel="noopener">2601.16208</a>), text-to-image at 0.5–9.8B with SigLIP-2:
+<ul>
+<li>RAE beats the FLUX VAE at every scale.</li>
+<li>VAE models "catastrophically" overfit after 64 fine-tuning epochs, while RAE stays stable to 256.</li>
+<li>The DDT head gives "negligible benefits at scale", but the <b>noise shift stays essential</b>.</li>
+<li>Text rendering needs targeted decoder data.</li>
+</ul></li>
+<li><b>RAEv2</b> argues REPA ≈ x-prediction in RAE space, which makes the two complementary.</li>
+</ul></li>
+</ul>
+
+<h3>Deep dive B: JiT, "Back to Basics: Let Denoising Generative Models Denoise"</h3>
+<p>Li &amp; He, CVPR 2026. <a href="https://arxiv.org/abs/2511.13720" target="_blank" rel="noopener">arXiv 2511.13720</a></p>
+<ul>
+<li><b>Problem.</b> Can a plain ViT on raw pixels with <i>large</i> patches work with no tokenizer, no pretraining and no auxiliary loss? Earlier answers said no.</li>
+<li><b>Mechanism.</b>
+<ul>
+<li>Patches of 16/32/64 at 256/512/1024 keep T = 256 at every resolution.</li>
+<li>The network predicts <b>x</b>, and the loss is still v-matching, using v̂ = (x_t − x̂)/t.</li>
+<li>A linear <i>bottleneck</i> patch embedding (768 → as low as 16–512 → hidden) <i>improves</i> FID, which shows the useful information is low-rank.</li>
+<li>Noise is scaled with resolution (2× at 512, 4× at 1024).</li>
+</ul></li>
+<li><b>Results.</b> ImageNet-256 FID: B 4.37, L 2.79, H 1.86, G 1.82 (at 25 → 383 GFLOPs). ImageNet-512: G/32 2.11. Cost is nearly flat across resolution because T is fixed. In the target ablation, ε and v give FID above 96 and x gives 8.62.</li>
+<li><b>Limitations.</b>
+<ul>
+<li>Still about 0.4–0.7 FID behind the best latent methods.</li>
+<li>Each resolution needs its own noise and schedule tuning.</li>
+<li>Large-G training is costly.</li>
+</ul></li>
+<li><b>Follow-ups (2026).</b> It started a wave:
+<ul>
+<li><b>PixelU</b>: U-shaped DiT, 1.63 at 256, beating JiT-G at about 1/3 the compute.</li>
+<li><b>PixelDiT2</b> (NVIDIA): 1.46 using frozen vision-foundation-model guidance.</li>
+<li><b>SiHC / "residual-stream burden"</b> (<a href="https://arxiv.org/abs/2609.33895" target="_blank" rel="noopener">2609.33895</a>): explains why noisy targets force the residual stream to carry noise through every layer, and widens it with hyper-connections (FID 1.71).</li>
+<li>Theory (<a href="https://arxiv.org/html/2601.21419" target="_blank" rel="noopener">2601.21419</a>) formalizes when x beats ε/v from ambient vs intrinsic dimension.</li>
+</ul></li>
+</ul>
+
+<h3>Deep dive C: the representation-alignment line (REPA → DDT → REPA-E → HASTE)</h3>
+<ul>
+<li><b>REPA</b> (<a href="https://arxiv.org/abs/2410.06940" target="_blank" rel="noopener">2410.06940</a>, ICLR 2025 Oral):
+<ul>
+<li>Mechanism: a trainable MLP projects layer-~8 hidden states of the noisy input. A loss maximizes patch-wise cosine similarity with DINOv2 features of the <i>clean</i> image.</li>
+<li>Training is 17.5× faster: SiT-XL/2 at 400K steps matches 7M-step vanilla SiT (FID 7.9 without CFG).</li>
+<li>Interpretation: the DiT was wasting its early layers rediscovering semantics.</li>
+</ul></li>
+<li><b>DDT</b> (<a href="https://arxiv.org/abs/2504.05741" target="_blank" rel="noopener">2504.05741</a>):
+<ul>
+<li>Builds that interpretation into the architecture: a 22-layer <i>condition encoder</i> (low-frequency semantics, with REPA) and a 6-layer <i>velocity decoder</i> (high-frequency output).</li>
+<li>The encoder output can be <b>reused across adjacent sampling steps</b>, with a dynamic-programming schedule choosing which ones.</li>
+<li>FID 1.26 at 400 epochs.</li>
+</ul></li>
+<li><b>REPA-E</b> (<a href="https://arxiv.org/abs/2504.10483" target="_blank" rel="noopener">2504.10483</a>):
+<ul>
+<li>Training the VAE end-to-end with the diffusion loss collapses the latent, because diffusion prefers trivially easy latents. The REPA loss makes end-to-end training stable.</li>
+<li>FID 1.12. The tuned VAE also works as a drop-in elsewhere.</li>
+</ul></li>
+<li><b>The catch: "REPA Works Until It Doesn't" (HASTE, NeurIPS 2025)</b> (<a href="https://arxiv.org/abs/2505.16792" target="_blank" rel="noopener">2505.16792</a>):
+<ul>
+<li>Alignment speeds up early training, then plateaus or hurts; the teacher becomes a "straitjacket".</li>
+<li>Turning it off early matches REPA's best FID with 28× fewer steps.</li>
+</ul></li>
+</ul>
+
+<h3>Other 2024–26 advances</h3>
+<ul>
+<li><b>EDM2</b> (CVPR 2024) <a href="https://arxiv.org/abs/2312.02696" target="_blank" rel="noopener">2312.02696</a>: magnitude-preserving U-Net plus post-hoc EMA. ImageNet-512 FID 1.81 without guidance.</li>
+<li><b>DiT-MoE</b> <a href="https://arxiv.org/abs/2407.11633" target="_blank" rel="noopener">2407.11633</a>: 16.5B parameters, 512 FID 1.80. The experts specialize by <i>position and timestep</i>, not by class.</li>
+<li><b>EC-DiT</b> (Apple) <a href="https://arxiv.org/abs/2410.02098" target="_blank" rel="noopener">2410.02098</a>: expert-choice routing up to 97B parameters.</li>
+<li><b>FLUX.1 Kontext</b> <a href="https://arxiv.org/abs/2506.15742" target="_blank" rel="noopener">2506.15742</a>: editing by plain token concatenation of context images; no new modules.</li>
+<li><b>SANA / SANA 1.5</b> <a href="https://arxiv.org/abs/2410.10629" target="_blank" rel="noopener">2410.10629</a>, <a href="https://arxiv.org/abs/2501.18427" target="_blank" rel="noopener">2501.18427</a>: linear DiT + DC-AE. Inference-time scaling takes GenEval from 0.81 to 0.96.</li>
+<li><b>Sparse video attention:</b>
+<ul>
+<li>STA (<a href="https://arxiv.org/abs/2502.04507" target="_blank" rel="noopener">2502.04507</a>): 945 s → 501 s end to end, training-free.</li>
+<li>Radial Attention (<a href="https://arxiv.org/abs/2506.19852" target="_blank" rel="noopener">2506.19852</a>): O(n log n).</li>
+<li>VSA (<a href="https://arxiv.org/abs/2505.13389" target="_blank" rel="noopener">2505.13389</a>): trainable; 2.53× fewer training FLOPs at equal loss.</li>
+</ul></li>
+<li><b>Transfusion</b> <a href="https://arxiv.org/abs/2408.11039" target="_blank" rel="noopener">2408.11039</a> and <b>BAGEL</b> <a href="https://arxiv.org/abs/2505.14683" target="_blank" rel="noopener">2505.14683</a>: one transformer with an LM loss on text and a diffusion/flow loss on images. BAGEL reaches GenEval 0.88.</li>
+<li><b>LLaDA</b> <a href="https://arxiv.org/abs/2502.09992" target="_blank" rel="noopener">2502.09992</a>: an 8B masked-diffusion LM whose backbone is a plain transformer without the causal mask. The backbone question for text is "nothing changes except the mask and the KV cache".</li>
+</ul>

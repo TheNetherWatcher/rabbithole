@@ -1,0 +1,25 @@
+<p>How production models deviate from the papers:</p>
+<ul>
+<li><b>Flux.1</b>:
+<ul>
+<li>2×2 latent <i>packing</i> gives <code>in_channels=64</code>.</li>
+<li><b>3-axis RoPE</b> with axes_dim [16, 56, 56]; the first axis is free for multi-image or editing indices.</li>
+<li>The <b>single-stream blocks are not in the SD3 paper</b>: a parallel attention+MLP block from ViT-22B with a fused <code>linear1</code>.</li>
+<li><b>Guidance embedding</b> in dev; schnell differs only by <code>guidance_embed=False</code>.</li>
+<li><b>Dynamic timestep shift</b> that is linear in sequence length.</li>
+<li>No paper with ablations exists, so all of this is from the code (<a href="https://github.com/black-forest-labs/flux" target="_blank" rel="noopener">BFL flux</a>).</li>
+</ul></li>
+<li><b>SD3.5-Medium "MMDiT-X"</b> adds extra self-attention in the first 13 layers and was trained progressively from 256 to 1440 px (<a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-medium" target="_blank" rel="noopener">card</a>).</li>
+<li><b>SDXL</b> pulled attention <i>out</i> of the highest-resolution level and deleted the 8× level. It is a U-Net bending towards "attention at low resolution only".</li>
+<li><b>PixArt</b> uses "adaLN-single": one shared modulation MLP for all blocks instead of one per block. This saves about 27% of parameters (recalled from memory, not re-verified). Wan 2.1 likewise shares one MLP that predicts 6 modulation vectors.</li>
+<li><b>Hunyuan-DiT</b> adds U-ViT-style long skips to a DiT.</li>
+<li><b>CogVideoX</b> uses "expert adaLN": separate modulation for text tokens and video tokens over one 3D attention. This is MMDiT's idea applied only to the norms.</li>
+<li><b>Wan 2.2 MoE is routed by timestep, not token</b>: two 14B experts, with the switch at high→low noise. It is eDiff-I's 2022 "expert denoisers" idea (<a href="https://arxiv.org/abs/2211.01324" target="_blank" rel="noopener">eDiff-I</a>) brought back at 27B.</li>
+<li><b>SANA</b> has no positional encoding at all; a 3×3 depthwise convolution in Mix-FFN supplies position.</li>
+<li><b>Caching exploits backbone structure.</b>
+<ul>
+<li>DeepCache reuses deep U-Net features and recomputes only the shallow skip branch: 2.3× on SD1.5 (<a href="https://arxiv.org/abs/2312.00858" target="_blank" rel="noopener">DeepCache</a>).</li>
+<li>DiTs have no such hierarchy, so TeaCache predicts when a whole forward can be skipped from timestep-modulated input deltas: up to 4.41× (<a href="https://arxiv.org/abs/2411.19108" target="_blank" rel="noopener">TeaCache</a>).</li>
+<li>DDT shares its encoder output across adjacent steps <i>by design</i>.</li>
+</ul></li>
+</ul>

@@ -1,0 +1,97 @@
+<h3>6.1 The objective, and why the prediction target is a design choice</h3>
+<p>Forward process: <code>x_t = α_t·x₀ + σ_t·ε</code>, with ε ~ N(0, I).</p>
+<ul>
+<li>DDPM/VP: α_t = √ᾱ_t, σ_t = √(1−ᾱ_t).</li>
+<li>Rectified flow (SD3/Flux): α_t = 1−t, σ_t = t.</li>
+</ul>
+<p>DDPM's loss (<a href="https://arxiv.org/abs/2006.11239" target="_blank" rel="noopener">Eq. 14</a>):</p>
+<div class="eq">L = E<sub>t,x₀,ε</sub> ‖ ε − ε<sub>θ</sub>(x_t, t, c) ‖²<small>→ in plain terms: the network sees a noisy image and the noise level, and must guess the noise that was added.</small></div>
+<p>Given x_t and t, the three targets are interchangeable:</p>
+<div class="eq">x̂₀ = (x_t − σ_t ε̂)/α_t, and for rectified flow v = ε − x₀.</div>
+<p>So why does the choice matter? Because <b>the network has to output that target with finite capacity</b>.</p>
+<ul>
+<li>x₀ lies on a low-dimensional image manifold.</li>
+<li>ε (and v, which contains ε) is full-rank noise in the ambient dimension D.</li>
+</ul>
+<p>JiT's argument (<a href="https://arxiv.org/abs/2511.13720" target="_blank" rel="noopener">Li &amp; He 2025</a>): with 16×16×3 = 768-dimensional pixel patches and a narrower bottleneck, predicting ε or v means carrying 768 dimensions of incompressible noise through the network.</p>
+<ul>
+<li>ε- and v-prediction fail outright (FID above 96, versus 8.62 for x-prediction in their ablation).</li>
+<li>x-prediction, converted to a v-loss, works.</li>
+</ul>
+<div class="fig-pair"><figure data-fig="jit-x"></figure><figure data-fig="jit-eps"></figure></div>
+<p>The toy experiment behind this: a 2-D spiral buried in a 16-dimensional space, with a 5-layer MLP as the generator. The plots show generated points; the x-prediction samples (left) keep to the spiral, while the ε-prediction samples (right) scatter off it.</p>
+<p><i>In plain terms:</i> asking a network to output something that lives on a small manifold is easier than asking it to reproduce random noise. This is invisible in 4-channel latents (D is small) and decisive in pixel space or high-dimensional latents.</p>
+
+<h3>6.2 adaLN-Zero: how t gets into every layer</h3>
+<p>With c = emb(t) + emb(y), one linear layer produces six vectors per block (<a href="https://github.com/facebookresearch/DiT/blob/main/models.py" target="_blank" rel="noopener">DiT code</a>):</p>
+<div class="eq">(β₁, γ₁, α₁, β₂, γ₂, α₂) = W·SiLU(c) + b,  with W = 0 and b = 0 at init<br>x ← x + α₁ ⊙ Attn( (1+γ₁) ⊙ LN(x) + β₁ )<br>x ← x + α₂ ⊙ MLP ( (1+γ₂) ⊙ LN(x) + β₂ )<small>→ in plain terms: the timestep rescales and shifts every normalized activation, and a gate α decides how much each block contributes.</small></div>
+<p><b>Why this form:</b></p>
+<ul>
+<li><b>(1+γ), not γ.</b> With γ=0 at init the scale is the identity, not zero.</li>
+<li><b>The gate α, zero-initialised.</b> Every block starts as an identity residual, so the 28-layer network starts as "output = input projection". Gradients flow cleanly, which is the same trick as Fixup / zero-init ResNets.</li>
+<li><b>Why not just add t as a token?</b> In-context conditioning has to fight for attention mass and influence the network through one token. Modulation touches every channel of every token directly.</li>
+</ul>
+<p>DiT's ablation (DiT-XL/2, 400K steps; <a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">App. Tbl 4</a>):</p>
+<table>
+<thead><tr><th>Variant</th><th>FID</th><th>Gflops</th></tr></thead>
+<tbody>
+<tr><td>in-context</td><td>35.24</td><td>119.4</td></tr>
+<tr><td>cross-attn</td><td>26.14</td><td>137.6</td></tr>
+<tr><td>adaLN</td><td>25.21</td><td>118.6</td></tr>
+<tr><td>adaLN-Zero</td><td>19.47</td><td>118.6</td></tr>
+</tbody>
+</table>
+<p>Caveat: U-ViT found <i>time-as-token</i> beats AdaLN in its setting, which had long skips (<a href="https://arxiv.org/abs/2209.12152" target="_blank" rel="noopener">U-ViT</a>). The ranking is not universal.</p>
+
+<h3>6.3 Cost: why tokens, not parameters, are the bill</h3>
+<p>For T tokens of width d with a 4× MLP, forward multiply-accumulates (MACs) per layer are:</p>
+<div class="eq">C(T, d) = 4Td² (QKV + output) + 8Td² (MLP) + 2T²d (QKᵀ and AV) = <b>12Td² + 2T²d</b><small>→ in plain terms: the linear layers cost scales with tokens × width², and attention costs scales with tokens² × width.</small></div>
+<p>The ratio is attention/linear = T/(6d), so attention dominates once T &gt; 6d. For Flux (d=3072) that means beyond about 18K tokens. Images at 1024² sit below the crossover: 4,608 tokens means about 20% of layer MACs. Video at 720p×129 frames (about 119K tokens) is about 87% attention.</p>
+<p>Check against the DiT paper (run <code>backbone_flops.py</code>, in this folder, as in §13): DiT-XL/2 gives N=28, T=256, d=1152, so 28·C = <b>118.4 G</b> vs <b>118.64</b> reported. Every DiT config matches within 0.2–5%. DiT's 512² model (T=1024) is reported at 524.6, and the formula gives 524.3. So DiT's "Gflops" are effectively forward GMACs (my inference; the paper does not say so).</p>
+<p>Patch size enters as T = (I/p)². Halving p quadruples T and at least quadruples cost, while parameters stay constant. This is why DiT found that <b>Gflops, not parameters, predict FID</b>: S/2 and B/4 have similar Gflops and similar FID (<a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">DiT Fig. 8</a>).</p>
+
+<div class="widget" id="math-cost" role="group" aria-label="Cost calculator">
+<b>Cost calculator: tokens are the bill.</b>
+<p class="mini">Per layer MACs = 12·T·d² + 2·T²·d. Move the sliders and watch the attention share cross 50% once T &gt; 6d.</p>
+<div class="ctl">
+  <label>Image side: <b id="math-rv"></b> px <input type="range" id="math-res" min="256" max="4096" step="128" value="1024"></label>
+</div>
+<div class="ctl">
+  <label>VAE downsample f: <select id="math-vf"><option>8</option><option>16</option><option>32</option></select></label>
+  <label>Patch size p: <select id="math-pp"><option>1</option><option selected>2</option><option>4</option></select></label>
+  <label>Width d: <select id="math-dd"><option value="1152">1152 (DiT-XL)</option><option value="2432">2432 (SD3-8B)</option><option value="3072" selected>3072 (Flux)</option></select></label>
+  <label>Layers N: <input type="number" id="math-nn" value="57" min="1" max="200" style="width:5em"></label>
+</div>
+<div class="ctl">
+  <label>Frames (video; 1 = image, temporal ÷4): <b id="math-fv"></b> <input type="range" id="math-fr" min="1" max="129" step="8" value="1"></label>
+</div>
+<p id="math-cout" aria-live="polite"></p>
+<div class="bar" aria-hidden="true"><i id="math-bar"></i></div>
+</div>
+
+<h3>6.4 Resolution-dependent timestep shift</h3>
+<p>At higher resolution, neighbouring pixels are redundant, so the same σ destroys less information (<a href="https://arxiv.org/abs/2301.11093" target="_blank" rel="noopener">simple diffusion</a>). SD3 maps a timestep t_n tuned at n pixels to m pixels (<a href="https://arxiv.org/abs/2403.03206" target="_blank" rel="noopener">SD3 §5.3.2</a>):</p>
+<div class="eq">t_m = √(m/n)·t_n / (1 + (√(m/n) − 1)·t_n)<small>→ in plain terms: bigger images spend more of the schedule at high noise. For example, with √(m/n)=3, t_n = 0.5 maps to t_m = 0.75.</small></div>
+<p>SD3 used a shift of 3.0 at 1024². RAE uses the same form with <b>m = effective latent dimension</b>, not pixel count. That shift alone moved its FID from 23.1 to 4.81 (<a href="https://arxiv.org/abs/2510.11690" target="_blank" rel="noopener">RAE</a>). The backbone takes the blame when this is wrong, but the schedule is the cause.</p>
+
+<h3>6.5 RAE's width condition</h3>
+<p>RAE (Theorem 1, <a href="https://arxiv.org/abs/2510.11690" target="_blank" rel="noopener">arXiv 2510.11690</a>): once Gaussian noise is added, the support of x_t is all of ℝ<sup>D</sup>, even if the data sits on a low-dimensional manifold. A denoiser whose per-token width d &lt; D (the token dimension) therefore cannot represent the optimal denoiser, and it incurs an irreducible loss.</p>
+<figure data-fig="rae-width"></figure>
+<p><i>In plain terms:</i> your transformer must be at least as wide as the tokens it is denoising. In their experiments DiT-S (width 384) fails on DINOv2's 768-dimensional tokens, and it works once width ≥ 768. This is a backbone-sizing rule that comes from the <i>latent space</i>.</p>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  if(!$('math-res'))return;
+  function fmt(n){return n>=1e18?(n/1e18).toFixed(2)+' E':n>=1e15?(n/1e15).toFixed(2)+' P':n>=1e12?(n/1e12).toFixed(2)+' T':n>=1e9?(n/1e9).toFixed(1)+' G':n>=1e6?(n/1e6).toFixed(1)+' M':n.toLocaleString()}
+  function cu(){
+    var R=+$('math-res').value,f=+$('math-vf').value,p=+$('math-pp').value,F=+$('math-fr').value,d=+$('math-dd').value,N=Math.max(1,+$('math-nn').value||1);
+    $('math-rv').textContent=R;$('math-fv').textContent=F;
+    var side=Math.floor(R/f/p);var tl=F>1?1+Math.floor((F-1)/4):1;var T=tl*side*side;
+    var lin=12*T*d*d,att=2*T*T*d,tot=N*(lin+att),sh=att/(lin+att);
+    $('math-cout').innerHTML='Tokens T = <b>'+T.toLocaleString()+'</b> ('+(tl>1?tl+' latent frames × ':'')+side+'×'+side+') · forward ≈ <b>'+fmt(tot)+'MACs</b> per step · attention share <b>'+(100*sh).toFixed(1)+'%</b> · crossover at T = 6d = '+(6*d).toLocaleString()+'<br><span class="mini">× steps × 2 for CFG. 50 steps with CFG ≈ <b>'+fmt(tot*100)+'MACs</b> per sample.</span>';
+    $('math-bar').style.width=(100*sh).toFixed(1)+'%';
+  }
+  ['math-res','math-vf','math-pp','math-fr','math-dd','math-nn'].forEach(function(id){$(id).addEventListener('input',cu)});
+  cu();
+})();
+</script>

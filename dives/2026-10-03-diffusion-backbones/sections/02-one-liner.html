@@ -1,0 +1,15 @@
+<blockquote>"Diffusion models switched from U-Nets to transformers because transformers scale better."</blockquote>
+<p>What that sentence hides:</p>
+<ol>
+<li><b>Most of DiT's headline win over ADM came from moving to latent space, not from the transformer.</b> DiT-XL/2 costs 118.6 Gflops. ADM, a <i>pixel</i> U-Net, costs 1120. LDM-4, a latent U-Net, costs 103.6 (<a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">DiT §5</a>). Compute-matched U-Nets such as EDM2 still compete (<a href="https://arxiv.org/abs/2312.02696" target="_blank" rel="noopener">EDM2</a>).</li>
+<li><b>How the timestep is injected mattered more than many block designs.</b> DiT's adaLN-Zero (FID 19.47) vs in-context tokens (35.24) on the same model is nearly a 2× gap from conditioning alone.</li>
+<li><b>Transformers did not really drop the U-Net's inductive biases; they rebuilt them.</b> Long skip connections (U-ViT, Hunyuan-DiT), 3×3 convolutions (SANA Mix-FFN), token downsampling (U-DiT, HDiT, PixelU) and local attention windows all came back.</li>
+<li><b>Since 2024 the biggest quality gains came from <i>outside</i> the block:</b>
+<ul>
+<li>the latent space (VA-VAE → REPA-E → RAE);</li>
+<li>representation alignment (REPA);</li>
+<li>the prediction target (JiT's x-prediction).</li>
+</ul>
+ImageNet-256 FID went 2.27 → 1.13 with roughly the same transformer.</li>
+<li><b>"Scales better" applies to the loss, not to every capability.</b> Counting accuracy does not improve with scale (<a href="https://arxiv.org/html/2510.11117v1" target="_blank" rel="noopener">numerosity study</a>).</li>
+</ol>

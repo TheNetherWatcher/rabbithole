@@ -1,0 +1,19 @@
+<p><b>A U-Net is a funnel with pneumatic tubes. A DiT is a flat room of equals.</b></p>
+<ul>
+<li><b>U-Net.</b> Features flow <i>down</i> a funnel: each level halves the resolution and doubles the channels, building context. They then flow <i>back up</i>. At each level, a skip connection (the pneumatic tube) shoots the high-resolution features straight across to the matching decoder level, so fine detail does not have to survive the bottleneck. Attention sits only at the cheap, low-resolution floors.</li>
+<li><b>DiT.</b> The latent is cut into p×p patches. Every patch becomes a token of width d, and all T tokens talk to all other tokens in every one of N identical layers. There is no funnel, so resolution never changes. The timestep acts as a global "dial" that rescales every layer's normalization (adaLN).</li>
+<li><b>MMDiT.</b> Text tokens join the same room, but they keep their own projection weights (their "own notebooks") while sharing one attention conversation.</li>
+</ul>
+<figure data-fig="dit-arch"></figure>
+<p>The DiT block (left) patchifies the noisy latent and conditions each block through a small MLP that predicts scale, shift and gate vectors. The two cross-attention and in-context variants on the right are the alternatives the paper compared.</p>
+<p><b>Where the analogy breaks:</b></p>
+<ul>
+<li>A DiT is <b>not</b> structureless. Patchify is itself a strided convolution, so the "flat room" was built from a 2×-downsampled latent. Position embeddings re-inject geometry.</li>
+<li>Many "flat" models quietly re-add funnels and tubes:
+<ul>
+<li>U-ViT long skips;</li>
+<li>token-downsampled attention in U-DiT and HDiT;</li>
+<li>DDT's encoder/decoder split.</li>
+</ul></li>
+<li>In a U-Net, the skips are not merely "detail tubes". U-ViT found that <i>how</i> the skip merges matters: concat + linear helps, while plain addition gives nothing, because the residual stream already carries that signal additively (<a href="https://arxiv.org/abs/2209.12152" target="_blank" rel="noopener">U-ViT §3.1</a>).</li>
+</ul>

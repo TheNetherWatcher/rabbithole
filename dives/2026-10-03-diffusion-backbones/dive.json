@@ -1,0 +1,393 @@
+{
+ "meta": {
+  "title": "Diffusion backbones: U-Net → DiT → MMDiT → beyond",
+  "short": "Diffusion backbones",
+  "subject": "Computer science",
+  "domain": "ML/AI",
+  "topic": "Diffusion denoiser architectures (U-Net, ADM, LDM, DiT, U-ViT, MMDiT/Flux, SSM/linear, MoE, pixel-space x-prediction, RAE)",
+  "depth": "research",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "Image and video generators run one denoiser 28–50 times per picture, and its inside is the <b>backbone</b>. The U-Net funnel with skip tubes led until 2022. DiT, then MMDiT in SD3 and Flux, won by scaling cleanly: transformer Gflops predict FID with r = <b>−0.93</b>. Most 2024–26 quality gains came from the latent space and training target, not the block.",
+ "why": "<b>Why it matters:</b> the backbone runs steps × (2 for CFG) times per image, so its efficiency is the product's cost.",
+ "stats": [
+  {
+   "v": "−0.93",
+   "l": "correlation of DiT Gflops with FID"
+  },
+  {
+   "v": "1120 → 118.6",
+   "l": "Gflops, ADM pixel U-Net vs DiT-XL/2 latent"
+  },
+  {
+   "v": "12B",
+   "l": "FLUX.1 parameters (19 double + 38 single blocks)"
+  },
+  {
+   "v": "1.13",
+   "l": "ImageNet-256 FID, RAE with guidance"
+  },
+  {
+   "v": "87%",
+   "l": "attention share of one layer at 720p video"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "Restaurant tables, not one long bench",
+   "visual": "img/plain.svg",
+   "brief": "<p>An image is born from TV static over 28–50 rounds. Each round, one cleaner looks at the messy picture and nudges it. The cleaner's inside is the <b>backbone</b>: either a U-Net funnel with skip tubes, or a set of tile workers (a DiT) that all talk to each other.</p>",
+   "group": "Plain English",
+   "tone": "plain",
+   "file": "sections/00-plain.html"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six ideas to hold before reading the architectures",
+   "visual": "img/ctx.svg",
+   "brief": "<ul><li><b>Diffusion</b>: learn to undo noise; sample in 4–50 steps.</li><li><b>Prediction target</b>: noise ε, clean x₀, or velocity v.</li><li><b>Latent diffusion</b>: run in a VAE's 8×-smaller space.</li><li><b>Attention</b>: costs O(T²·d) for T tokens.</li><li><b>Conditioning</b> and <b>FID</b>, the benchmark currency.</li></ul>",
+   "group": "Context",
+   "file": "sections/01-context.html"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Where the backbone runs, and which one to pick",
+   "visual": "img/world.svg",
+   "brief": "<p>The backbone runs at every step, so it sets the cost: <b>steps × 2 for CFG</b>. U-Nets still lead in SD1.5 and SDXL. DiT and MMDiT power SD3, Flux (12B), Sora, Wan and Qwen-Image. Pick a U-Net for low VRAM and the ControlNet catalogue; pick a DiT for text, scale and video.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "Most of DiT's win over ADM came from latent space, not the transformer",
+   "visual": "img/onel.svg",
+   "brief": "<p>ADM, a pixel U-Net, costs 1120 Gflops; DiT-XL/2 costs 118.6, and most of that gap is latent space. Conditioning alone changed FID nearly 2×. Since 2024 the biggest gains came from outside the block: latent, training signal and prediction target.</p>",
+   "group": "Technical deep dive",
+   "file": "sections/02-one-liner.html"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Denoisers must serve global layout and fine texture with one weight set",
+   "visual": "img/problem.svg",
+   "brief": "<p>At high noise the network must draw global layout; at low noise it must restore texture, at every step, with shared weights. Pixel-space attention at 256² means 65,536 tokens. ADM costs 1120 GFLOPs per forward, and AdaGN alone cut ImageNet-128 FID from 15.08 to 13.06.</p>",
+   "file": "sections/03-problem.html"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A U-Net is a funnel with tubes; a DiT is a flat room of equals",
+   "visual": "img/model.svg",
+   "brief": "<p>The U-Net halves resolution going down, then skip tubes carry detail back up. The DiT keeps one resolution: every patch is a token, and the timestep is a global dial on every layer. MMDiT gives text its own notebooks but one shared conversation. Many \"flat\" models re-add funnels.</p><p class=\"mini\">DiT block figure inside.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One Flux step: 4,096 image tokens and 4,608 in joint attention",
+   "visual": "img/mech.svg",
+   "brief": "<p>At 1024², the 16×128×128 latent is packed into 4,096 tokens. Nineteen double-stream blocks keep separate weights but share one attention over 4,608 tokens. Thirty-eight single-stream blocks follow. A velocity comes out, and a small Euler step is taken 28–50 times.</p><p class=\"mini\">8-stage step-through inside.</p>",
+   "file": "sections/05-mechanism.html"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Cost follows tokens, and attention takes over past T = 6d",
+   "visual": "img/math.svg",
+   "brief": "<p>Per layer, cost is <b>12Td² + 2T²d</b>. Flux images sit near 20% attention, while 720p video is 87%. Predicting x works on 768-dimensional patches where ε and v fail (FID 8.62 vs above 96). The schedule must shift with resolution: RAE's FID went from 23.1 to 4.81.</p><p class=\"mini\">Cost calculator and figures inside.</p>",
+   "file": "sections/06-math.html"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "A one-knob scaling law made DiT the default",
+   "visual": "img/why.svg",
+   "brief": "<p>Transformer Gflops predict FID with correlation <b>−0.93</b>, so depth, width and patch size reduce to one number. LLM tooling transfers: FlashAttention, FSDP, fp8. Joint attention beat cross-attention on SD3's CC12M tests. Remove adaLN-Zero gating and convergence is about 2× slower.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Patch size, width and conditioning are the real design dials",
+   "visual": "img/knobs.svg",
+   "brief": "<p>Smaller patches cost about 1/p⁴ when attention dominates. Width must be at least the token dimension (RAE). Prediction target matters when tokens are high-dimensional. EDM2, a U-Net, reaches ImageNet-512 FID 1.81, so the U-Net is still a live design.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Training diverges, subjects duplicate, and video is quadratic",
+   "visual": "img/breaks.svg",
+   "brief": "<p>Without QK-norm, bf16 training diverges at high resolution. Off-resolution images duplicate subjects. Higher-dimensional VAE latents reconstruct better but generate worse (gFID 16.24 → 36.83). In HunyuanVideo, 800 of 945 seconds is attention. Over 1,000 training images have been extracted from SD and Imagen.</p>",
+   "file": "sections/09-where-it-breaks.html"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Production models bend the papers in small, telling ways",
+   "visual": "img/wild.svg",
+   "brief": "<p>Flux adds 3-axis RoPE and a guidance embedding, so its dev guidance is not real CFG. SANA has no positional encoding at all. Wan 2.2 routes experts by timestep, not token. DeepCache needs a U-Net hierarchy, while TeaCache skips whole DiT forwards for up to 4.41×.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier (2024–2026)",
+   "title": "Since 2024, ImageNet FID gains came from latent space and training signal",
+   "visual": "img/frontier.svg",
+   "brief": "<p>ImageNet-256 FID fell from DiT's 2.27 to 1.06–1.13 by 2026, with about the same transformer. The wins came from a frozen DINOv2 latent (RAE) and from the training signal (REPA, JiT's x-prediction). Pixel-space work reached 1.46 with PixelDiT2.</p>",
+   "group": "Research edge",
+   "file": "sections/11-frontier.html"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Nine open questions, led by which latent space is best",
+   "visual": "img/open.svg",
+   "brief": "<p>Is the best latent semantic (RAE), spectrally smooth (EQ-VAE), or absent (JiT)? Do U-Net biases still matter beyond 8B? Will sparse or linear attention survive long training? Scaling laws disagree by orders of magnitude, and most architecture claims sit inside FID noise.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Two lineages, U-Net and ViT, merged into the 2026 models",
+   "visual": "img/lineage.svg",
+   "brief": "<p>U-Net (2015) becomes DDPM, then ADM, which beat GANs in 2021, then LDM and SDXL. ViT (2020) becomes DiT (2022), then SD3's MMDiT and Flux, and later REPA, RAE and JiT. Each arrow marks a design later reused.</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on (≤30 min)",
+   "title": "Check the cost formula yourself, then time a backbone swap",
+   "visual": "img/hands.svg",
+   "brief": "<p>No GPU needed: run <code>backbone_flops.py</code>, which checks 12Td² + 2T²d against DiT's Table 4 (within 0.2–5%). Then time a U-Net and a DiT at 512² and 1024² in diffusers, and watch where their cost curves diverge.</p>",
+   "group": "Practice & self-test",
+   "file": "sections/13-hands-on.html"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself on the 22-question ladder",
+   "visual": "img/quiz.svg",
+   "brief": "<p>22 questions across mechanism, why, counterfactual, adversarial, connection and open. Each answer names the card that teaches it.</p>",
+   "builtin": "quiz"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three threads to pull next",
+   "visual": "img/next.svg",
+   "brief": "<p>Flow-matching objectives, classifier-free guidance variants (which move FID as much as the architecture does), and video attention, from full 3D to sliding-tile to learned sparse.</p>",
+   "group": "Further",
+   "file": "sections/15-go-deeper.html"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Every number traces to a paper, repo or model card",
+   "visual": "img/sources.svg",
+   "brief": "<p>Each figure and number links to its paper or repo. Figures are CC BY 4.0 (DiT, RAE, JiT). Several 2026 entries are unreviewed preprints, and the uncertainty flags are listed at the end.</p>",
+   "file": "sections/99-sources.html"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "In a DiT block, what exactly do the six adaLN-Zero vectors do, and what is the block's output at initialization?",
+   "a": "They are shift β₁, β₂ and scale γ₁, γ₂ (applied as (1+γ)·LN(x)+β before attention and before the MLP), plus gates α₁, α₂ that multiply each branch before it is added to the residual. They come from one linear layer on SiLU(emb(t)+emb(y)). That layer is zero-initialised, so α=0 and the block is exactly the identity at init: x ← x + 0.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What tensor shapes go into Flux's joint attention at 1024², and why are text tokens included in the softmax over image keys?",
+   "a": "Image: 4096 tokens (128²/2² packed latent). Text: 512 T5 tokens. Both are projected to width 3072 with <i>separate</i> QKV weights, RMS-normalized (QK-norm), concatenated to 4608 tokens and split into 24 heads of 128. The softmax runs over all 4608 keys, so every image query can attend to text and every text query can attend to the image. That lets the text representation be updated by the image, which cross-attention never allows.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does halving DiT's patch size at least quadruple cost but leave parameter count unchanged?",
+   "a": "T = (I/p)², so halving p multiplies T by 4. The linear terms (12Td²) scale by 4 and the attention term (2T²d) by 16, hence \"at least\" 4×. Parameters do not depend on T: the patch-embedding weights change only by the p²·C input dimension (tiny), and the transformer weights are per-token and shared.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Where does SD1.5's U-Net perform its most expensive attention, and how did SDXL change that?",
+   "a": "SD1.5 has attention (self + cross) at 64², 32² and 16² latent resolution. The 64² level means 4,096 tokens, which is the most expensive in T² though at width 320. SDXL uses transformer blocks [0, 2, 10] per level: none at the highest resolution and 10 at the lowest, and it drops the 8× level. This moves attention compute to where T is small.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why did adaLN-Zero beat cross-attention for <i>class</i> conditioning in DiT, yet SD3 still found joint attention best for <i>text</i>?",
+   "a": "A class label is a single global vector, and modulating every channel by it is the cheapest, most direct injection. Text is a <i>sequence</i> with spatially specific meaning (\"red\" goes with \"fox\"), so it needs token-level routing. That is attention, not a global scale or shift. SD3 uses both: pooled text plus t go through adaLN, and the text tokens through joint attention.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why does x-prediction work on 768-dimensional pixel patches while ε- and v-prediction fail?",
+   "a": "Clean images lie on a low-dimensional manifold, while ε is full-rank Gaussian in all 768 dimensions. To output ε the network must carry 768 dimensions of incompressible information through its bottlenecks and residual stream. To output x it only needs the low-dimensional structure. In JiT's ablation ε and v give FID above 96 and x gives 8.62. SiHC frames this as \"residual-stream burden\".",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why must the timestep schedule shift towards more noise at higher resolution, or with higher-dimensional latents?",
+   "a": "At higher resolution (or in higher-dimensional latents) neighbouring values are redundant. At the same σ the image's low frequencies survive, so the \"hard\" high-noise regime that sets global layout is under-trained. Shifting t (t_m = s·t/(1+(s−1)t) with s = √(m/n)) spends more steps at high effective noise. RAE: 23.1 → 4.81 FID from this alone.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why did DiT's headline comparison with ADM overstate the \"transformer vs U-Net\" effect?",
+   "a": "ADM is a pixel-space U-Net (1120 Gflops at 256²). DiT runs on f=8 VAE latents (118.6 Gflops) with the VAE's cost not counted. A latent U-Net (LDM-4) is 103.6 Gflops. Much of the gap is latent vs pixel and differences in training recipe. EDM2 (a U-Net) and SiD2 later showed compute-matched U-Net-like designs remain competitive.",
+   "sec": "onel"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What happens if you remove QK-norm from SD3 and train at 1024² in bf16?",
+   "a": "Attention logits grow during high-resolution fine-tuning, the softmax saturates to nearly one-hot (entropy collapse), gradients become spiky, and bf16 mixed precision diverges. SD3 observed this in a 2B model. The alternative was fp32, about 2× slower. ViT-22B saw the same at about 8B parameters.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if MMDiT used one shared weight set for text and image (i.e. a plain DiT on concatenated tokens)?",
+   "a": "That is SD3's \"DiT\" baseline (concatenated tokens, shared weights). It did worse than CrossDiT and MMDiT on validation loss, CLIP score and GenEval. Text and image embeddings live in different statistical regimes, so forcing one projection to serve both wastes capacity. Note that Flux's 38 single-stream blocks <i>do</i> share weights. They come after 19 double-stream blocks have already aligned the two streams.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if RAE used DiT-S (width 384) on DINOv2-B tokens?",
+   "a": "Width 384 is less than the token dimension of 768. By RAE's Theorem 1, the noised data's support is all of ℝ^768, so a width-384 bottleneck cannot represent the optimal denoiser. Training fails to reach good FID, and quality jumps once width ≥ 768. The DDT head exists to supply that width cheaply.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if you removed all long skip connections from U-ViT, or from a 2B SiD2 model?",
+   "a": "U-ViT reports long skips are crucial at its scales (small models lose fine detail and converge slower). SiD2 found that small models lose about 0.2 FID without blockwise skips, while large models are unaffected or even slightly better. Skips act as a capacity crutch whose value shrinks with size.",
+   "sec": "model"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you make a well-trained 1024² DiT produce duplicated subjects without changing its weights?",
+   "a": "Sample far above the training resolution without adjusting the timestep shift. That under-allocates high-noise steps, so global layout never forms and local patterns repeat. Alternatively, extrapolate position embeddings (or exceed the U-Net's receptive field), so local regions each \"think\" they are the centre of an image and each draw a subject.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could a benchmark win of 0.2 FID be produced purely by evaluation choices?",
+   "a": "Any of these can do it: switch from plain CFG to interval CFG or AutoGuidance; tune the CFG scale on the evaluation set; report a later-epoch checkpoint; change the sampler or step count; use a different reference-statistics file; change the sample count. All of these are present in the literature's headline tables, and several move FID by 0.1–0.3.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Which architectural choices plausibly increase training-data memorization, and how would you test it?",
+   "a": "Plausible amplifiers: higher capacity per sample (bigger models), strong text conditioning (captions matter as much as duplication), and less locality (DiT generalization correlates with attention locality). Test: train a U-Net and a DiT at matched FLOPs and data with planted duplicates, then run Carlini-style extraction (generate many samples per caption and measure near-duplicates to training images).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How is Wan 2.2's MoE related to eDiff-I's expert denoisers, and how does it differ from DiT-MoE's token routing?",
+   "a": "eDiff-I and Wan 2.2 route by <i>noise level</i>. The whole network switches at a timestep boundary (Wan: a high-noise expert for layout, a low-noise expert for detail), so each step runs one dense expert. DiT-MoE routes each <i>token</i> to top-k FFN experts inside every layer. Interestingly, its experts end up specializing by position and timestep anyway.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Connection",
+   "q": "How does Flux's single-stream block relate to ViT-22B, and why does that matter for throughput?",
+   "a": "Both use a parallel block: attention and MLP read the same normalized input. Their input projections are fused into one matmul (<code>linear1</code>) and their outputs into another (<code>linear2</code>). This raises GPU utilization (fewer, larger GEMMs) and was ViT-22B's throughput trick (about 15% faster at that scale, per that paper).",
+   "sec": "mech"
+  },
+  {
+   "type": "Connection",
+   "q": "How do DeepCache and TeaCache each depend on the backbone's structure?",
+   "a": "DeepCache relies on the U-Net hierarchy: deep low-resolution features change slowly across steps, so they are cached, and only the shallow high-resolution path through the skip is recomputed. DiTs have no such hierarchy (every layer is full resolution). TeaCache instead estimates from the timestep-modulated input whether the <i>whole</i> output will change enough to recompute, and otherwise reuses the cached residual.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is LLaDA's backbone different from a causal LLM's, and what serving advantage does it lose?",
+   "a": "Same transformer, but no causal mask (bidirectional attention) and trained to predict masked tokens at random mask ratios. It loses the KV cache, because every position can change every step, and generates a fixed-length canvas. Block diffusion and Fast-dLLM approximate caching to get it back.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "Is the best latent space semantic (RAE), spectrally regularized (EQ-VAE), or no latent at all (JiT)?",
+   "a": "<ul><li><b>RAE / Scale-RAE</b>: semantics wins at scale.</li><li><b>Skorokhodov / EQ-VAE</b>: spectral smoothness matters, and semantics is incidental.</li><li><b>JiT / SiHC</b>: with x-prediction you may not need a latent at all.</li></ul>No controlled factorial study separates encoder, decoder and denoiser effects.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Do multiscale and locality inductive biases still matter at 10B+ parameters with matched compute?",
+   "a": "Against: SiD2 (skips stop mattering for big models) and RAE's DDT head (negligible at scale). For: SD3 UViT > DiT, locality improving DiT generalization, SANA/LEDiT reintroducing convolutions, PixelU beating JiT at 1/3 the compute. Likely data- and compute-regime dependent; untested beyond about 8B at matched compute.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Will sparse or linear attention survive long training at frontier scale, or only win when undertrained?",
+   "a": "VSA reports that fixed sparse patterns win at about 4.5e20 FLOPs but lose at 4e21. SANA-Video 2.0 and Attention Surgery find pure linear attention degrades video, while about 25% softmax hybrids match. Learned routing (VSA, NABLA) and hybrids are the live bets.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "dit-arch": {
+   "file": "img/fig/dit-fig3-adaln-zero-block.png",
+   "caption": "The DiT block with adaLN-Zero (left), next to the cross-attention and in-context variants that the paper ablated.",
+   "source": {
+    "cite": "Peebles & Xie, \"Scalable Diffusion Models with Transformers\", ICCV 2023",
+    "url": "https://arxiv.org/abs/2212.09748",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "dit-gflops": {
+   "file": "img/fig/dit-fig8-gflops-fid.png",
+   "caption": "Transformer Gflops against FID-50K after 400K steps, one point per model size and patch size. The fitted correlation is −0.93.",
+   "source": {
+    "cite": "Peebles & Xie, \"Scalable Diffusion Models with Transformers\", ICCV 2023",
+    "url": "https://arxiv.org/abs/2212.09748",
+    "figure": "Fig. 8"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "rae-width": {
+   "file": "img/fig/rae-width-ablation.png",
+   "caption": "Single-sample overfitting test: the loss stays high while DiT width is below the 768-dimensional token size, and falls to near zero once width reaches it.",
+   "source": {
+    "cite": "Zheng et al., \"Diffusion Transformers with Representation Autoencoders\", ICLR 2026",
+    "url": "https://arxiv.org/abs/2510.11690",
+    "figure": "Fig. 3 (left)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "jit-x": {
+   "file": "img/fig/jit-fig-x-pred-hd16.png",
+   "caption": "Toy experiment: a 2-D spiral buried in 16 dimensions, generated with x-prediction. The samples stay on the spiral.",
+   "source": {
+    "cite": "Li & He, \"Back to Basics: Let Denoising Generative Models Denoise\", CVPR 2026",
+    "url": "https://arxiv.org/abs/2511.13720",
+    "figure": "Fig. 2 (D=16, x-pred)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "jit-eps": {
+   "file": "img/fig/jit-fig-eps-pred-hd16.png",
+   "caption": "The same toy setup generated with ε-prediction. The samples scatter off the spiral into the surrounding space.",
+   "source": {
+    "cite": "Li & He, \"Back to Basics: Let Denoising Generative Models Denoise\", CVPR 2026",
+    "url": "https://arxiv.org/abs/2511.13720",
+    "figure": "Fig. 2 (D=16, ε-pred)"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

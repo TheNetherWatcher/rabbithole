@@ -1,0 +1,38 @@
+<h3>The knob list</h3>
+<table>
+<thead><tr><th>Knob</th><th>Range</th><th>Tradeoff</th></tr></thead>
+<tbody>
+<tr><td>Patch size p</td><td>1, 2, 4 (latent); 16/32/64 (pixel, JiT)</td><td>Cost ∝ 1/p⁴ when attention dominates (T² term); smaller p gives more detail per token</td></tr>
+<tr><td>Width d / depth N</td><td>DiT-XL: 28 × 1152; Flux: 57 × 3072; SD3-8B: 38 × 2432</td><td>Width must be ≥ token dimension (RAE); depth is cheaper in parameters but serial</td></tr>
+<tr><td>Conditioning</td><td>in-context / cross-attn / adaLN(-Zero) / joint attention</td><td>§6.2; joint attention costs T_text extra tokens in every block</td></tr>
+<tr><td>Text encoder</td><td>CLIP / T5-XXL / LLM (Gemma, Qwen2.5-VL, Mistral-24B)</td><td>Imagen: scaling T5 helps more than scaling the U-Net (<a href="https://arxiv.org/abs/2205.11487" target="_blank" rel="noopener">Imagen</a>)</td></tr>
+<tr><td>Latent</td><td>SD-VAE f8c4 → f8c16 → DC-AE f32 → RAE (DINOv2/SigLIP) → pixels</td><td>Reconstruction vs "diffusability" (§9)</td></tr>
+<tr><td>Prediction target</td><td>ε / v / x</td><td>x is necessary when tokens are high-dimensional (JiT)</td></tr>
+<tr><td>Attention type</td><td>full / factorized / sliding-tile / linear / SSM</td><td>Quality vs O(T²)</td></tr>
+<tr><td>Expert routing</td><td>dense / token MoE / timestep MoE</td><td>Capacity without per-step FLOPs</td></tr>
+</tbody>
+</table>
+
+<h3>ADM's U-Net ablation</h3>
+<p>ImageNet-128, FID change vs baseline 15.33 at 700K (<a href="https://arxiv.org/abs/2105.05233" target="_blank" rel="noopener">ADM Tbl 1</a>):</p>
+<table>
+<thead><tr><th>Change</th><th>ΔFID</th></tr></thead>
+<tbody>
+<tr><td>BigGAN residual up/downsampling</td><td>−1.20</td></tr>
+<tr><td>Attention at 32, 16, 8 (not only 16)</td><td>−0.72</td></tr>
+<tr><td>4 heads</td><td>−0.54</td></tr>
+<tr><td>Depth 4 (narrower)</td><td>−0.21 (but slower in wall-clock, so dropped)</td></tr>
+<tr><td>Rescale residuals by 1/√2</td><td><b>+0.16</b> (hurt)</td></tr>
+<tr><td>All except rescale</td><td>−3.14</td></tr>
+</tbody>
+</table>
+
+<h3>Competing approaches</h3>
+<ul>
+<li><b>U-ViT</b> (<a href="https://arxiv.org/abs/2209.12152" target="_blank" rel="noopener">Bao 2023</a>): everything is a token (t, c, patches), with long skips joining block i to block L−i. Scores 2.29 on ImageNet-256, against DiT's 2.27. It showed the long skip, not up/downsampling, is the U-Net's essential part.</li>
+<li><b>EDM2</b> (<a href="https://arxiv.org/abs/2312.02696" target="_blank" rel="noopener">Karras 2024</a>): stays a U-Net but makes every layer magnitude-preserving, with forced unit-norm weights, no GroupNorm, and SiLU divided by 0.596. Gets ImageNet-512 FID 2.41 → <b>1.81</b> at equal complexity, and matches the previous state of the art at 5× smaller size. This is the strongest "U-Nets were never the problem" result.</li>
+<li><b>SiD2 / U-ViT pixel</b> (<a href="https://arxiv.org/abs/2410.19324" target="_blank" rel="noopener">Hoogeboom 2024</a>): FID 1.5 at 512 in <i>pixel</i> space. Spending compute on resolution (smaller patches) beats doubling channels.</li>
+<li><b>SSMs</b> (DiS, ZigMa, DiM, DiG): linear in T. They win on memory at ≥1K resolution (DiG-S/2 is 2.5× faster than DiT-S/2 at 1792² and uses 75.7% less memory; <a href="https://arxiv.org/abs/2405.18428" target="_blank" rel="noopener">DiG</a>). They never led on FID, and no frontier model uses a pure SSM.</li>
+<li><b>Linear attention + deep compression</b> (SANA): 0.6B parameters, claimed 100× higher throughput than Flux-12B. Production-grade for images, but SANA-Video 2.0 went <i>hybrid</i>, with about 25% softmax layers (<a href="https://arxiv.org/abs/2607.21553" target="_blank" rel="noopener">2607.21553</a>).</li>
+<li><b>Autoregressive</b> (Emu3, VAR, Janus) and <b>AR + diffusion head</b> (MAR, Transfusion, BAGEL): see §11.</li>
+</ul>

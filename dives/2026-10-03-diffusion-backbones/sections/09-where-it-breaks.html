@@ -1,0 +1,47 @@
+<ul>
+<li><b>Training instability at scale.</b>
+<ul>
+<li>Attention logits grow, attention entropy collapses, and bf16 training diverges. SD3 fixed this with RMSNorm on Q and K plus AdamW ε=1e-15. The authors call it "not a universal recipe".</li>
+<li>Fixing logits exposes <i>massive activations</i>, reported at about 15K at 256 px and 24K at 512 px in rectified-flow transformers, which overflow fp16. (<a href="https://arxiv.org/pdf/2510.04236" target="_blank" rel="noopener">2510.04236</a>; numbers taken from the abstract/summary, not verified in full text.)</li>
+<li>U-Nets have their own version: EDM2 showed weights and activations drift upward during training, which silently decays the effective learning rate.</li>
+</ul></li>
+<li><b>Off-resolution generation duplicates subjects, for different reasons in each family.</b>
+<ul>
+<li>U-Nets: the conv receptive field is too small at the new resolution (<a href="https://arxiv.org/abs/2310.07702" target="_blank" rel="noopener">ScaleCrafter</a>).</li>
+<li>DiTs: position embeddings are extrapolated beyond training (<a href="https://arxiv.org/abs/2402.12376" target="_blank" rel="noopener">FiT</a>, <a href="https://arxiv.org/abs/2503.04344" target="_blank" rel="noopener">LEDiT</a>).</li>
+<li>Both: a wrong timestep shift.</li>
+</ul></li>
+<li><b>Reconstruction vs generation tradeoff in the VAE.</b>
+<ul>
+<li>Higher-dimensional latents reconstruct better and generate <i>worse</i> for a fixed denoiser. For VA-VAE without alignment: f16d16 reconstructs at rFID 0.49 and generates at gFID 16.24; f16d64 reconstructs at 0.17 and generates at gFID 36.83 (<a href="https://arxiv.org/abs/2501.01423" target="_blank" rel="noopener">VA-VAE</a>).</li>
+<li>The backbone gets blamed for a latent-space problem.</li>
+</ul></li>
+<li><b>Text rendering and counting.</b>
+<ul>
+<li>Spelling is mostly a tokenizer problem. Character-aware ByT5 gains 25–30+ points over T5 (<a href="https://arxiv.org/abs/2212.10562" target="_blank" rel="noopener">Liu et al.</a>).</li>
+<li>Counting fails across all state-of-the-art models and does not improve with scale (<a href="https://arxiv.org/abs/2503.06884" target="_blank" rel="noopener">T2ICountBench</a>, <a href="https://arxiv.org/html/2510.11117v1" target="_blank" rel="noopener">numerosity</a>).</li>
+<li>"MMDiT fixes composition" is unproven.</li>
+</ul></li>
+<li><b>Quadratic video.</b>
+<ul>
+<li>HunyuanVideo, 5 s at 720p: 945 s of inference, of which 800 s is attention (<a href="https://arxiv.org/abs/2502.04507" target="_blank" rel="noopener">STA</a>).</li>
+<li>Factorized spatial/temporal attention was abandoned for full 3D because it fails on large motion (<a href="https://arxiv.org/abs/2408.06072" target="_blank" rel="noopener">CogVideoX</a>).</li>
+</ul></li>
+<li><b>Memorization.</b>
+<ul>
+<li>More than 1,000 training images have been extracted from Stable Diffusion and Imagen (<a href="https://arxiv.org/abs/2301.13188" target="_blank" rel="noopener">Carlini 2023</a>).</li>
+<li>DiTs lack the "geometry-adaptive harmonic bases" that explain U-Net generalization. DiT generalization correlates with attention locality (<a href="https://arxiv.org/abs/2410.21273" target="_blank" rel="noopener">2410.21273</a>).</li>
+<li>No matched U-Net vs DiT extraction study exists.</li>
+</ul></li>
+<li><b>The ecosystem resets.</b> LoRAs, ControlNets and IP-Adapters are architecture-specific. FLUX.1-dev has about 42.7K adapters, and moving to a new backbone throws that away. SDXL-derived anime bases still dominate that community.</li>
+</ul>
+
+<div class="callout mis">
+<p><b>Misconceptions</b></p>
+<ul>
+<li><i>"Transformers beat U-Nets."</i> The evidence is confounded by latent vs pixel space and by training recipes. EDM2 (a U-Net) and SiD2 (U-ViT-ish) are competitive, and SD3's own comparison has UViT &gt; DiT.</li>
+<li><i>"DiTs have no locality bias."</i> Patchify, RoPE, Mix-FFN convolutions and local windows all add it back.</li>
+<li><i>"Lower FID means a better architecture."</i> Many claims rest on 0.1–0.3 FID gaps under <i>different guidance methods</i> (CFG vs interval CFG vs AutoGuidance). Inception features also misjudge modern text-to-image (<a href="https://arxiv.org/abs/2401.09603" target="_blank" rel="noopener">CMMD</a>).</li>
+<li><i>"Flux's guidance_scale is CFG."</i> It is not. On the dev model it is a distilled guidance embedding fed into <code>vec</code>: one forward pass instead of two.</li>
+</ul>
+</div>

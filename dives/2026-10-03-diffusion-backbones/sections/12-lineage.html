@@ -1,0 +1,21 @@
+<pre><code>U-Net (Ronneberger 2015, segmentation)
+  └─ PixelCNN++ U-Net → DDPM (Ho 2020): 35.7M–256M, attn @16×16, additive t-emb
+       └─ Improved DDPM / ADM (Dhariwal &amp; Nichol 2021): AdaGN, BigGAN res, multi-res attn, 554M; beats GANs
+            ├─ Imagen (2022): pixel cascade, Efficient U-Net, frozen T5-XXL
+            ├─ eDiff-I (2022): ensemble of noise-level experts  ──────────────────┐
+            ├─ LDM / Stable Diffusion (Rombach 2022): f8 VAE latent + cross-attn   │
+            │    └─ SDXL (2023): 2.6B, attn moved to low-res                       │
+            └─ EDM2 (2024): magnitude-preserving U-Net                             │
+ViT (2020) ─┬─ U-ViT (Bao 2022): all-tokens + long skips                           │
+            └─ DiT (Peebles &amp; Xie 2022): patch tokens + adaLN-Zero, Gflops→FID     │
+                 ├─ SiT (2024): flow/interpolant objective                         │
+                 ├─ PixArt (2023), Hunyuan-DiT (2024): DiT + cross-attn            │
+                 ├─ Sora (2024), CogVideoX, Wan 2.1: spacetime-patch DiTs          │
+                 ├─ MMDiT / SD3 (Esser 2024): two-stream joint attn, QK-norm       │
+                 │    └─ Flux.1 (2024): double→single stream, RoPE3, guidance emb  │
+                 │         └─ Kontext (2025), HunyuanVideo, Qwen-Image, FLUX.2     │
+                 ├─ DiT-MoE / EC-DiT (2024) ; Wan 2.2 timestep-MoE (2025) &lt;────────┘
+                 ├─ DiS/ZigMa/DiG (2024): SSM / linear ; SANA (2024): linear + DC-AE
+                 ├─ REPA (2024) → LightningDiT/VA-VAE → DDT → REPA-E (2025)
+                 ├─ RAE (2025) → Scale-RAE → RAEv2 / PAE (2026)
+                 └─ HDiT, SiD2 → JiT (2025) → PixelU / PixelDiT2 / SiHC (2026)</code></pre>

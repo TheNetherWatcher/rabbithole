@@ -1,0 +1,76 @@
+<h3>What it is, in one paragraph</h3>
+<p>A diffusion <b>backbone</b> is the neural network that runs at every denoising step. It takes three inputs: the noisy image or latent x_t, the noise level t, and a condition c (a class, text, or reference images). It outputs a prediction (noise, clean image or velocity) with the same shape as x_t. The sampler, the noise schedule and the VAE surround it, but nearly all the FLOPs, parameters and quality differences sit inside it. Architectures are commonly described in four families:</p>
+<ul>
+<li><b>Convolutional U-Nets</b> with attention inserted: DDPM, ADM, Stable Diffusion 1.x/2.x/SDXL, EDM2.</li>
+<li><b>Plain transformers over patches</b>, called DiTs: DiT, SiT, PixArt, Wan, Sora.</li>
+<li><b>Multimodal joint-attention transformers</b>, called MMDiTs: SD3, Flux, HunyuanVideo, Qwen-Image.</li>
+<li><b>Efficiency variants:</b> linear attention (SANA), state-space models (DiS, ZigMa), and mixture-of-experts models (DiT-MoE, Wan 2.2).</li>
+</ul>
+<h3>Why it exists / why it matters</h3>
+<ul>
+<li>The backbone runs <b>steps × (2 if using classifier-free guidance)</b> times per image. A 12B backbone at 50 steps with CFG means 100 forward passes of 12B parameters. Backbone efficiency is therefore the product's cost.</li>
+<li>The backbone decides <b>what scales</b>. DiT showed that FID tracks forward compute with correlation −0.93 (<a href="https://arxiv.org/abs/2212.09748" target="_blank" rel="noopener">DiT</a>). SD3 showed that validation loss keeps falling to 8B with no saturation, and that the loss tracks human preference (<a href="https://arxiv.org/abs/2403.03206" target="_blank" rel="noopener">SD3</a>). U-Nets had no clean scaling story, so labs moved to transformers to borrow LLM tooling and scaling intuition.</li>
+<li>The backbone decides <b>how text gets in</b>. Cross-attention lets text talk to the image. Joint attention lets text and image update each other. That difference shows up in prompt adherence and typography (§9).</li>
+<li><b>Before</b> this line of work, GANs were state of the art on ImageNet. ADM's U-Net changes (§8) are what let diffusion beat them in 2021 (<a href="https://arxiv.org/abs/2105.05233" target="_blank" rel="noopener">ADM</a>).</li>
+</ul>
+<h3>Where it's used</h3>
+<table>
+<thead><tr><th>System</th><th>Backbone</th><th>Role / notable detail</th></tr></thead>
+<tbody>
+<tr><td>Stable Diffusion 1.5 / 2.1</td><td>U-Net, 860M / 865M</td><td>Cross-attention to CLIP; still the base for a big LoRA/ControlNet ecosystem (<a href="https://arxiv.org/abs/2307.01952" target="_blank" rel="noopener">SDXL Tbl 1</a>)</td></tr>
+<tr><td>SDXL (2023)</td><td>U-Net, 2.6B</td><td>Transformer blocks [0,2,10] per level: no attention at the highest resolution. Two text encoders (<a href="https://arxiv.org/abs/2307.01952" target="_blank" rel="noopener">SDXL</a>)</td></tr>
+<tr><td>Stable Diffusion 3 / 3.5</td><td>MMDiT, 2B / 8B</td><td>Two weight streams, joint attention, QK-norm, 16-channel VAE (<a href="https://arxiv.org/abs/2403.03206" target="_blank" rel="noopener">SD3</a>, <a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-large" target="_blank" rel="noopener">3.5 card</a>)</td></tr>
+<tr><td>FLUX.1 (BFL, Aug 2024)</td><td>Hybrid MMDiT, 12B</td><td>19 double-stream blocks, then 38 single-stream parallel blocks; 3-axis RoPE; guidance embedding (<a href="https://github.com/black-forest-labs/flux/blob/main/src/flux/util.py" target="_blank" rel="noopener">code</a>)</td></tr>
+<tr><td>PixArt-α/Σ</td><td>DiT + cross-attention, 0.6B</td><td>T5-XXL text; about 10.8% of SD1.5's training compute (<a href="https://proceedings.iclr.cc/paper_files/paper/2024/hash/fe989bb038b5dcc44181255dd6913e43-Abstract-Conference.html" target="_blank" rel="noopener">PixArt-α</a>)</td></tr>
+<tr><td>Sora (OpenAI)</td><td>DiT on "spacetime patches"</td><td>No size disclosed (<a href="https://openai.com/index/video-generation-models-as-world-simulators/" target="_blank" rel="noopener">tech report</a>)</td></tr>
+<tr><td>Wan 2.1 / 2.2</td><td>DiT + cross-attention; 2.2 = timestep-routed MoE (27B total / 14B active)</td><td>High-noise expert handles layout, low-noise expert handles detail (<a href="https://github.com/Wan-Video/Wan2.2" target="_blank" rel="noopener">Wan 2.2</a>)</td></tr>
+<tr><td>HunyuanVideo</td><td>Dual-stream then single-stream, 13B</td><td>Full 3D attention; about 60 GB for 720p×129 frames (<a href="https://github.com/Tencent-Hunyuan/HunyuanVideo" target="_blank" rel="noopener">repo</a>)</td></tr>
+<tr><td>SANA (NVIDIA)</td><td>Linear-attention DiT, 0.6–4.8B</td><td>DC-AE with 32× compression; under 1 s per 1024² image on a 16 GB GPU (<a href="https://arxiv.org/abs/2410.10629" target="_blank" rel="noopener">SANA</a>)</td></tr>
+<tr><td>Qwen-Image</td><td>MMDiT, 20B</td><td>Qwen2.5-VL text encoder, Apache-2.0 (<a href="https://huggingface.co/Qwen/Qwen-Image" target="_blank" rel="noopener">card</a>)</td></tr>
+</tbody>
+</table>
+<h3>How it's used</h3>
+<p>In 🤗 diffusers the backbone is a swappable module: <code>UNet2DConditionModel</code> (SD1.x/SDXL), <code>PixArtTransformer2DModel</code>, <code>SD3Transformer2DModel</code>, <code>FluxTransformer2DModel</code>. Every DiT-era pipeline uses <code>FlowMatchEulerDiscreteScheduler</code>.</p>
+<pre><code>import torch
+from diffusers import FluxPipeline
+
+pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+pipe.enable_model_cpu_offload()            # whole pipeline is ~50 GB in bf16 otherwise
+print(type(pipe.transformer).__name__)     # FluxTransformer2DModel  &lt;- the backbone
+img = pipe(
+    "a red fox reading a newspaper on a park bench, headline says FOX NEWS",
+    height=1024, width=1024,
+    num_inference_steps=28,                # dev: ~28-50 steps; schnell: 4
+    guidance_scale=3.5,                    # a distilled guidance *embedding*, not real CFG
+).images[0]</code></pre>
+<p>Typical knobs:</p>
+<ul>
+<li><b>Steps:</b> SD3.5-Large 28 steps at CFG 3.5–4.5; Flux-schnell 4 steps at guidance 0.</li>
+<li><b>Dropping T5:</b> <code>StableDiffusion3Pipeline(..., text_encoder_3=None)</code> removes the 4.7B T5 at a typography cost.</li>
+<li><b>Speed:</b> <code>torch.compile</code> takes Flux-dev on an H100 from 6.7 s to 4.5 s (<a href="https://pytorch.org/blog/torch-compile-and-diffusers-a-hands-on-guide-to-peak-performance/" target="_blank" rel="noopener">PyTorch blog</a>). "Flux Fast" (compile + fused QKV + FA3 fp8) gets about 2.5× (<a href="https://pytorch.org/blog/presenting-flux-fast-making-flux-go-brrr-on-h100s/" target="_blank" rel="noopener">blog</a>).</li>
+<li><b>Memory:</b> fp8 quantization via optimum-quanto plus offload fits in under 16 GB.</li>
+<li><b>Caching:</b> feature caching via <code>transformer.enable_cache(...)</code> (FirstBlockCache, FasterCache, TaylorSeer…) (<a href="https://huggingface.co/docs/diffusers/main/en/optimization/cache" target="_blank" rel="noopener">docs</a>).</li>
+</ul>
+<h3>When to use which</h3>
+<table>
+<thead><tr><th>Pick a U-Net (SD1.5/SDXL) when</th><th>Pick a DiT / MMDiT when</th></tr></thead>
+<tbody>
+<tr><td>Low VRAM, fast steps, no T5</td><td>Prompt adherence and in-image text matter (T5/LLM encoder + joint attention)</td></tr>
+<tr><td>You need the mature ControlNet / IP-Adapter / LoRA catalogue (e.g. Illustrious/Pony anime bases)</td><td>You will scale parameters or data, or do video (every 2024–26 open video model is a DiT)</td></tr>
+<tr><td>DeepCache-style speedups (these rely on U-Net skip structure)</td><td>Native multi-aspect / multi-resolution generation via RoPE</td></tr>
+<tr><td>Small data, from scratch (locality bias helps, §9)</td><td>Large data and compute budget, where inductive bias matters less</td></tr>
+</tbody>
+</table>
+<p><b>Signs you picked wrong:</b></p>
+<ul>
+<li>Duplicated subjects at off-train resolutions: you need resolution-aware positional embeddings or a timestep shift.</li>
+<li>Out-of-memory at video lengths: attention is O(T²), so you need sparse attention or a higher-compression VAE.</li>
+<li>No adapters available for your new base model: the ecosystem resets with every backbone.</li>
+</ul>
+<h3>Who should care</h3>
+<ul>
+<li><b>ML researchers</b> choosing a backbone, latent space and prediction target.</li>
+<li><b>ML infra / inference engineers</b>, for whom tokens and steps are the cost and quadratic attention is the wall.</li>
+<li><b>Product teams</b> choosing a base model: license and adapter ecosystem often decide more than FID does.</li>
+<li><b>Security and safety</b> people: memorization (§9) and its link to architecture are still open.</li>
+</ul>

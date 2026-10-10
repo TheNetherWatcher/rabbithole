@@ -1,0 +1,8 @@
+<ul>
+<li><b>Diffusion / flow matching.</b> Training adds Gaussian noise to data, and a network learns to undo it. Sampling runs that network 4–50+ times, starting from noise. <a href="https://arxiv.org/abs/2006.11239" target="_blank" rel="noopener">DDPM</a>, <a href="https://arxiv.org/abs/2403.03206" target="_blank" rel="noopener">rectified flow in SD3</a></li>
+<li><b>Prediction target.</b> The network outputs one of three things: the noise ε, the clean image x₀, or a velocity v. All three are linear functions of each other given x_t and t, but the choice affects how hard learning is (see §6 and §11).</li>
+<li><b>Latent diffusion.</b> A VAE first compresses the image, for example 1024²×3 down to 128²×16. Diffusion then runs in that space, and the decoder maps back to pixels. <a href="https://arxiv.org/abs/2112.10752" target="_blank" rel="noopener">LDM</a></li>
+<li><b>Self-attention</b> costs O(T²·d) for T tokens of width d. Cross-attention uses queries from one sequence and keys and values from another. <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Attention</a></li>
+<li><b>Conditioning.</b> The timestep t, a class label or text, and the guidance scale all have to get into the network somehow. <i>How</i> they get in is a backbone design decision.</li>
+<li><b>FID.</b> The Fréchet distance between Inception features of real and generated images; lower is better. It is the ImageNet benchmark currency, and it has flaws (§9). <a href="https://arxiv.org/abs/2401.09603" target="_blank" rel="noopener">CMMD critique</a></li>
+</ul>

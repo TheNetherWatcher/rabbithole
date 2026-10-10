@@ -1,0 +1,114 @@
+<style>
+#mech-w .st{fill:var(--panel);stroke:var(--line);stroke-width:1.5;transition:fill .25s,stroke .25s}
+#mech-w .st.on{fill:var(--plain);stroke:var(--accent);stroke-width:2.5}
+#mech-w .sl{fill:var(--ink);font:11.5px system-ui,sans-serif;text-anchor:middle}
+#mech-w .sn{fill:var(--mute);font:11px ui-monospace,monospace;text-anchor:middle}
+#mech-w pre{margin:8px 0 0}
+</style>
+<p><b>One denoising step of Flux.1-dev at 1024×1024</b>, using the fox prompt. The shapes come from the BFL reference code (<a href="https://github.com/black-forest-labs/flux/blob/main/src/flux/util.py" target="_blank" rel="noopener">util.py</a>, <a href="https://github.com/black-forest-labs/flux/blob/main/src/flux/sampling.py" target="_blank" rel="noopener">sampling.py</a>, <a href="https://github.com/black-forest-labs/flux/blob/main/src/flux/modules/layers.py" target="_blank" rel="noopener">layers.py</a>). The SD1.5 U-Net path follows for contrast.</p>
+
+<div class="widget" id="mech-w" role="group" aria-label="Flux denoising step, stage by stage">
+<b>Step through one Flux denoising step (1024²).</b>
+<svg id="mech-strip" viewBox="0 0 880 90" role="img" aria-label="Flux forward pass stages"></svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" type="button" aria-label="Previous stage">← Back</button>
+  <button class="btn" id="mech-next" type="button" aria-label="Next stage">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+  <div class="info" id="mech-info" aria-live="polite"></div>
+</div>
+<pre><code id="mech-code"></code></pre>
+</div>
+
+<pre><code>INPUTS at step k (t = 0.73, say)
+  x_t      : latent 1 × 16 × 128 × 128      (1024/8 = 128, VAE z_channels = 16)
+  txt      : T5-XXL output 1 × 512 × 4096
+  pooled   : CLIP-L pooled 1 × 768
+  t, g     : timestep 0.73, guidance 3.5
+
+1. PACK + EMBED (patchify, p = 2)
+  "b c (h 2) (w 2) -&gt; b (h w) (c 2 2)"  -&gt;  1 × 4096 × 64
+  img_in  : Linear(64 -&gt; 3072)          -&gt;  img  1 × 4096 × 3072
+  txt_in  : Linear(4096 -&gt; 3072)        -&gt;  txt  1 ×  512 × 3072
+  vec = MLP(sinusoid(t)) + MLP(sinusoid(g)) + MLP(pooled)  -&gt; 1 × 3072
+  RoPE ids: img (0, row, col) for 64×64 grid; txt (0,0,0)   axes_dim [16,56,56]
+
+2. 19 × DOUBLE-STREAM BLOCK  (MMDiT-style: separate weights, shared attention)
+  for each stream s in {img, txt}:
+     shift,scale,gate (×2) = Linear_s(SiLU(vec))              # adaLN modulation
+     h_s = (1+scale)·LN(x_s) + shift
+     q_s,k_s,v_s = QKV_s(h_s);  q_s,k_s = RMSNorm(q_s), RMSNorm(k_s)   # QK-norm
+  q = cat(q_txt, q_img)  -&gt;  1 × 24 heads × 4608 × 128      # 512 + 4096 tokens
+  attn = softmax(RoPE(q)·RoPE(k)ᵀ/√128)·v                   # 4608² ≈ 21M scores/head
+  split back -&gt; x_s += gate·Proj_s(attn_s);  x_s += gate'·MLP_s(mod(LN(x_s)))
+
+3. CONCAT -&gt; 1 × 4608 × 3072
+
+4. 38 × SINGLE-STREAM BLOCK  (shared weights, parallel attn+MLP à la ViT-22B)
+  h = (1+scale)·LN(x) + shift
+  [qkv | mlp_in] = linear1(h)                # one matmul -&gt; 3·3072 + 12288
+  out = linear2(cat(attn(qkv), GELU(mlp_in)))
+  x += gate·out
+
+5. FINAL LAYER
+  drop txt tokens -&gt; 1 × 4096 × 3072
+  adaLN + Linear(3072 -&gt; 64) -&gt; unpack -&gt; velocity v̂ : 1 × 16 × 128 × 128
+
+6. SAMPLER (Euler, rectified flow)
+  x_{t-Δ} = x_t + (t_{next} − t) · v̂          # one small straight-line step</code></pre>
+
+<p>Repeat steps 1–6 for about 28–50 timesteps. The schedule is <b>shifted towards high noise</b> for big images: Flux interpolates μ from 0.5 at 256 tokens to 1.15 at 4096 tokens. Then the VAE decodes 16×128×128 → 3×1024×1024.</p>
+
+<p><b>Same step in the SD1.5 U-Net at 512²</b> (config: <a href="https://raw.githubusercontent.com/CompVis/stable-diffusion/main/configs/stable-diffusion/v1-inference.yaml" target="_blank" rel="noopener">v1-inference.yaml</a>):</p>
+
+<pre><code>x_t 4×64×64 --conv_in--&gt; 320×64×64
+ DOWN  64² [Res,Res + SelfAttn+CrossAttn(77 CLIP tok)] 320ch  ──skip──┐
+       32²  same, 640ch                                     ──skip──┐│
+       16²  same, 1280ch                                    ──skip─┐││
+        8²  Res only, 1280ch                                ──skip┐│││
+ MID    8²  Res + Attn + Res                                      ││││
+ UP     8² → 16² → 32² → 64²   concat(skip) at every level  &lt;─────┘┘┘┘
+conv_out -&gt; ε̂ 4×64×64       (t enters every ResBlock as an added embedding)</code></pre>
+
+<p>The key contrasts:</p>
+<ul>
+<li><b>Text access.</b> In the U-Net, text is read-only: queries come from the image, and keys and values from 77 frozen CLIP tokens. In Flux, text tokens are <i>updated</i> every double block, so the image can rewrite what the text representation means.</li>
+<li><b>Where attention is.</b> The U-Net's biggest attention is at 64², which is 4,096 tokens, but at width 320. Flux attends over 4,608 tokens at width 3072, in all 57 blocks.</li>
+</ul>
+
+<script>
+(function(){
+  var ST=[
+    ['VAE encode','Image space → latent. Not run per step during generation (we start from noise), but this is the space everything happens in. 1024² RGB → 16 × 128 × 128 latent (f = 8, 16 channels).','x_t      : 1 × 16 × 128 × 128\ntxt (T5) : 1 × 512 × 4096\npooled   : 1 × 768 (CLIP-L)\nt = 0.73, guidance g = 3.5'],
+    ['Pack + embed','Patchify with p = 2 by packing each 2×2 latent patch into channels, then project to width 3072. Text gets its own projection. t, g and pooled CLIP are summed into one conditioning vector vec, which drives every adaLN.','"b c (h 2) (w 2) -> b (h w) (c 2 2)"  -> 1 × 4096 × 64\nimg_in Linear(64→3072)   -> img 1 × 4096 × 3072\ntxt_in Linear(4096→3072) -> txt 1 ×  512 × 3072\nvec = MLP(t) + MLP(g) + MLP(pooled) -> 1 × 3072\nRoPE ids (0,row,col), axes_dim [16,56,56]'],
+    ['Double ×19','MMDiT-style. Each stream has its own modulation, QKV and MLP weights. Q and K are RMS-normalized (QK-norm), then text and image are concatenated for ONE attention, so text tokens get updated by the image.','per stream s: shift,scale,gate = Lin_s(SiLU(vec))\n  h_s = (1+scale)·LN(x_s)+shift ; q,k,v = QKV_s(h_s)\nq = cat(q_txt, q_img) -> 24 heads × 4608 × 128\nattn = softmax(RoPE(q)RoPE(k)ᵀ/√128)·v\nx_s += gate·Proj_s(attn_s); x_s += gate′·MLP_s(...)'],
+    ['Concat','After 19 double blocks the two streams are aligned enough to share weights. Text and image become one sequence.','x = cat(txt, img) -> 1 × 4608 × 3072'],
+    ['Single ×38','Parallel attention + MLP block (from ViT-22B). One fused matmul produces QKV and the MLP input; another fused matmul merges the outputs. Shared weights, one modulation.','[qkv | mlp_in] = linear1((1+scale)·LN(x)+shift)\n   # 3·3072 + 12288 outputs\nout = linear2(cat(attn(qkv), GELU(mlp_in)))\nx += gate·out'],
+    ['Final layer','Drop the text tokens, apply a last adaLN, project each image token back to 64 = 16 ch × 2 × 2, then unpack to the latent grid. The output is a velocity.','img = x[:, 512:]                -> 1 × 4096 × 3072\nLinear(3072 → 64), unpack       -> v̂ : 1 × 16 × 128 × 128'],
+    ['Euler step','Rectified flow: move a small straight-line step along the predicted velocity. The schedule is shifted towards high noise for large images (μ from 0.5 at 256 tokens to 1.15 at 4096 tokens).','x_{t−Δ} = x_t + (t_next − t) · v̂\nrepeat ~28–50 steps (schnell: 4)'],
+    ['VAE decode','After the last step, the decoder maps the clean latent back to pixels. Compare the SD1.5 U-Net: the same loop, but ε-prediction from a conv funnel with cross-attention to 77 frozen CLIP tokens.','16 × 128 × 128 -> 3 × 1024 × 1024']
+  ];
+  var NS='http://www.w3.org/2000/svg';
+  var svg=document.getElementById('mech-strip');
+  if(!svg)return;
+  var W=880/ST.length;
+  var rects=[];
+  ST.forEach(function(s,i){
+    var r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',i*W+4);r.setAttribute('y',18);r.setAttribute('width',W-8);r.setAttribute('height',50);r.setAttribute('rx',8);r.setAttribute('class','st');
+    svg.appendChild(r);rects.push(r);
+    var t=document.createElementNS(NS,'text');t.setAttribute('x',i*W+W/2);t.setAttribute('y',47);t.setAttribute('class','sl');t.textContent=s[0];svg.appendChild(t);
+    if(i<ST.length-1){var a=document.createElementNS(NS,'path');a.setAttribute('d','M'+((i+1)*W-4)+' 43 L'+((i+1)*W+4)+' 43');a.setAttribute('stroke','currentColor');a.setAttribute('stroke-width','1.5');svg.appendChild(a)}
+  });
+  var si=0,prev=document.getElementById('mech-prev'),next=document.getElementById('mech-next');
+  function show(){
+    rects.forEach(function(r,i){r.classList.toggle('on',i===si)});
+    document.getElementById('mech-n').textContent='Stage '+(si+1)+' / '+ST.length;
+    document.getElementById('mech-info').textContent=ST[si][1];
+    document.getElementById('mech-code').textContent=ST[si][2];
+    prev.disabled=si===0;next.disabled=si===ST.length-1;
+  }
+  next.addEventListener('click',function(){if(si<ST.length-1){si++;show()}});
+  prev.addEventListener('click',function(){if(si>0){si--;show()}});
+  show();
+})();
+</script>

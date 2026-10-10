@@ -1,0 +1,18 @@
+<p>An image generator does not paint a picture in one go. It starts from pure TV static and cleans it up a little at a time, over 4–50 rounds, until a picture appears. Every round, the same "cleaner" looks at the current messy picture and says how to make it less messy. Everything you have heard about (Stable Diffusion, Flux, Sora) uses this same loop. What differs between them is mainly <b>how the cleaner is built inside</b>. That internal design is the "backbone", and it is what this dive is about.</p>
+<p>Think of the cleaner as a restoration workshop. The older design (the <b>U-Net</b>) works like one restorer who first zooms out to see the rough shapes, then zooms back in to fix fine detail, and keeps sticky notes from each zoom level so that no detail gets lost on the way back. The newer design (the <b>diffusion transformer</b>, DiT) cuts the picture into small tiles and gives each tile its own worker. In every round, each worker can talk to every other worker. This is simpler and gets steadily better as you hire more workers, but the room gets very noisy when there are many tiles. The newest image designs (<b>MMDiT</b>, used in Stable Diffusion 3 and Flux) also seat the people who read your text prompt at the same table as the tile workers, so words and picture parts can talk to each other directly instead of passing notes.</p>
+<h3>Everyday example</h3>
+<p>You type: <i>"a red fox reading a newspaper on a park bench, the headline says FOX NEWS"</i>.</p>
+<ol>
+<li>The text gets read by a language model, which turns it into about 512 "word notes".</li>
+<li>The system makes a 1024×1024 canvas of static. It does not work on the real pixels. It first squeezes the canvas into a much smaller "sketch space" that is 8 times smaller on each side.</li>
+<li>That sketch is cut into 4,096 tiles.</li>
+<li>The cleaner (Flux's backbone) runs about 28–50 times. In each round:
+<ul>
+<li>In the first 19 layers, the tile workers and the word-note readers keep their own notebooks but discuss everything together in one shared conversation.</li>
+<li>In the next 38 layers, they merge into one big group.</li>
+<li>At the end of each round, every tile says "nudge me this way", and the whole canvas takes one small step from static towards a picture.</li>
+</ul></li>
+<li>Early rounds settle the big decisions: where the fox and the bench go. Late rounds settle the fur, the newsprint, and whether "FOX NEWS" is spelled right.</li>
+<li>Finally, the sketch is expanded back to full-size pixels.</li>
+</ol>
+<p><i>Now the same thing, technically.</i> The rest of this page does exactly that.</p>

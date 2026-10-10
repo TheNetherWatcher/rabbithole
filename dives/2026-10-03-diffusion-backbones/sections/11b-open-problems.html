@@ -1,0 +1,45 @@
+<ol>
+<li><b>What should the latent space be?</b> There are three camps with conflicting evidence:
+<ul>
+<li><b>Semantic</b> latents: VA-VAE, REPA, RAE, Scale-RAE.</li>
+<li><b>Spectral or equivariance</b> regularization: "Diffusability of Autoencoders" (<a href="https://arxiv.org/abs/2502.14831" target="_blank" rel="noopener">2502.14831</a>) cuts high-frequency content for −19% FID; EQ-VAE (<a href="https://arxiv.org/abs/2502.09509" target="_blank" rel="noopener">2502.09509</a>).</li>
+<li><b>Dimensionality and prediction target</b>: JiT, SiHC.</li>
+</ul>
+Why it is hard: every comparison changes the encoder, decoder and denoiser together, and nobody has run a controlled factorial study. Critics note RAE's reconstruction gap causes more object artifacts than its rFID predicts (<a href="https://arxiv.org/abs/2512.17909" target="_blank" rel="noopener">2512.17909</a>).</li>
+<li><b>Pixel vs latent at production scale.</b>
+<ul>
+<li>The pixel-space best (1.46) still trails latent methods (about 1.03–1.13) on ImageNet.</li>
+<li>No compute-matched text-to-image or video comparison exists. Every production video model is latent.</li>
+<li>The answer may hinge on the prediction target (x vs v), not on the architecture.</li>
+</ul></li>
+<li><b>Do U-Net inductive biases matter at scale?</b>
+<ul>
+<li>SiD2: large models do not need blockwise skips.</li>
+<li>SD3: UViT beats DiT.</li>
+<li>Locality helps DiT generalization (<a href="https://arxiv.org/abs/2410.21273" target="_blank" rel="noopener">2410.21273</a>).</li>
+<li>SANA and LEDiT put convolutions back.</li>
+</ul>
+A working hypothesis: multiscale structure and locality help when data or compute is limited and at high resolution, and fade at scale. This is untested beyond about 8B at matched compute.</li>
+<li><b>Scaling laws disagree.</b>
+<table>
+<thead><tr><th>Study</th><th>Range</th><th>Finding</th></tr></thead>
+<tbody>
+<tr><td>Liang et al. (<a href="https://arxiv.org/abs/2410.08184" target="_blank" rel="noopener">2410.08184</a>)</td><td>1e17–6e18 FLOPs</td><td>Clean power law</td></tr>
+<tr><td>Abra (<a href="https://arxiv.org/abs/2608.17286" target="_blank" rel="noopener">2608.17286</a>)</td><td>up to 1e22</td><td>About 200 image tokens per parameter is optimal, roughly 10× Chinchilla</td></tr>
+<tr><td>Chimera (<a href="https://arxiv.org/abs/2607.28611" target="_blank" rel="noopener">2607.28611</a>)</td><td>—</td><td>A balanced split for images</td></tr>
+<tr><td>Yin et al. (<a href="https://arxiv.org/abs/2411.17470" target="_blank" rel="noopener">2411.17470</a>)</td><td>video</td><td>Fixed-hyperparameter laws misjudge the optimal size by about 40%</td></tr>
+</tbody>
+</table>
+Liang's budgets are about 3 orders of magnitude below Abra's.</li>
+<li><b>Is sparse attention a free lunch or an undertraining artifact?</b> VSA reports that fixed sparse patterns beat full attention at a compute-optimal budget (4.5e20 FLOPs) but <i>lose</i> at 4e21. Learned or routed sparsity may be the only kind that survives long training.</li>
+<li><b>Linear attention and SSMs.</b> Pure versions did not hold up for video (<a href="https://arxiv.org/abs/2509.24899" target="_blank" rel="noopener">Attention Surgery</a>: "severely degrades video quality"). Hybrids with about 25% softmax layers match full attention. The open question is the right ratio and placement, mirroring the LLM hybrid debate.</li>
+<li><b>AR vs diffusion for images.</b>
+<ul>
+<li>Emu3 argues pure next-token prediction is enough, yet Emu3.5 bolted on a diffusion-style parallel decoder (DiDA) for 20× speed.</li>
+<li>MAR and Fluid show continuous tokens beat VQ.</li>
+<li>Unified models (Transfusion, BAGEL) split the difference.</li>
+<li>Open question: does sharing one backbone hurt either modality at the frontier?</li>
+</ul></li>
+<li><b>Architecture vs memorization.</b> Mechanistic evidence says U-Nets and DiTs generalize through different inductive biases. No matched extraction study exists.</li>
+<li><b>Better metrics.</b> Most architecture claims are within FID noise once guidance method and epochs are matched. CMMD and human preference disagree with FID.</li>
+</ol>
