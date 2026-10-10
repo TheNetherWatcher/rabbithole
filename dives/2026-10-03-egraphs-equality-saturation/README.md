@@ -218,7 +218,7 @@ $$ \#(+\text{-nodes}) = \sum_{k=2}^{n}\binom{n}{k}(2^k-2) = \sum_{k=0}^{n}\binom
 
 (the k=0 and k=1 terms of the two sums cancel to −1, hence +1). Add the n leaf nodes: $3^n - 2^{n+1} + n + 1$ e-nodes, matching Rosin/Ullrich/Hack's EGRAPHS 2026 paper.
 
-→ in plain terms: 10 summed variables → 1,023 classes and 57,010 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the *pair* with associativity is what explodes.
+→ in plain terms: 10 summed variables → 1,023 classes and 57,012 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the *pair* with associativity is what explodes.
 
 Demo output (exact match for n = 2..6): classes 3, 7, 15, 31, 63; e-nodes 4, 15, 54, 185, 608.
 

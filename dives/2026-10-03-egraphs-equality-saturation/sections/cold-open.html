@@ -1,0 +1,22 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.ce-row{margin:0 0 14px}
+.ce-row b{color:var(--ink)}
+.ce-track{height:16px;border-radius:4px;background:var(--code);border:1px solid var(--line);margin:6px 0 0;overflow:hidden}
+.ce-bar{height:100%;width:var(--w);border-radius:3px;background:var(--c)}
+.js .cold-viz .ce-bar{width:0;transition:width .9s var(--ease)}
+.js .guess.done ~ .cold-viz .ce-bar{width:var(--w)}
+.ce-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-top:4px}
+</style>
+<p class="cold-line">Compiler passes run in a fixed order, and that order matters.</p>
+<p class="cold-line sm">One fix keeps every rewritten form in an <em>e-graph</em> and picks the cheapest at the end. Cranelift's whole optimizer gets about 10% of compile time.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="ce-row"><b>Zero-rewrite round trip: 23% of compile time.</b>
+    <div class="ce-track"><div class="ce-bar" style="--w:57.5%;--c:var(--warn)"></div></div></div>
+  <div class="ce-row"><b>Whole optimizer budget: about 10%.</b>
+    <div class="ce-track"><div class="ce-bar" style="--w:25%;--c:var(--ok)"></div></div></div>
+  <div class="ce-scale"><span>0%</span><span>40%</span></div>
+</div>

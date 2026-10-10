@@ -1,0 +1,92 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 12px var(--mono)}
+#story-fig .sf-node{fill:var(--ink);font:14px system-ui,sans-serif}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The term (a times 2) divided by 2 as e-classes. A rewrite adds forms to classes instead of replacing them, extraction keeps the cheapest form, and the total e-node count grows under commutativity until a limit stops it.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">The term (a × 2) ÷ 2, one class per subterm</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Rewrite first, ask later: a × 2 becomes a ≪ 1</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Keep both: the new form joins the same class</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">div-assoc adds a second form to the root class</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">div-same: 2 ÷ 2 is 1, so class e6 holds 1</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">mul-one: a × 1 = a, so the root merges with e0</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Extraction: keep the cheapest form in each class</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Add one commutativity rule and it never stops</text>
+<rect x="20" y="44" width="104" height="96" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<rect x="132" y="44" width="104" height="96" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<rect x="244" y="44" width="104" height="96" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="3"/>
+<rect x="356" y="44" width="104" height="96" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="26" y="60" class="sf-id">e0</text>
+<text x="138" y="60" class="sf-id">e1</text>
+<text x="250" y="60" class="sf-id">e2</text>
+<text x="362" y="60" class="sf-id">e3</text>
+<text x="28" y="86" class="sf-node">a</text>
+<text x="28" y="106" class="sf-node" data-in="6">a × 1</text>
+<text x="140" y="86" class="sf-node">2</text>
+<text x="252" y="86" class="sf-node" data-out="2">a × 2</text>
+<text x="252" y="86" class="sf-node" data-in="2" data-out="3">a ≪ 1</text>
+<text x="252" y="86" class="sf-node" data-in="3">a × 2</text>
+<text x="252" y="106" class="sf-node" data-in="3">a ≪ 1</text>
+<text x="364" y="86" class="sf-node">(a × 2) ÷ 2</text>
+<text x="364" y="106" class="sf-node" data-in="4">a × (2 ÷ 2)</text>
+<text x="364" y="126" class="sf-node" data-in="6">merged: e0</text>
+<rect x="132" y="156" width="104" height="84" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-in="4" data-hl="5"/>
+<text x="138" y="172" class="sf-id" data-in="4">e6</text>
+<text x="140" y="192" class="sf-node" data-in="4">2 ÷ 2</text>
+<text x="140" y="212" class="sf-node" data-in="5">1</text>
+<text x="20" y="280" class="sf-lab" data-in="2" data-out="3">Rewrite a × 2 to a ≪ 1 in place, first:</text>
+<text x="20" y="302" class="sf-lab" data-in="2" data-out="3">the ÷ rule can no longer match, so a is gone.</text>
+<text x="20" y="280" class="sf-lab" data-in="3" data-out="4">e2 keeps its old form and gains the new one.</text>
+<text x="20" y="302" class="sf-lab" data-in="3" data-out="4">Nothing is thrown away until extraction.</text>
+<text x="20" y="280" class="sf-lab" data-in="4" data-out="5">e3 gets a second form: a × (2 ÷ 2).</text>
+<text x="20" y="302" class="sf-lab" data-in="4" data-out="5">2 ÷ 2 sits in its own class, e6.</text>
+<text x="20" y="280" class="sf-lab" data-in="5" data-out="6">e6 now holds 1 as well.</text>
+<text x="20" y="302" class="sf-lab" data-in="5" data-out="6">Rebuilding fixes the keys of nodes that point at e6.</text>
+<text x="20" y="280" class="sf-lab" data-in="6" data-out="7">mul-one: a × 1 = a, so e0 gains a × 1.</text>
+<text x="20" y="302" class="sf-lab" data-in="6" data-out="7">a × 1 points back into e0. That is a cycle.</text>
+<text x="20" y="280" class="sf-lab" data-in="7" data-out="8">Extraction walks each class bottom-up.</text>
+<text x="20" y="302" class="sf-lab" data-in="7" data-out="8">It keeps the cheapest node in each class.</text>
+<text x="20" y="280" class="sf-lab" data-in="8" data-out="9">e-nodes per round: 9, 12, 13, 20, 28, 39, 52,</text>
+<text x="20" y="302" class="sf-lab" data-in="8" data-out="9">67, 84, 103, and then the iteration limit.</text>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">The 2 is stored once, even though it appears twice.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">The ÷ rule now finds no a × _. a has been lost.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">a × 2 and a ≪ 1 now sit side by side in e2.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">div-assoc adds a × (2 ÷ 2). Nothing is removed.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">div-same: 2 ÷ 2 joins the class holding 1.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">e3 merges into e0. e0 now points back to itself.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Cost: a is 1, (a × 2) ÷ 2 is 5. The result is a.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">Commutativity keeps adding nodes until a limit hits.</text>
+<rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97" data-in="9"/>
+<text x="240" y="84" class="sf-cap" text-anchor="middle" data-in="9">Keeping every form has a price</text>
+<text x="60" y="128" class="sf-lab" data-in="9">Round trip through the e-graph, zero rewrites</text>
+<rect x="60" y="136" width="400" height="28" rx="6" class="f-code s-line" data-in="9"/>
+<rect x="60" y="136" width="230" height="28" rx="6" class="f-bad" data-in="9"/>
+<text x="300" y="162" class="sf-num" data-in="9">23%</text>
+<text x="60" y="206" class="sf-lab" data-in="9">Budget for the whole optimizer</text>
+<rect x="60" y="214" width="400" height="28" rx="6" class="f-code s-line" data-in="9"/>
+<rect x="60" y="214" width="100" height="28" rx="6" class="f-ok" data-in="9"/>
+<text x="170" y="240" class="sf-num" data-in="9">about 10%</text>
+<text x="240" y="304" class="sf-big" text-anchor="middle" data-in="9">A rewrite that changes nothing still costs time.</text>
+<text x="240" y="328" class="sf-lab" text-anchor="middle" data-in="9">Cranelift's average e-class holds 1.13 nodes.</text>
+<text x="240" y="352" class="sf-lab" text-anchor="middle" data-in="9">So its mid-end keeps only a few eager rules.</text>
+<text x="240" y="392" class="sf-lab" text-anchor="middle" data-in="9">The cards below cover the limits and the fixes.</text>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Take the term <code>(a×2)÷2</code>. Each subterm becomes an e-class: a box that holds every form known to equal it. The <b>2</b> is stored once, even though it appears twice.</p></div>
+<div class="step"><p><b>The naive way.</b> A compiler applies one rewrite and throws the old form away. Rewrite <code>a×2</code> to <code>a≪1</code> first, and the ÷ rule can no longer find a multiply, so <b>a is gone</b>. Fixed pass orders are the usual cure, and they only move the problem.</p></div>
+<div class="step"><p><b>Keep both.</b> The rewrite adds <code>a≪1</code> to the same class instead of replacing <code>a×2</code>. Both forms now sit in e2, and neither one is thrown away.</p></div>
+<div class="step"><p><b>div-assoc</b> rewrites <code>(a×2)÷2</code> as <code>a×(2÷2)</code> and adds that form to the root class. The new <code>2÷2</code> gets its own class, e6. Still nothing is removed.</p></div>
+<div class="step"><p><b>div-same</b> says <code>x÷x = 1</code>, so e6 now holds <code>1</code> as well. Rebuilding then fixes the stored key of every node that points at e6, so the graph stays consistent.</p></div>
+<div class="step"><p><b>mul-one</b> says <code>a×1 = a</code>. Because e6 holds 1, the root's <code>a×(2÷2)</code> matches, and the root merges into e0. e0 now contains <code>a×1</code>, which points back to e0: a cycle that stands for <code>a</code>, <code>a×1</code>, <code>a×1×1</code>, and so on.</p></div>
+<div class="step"><p><b>Extraction.</b> Each class keeps its cheapest form. <code>a</code> costs 1 and <code>(a×2)÷2</code> costs 5, so the answer is <code>a</code>. The multiply and the divide both drop out of the output.</p></div>
+<div class="step"><p><b>The limit.</b> Add commutativity, <code>a×b = b×a</code>, and the graph keeps growing: 9, 12, 13, 20 and up to 103 e-nodes before the iteration limit stops it. Termination is undecidable in general, so limits are required.</p></div>
+<div class="step"><p><b>The price.</b> Cranelift measured <b>23%</b> extra compile time for a round trip through the e-graph with zero rewrites, against an optimizer budget of about 10%. The cards below cover the limits, the sizes and the fixes.</p></div>
+</div>
+</div>

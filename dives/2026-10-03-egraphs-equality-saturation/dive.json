@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Keep every rewrite, then pick the cheapest: how (a×2)÷2 becomes a"
+ },
  "tldr": "An e-graph stores many equal programs at once: e-classes of e-nodes whose children point at classes, merged by union-find and kept consistent by congruence. Equality saturation applies every rewrite without deleting anything, then extraction picks the cheapest term. It pays off when the space stays small: Cranelift's aegraph measured <b>23%</b> overhead just to round-trip through the graph. Saturation is undecidable in general, so real systems stop on <b>limits</b>, and the result depends on those limits again.",
  "why": "<b>Why it matters:</b> phase ordering is why compilers run 100-pass pipelines. E-graphs take the order out of the rewrite step, and the same machinery powers Herbie's float-accuracy fixes, Tensat's tensor graphs and lean-egg's proofs.",
  "stats": [
@@ -21,7 +27,7 @@
    "l": "deferred vs immediate rebuilding, inside egg"
   },
   {
-   "v": "57,010",
+   "v": "57,012",
    "l": "e-nodes for 10 summed leaves under AC"
   },
   {
@@ -76,7 +82,8 @@
    "title": "Destructive rewriting commits too early and loses <code>a</code>",
    "visual": "img/problem.svg",
    "brief": "<p>Strength-reducing <code>a*2</code> first turns <code>(a*2)/2</code> into <code>(a&lt;&lt;1)/2</code>, and the algebra rule no longer matches. Keeping every form needs sharing, or the search space explodes. Egg's speed made that practical; before it, e-graph upkeep took <b>98.1%</b> of Herbie's runtime.</p>",
-   "file": "sections/03-problem.html"
+   "file": "sections/03-problem.html",
+   "guess": "problem"
   },
   {
    "id": "model",
@@ -89,18 +96,20 @@
   {
    "id": "mech",
    "kicker": "§5 · Mechanism, traced",
-   "title": "One term saturates in four iterations and extracts to <code>a</code>",
+   "title": "One term saturates, then extracts to a",
    "visual": "img/mech.svg",
    "brief": "<p>On <code>(a*2)/2</code>, two rules merge the root with <code>a</code> in iteration 2 through a self-pointing class. Four iterations saturate it to 4 classes and 8 nodes. Extraction picks <code>a</code> at cost 1. Adding one commutativity rule breaks termination.</p><p class=\"mini\">Five-step interactive walkthrough inside.</p>",
-   "file": "sections/05-mechanism.html"
+   "file": "sections/05-mechanism.html",
+   "guess": "mech"
   },
   {
    "id": "math",
    "kicker": "§6 · The math",
    "title": "Commutativity plus associativity needs 3ⁿ nodes, and matching is a join",
    "visual": "img/math.svg",
-   "brief": "<p>Under AC, n summed leaves need 2ⁿ − 1 classes and 3ⁿ − 2ⁿ⁺¹ + n + 1 nodes: 57,010 nodes at n = 10. Relational e-matching treats each pattern as a database join and reports up to 6 orders of magnitude on deep patterns.</p><p class=\"mini\">AC calculator inside.</p>",
-   "file": "sections/06-math.html"
+   "brief": "<p>Under AC, n summed leaves need 2ⁿ − 1 classes and 3ⁿ − 2ⁿ⁺¹ + n + 1 nodes: 57,012 nodes at n = 10. Relational e-matching treats each pattern as a database join and reports up to 6 orders of magnitude on deep patterns.</p><p class=\"mini\">AC calculator inside.</p>",
+   "file": "sections/06-math.html",
+   "guess": "math"
   },
   {
    "id": "why",
@@ -124,7 +133,8 @@
    "title": "Blowup, unsound rules and limits make results unpredictable",
    "visual": "img/breaks.svg",
    "brief": "<p>AC needs 3ⁿ nodes. A single unsound rule like <code>x/x → 1</code> merges 0 with 1, and congruence spreads the merge to every class built on them. Limits make runtime predictable but results not. One Cranelift rule addition moved a fuzz case from 0.08 s to about 10 s.</p>",
-   "file": "sections/09-where-it-breaks.html"
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "breaks"
   },
   {
    "id": "wild",
@@ -194,6 +204,63 @@
    "file": "sections/99-sources.html"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "How much extra compile time did Cranelift's e-graph add with zero rewrites?",
+   "min": 0,
+   "max": 50,
+   "step": 1,
+   "unit": "%",
+   "answer": 23,
+   "start": 5,
+   "tol": 3,
+   "reveal": "<p><b>23%.</b> Fallin measured it: just round-tripping through the e-graph, with no rewrites, took 23%. The whole optimizer gets a budget of about 10%.</p>"
+  },
+  "problem": {
+   "q": "How much faster is egg's backend than Herbie's initial e-graph simplifier?",
+   "options": [
+    "About 3×",
+    "About 30×",
+    "About 88×",
+    "Over 3000×"
+   ],
+   "answer": 3,
+   "reveal": "<p><b>Over 3000×.</b> That is egg's backend against Herbie's initial simplifier (egg paper §6.1). The 88× figure is a different comparison: deferred vs immediate rebuilding, inside egg.</p>"
+  },
+  "mech": {
+   "q": "After saturation, how many e-classes does the (a×2)÷2 graph hold?",
+   "options": [
+    "2",
+    "4",
+    "6",
+    "8"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>4 classes and 8 e-nodes.</b> Two rewrites add two classes. Merges then bring the count back down to 4, as the root joins the class of <code>a</code>.</p>"
+  },
+  "math": {
+   "q": "Commutativity and associativity over 10 summed leaves: how many e-classes?",
+   "options": [
+    "About 10",
+    "1,023",
+    "About 10,000",
+    "About 60,000"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>1,023 e-classes</b>, one per non-empty subset of the leaves (2<sup>10</sup> − 1). The e-nodes grow much faster, to over 57,000 at n = 10.</p>"
+  },
+  "breaks": {
+   "q": "A Cranelift rule addition moved one fuzz case from 0.08 s to about 10 s. How many times did one rule fire?",
+   "options": [
+    "About 30",
+    "About 300",
+    "About 3,000",
+    "About 3,000,000"
+   ],
+   "answer": 3,
+   "reveal": "<p><b>About 3,000,000 times.</b> The rule was <code>(x−z)−(y−z) → x−y</code> (Cranelift issues #13068 and #13204). The fix subsumed <code>x−x → 0</code> for vectors.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

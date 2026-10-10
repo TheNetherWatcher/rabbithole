@@ -13,7 +13,7 @@
 <h3>6.3 AC blowup, derived</h3>
 <p>Saturate <code>x1 + … + xn</code> (distinct leaves) under commutativity and associativity. Any regrouping and reordering is reachable, so every non-empty subset S of the leaves is the sum of <i>some</i> subterm: <b>2ⁿ − 1 e-classes</b>. A class for a subset of size k ≥ 2 contains one <code>+</code> node per <i>ordered</i> split of S into two non-empty parts: 2<sup>k</sup> − 2 of them. Summing:</p>
 <div class="eq">#(+-nodes) = Σ<sub>k=2</sub><sup>n</sup> C(n,k)(2<sup>k</sup> − 2) = 3<sup>n</sup> − 2<sup>n+1</sup> + 1<small>(the k = 0 and k = 1 terms of the two sums cancel to −1, hence +1). Adding the n leaf nodes gives 3<sup>n</sup> − 2<sup>n+1</sup> + n + 1 e-nodes, matching Rosin, Ullrich and Hack's EGRAPHS 2026 paper.</small></div>
-<p>→ in plain terms: 10 summed variables → 1,023 classes and 57,010 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the <i>pair</i> with associativity is what explodes.</p>
+<p>→ in plain terms: 10 summed variables → 1,023 classes and 57,012 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the <i>pair</i> with associativity is what explodes.</p>
 <p>Demo output (exact match for n = 2..6): classes 3, 7, 15, 31, 63; e-nodes 4, 15, 54, 185, 608.</p>
 
 <div class="widget" role="group" aria-label="AC blowup calculator">
