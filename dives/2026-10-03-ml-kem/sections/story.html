@@ -1,0 +1,77 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A clock-hand dial of 3329 ticks: a bit is hidden under smudge, the receiver removes most of it, the leftover stays far from the 832-tick edge, and a tampered box returns a pseudorandom key">
+<line x1="40" y1="220" x2="440" y2="220" class="s-line" stroke-width="4" stroke-linecap="round"/>
+<text x="40" y="246" class="sf-lab" text-anchor="middle">0</text>
+<text x="240.1" y="246" class="sf-lab" text-anchor="middle">1665</text>
+<text x="440" y="246" class="sf-lab" text-anchor="middle">3329</text>
+<text x="240.1" y="180" class="sf-lab" text-anchor="middle">bit 1 hand</text>
+<circle cx="240.1" cy="220" r="9" class="f-acc" data-hl="1 2" stroke-width="3"/>
+<rect x="204.0" y="200" width="72.1" height="40" rx="6" class="f-warn" opacity=".35" data-in="3" data-out="4"/>
+<rect x="230.9" y="200" width="18.3" height="40" rx="6" class="f-ok" opacity=".55" data-in="4" data-out="8"/>
+<line x1="140.0" y1="178" x2="140.0" y2="262" class="s-bad" stroke-width="2" stroke-dasharray="5 4" data-in="5" data-out="8" data-hl="5 6"/>
+<line x1="340.0" y1="178" x2="340.0" y2="262" class="s-bad" stroke-width="2" stroke-dasharray="5 4" data-in="5" data-out="8" data-hl="5 6"/>
+<line x1="40.0" y1="256" x2="40.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="65.0" y1="256" x2="65.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="90.0" y1="256" x2="90.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="115.0" y1="256" x2="115.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="140.0" y1="256" x2="140.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="165.0" y1="256" x2="165.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="190.0" y1="256" x2="190.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="215.0" y1="256" x2="215.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="240.0" y1="256" x2="240.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="265.0" y1="256" x2="265.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="290.0" y1="256" x2="290.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="315.0" y1="256" x2="315.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="340.0" y1="256" x2="340.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="365.0" y1="256" x2="365.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="390.0" y1="256" x2="390.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<line x1="415.0" y1="256" x2="415.0" y2="266" class="s-warn" stroke-width="2" data-in="6" data-out="8"/>
+<text x="240" y="286" class="sf-lab" text-anchor="middle" data-in="6" data-out="8">16 levels after rounding v to 4 bits</text>
+<rect x="40" y="300" width="170" height="44" rx="7" class="f-panel s-line" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="52" y="328" class="sf-lab" data-in="7" data-out="8">c, one bit flipped</text>
+<line x1="216" y1="322" x2="262" y2="322" class="s-acc" stroke-width="2" data-in="7" data-out="8"/>
+<rect x="270" y="300" width="170" height="44" rx="7" class="f-panel s-acc" stroke-width="1.5" data-in="7" data-out="8"/>
+<text x="282" y="328" class="sf-lab" data-in="7" data-out="8">output: f595db36…</text>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="3">One bit, one hand on a 3,329-tick dial</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="5">Random smudge hides the hand</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">The mistake edge: 832 ticks away</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Rounding v: the largest noise term</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">A tampered box: no error raised</text>
+<text x="20" y="380" class="sf-lab" data-in="1" data-out="2">The bit-1 hand sits at 6 o’clock, tick 1665.</text>
+<text x="20" y="380" class="sf-lab" data-in="2" data-out="3">With no noise, Gaussian elimination solves it.</text>
+<text x="20" y="404" class="sf-lab" data-in="2" data-out="3">Gaussian elimination recovers the key from it.</text>
+<text x="20" y="380" class="sf-lab" data-in="3" data-out="4">Smudge of a few hundred ticks hides the hand.</text>
+<text x="20" y="404" class="sf-lab" data-in="3" data-out="4">An eavesdropper sees only the smudge.</text>
+<text x="20" y="380" class="sf-lab" data-in="4" data-out="5">The receiver removes the big term and most smudge.</text>
+<text x="20" y="404" class="sf-lab" data-in="4" data-out="5">Leftover noise: σ ≈ 76 ticks.</text>
+<text x="20" y="380" class="sf-lab" data-in="5" data-out="6">The mistake edge is 832 ticks from the hand.</text>
+<text x="20" y="404" class="sf-lab" data-in="5" data-out="6">76 of noise against 832 of room. Errors are rare.</text>
+<text x="20" y="380" class="sf-lab" data-in="6" data-out="7">Rounding v to 4 bits adds the most noise.</text>
+<text x="20" y="404" class="sf-lab" data-in="6" data-out="7">Its 16 levels add up to ±104 per coefficient.</text>
+<text x="20" y="380" class="sf-lab" data-in="7" data-out="8">A tampered box returns a key that looks random.</text>
+<text x="20" y="404" class="sf-lab" data-in="7" data-out="8">No error is raised, so there is no reject signal.</text>
+<rect x="10" y="10" width="460" height="410" rx="14" class="f-bg" opacity=".97" data-in="8"/>
+<text x="20" y="26" class="sf-cap" data-in="8">Three numbers that matter</text>
+<text x="240" y="120" class="sf-num" text-anchor="middle" data-in="8">2<tspan dy="-9" font-size="15">-164.8</tspan></text>
+<text x="240" y="146" class="sf-lab" text-anchor="middle" data-in="8">decryption failure rate, ML-KEM-768</text>
+<text x="240" y="218" class="sf-num" text-anchor="middle" data-in="8">1184 B</text>
+<text x="240" y="244" class="sf-lab" text-anchor="middle" data-in="8">public key, ML-KEM-768</text>
+<text x="240" y="316" class="sf-num" text-anchor="middle" data-in="8">±76 ticks</text>
+<text x="240" y="342" class="sf-lab" text-anchor="middle" data-in="8">leftover noise, against an edge at 832</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A shared secret is 256 bits, and each bit is a clock hand on a dial of <b>3,329 ticks</b>. A 1 sets the hand to 6 o’clock (tick 1665). A 0 sets it to 12 o’clock (tick 0).</p></div>
+<div class="step"><p><b>The naive way.</b> With no noise, the hands are exact. Anyone who copies them can solve the system with Gaussian elimination, and the key falls out.</p></div>
+<div class="step"><p><b>The key idea: smudge.</b> Each hand hides under random noise of a few hundred ticks. Eavesdroppers see only the smudge, and sorting out the hands means solving a noisy lattice problem.</p></div>
+<div class="step"><p><b>The receiver cleans up.</b> Its secret removes the big term, which cancels exactly. What remains is a small leftover with <b>σ ≈ 76 ticks</b>, far under the 832-tick mistake edge.</p></div>
+<div class="step"><p><b>The safe margin.</b> A bit flips only if the leftover crosses a dashed edge at 832 ticks. At σ ≈ 76 that is about eleven standard deviations away.</p></div>
+<div class="step"><p><b>Rounding costs the most.</b> The sender keeps only 4 bits of v, so each value snaps to one of 16 levels. That rounding supplies <b>62%</b> of the noise variance, the biggest single term.</p></div>
+<div class="step"><p><b>Tampering gets no help.</b> Flip one bit of the ciphertext and the receiver re-encrypts to check it. The check fails, and the decapsulator returns a pseudorandom key with no error, so the attacker has no reject signal to learn from.</p></div>
+<div class="step"><p><b>The whole trade.</b> ML-KEM-768 decrypts with failure rate <b>2<sup>-164.8</sup></b>, keeps a <b>1184 B</b> public key, and gives both sides a 32-byte secret. The cards below open each piece.</p></div>
+</div>
+</div>

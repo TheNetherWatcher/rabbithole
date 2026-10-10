@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-track{position:relative;height:16px;margin:8px 0 6px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.cv-noise{position:absolute;left:0;top:0;bottom:0;border-radius:4px 0 0 4px;background:var(--warn)}
+.cv-edge{position:absolute;right:0;top:-5px;bottom:-5px;width:2px;background:var(--bad)}
+.cv-scale{display:flex;justify-content:space-between;font:12px var(--mono);color:var(--mute)}
+.js .cv-noise{width:0;animation:cv-grow .9s var(--ease) forwards;animation-delay:var(--o,0s)}
+@keyframes cv-grow{to{width:9.1%}}
+</style>
+<p class="cold-line">An ML-KEM-768 public key is 1,184 bytes.</p>
+<p class="cold-line sm">Its secret hides under <em>noise</em> on purpose: every value is off by a few hundred of 3,329 ticks. The right reader still cleans it up. Nobody else can.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>About 76 ticks of leftover noise, against an edge 832 ticks away.</b>
+    <div class="cv-track"><div class="cv-noise"></div><div class="cv-edge" style="left:100%;right:auto"></div></div>
+    <div class="cv-scale"><span>0</span><span>832</span></div></div>
+</div>

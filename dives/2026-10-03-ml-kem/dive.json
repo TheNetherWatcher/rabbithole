@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 8 scrolls",
+  "title": "Noise that hides the key, and the check that keeps it safe"
+ },
  "tldr": "More than half of human traffic to Cloudflare now runs a key exchange whose security comes from a 256-coefficient polynomial deliberately <b>wrong by about ±76</b>. It still decrypts correctly, with failure probability <b>2<sup>-164.8</sup></b> for ML-KEM-768, and every practical break so far went through the code rather than the math.",
  "why": "<b>Why it matters:</b> ML-KEM (FIPS 203) is already the default post-quantum key exchange in browsers, OpenSSH and Signal, so its implementation bugs reach everyday TLS and SSH connections.",
  "stats": [
@@ -76,7 +82,8 @@
    "title": "Plain lattice keys weigh 15 KB, so ML-KEM adds structure",
    "visual": "img/problem.svg",
    "file": "sections/03-problem.html",
-   "brief": "<p>FrodoKEM-976 keys are about 15.6 KB. Ring structure cuts that, but ties security to one ring. Module-LWE uses a k×k matrix of ring elements, so ML-KEM-768 keys are <b>1184 B</b> and security scales by changing k alone.</p>"
+   "brief": "<p>FrodoKEM-976 keys are about 15.6 KB. Ring structure cuts that, but ties security to one ring. Module-LWE uses a k×k matrix of ring elements, so ML-KEM-768 keys are <b>1184 B</b> and security scales by changing k alone.</p>",
+   "guess": "problem"
   },
   {
    "id": "model",
@@ -92,15 +99,17 @@
    "title": "One exchange, step by step: the noise cancels, then FO checks it",
    "visual": "img/mech.svg",
    "file": "sections/05-mechanism.html",
-   "brief": "<p>With fixed seeds, the big term sᵀAᵀy cancels and the leftover noise stays near ±100, against a decision boundary at 832. A tampered ciphertext does not raise an error. It returns a pseudorandom key, which is implicit rejection.</p><p class=\"mini\">9-step interactive walkthrough inside.</p>"
+   "brief": "<p>With fixed seeds, the big term sᵀAᵀy cancels and the leftover noise stays near ±100, against a decision boundary at 832. A tampered ciphertext does not raise an error. It returns a pseudorandom key, which is implicit rejection.</p><p class=\"mini\">9-step interactive walkthrough inside.</p>",
+   "guess": "mech"
   },
   {
    "id": "math",
    "kicker": "§6 · The math",
-   "title": "Leftover noise is σ ≈ 76, and failure is 2^-164.8, not 2^-81",
+   "title": "A Gaussian tail badly overstates the failure rate",
    "visual": "img/math.svg",
    "file": "sections/06-math.html",
-   "brief": "<p>After cancellation the noise has σ ≈ 76 against a threshold of 832. A Gaussian tail says 2<sup>-81</sup>, but the exact convolution of bounded terms gives <b>2<sup>-164.8</sup></b> for ML-KEM-768. Rounding v to 4 bits supplies 62% of the variance.</p><p class=\"mini\">Noise-budget lab inside.</p>"
+   "brief": "<p>After cancellation the noise has σ ≈ 76 against a threshold of 832. A Gaussian tail says 2<sup>-81</sup>, but the exact convolution of bounded terms gives <b>2<sup>-164.8</sup></b> for ML-KEM-768. Rounding v to 4 bits supplies 62% of the variance.</p><p class=\"mini\">Noise-budget lab inside.</p>",
+   "guess": "math"
   },
   {
    "id": "why",
@@ -124,7 +133,8 @@
    "title": "The math held; every practical break went through code",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>KyberSlash exploited a secret-dependent division, found in the reference code. Clangover let Clang turn a branch-free mask into a branch. Early-exit comparisons and a truncated byte compare act as oracles. A KEM is also not a DH replacement: it cannot do static-static agreement.</p>"
+   "brief": "<p>KyberSlash exploited a secret-dependent division, found in the reference code. Clangover let Clang turn a branch-free mask into a branch. Early-exit comparisons and a truncated byte compare act as oracles. A KEM is also not a DH replacement: it cannot do static-static agreement.</p>",
+   "guess": "breaks"
   },
   {
    "id": "wild",
@@ -194,6 +204,63 @@
    "brief": "<p>Every claim links to FIPS 203, the round-3 spec, the attack papers and the deployment reports. Figures 2a and 3 are CC BY 4.0 from the Mind the Gap study (arXiv 2607.29005).</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "After the receiver's cleanup, how far is the leftover noise on each value, in ticks? Take it as one standard deviation.",
+   "min": 0,
+   "max": 832,
+   "step": 1,
+   "unit": "ticks",
+   "answer": 76,
+   "start": 400,
+   "tol": 10,
+   "reveal": "<p><b>About 76 ticks.</b> That is σ for ML-KEM-768. A bit flips only if the noise crosses 832, so the edge sits about eleven times further away.</p>"
+  },
+  "problem": {
+   "q": "How many times smaller is an ML-KEM-768 public key than a FrodoKEM-976 public key?",
+   "options": [
+    "2 times",
+    "5 times",
+    "13 times",
+    "50 times"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 13 times.</b> FrodoKEM-976 keys are about 15.6 KB. ML-KEM-768 keys are 1184 B. Module structure is what buys the gap.</p>"
+  },
+  "mech": {
+   "q": "Flip one bit of the ciphertext. What does decapsulation return?",
+   "options": [
+    "An error message",
+    "The original key, unchanged",
+    "A pseudorandom key",
+    "An all-zero key"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>A pseudorandom key.</b> No error is raised. The re-encryption check fails, and the output is a hash of a hidden value z and the ciphertext. That is implicit rejection.</p>"
+  },
+  "math": {
+   "q": "Which step adds the most variance to the leftover noise?",
+   "options": [
+    "Sampling the secret s",
+    "Sampling the error e",
+    "Rounding v to 4 bits",
+    "Rounding u to 10 bits"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Rounding v to 4 bits.</b> It adds about 3608 of the total variance of 5821, roughly <b>62%</b>. That is why it matters more than the secret itself.</p>"
+  },
+  "breaks": {
+   "q": "KyberSlash came from which kind of code?",
+   "options": [
+    "A secret-dependent division",
+    "A buffer overflow",
+    "A weak random number generator",
+    "A missing bounds check"
+   ],
+   "answer": 0,
+   "reveal": "<p><b>A secret-dependent division.</b> The reference code divided in a place where the numerator depended on secret data, so run time leaked it. The math held; the code did not.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",
