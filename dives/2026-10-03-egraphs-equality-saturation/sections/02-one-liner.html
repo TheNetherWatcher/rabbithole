@@ -1,0 +1,9 @@
+<p><em>"Apply all rewrites at once, keep every version, pick the best at the end, so no phase ordering."</em></p>
+<p>It hides:</p>
+<ol>
+<li><b>Congruence maintenance is the hard, slow part</b>, not rewriting. Merging two classes can make parents equal, which can make <i>their</i> parents equal. egg's main trick (deferred <i>rebuilding</i>) is about <i>when</i> to do that work.</li>
+<li><b>Saturation usually never comes.</b> Termination is undecidable in general; real systems stop on node/time limits, and then the result depends on rule order and schedule again, so phase ordering comes back through the limits.</li>
+<li><b>"Pick the best" is NP-hard</b> when shared subexpressions count once, and the answer is only as good as the cost model.</li>
+<li><b>One unsound rule poisons everything</b>, because merges are global and congruence spreads them.</li>
+<li><b>E-graphs are pure-dataflow structures.</b> Loops, side effects, and variable binding need extra machinery (PEG θ-nodes, Cranelift's side-effect skeleton, slotted e-graphs).</li>
+</ol>

@@ -1,0 +1,7 @@
+<p><b>Analogy:</b> a spreadsheet where each cell (e-class) holds a <i>set</i> of formulas that all evaluate to the same value, and formulas refer to other cells, not to other formulas. Proving a new equality = moving a formula into a cell, or merging two cells. Picking the output = for each cell, choosing which of its formulas to display.</p>
+<p><b>Where it breaks:</b></p>
+<ol>
+<li>Merging two cells can make two <i>other</i> cells hold identical formulas (<code>f(A)</code> and <code>f(B)</code> once A and B merge), and those must merge too. Spreadsheets never do that.</li>
+<li>A cell may contain a formula that refers to itself (<code>a = a*1</code>), so a cell can stand for infinitely many expressions.</li>
+<li>Choosing per cell independently is optimal only if every use pays for its own copy. Once shared cells count once, the choices interact globally.</li>
+</ol>

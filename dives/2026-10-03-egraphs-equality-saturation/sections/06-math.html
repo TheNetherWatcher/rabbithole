@@ -1,0 +1,54 @@
+<h3>6.1 The invariants</h3>
+<p>Let <code>≡<sub>id</sub></code> be the union-find relation and <code>≡<sub>node</sub></code> the relation "two e-nodes are in the same class". The <b>congruence invariant</b> (egg Def 2.6) says <code>≡<sub>node</sub></code> equals its own congruence closure:</p>
+<div class="eq">f(a₁,…,aₖ) ≡<sub>node</sub> f(b₁,…,bₖ) &nbsp;⇐&nbsp; ∀i. find(aᵢ) = find(bᵢ)<small>→ in plain terms: two nodes with the same operator and the same <i>canonical</i> children must be in the same class.</small></div>
+<p>The <b>hashcons invariant</b> (Def 2.7): <code>n ∈ M[a] ⇔ H[canon(n)] = find(a)</code>, where <code>canon(f(a₁…aₖ)) = f(find(a₁)…find(aₖ))</code>.</p>
+<div class="eq">n ∈ M[a] &nbsp;⇔&nbsp; H[canon(n)] = find(a)<small>→ in plain terms: the lookup table is keyed by nodes whose children are representatives, so "have I seen this node?" is one hash probe.</small></div>
+<p>Why this form and not "keep a tree per term": the right-hand side quantifies over <i>classes</i>, so one equality <code>a ≡ b</code> instantly covers every term containing <code>a</code>. That's what makes the representation exponentially compact, and it's also why one merge can cascade.</p>
+
+<h3>6.2 Why deferring rebuild wins</h3>
+<p>Take n terms <code>f1(x), …, fn(x)</code> plus leaves <code>y1..yn</code>, then merge <code>x</code> with each <code>yi</code> (egg §3.2.1). Immediate maintenance repairs x's parent list after every merge: n merges × n parents = <b>O(n²)</b> hashcons updates. Deferred: all n merges go on the worklist, deduplicate to one canonical class, and its n parents are repaired once: <b>O(n)</b>. For w chains of depth d whose leaves get merged, immediate costs O(wd) repairs, deferred O(d), because the w upward paths coalesce after dedup.</p>
+<p>→ in plain terms: rebuilding pays once per <i>distinct</i> dirty class per iteration, not once per merge.</p>
+<p>Measured on egg's 32-test suite: <b>88× geometric-mean speedup on congruence closure, 21× on whole eqsat</b>, deferred vs immediate rebuilding <i>inside egg</i> (not vs Herbie; that's a common misquote). egg proves rebuilding terminates (Thm 3.1) via a lexicographically decreasing (|incongruent pairs|, |worklist|) measure, but gives no online complexity bound ("likely highly workload dependent").</p>
+
+<h3>6.3 AC blowup, derived</h3>
+<p>Saturate <code>x1 + … + xn</code> (distinct leaves) under commutativity and associativity. Any regrouping and reordering is reachable, so every non-empty subset S of the leaves is the sum of <i>some</i> subterm: <b>2ⁿ − 1 e-classes</b>. A class for a subset of size k ≥ 2 contains one <code>+</code> node per <i>ordered</i> split of S into two non-empty parts: 2<sup>k</sup> − 2 of them. Summing:</p>
+<div class="eq">#(+-nodes) = Σ<sub>k=2</sub><sup>n</sup> C(n,k)(2<sup>k</sup> − 2) = 3<sup>n</sup> − 2<sup>n+1</sup> + 1<small>(the k = 0 and k = 1 terms of the two sums cancel to −1, hence +1). Adding the n leaf nodes gives 3<sup>n</sup> − 2<sup>n+1</sup> + n + 1 e-nodes, matching Rosin, Ullrich and Hack's EGRAPHS 2026 paper.</small></div>
+<p>→ in plain terms: 10 summed variables → 1,023 classes and 57,010 nodes; 20 → over 3.4 billion nodes. Commutativity alone is mild; the <i>pair</i> with associativity is what explodes.</p>
+<p>Demo output (exact match for n = 2..6): classes 3, 7, 15, 31, 63; e-nodes 4, 15, 54, 185, 608.</p>
+
+<div class="widget" role="group" aria-label="AC blowup calculator">
+ <b>AC blowup calculator</b>
+ <label>Leaves summed, n = <b id="math-acn">6</b> <input type="range" id="math-acr" min="2" max="24" value="6" aria-label="number of leaves"></label>
+ <div class="nums small">
+  <div><b id="math-acc"></b><span>e-classes (2<sup>n</sup> − 1)</span></div>
+  <div><b id="math-acnodes"></b><span>e-nodes (3<sup>n</sup> − 2<sup>n+1</sup> + n + 1)</span></div>
+  <div><b id="math-acmem"></b><span>rough memory at ~40 B/e-node</span></div>
+ </div>
+ <div class="bar"><i id="math-acbar"></i></div>
+ <p class="mini">Bar is log-scale, full width at 3<sup>24</sup> e-nodes. egg's default node limit (10,000) sits about 35% of the way along. n = 2 to 6 match the demo exactly; 40 B/node is an illustrative guess, not a measured figure.</p>
+</div>
+
+<h3>6.4 E-matching as a join</h3>
+<p>Relational e-matching (Zhang et al., POPL 2022) stores each e-node <code>f(j1..jk)</code> in class i as a tuple <code>R_f(i, j1, …, jk)</code>. The pattern <code>f(α, g(α))</code> becomes the conjunctive query</p>
+<div class="eq">Q(root, α) ← R<sub>f</sub>(root, α, x), R<sub>g</sub>(x, α)</div>
+<p>Backtracking checks the repeated α last: O(N²) for N matches. A join checks it during the join: O(N). Using <b>Generic Join</b> (worst-case optimal), the time is bounded by the AGM bound; Thm 10 gives O(√(|Q(I)| · ∏ᵢ|Rᵢ|)). The paper reports "over 6 orders of magnitude faster" on deep patterns with repeated variables. The speedup plot below is that evaluation: bars right of the 1× line mean relational e-matching is faster.</p>
+<figure data-fig="rel-speedup"></figure>
+<p>→ in plain terms: e-matching is NP-hard in <i>pattern</i> size, but patterns are tiny; in <i>e-graph</i> size, it's polynomial and a database planner does it well.</p>
+
+<h3>6.5 Extraction</h3>
+<p>With a monotone local cost (cost(f(c1..ck)) &gt; every child cost), greedy bottom-up fixpoint is optimal for <b>tree cost</b> (each use counted separately). Under <b>DAG cost</b> (a shared class counted once) it's NP-hard (Stepp 2011 thesis) and inapproximable to any constant factor (Goharshady et al., OOPSLA 2024). The standard exact method is ILP (Tensat):</p>
+<div class="eq">min Σᵢ cᵢxᵢ &nbsp; s.t. &nbsp; Σ<sub>i∈root</sub> xᵢ = 1, &nbsp; xᵢ ≤ Σ<sub>j∈m</sub> xⱼ &nbsp;∀i, ∀m ∈ children(i)<small>plus acyclicity via order variables tₘ: t<sub>g(i)</sub> − tₘ − ε + A(1 − xᵢ) ≥ 0. In plain terms: pick exactly one node at the root; picking a node forces you to pick some node in each child class; and the picks must not form a loop. The cycle constraint is what makes the ILP slow; Tensat filters cycles during exploration and drops it.</small></div>
+<script>
+(function(){
+// AC blowup calculator (ids prefixed math-)
+  var r=document.getElementById('math-acr');if(!r)return;
+  var fmt=function(x){return x>=1e9?(x/1e9).toFixed(2)+' B':x>=1e6?(x/1e6).toFixed(2)+' M':x.toLocaleString()};
+  function f(){var n=+r.value;var c=Math.pow(2,n)-1,nn=Math.pow(3,n)-Math.pow(2,n+1)+n+1;
+    document.getElementById('math-acn').textContent=n;
+    document.getElementById('math-acc').textContent=fmt(c);
+    document.getElementById('math-acnodes').textContent=fmt(nn);
+    var b=nn*40;document.getElementById('math-acmem').textContent=b>=Math.pow(2,30)?(b/Math.pow(2,30)).toFixed(1)+' GiB':b>=Math.pow(2,20)?(b/Math.pow(2,20)).toFixed(1)+' MiB':(b/1024).toFixed(1)+' KiB';
+    document.getElementById('math-acbar').style.width=(Math.log10(nn)/Math.log10(Math.pow(3,24))*100)+'%'}
+  r.addEventListener('input',f);f();
+})();
+</script>

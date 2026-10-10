@@ -1,0 +1,10 @@
+<ul>
+<li><b>Predictable scaling.</b> Limits trade unpredictable runtime for unpredictable results. Flatt's parameterized-complexity work on "linear-matching" rules (UW) and schedulers like CERES attack it, but nobody has a general guarantee. It is hard because termination itself is undecidable (ICDT 2025).</li>
+<li><b>Rule scheduling and guidance.</b> Backoff is a heuristic; sketches need a human; MCTS, RL and LLM strategies (EggMind) report wins on their own benchmarks without a shared suite. The obvious approach, learning which rule helps, fails because a rule's value shows up only many iterations later, after interacting with others.</li>
+<li><b>Sharing-aware, cost-accurate extraction.</b> NP-hard and inapproximable. Cranelift's cost model can't see register pressure or instruction selection ("in a 'conventional compiler', cost func + extraction is everything", Fallin's Dagstuhl 2026 slides). Multi-root extraction changes the problem again.</li>
+<li><b>Control flow and effects.</b> PEGs, RVSDG (eggcc, Jamey Sharp's optir), Cranelift's skeleton, and E-Path (2026, unchecked) all disagree on representation. Fallin lists rewriting control flow in the skeleton as open (#5623, #6109).</li>
+<li><b>Context-dependent equality</b> (<code>x ≠ 0</code> only inside a branch). Colored e-graphs copy per assumption and are "notably resource-intensive". Predicate e-graphs and relational contextual eqsat (2025–26) are early.</li>
+<li><b>Binders.</b> Slotted vs lifting vs categorical approaches; the overhead-versus-expressiveness trade-off is not settled.</li>
+<li><b>AC and theories natively.</b> Generic AC is 3ⁿ. Bespoke multiset and polynomial handling (Zucker's "Omelets Need Onions", AC-canonizing e-graphs at EGRAPHS 2026) is an active direction.</li>
+<li><b>Is the e-graph worth it at all in fast compilers?</b> Fallin's 2026 data says the multi-version part is "within the noise" for Cranelift. The counter-position (UW PLSE's eggcc) is that you only see the benefit with richer, non-directional rule sets, which then need full eqsat. Unresolved, and the two positions are measuring different rule sets.</li>
+</ul>

@@ -1,0 +1,22 @@
+<p><code>mini_egraph.py</code> in this folder (stdlib only): union-find, hashcons, deferred rebuild, backtracking e-matching, saturation loop, greedy extraction.</p>
+<pre><code class="language-bash">python3 mini_egraph.py</code></pre>
+<p>Expected (abridged):</p>
+<pre><code>--- (a*2)/2 with the egg-paper rules (no commutativity) ---
+iter 0:    2 matches -&gt; e-classes, e-nodes = (6, 8)
+iter 1:    3 matches -&gt; e-classes, e-nodes = (5, 8)
+iter 2:    4 matches -&gt; e-classes, e-nodes = (4, 8)
+iter 3:    4 matches -&gt; e-classes, e-nodes = (4, 8)
+saturated: no rule adds new information
+best   : a cost 1
+--- same term, same rules + mul-comm: never saturates ---
+iter 9:  134 matches -&gt; e-classes, e-nodes = (19, 103)
+iter limit hit
+--- blowup: associativity + commutativity on a sum of n leaves ---
+n=6: e-classes=  63 (2^n-1=  63)  e-nodes=  608</code></pre>
+<p><b>Experiments:</b></p>
+<ol>
+<li>Comment out <code>eg.rebuild()</code> in <code>saturate</code>. Does <code>(a*2)/2</code> still reach <code>a</code>? Count the duplicate classes (hint: stale keys like <code>(&lt;&lt; e0 e4)</code>).</li>
+<li>Add <code>("zero-div", "(/ 0 ?a)", "0")</code> and a term containing <code>(/ 0 0)</code>. Watch <code>div-same</code> and <code>zero-div</code> merge <code>0</code> and <code>1</code>, then extract something absurd: e-graph collapse.</li>
+<li>Swap the order of the rules and change <code>iters=3</code>. With the read/write split, does the final e-graph change? Now apply matches <i>during</i> search instead and compare.</li>
+<li>Change <code>extract</code>'s cost to count each class once (DAG cost) on <code>(+ (* x y) (* x y))</code> after adding <code>(* ?a ?b)</code> alternatives. See where greedy is wrong.</li>
+</ol>

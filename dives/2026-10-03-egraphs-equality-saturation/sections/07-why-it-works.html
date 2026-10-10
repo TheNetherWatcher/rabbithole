@@ -1,0 +1,10 @@
+<p><b>Core insight:</b> equality is a <i>global</i> fact about classes, and congruence makes it propagate structurally, so you can apply a rewrite once to a class and every term that contains it benefits. Combined with hash-consing, a set of terms that grows exponentially in the number of rewrites applied often stays polynomial in the e-graph. That's Tensat's and the Showdown paper's argument for matrix chains: the exponential space of parenthesizations sits in O(n³) nodes.</p>
+<p><b>Ablations</b> (what breaks when you remove each piece):</p>
+<ul>
+<li><b>Remove the union-find</b> → you can't tell that <code>e3</code> and <code>e0</code> are the same class. Every merge would rewrite all pointers eagerly (expensive) or leave duplicate classes (wrong answers). Cranelift did remove it in 2025 (<a href="https://github.com/bytecodealliance/wasmtime/pull/10471" target="_blank" rel="noopener">#10471</a>), but only because its rules are directional and it never repairs congruence anyway.</li>
+<li><b>Remove the hashcons</b> → <code>(/ e1 e1)</code> can be added twice into different classes. Congruent nodes stay apart; the graph is no longer a DAG with sharing; matching cost multiplies.</li>
+<li><b>Remove rebuild</b> (union without repairing parents) → after <code>union(e6, e4)</code>, <code>(&lt;&lt; e0 e4)</code> keeps a stale key. A future <code>add((&lt;&lt; e0 e6))</code> makes a duplicate class, and some equalities are never discovered. This is what aegraphs accept on purpose (Fallin counts 2 misses in ~4M value nodes).</li>
+<li><b>Remove the read/write split</b> → applying matches while searching makes results depend on rule-list order and can invalidate iterators mid-search.</li>
+<li><b>Remove limits</b> → nontermination on ordinary rule sets (the <code>mul-comm</code> demo).</li>
+<li><b>Remove e-class analyses</b> → no constant folding, no <code>x/x → 1 if x ≠ 0</code>. You're stuck with purely syntactic rules, and Herbie had to use unsound ones.</li>
+</ul>

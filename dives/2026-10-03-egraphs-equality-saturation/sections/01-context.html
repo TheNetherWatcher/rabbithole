@@ -1,0 +1,8 @@
+<ul>
+<li><b>Term / AST</b>: a tree like <code>(/ (* a 2) 2)</code>. Rewrites turn one term into an equal one. (<a href="https://docs.rs/egg/latest/egg/tutorials/_01_background/index.html" target="_blank" rel="noopener">egg tutorial</a>)</li>
+<li><b>Union-find</b>: a forest that answers "are x and y in the same set?" in near-constant amortized time; <code>find</code> returns the set's canonical representative, <code>union</code> links two roots. (<a href="https://en.wikipedia.org/wiki/Disjoint-set_data_structure" target="_blank" rel="noopener">Wikipedia</a>)</li>
+<li><b>Hash-consing</b>: never build the same node twice; a hash map from node → id gives structural sharing (a DAG instead of a tree).</li>
+<li><b>Congruence</b>: if a ≡ b then f(a) ≡ f(b). The "closure" is everything you can derive this way. (<a href="https://web.eecs.umich.edu/~weimerw/2011-6610/reading/nelson-oppen-congruence.pdf" target="_blank" rel="noopener">Nelson &amp; Oppen 1980</a>)</li>
+<li><b>Phase ordering</b>: an optimizer's passes destroy information, so the order you run them in changes the output. That's the problem e-graphs attack.</li>
+<li><b>Datalog / conjunctive query</b>: rules over relations joined on shared variables; relevant because modern e-matching is a database join. (<a href="https://arxiv.org/abs/2108.02290" target="_blank" rel="noopener">relational e-matching</a>)</li>
+</ul>

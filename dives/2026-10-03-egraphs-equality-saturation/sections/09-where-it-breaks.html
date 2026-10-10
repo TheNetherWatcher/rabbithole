@@ -1,0 +1,18 @@
+<ul>
+<li><b>Blowup.</b> AC: 3ⁿ nodes (§6.3). Unguided eqsat on matrix-multiply optimizations found only 2 of 7 known optimizations after an hour and 60 GB; with ≤3 human "sketches" all 7 appear in seconds under 1 GB (<a href="https://arxiv.org/pdf/2111.13040" target="_blank" rel="noopener">sketch-guided eqsat</a>). Tensat reports multi-pattern rules causing "double exponential growth" and caps them separately.</li>
+<li><b>Limits make results unpredictable.</b> Flatt (UW PLSE, 2025): limits make runtime predictable but results not. "Adding new program optimizations results in the resource limits being triggered earlier, preventing optimizations that were previously applied" (<a href="https://uwplse.org/2025/06/16/egraph-complexity.html" target="_blank" rel="noopener">post</a>).</li>
+<li><b>Unsound rule → collapse.</b> <code>x/x → 1</code> puts <code>0/0</code> in the class of <code>1</code>. Any rule deriving <code>0/0 = 0</code> then merges 0 and 1, and congruence spreads it to every class built on them. Herbie relied on such rules and "must validate the results … and discard them if unsoundness was detected". Removing them made Herbie "useless on a large portion of its benchmark suite" (egglog paper). Herbie's FAQ still has an "Unsound rule application detected" warning.</li>
+<li><b>Production blowup even with directional rules.</b> Cranelift <a href="https://github.com/bytecodealliance/wasmtime/issues/13068" target="_blank" rel="noopener">#13068</a> and <a href="https://github.com/bytecodealliance/wasmtime/issues/13204" target="_blank" rel="noopener">#13204</a> (2026): adding rules like <code>(x−z)−(y−z) → x−y</code> moved one fuzz case from 0.08 s to ~10 s, with one rule firing ~3,000,000 times. It was fixed by subsuming <code>x−x → 0</code> for vectors. Also <a href="https://github.com/bytecodealliance/wasmtime/issues/13476" target="_blank" rel="noopener">#13476</a> (stack overflow in <code>constructor_simplify</code>).</li>
+<li><b>Extraction ignores sharing.</b> Cranelift deliberately counts each use anew. <a href="https://github.com/bytecodealliance/wasmtime/issues/12156" target="_blank" rel="noopener">#12156</a> shows costs saturating to infinity because of that.</li>
+<li><b>Binders.</b> With names or de Bruijn indices, α-equivalent subterms don't share. De Bruijn needs shift rewrites that themselves blow up (§11).</li>
+<li><b>Control flow and effects.</b> Loops make cyclic terms that greedy extraction can't extract. PEGs used θ-nodes plus a pseudo-Boolean solver; Cranelift keeps side-effecting instructions in a fixed CFG "skeleton" and only floats pure ops.</li>
+</ul>
+
+<p><b>Misconceptions:</b></p>
+<ul>
+<li><i>"Eqsat eliminates phase ordering."</i> Only at saturation. Under limits, order returns through scheduling; eager aegraphs reintroduce it outright (Zucker's <code>(a*2)/2</code>).</li>
+<li><i>"E-graphs give optimal output."</i> Only with respect to the explored space × the cost model × an exact extractor (NP-hard, inapproximable).</li>
+<li><i>"It's rewriting with backtracking."</i> Nothing is undone; space only grows; choice is deferred to extraction.</li>
+<li><i>"egg is 88× faster than Herbie's old e-graph."</i> No: 88× is deferred vs immediate rebuild inside egg. Against Herbie's original simplifier it's over 3000×.</li>
+<li><i>"The aegraph caused Wasmtime CVEs."</i> The Wasmtime GHSA list shows the miscompile CVEs (e.g. CVE-2023-26489, CVE-2026-34971) are in backend ISLE <i>lowering</i>, not the egraph mid-end.</li>
+</ul>

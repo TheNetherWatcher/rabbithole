@@ -1,0 +1,22 @@
+<table>
+<thead><tr><th>Knob</th><th>Effect</th><th>Typical value</th></tr></thead>
+<tbody>
+<tr><td>Iteration / node / time limits</td><td>Bound blowup; also make the output depend on the schedule</td><td>egg: 30 / 10,000 / 5 s</td></tr>
+<tr><td>Rule scheduler</td><td>Which rules fire each round</td><td>egg BackoffScheduler: ban a rule after 1,000 matches for 5 iterations, doubling both</td></tr>
+<tr><td>Rule set shape</td><td>Bidirectional rules (AC, distributivity) explode; directional "toward cheaper" rules stay small</td><td>Cranelift: directional only, no general AC</td></tr>
+<tr><td>Rebuild frequency</td><td>Per merge (simple, slow) vs per iteration (egg) vs never (aegraph)</td><td>per iteration</td></tr>
+<tr><td>E-matching</td><td>Backtracking (de Moura &amp; Bjørner code trees) vs relational / Generic Join</td><td>egglog: relational, semi-naive</td></tr>
+<tr><td>Extraction</td><td>Greedy tree cost (fast) vs ILP / treewidth DP / SmoothE / e-boost (sharing-aware)</td><td>greedy unless sharing matters</td></tr>
+<tr><td>Analyses</td><td>Semilattice data per class (constants, intervals, types)</td><td>constant folding at minimum</td></tr>
+</tbody>
+</table>
+
+<p><b>Competing approaches:</b></p>
+<ul>
+<li><b>Hand-ordered pass pipelines + peepholes</b> (LLVM InstCombine, MLIR greedy canonicalizer): fast, predictable, phase-order-sensitive, bug-prone at scale. Wins for fast compilers.</li>
+<li><b>Cascades / Volcano query optimizers</b> (Graefe 1995): memo of equivalent plan groups, top-down with branch-and-bound. A close cousin of e-graphs; Cranelift's RFC cites it for its eager rule application.</li>
+<li><b>Stochastic superoptimization</b> (STOKE, MCMC): the EGRAPHS 2026 "Rewrite System Showdown" finds neither dominates. MCMC was always within 0.3% of optimal on matrix chains; eqsat was within 1% up to ~800 matrices and up to 65% off on some larger ones. The plot below shows that comparison for matrix chains.</li>
+<li><b>SMT synthesis</b> (Souper): discovers peepholes offline; same role Ruler plays for e-graph rule sets.</li>
+<li><b>Aegraphs</b> (Cranelift): e-graph-flavoured sea-of-nodes, eager, one pass, limits of 5. Won for a JIT-speed compiler; full eqsat won where compile time is cheap.</li>
+</ul>
+<figure data-fig="showdown-matmul"></figure>

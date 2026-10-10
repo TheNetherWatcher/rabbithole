@@ -1,0 +1,363 @@
+{
+ "meta": {
+  "title": "E-graphs and equality saturation: union-find, rebuilding, extraction, and why Cranelift won't saturate",
+  "short": "E-graphs & equality saturation",
+  "subject": "Computer science",
+  "domain": "compilers/PL/runtimes",
+  "topic": "E-graphs, congruence closure, equality saturation, aegraphs",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "An e-graph stores many equal programs at once: e-classes of e-nodes whose children point at classes, merged by union-find and kept consistent by congruence. Equality saturation applies every rewrite without deleting anything, then extraction picks the cheapest term. It pays off when the space stays small: Cranelift's aegraph measured <b>23%</b> overhead just to round-trip through the graph. Saturation is undecidable in general, so real systems stop on <b>limits</b>, and the result depends on those limits again.",
+ "why": "<b>Why it matters:</b> phase ordering is why compilers run 100-pass pipelines. E-graphs take the order out of the rewrite step, and the same machinery powers Herbie's float-accuracy fixes, Tensat's tensor graphs and lean-egg's proofs.",
+ "stats": [
+  {
+   "v": "98.1%",
+   "l": "of Herbie's runtime in its old e-graph simplifier"
+  },
+  {
+   "v": "88×",
+   "l": "deferred vs immediate rebuilding, inside egg"
+  },
+  {
+   "v": "57,010",
+   "l": "e-nodes for 10 summed leaves under AC"
+  },
+  {
+   "v": "23%",
+   "l": "Cranelift overhead for zero rewrites"
+  },
+  {
+   "v": "1.13",
+   "l": "nodes per e-class in Cranelift's aegraph"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "A binder of same-meaning phrases, then keep the cheapest",
+   "visual": "img/plain.svg",
+   "brief": "<p>Each rule staples a new equal phrase onto the same page instead of erasing the old one. Nothing is thrown away until the end, when the cheapest phrase on the page is kept.</p><p>In the calculator example, <i>a×2÷2</i> collapses to just <i>a</i>, and the multiply and divide disappear.</p>",
+   "group": "Plain English",
+   "tone": "plain",
+   "file": "sections/00-plain.html"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Four ideas to know first: terms, union-find, congruence, phase ordering",
+   "visual": "img/ctx.svg",
+   "brief": "<ul><li><b>Term</b>: a tree; rewrites turn one term into an equal one.</li><li><b>Union-find</b>: answers \"same set?\" in near-constant time.</li><li><b>Congruence</b>: if a ≡ b then f(a) ≡ f(b).</li><li><b>Phase ordering</b>: the order of passes changes the output.</li></ul>",
+   "group": "Context",
+   "file": "sections/01-context.html"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Cranelift runs one in production, and egg made it fast enough",
+   "visual": "img/world.svg",
+   "brief": "<p>Cranelift has used an acyclic e-graph in production since 2023. Herbie's float-accuracy rewriting runs on egg, which is over <b>3000×</b> faster than Herbie's old simplifier. Cranelift measured <b>23%</b> overhead for a zero-rewrite round trip, so its JIT-speed mid-end kept only directional, eager rules.</p><p class=\"mini\">Library and egglog code samples inside.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "Saturation is easy to state; congruence, limits and extraction are the hard parts",
+   "visual": "img/onel.svg",
+   "brief": "<p>\"Apply all rewrites, keep every version, pick the best\" hides five problems. Congruence repair is the slow part. Saturation rarely terminates, so limits bring phase ordering back. Picking the best is NP-hard under sharing. One unsound rule spreads globally.</p>",
+   "group": "Technical deep dive",
+   "file": "sections/02-one-liner.html"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Destructive rewriting commits too early and loses <code>a</code>",
+   "visual": "img/problem.svg",
+   "brief": "<p>Strength-reducing <code>a*2</code> first turns <code>(a*2)/2</code> into <code>(a&lt;&lt;1)/2</code>, and the algebra rule no longer matches. Keeping every form needs sharing, or the search space explodes. Egg's speed made that practical; before it, e-graph upkeep took <b>98.1%</b> of Herbie's runtime.</p>",
+   "file": "sections/03-problem.html"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "An e-class behaves like a spreadsheet cell that holds formulas",
+   "visual": "img/model.svg",
+   "brief": "<p>An e-class is a cell holding a set of formulas that all equal one value, and formulas refer to cells, not to other formulas. Merging two cells can force other cells to merge too, which spreadsheets never do. A cell can also refer to itself.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One term saturates in four iterations and extracts to <code>a</code>",
+   "visual": "img/mech.svg",
+   "brief": "<p>On <code>(a*2)/2</code>, two rules merge the root with <code>a</code> in iteration 2 through a self-pointing class. Four iterations saturate it to 4 classes and 8 nodes. Extraction picks <code>a</code> at cost 1. Adding one commutativity rule breaks termination.</p><p class=\"mini\">Five-step interactive walkthrough inside.</p>",
+   "file": "sections/05-mechanism.html"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Commutativity plus associativity needs 3ⁿ nodes, and matching is a join",
+   "visual": "img/math.svg",
+   "brief": "<p>Under AC, n summed leaves need 2ⁿ − 1 classes and 3ⁿ − 2ⁿ⁺¹ + n + 1 nodes: 57,010 nodes at n = 10. Relational e-matching treats each pattern as a database join and reports up to 6 orders of magnitude on deep patterns.</p><p class=\"mini\">AC calculator inside.</p>",
+   "file": "sections/06-math.html"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Congruence repair and the read/write split keep the graph consistent",
+   "visual": "img/why.svg",
+   "brief": "<p>Deferred rebuilding turns O(n²) parent repairs into O(n), a measured <b>88×</b> geometric-mean speedup inside egg. The read/write split makes each iteration depend only on the graph at its start. Remove the hashcons and congruent nodes stay apart; remove the limits and ordinary rule sets never stop.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Limits, scheduler and extraction decide what you actually get",
+   "visual": "img/knobs.svg",
+   "brief": "<p>Egg defaults to 30 iterations, 10,000 nodes and 5 seconds, with a backoff scheduler. Directional rules stay small, while bidirectional AC explodes. On matrix chains, eqsat stays within 1% of optimal up to about 800 matrices, then drifts as far as 65% off.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Blowup, unsound rules and limits make results unpredictable",
+   "visual": "img/breaks.svg",
+   "brief": "<p>AC needs 3ⁿ nodes. A single unsound rule like <code>x/x → 1</code> merges 0 with 1, and congruence spreads the merge to every class built on them. Limits make runtime predictable but results not. One Cranelift rule addition moved a fuzz case from 0.08 s to about 10 s.</p>",
+   "file": "sections/09-where-it-breaks.html"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Cranelift drops most textbook choices to fit a JIT",
+   "visual": "img/wild.svg",
+   "brief": "<p>Cranelift's aegraph rewrites eagerly at node creation, has no rebuild, and caps work at 5 matches per call. Its average e-class holds <b>1.13</b> nodes, and scoped elaboration recovers GVN and LICM. egglog's Datalog core is 3.34× faster than egg building the same graph.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier",
+   "title": "The frontier moved to slots, differentiable extraction and termination limits",
+   "visual": "img/frontier.svg",
+   "brief": "<p>Slotted e-graphs handle binders without shift rewrites, cutting one four-parameter case from over 4 GB to 6 MB. SmoothE extracts on a GPU with 8–37× speedups. Suciu et al. show termination over all terms is Π₂-complete, so limits are necessary, not just engineering.</p>",
+   "group": "Research edge",
+   "file": "sections/11-frontier.html"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Predictable limits, sharing-aware costs and effects are still open",
+   "visual": "img/open.svg",
+   "brief": "<p>Termination is undecidable in general, so limits stay heuristic. Extraction that models register pressure is unsolved. Control flow has no agreed representation, and whether the aegraph earns its keep in fast compilers is measured both ways.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From 1980 congruence closure to eqsat in production",
+   "visual": "img/lineage.svg",
+   "brief": "<p>Nelson and Oppen's congruence closure (1980) gave the e-graph. Tate et al. (2009) named equality saturation. Egg (2021) made it fast, relational e-matching (2022) made matching a join, and Cranelift shipped an aegraph in 2023.</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "Run the saturation loop in 30 seconds with stdlib Python",
+   "visual": "img/hands.svg",
+   "brief": "<p><code>python3 mini_egraph.py</code> runs union-find, hashcons, deferred rebuild, e-matching and greedy extraction. It saturates <code>(a*2)/2</code> to <code>a</code> in four iterations; adding <code>mul-comm</code> never stops.</p><p class=\"mini\">Four experiments included.</p>",
+   "group": "Practice & self-test",
+   "file": "sections/13-hands-on.html"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>21 questions from mechanism to open problems. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>",
+   "builtin": "quiz"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "brief": "<p>Relational e-matching and worst-case optimal joins · RVSDG and sea-of-nodes IRs · extraction as optimization (ILP, treewidth, SmoothE).</p>",
+   "group": "Further",
+   "file": "sections/15-go-deeper.html"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, source code and talks behind every number",
+   "visual": "img/sources.svg",
+   "brief": "<p>Primary papers, the egg and Cranelift source, and the talks cited. Claims I could not confirm are tagged in the text rather than stated as fact.</p>",
+   "file": "sections/99-sources.html"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly happens to the hashcons when <code>union(e6, e4)</code> runs, and when?",
+   "a": "Nothing at union time: union only links e4 under e6 in the union-find, merges node sets, and pushes e6 on the worklist. At rebuild, <code>repair(e6)</code> walks e6's (now combined) parent list, removes each parent's stale key such as <code>(&lt;&lt; e0 e4)</code>, re-canonicalizes it to <code>(&lt;&lt; e0 e6)</code>, and reinserts it pointing at the parent's canonical class. If two re-canonicalized parents collide, their classes are unioned and pushed on the worklist.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does e-class e0 end up containing a node whose child is e0, and what set of terms does it represent?",
+   "a": "<code>mul-one</code> matched <code>(* e0 e6)</code> where e6 contains <code>1</code>, and unioned that node's class (e3) with e0. So e0 holds <code>(* e0 e6)</code>. The class represents <code>a</code>, <code>a*1</code>, <code>a*(2/2)</code>, <code>(a*1)*1</code>, and so on: every finite unrolling of the cycle. That is an infinite set, stored in 3 nodes.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "In egg's loop, why are all matches collected before any are applied?",
+   "a": "Searching while the e-graph is mutating would see half-updated, non-canonical state and invalidate iterators. Applying rule A's results before searching rule B would make the outcome depend on the order rules are listed. Collecting first means each iteration is a function of the e-graph at its start, and the invariants hold during search, so rebuilding can be deferred to once per iteration.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does <code>subsume</code> do in a Cranelift ISLE rule, and why must rules that drop uses use it?",
+   "a": "It marks the rewritten value as strictly better, so the e-class keeps only that value and drops the alternatives. It is required for correctness when the right-hand side uses fewer values than the left-hand side: elaboration might otherwise pick the old form, whose operands may not be available at the placement point (dominance). It also keeps classes small.",
+   "sec": "wild"
+  },
+  {
+   "type": "Why",
+   "q": "Why do e-nodes point to e-classes rather than to e-nodes?",
+   "a": "That is what makes one equality cover every term containing the subterm: a parent automatically \"contains\" every alternative of its child, so the number of represented terms is the product of class sizes while storage is their sum. Pointing at nodes would require copying parents for each alternative child.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why does deferring rebuilding turn O(n²) work into O(n)?",
+   "a": "Merges with overlapping upward paths dirty the same classes. Deduplicating the worklist to canonical ids means each dirty class is repaired once per rebuild, not once per merge. For n merges into one class with n parents, immediate repair touches n×n parent entries, while deferred repair touches n.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why is greedy extraction optimal for tree cost but not DAG cost?",
+   "a": "With tree cost, a class's best cost is independent of who uses it, so choosing each class's minimum bottom-up is optimal (dynamic programming over a monotone cost). With DAG cost, a shared class is paid once. Choosing a slightly costlier node that reuses an already-paid class can beat the locally cheapest one, so choices are coupled across the whole graph, giving set-cover-like hardness.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why did Cranelift choose eager, directional rewriting instead of saturation?",
+   "a": "The compile-time budget: egg round-tripping cost 23% with no rewrites, against roughly 10% for the whole optimizer. Directional rules (right-hand side no worse than left) mean the first good rewrite is almost always the final answer (2 misses in ~4M nodes), so saturation and rebuilding buy little. Avoiding AC rules prevents blowup, and limits of 5 bound the worst cases.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What breaks if you keep the union-find but drop parent lists?",
+   "a": "After a union you couldn't find the e-nodes whose children changed without scanning the whole hashcons. Congruence repair becomes O(graph) per rebuild, or stale keys remain and congruent nodes stay in separate classes, so equalities are missed.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If every rule were directional and cost-decreasing, what would full eqsat buy over a single eager pass?",
+   "a": "Little. If every rule moves strictly downhill in one cost, the greedy eager result is usually already a local optimum. Eqsat still helps when two downhill paths diverge and only one leads to a deeper minimum, or when an uphill-then-downhill sequence is needed, which directional rule sets forbid by construction. That is the 1.13 nodes-per-class result from Cranelift.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What happens to the <code>(a*2)/2</code> result if <code>mul-two</code> is applied destructively before <code>div-assoc</code>?",
+   "a": "The term becomes <code>(a&lt;&lt;1)/2</code>. <code>div-assoc</code> needs a <code>*</code> under the <code>/</code>, which is gone, so <code>a</code> is unreachable. That is phase ordering, and it is exactly Zucker's example of eager aegraph rewriting missing an optimization.",
+   "sec": "problem"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Construct a rule set and input that collapse the e-graph to one class.",
+   "a": "Use rules <code>x/x → 1</code> and <code>0/x → 0</code> with input containing <code>0/0</code>. Then <code>0/0</code> joins both the class of 1 and the class of 0, so <code>0 ≡ 1</code>. Congruence then merges <code>x+0</code> with <code>x+1</code>, <code>x*0</code> with <code>x*1</code>, and so on. With <code>x*0 → 0</code> and <code>x*1 → x</code>, every x merges with 0, and everything ends in one class.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you make egg's BackoffScheduler miss the optimal result on a term where it saturates without limits?",
+   "a": "Make the needed rule match explosively (for example, a commutativity-style rule matching everywhere) so it exceeds its 1,000-match limit and is banned for 5 iterations, right when its one useful application is needed. Meanwhile a node limit may fire. The result depends on the ban schedule, not on whether the optimum is reachable.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Given Cranelift's limits of 5, design a rule set that silently loses an optimization.",
+   "a": "Write more than 5 rules whose left-hand sides match the same node, with the useful one produced last in ISLE's ordering: <code>MATCHES_LIMIT</code> truncates the rest. Or require a 6-deep rewrite chain to reach the good form, since <code>REWRITE_LIMIT</code> stops at depth 5. Or use one rule with cost(g) &gt; cost(f) whose eager choice blocks a later win.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is relational e-matching related to worst-case optimal joins in databases?",
+   "a": "Each operator is a relation (class id, child ids…), a pattern is a conjunctive query, and repeated pattern variables are join keys. Generic Join is worst-case optimal (it runs within the AGM bound), so e-matching inherits its output-size optimality. Cyclic patterns behave like the triangle query.",
+   "sec": "math"
+  },
+  {
+   "type": "Connection",
+   "q": "How does an e-graph differ from a Cascades memo?",
+   "a": "Both group equivalent expressions whose children are groups. Cascades explores top-down, goal-directed, with physical properties and branch-and-bound pruning, and usually doesn't maintain congruence closure across merges. E-graphs explore bottom-up via saturation, maintain congruence, and extract afterwards.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Connection",
+   "q": "How does egglog's <code>:merge</code> generalize egg's e-class analysis join?",
+   "a": "Egg has one analysis per e-graph, joined with a semilattice join on class merge. Egglog lets any function have a <code>:merge</code> expression that resolves conflicting outputs for the same inputs (min, max, set union, or any expression). Congruence itself is the merge rule for constructor functions (union the ids). So analyses become ordinary Datalog functions, and a program can have many of them.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How does eqsat relate to the database <i>chase</i>?",
+   "a": "Suciu, Wang and Zhang give two-way reductions: eqsat terminates iff some chase sequence terminates iff all \"EGD-fair\" ones do. Rewrite rules behave like tuple-generating plus equality-generating dependencies, and e-graph merges are the EGD steps. This imports chase termination results, for example weak acyclicity becomes weak term acyclicity.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "Can you predict, before running, whether a rule set will saturate on your inputs?",
+   "a": "Not in general: termination over all terms is Π₂-complete. Sufficient syntactic tests exist (weak term acyclicity), and rule sets that are directional with respect to a well-founded order terminate. Practical prediction for real rule sets is open.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Is there a cost model for extraction that captures register pressure without making extraction intractable?",
+   "a": "Open. Register pressure depends on the schedule and live ranges, so it depends on the global choice; it is non-local and nonlinear. Options being explored: nonlinear costs (SmoothE), extraction with measured cost (Luminal), or folding lowering into extraction (Cranelift #8529). None is both accurate and tractable yet.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Do slotted e-graphs' constant-factor costs disappear with egg-level engineering?",
+   "a": "Unknown. The paper attributes part of the 2.7× memory and 7.8× time overhead to missing engineering (deferred rebuilding, compiled e-matching), and part to slots themselves (renamings per edge, permutation groups). No optimized implementation has been benchmarked yet.",
+   "sec": "frontier"
+  }
+ ],
+ "figures": {
+  "egg-loop": {
+   "file": "img/fig/egg-fig-loop.png",
+   "caption": "Equality saturation as a loop: the input term seeds an e-graph, rewrites keep adding equal forms to it, and extraction reads out one term at the end.",
+   "source": {
+    "cite": "Willsey et al., \"egg: Fast and Extensible Equality Saturation\", POPL 2021",
+    "url": "https://arxiv.org/abs/2004.03082",
+    "figure": "Fig. 3 (left)"
+   },
+   "license": "CC0 1.0",
+   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+   "modified": "cropped and recompressed"
+  },
+  "rel-speedup": {
+   "file": "img/fig/relational-fig-speedup.png",
+   "caption": "Speedup of relational e-matching over backtracking, one bar group per pattern on the lambda and math suites. Bars right of 1× mean the join is faster. The largest gains reach about 10<sup>6</sup>× on patterns whose output is small.",
+   "source": {
+    "cite": "Zhang et al., \"Relational E-Matching\", POPL 2022",
+    "url": "https://arxiv.org/abs/2108.02290",
+    "figure": "Fig. 9"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "showdown-matmul": {
+   "file": "img/fig/showdown-fig-matmul.png",
+   "caption": "Ratio of optimal to found cost for matrix-chain multiplication, one point per test. Stochastic search stays at the optimum, while eqsat drifts down past about 800 matrices and reaches roughly 0.35 on the largest case.",
+   "source": {
+    "cite": "Hong et al., \"Rewrite System Showdown: Stochastic Search vs. EqSat\", EGRAPHS 2026",
+    "url": "https://arxiv.org/abs/2605.19005",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}
