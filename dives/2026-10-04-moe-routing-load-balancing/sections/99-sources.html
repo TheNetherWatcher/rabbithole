@@ -1,0 +1,28 @@
+<h3>Papers</h3>
+<ul>
+<li><a href="https://arxiv.org/abs/1701.06538" target="_blank" rel="noopener">Shazeer 2017</a> (sparsely-gated MoE)</li>
+<li><a href="https://arxiv.org/abs/2006.16668" target="_blank" rel="noopener">GShard</a></li>
+<li><a href="https://arxiv.org/abs/2101.03961" target="_blank" rel="noopener">Switch Transformer</a></li>
+<li><a href="https://arxiv.org/abs/2202.08906" target="_blank" rel="noopener">ST-MoE</a></li>
+<li><a href="https://arxiv.org/abs/2401.06066" target="_blank" rel="noopener">DeepSeekMoE</a></li>
+<li><a href="https://arxiv.org/abs/2408.15664" target="_blank" rel="noopener">Wang et al., loss-free balancing</a></li>
+<li><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener">DeepSeek-V3</a></li>
+<li><a href="https://arxiv.org/abs/2412.14711" target="_blank" rel="noopener">ReMoE</a></li>
+<li><a href="https://arxiv.org/abs/2501.11873" target="_blank" rel="noopener">Demons in the Detail</a></li>
+<li><a href="https://arxiv.org/abs/2409.02060" target="_blank" rel="noopener">OLMoE</a></li>
+<li><a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Buffer Overflow in Mixture of Experts</a></li>
+<li><a href="https://arxiv.org/abs/2410.22884" target="_blank" rel="noopener">Stealing User Prompts</a></li>
+<li><a href="https://arxiv.org/abs/2402.07871" target="_blank" rel="noopener">Fine-grained scaling</a></li>
+<li><a href="https://arxiv.org/abs/2604.09780" target="_blank" rel="noopener">Myth of Expert Specialization</a></li>
+<li><a href="https://people.eecs.berkeley.edu/~matei/papers/2023/mlsys_megablocks.pdf" target="_blank" rel="noopener">Megablocks</a></li>
+<li><a href="https://arxiv.org/abs/2201.05596" target="_blank" rel="noopener">DeepSpeed-MoE</a></li>
+</ul>
+<h3>Code and docs</h3>
+<ul>
+<li>HF Transformers <code>modeling_mixtral.py</code></li>
+<li>vLLM fused_moe docs</li>
+<li>Megatron-Core MoE docs</li>
+<li>OLMo-core router</li>
+</ul>
+<h3>Verification note</h3>
+<p>Formulas and numbers for loss-free balancing and V3 (γ, α, expert counts, M, Wang tables) were checked against the arXiv HTML. The Hayes, Yona, Qiu and ReMoE abstracts were fetched. Research subagents (Haiku) produced the rest. One of them stated γ ≈ 0.01 for Wang, which is wrong (the paper says u = 0.001), and I used the paper’s value.</p>

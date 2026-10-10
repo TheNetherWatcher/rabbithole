@@ -1,0 +1,7 @@
+<p>The core insight: balance is a <i>constraint on selection frequency</i>, and selection frequency can be steered by an additive offset without altering the learned <i>scoring</i> function. Ablations:</p>
+<ul>
+<li><b>Remove the bias and keep nothing</b>: skewed expert popularity persists. In my demo, MaxVio stays at about 2.57 with u = 0.</li>
+<li><b>Use the biased score for gating too</b>: the bias leaks into the output weights, and the bias value becomes part of the function the model must learn around. This is why V3 takes the gate from the raw score.</li>
+<li><b>Remove the node limit</b> (V3’s M = 4): balance is fine, but cross-node all-to-all grows.</li>
+<li><b>Keep an aux loss with a big α</b>: balance improves, but perplexity gets worse. Wang reports Loss-Controlled MaxVio of 0.72 and 0.52 versus 0.04 for Loss-Free, at 1B and 3B.</li>
+</ul>

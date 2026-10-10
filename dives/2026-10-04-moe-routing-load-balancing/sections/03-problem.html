@@ -1,0 +1,5 @@
+<ul>
+<li><b>Compute per layer is gated by the max expert load under EP, not the mean.</b> With a mean of 500 and a max of 1,750 (my toy run below: MaxVio ≈ 2.5), the layer takes about 3.5× the balanced time.</li>
+<li><b>Capacity caps turn imbalance into waste.</b> Switch uses CF 1.0–2.0; ST-MoE uses 1.25 in training and 2.0 in evaluation. Overflow becomes <b>dropped tokens</b> (a quality loss) or padding (wasted FLOPs).</li>
+<li><b>Unbalanced training starves experts of gradient</b>, so the extra parameters are dead weight.</li>
+</ul>

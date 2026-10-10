@@ -1,0 +1,15 @@
+<ul>
+<li><b>Collapse loop</b>: a popular expert gets more gradient, which makes it better, which makes it more popular.</li>
+<li><b>Aux-loss dilemma</b> (§6): too small and the router collapses, too large and specialization is erased.</li>
+<li><b>Micro-batch balancing bug</b> (Qiu et al. 2025): frameworks compute the load-balance loss per micro-batch of 1–4 sequences, which forces within-sequence uniformity. That punishes a code-only sequence for using the code experts. Global-batch balance loss fixes it.</li>
+<li><b>Stragglers</b>: EP all-to-all is a synchronous barrier, so one hot GPU stalls all of them.</li>
+<li><b>Inference</b>: there is no controller at serve time, so routing depends on batch composition.</li>
+<li><b>Security</b>: cross-batch dependencies leak. Hayes, Shumailov and Yona (2024, <a href="https://arxiv.org/abs/2402.05526" target="_blank" rel="noopener">Buffer Overflow in Mixture of Experts</a>) show that token dropping under capacity limits lets an attacker’s co-batched queries alter a victim’s output. Figure 1 shows the flow. Figure 3 shows the attack in numbers: the victim’s tokens fall from 6 to 0 as adversarial tokens fill the expert’s 20-slot buffer.</li>
+</ul>
+<figure data-fig="fig1"></figure>
+<figure data-fig="fig3"></figure>
+<p>Yona, Shumailov, Hayes and Carlini (2024, <a href="https://arxiv.org/abs/2410.22884" target="_blank" rel="noopener">Stealing User Prompts</a>) exploit Expert-Choice routing plus CUDA <code>topk</code> tie-breaking to recover a victim prompt with about 100 queries per token, shown on a two-layer Mixtral.</p>
+<ul>
+<li><b>Misconception</b>: “experts specialise in domains”. Wang, Hayou and Nalisnick (2026) argue that routing reflects the geometry of the hidden space. Mixtral’s own analysis found syntactic, token-level rather than topical specialization.</li>
+<li><b>Unverified in my research (excluded from the dive)</b>: a quoted 85% speedup from dropping 12% of tokens; a 79.2% all-to-all latency share; specific validation-loss numbers for sequence- versus batch-wise losses from secondary summaries.</li>
+</ul>

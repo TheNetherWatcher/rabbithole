@@ -1,0 +1,28 @@
+<p><b>What it is.</b> A sparsely activated FFN: N experts, and a per-token router picks k of them. Compute per token is roughly a dense model with k experts; capacity is roughly N experts.</p>
+<p><b>Why it exists.</b> Dense scaling cost grows with every parameter. Sparse gating decouples capacity from FLOPs. Shazeer 2017 reached 137B parameters with up to 4096 experts; GShard (2020) reached 600B+ on 2048 TPUv3 in 4 days. Without balancing, learned routers collapse onto a few experts (see §9), which wastes the extra parameters and breaks EP efficiency.</p>
+<p><b>Where it’s used</b> (configs from model cards and papers; verify per release):</p>
+<table>
+<thead><tr><th>System</th><th>Config</th><th>Role of routing</th></tr></thead>
+<tbody>
+<tr><td>Mixtral 8x7B (Mistral)</td><td>8 experts, top-2, ~47B total / ~13B active</td><td>Coarse experts, softmax over the top-2 logits</td></tr>
+<tr><td>DeepSeek-V3/R1</td><td>1 shared + 256 routed, top-8, node-limited (M=4), 671B / 37B</td><td>Sigmoid affinity + aux-loss-free bias (<a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener">paper</a>)</td></tr>
+<tr><td>OLMoE (AI2)</td><td>64 experts, top-8, 7B total / 1B active, dropless</td><td>Fully open recipe with routing analysis (<a href="https://arxiv.org/abs/2409.02060" target="_blank" rel="noopener">paper</a>)</td></tr>
+<tr><td>Qwen MoE family</td><td>Qwen1.5-MoE: 60 routed + 4 shared, top-4; Qwen3-30B-A3B: 128 experts, top-8</td><td>Global-batch balance loss (Qwen team’s own paper below)</td></tr>
+<tr><td>DBRX (Databricks)</td><td>16 experts, top-4, 132B / 36B</td><td>Fine-grained versus Mixtral’s 8</td></tr>
+<tr><td>Grok-1 (xAI)</td><td>8 experts, top-2, 314B</td><td>Open weights, coarse experts</td></tr>
+<tr><td>Llama 4 (Meta)</td><td>Scout 16 experts / Maverick 128; shared expert + routed</td><td><b>Config details from secondary sources, unverified here</b></td></tr>
+<tr><td>Switch / ST-MoE (Google)</td><td>Top-1, 128 experts / 32 experts</td><td>Origin of the aux loss and router z-loss</td></tr>
+</tbody>
+</table>
+<p><b>How it’s used.</b> The practitioner touches are <code>num_experts</code>, <code>num_experts_per_tok</code> (top-k), the balance-loss coefficient, the capacity factor and the EP size.</p>
+<pre><code># Megatron-Core style flags (values as reported by implementation research; check your version's docs)
+--num-experts 8 --moe-router-topk 2 \
+--moe-router-load-balancing-type aux_loss --moe-aux-loss-coeff 1e-2 \
+--moe-grouped-gemm --expert-model-parallel-size 4</code></pre>
+<pre><code># the router, minimal (token-choice, Mixtral-like)
+logits = h @ W_gate                          # [T, N]
+w, idx = torch.topk(logits, k, dim=-1)       # select
+w = torch.softmax(w, dim=-1)                 # gate over the k winners only
+out = sum(w[:, j:j+1] * experts[idx[:, j]](h) ...)   # grouped GEMM in practice</code></pre>
+<p><b>When to use it, and when not.</b> Use MoE for high-concurrency serving and training, where FLOPs are the bill and VRAM and interconnect are available. Prefer dense models for low-traffic or single-GPU deployments (all N experts must still sit in memory: a 400B-total MoE needs multiple GPUs just to load), for strict latency-variance needs, or when all-to-all bandwidth is lacking. Signs of a wrong choice: GPU utilisation under about 50% at inference, a wide gap between p50 and p99 step time, or one hot-expert GPU pegged while the others idle.</p>
+<p><b>Who should care.</b> ML engineers pretraining MoEs (the balance method decides quality), infra and serving engineers (stragglers, batch-dependent routing), and security engineers (cross-batch leaks, §9).</p>

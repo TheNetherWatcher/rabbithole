@@ -1,0 +1,8 @@
+<p><i>“A router sends each token to its top-k experts, and a balancing loss keeps experts evenly used.”</i> It hides:</p>
+<ol>
+<li><b>Balance has two meanings</b>: per sequence, per batch, or per corpus. They are different constraints with different costs to quality.</li>
+<li><b>The aux loss is a second objective</b> whose gradient lands on the same router weights as the LM loss.</li>
+<li><b>Selection and weighting need not use the same score.</b> That separation is the whole trick of loss-free balancing.</li>
+<li><b>Routing collapse is a feedback loop</b>, not a bug in initialisation.</li>
+<li><b>At inference, nobody balances for you</b>: routing depends on who shares your batch.</li>
+</ol>

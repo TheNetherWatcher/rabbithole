@@ -1,0 +1,56 @@
+<p><code>loss_free_demo.py</code> (in this folder, numpy only): a frozen skewed router, 16 experts, top-2, T = 4096 tokens per step, 400 steps. Real output from my run:</p>
+<pre><code>u=0.0    MaxVio step0=2.523  step100=2.580  mean(last100)=2.568  |b|max=0.000
+u=0.001  MaxVio step0=2.523  step100=1.217  mean(last100)=0.084  |b|max=0.293
+u=0.01   MaxVio step0=2.523  step100=0.098  mean(last100)=0.158  |b|max=0.360
+u=0.05   MaxVio step0=2.523  step100=0.512  mean(last100)=0.492  |b|max=0.500</code></pre>
+<p><b>Reading it.</b> u = 0 never balances. u = 0.001 converges slowly but settles tight. u = 0.01 converges fast but jitters. u = 0.05 limit-cycles and never settles. Wang et al. report the same shape (0.001 best, 0.01 fluctuates).</p>
+<p class="mini">Caveat: this is a toy with a frozen router and no LM loss. It shows the controller, not model quality.</p>
+<p><b>Try:</b> add a “quality” term where load raises an expert’s score, to watch the collapse feedback. Or swap <code>sign</code> for a proportional update.</p>
+
+<h3>Try it: the bias controller</h3>
+<p>This widget is a JavaScript port of <code>loss_free_demo.py</code> (16 experts, top-2, frozen skewed router, 1000 tokens per step, 150 steps, its own random seed). Its numbers differ from the numpy table above but show the same shape. Move the slider to change u.</p>
+<div class="widget" role="group" aria-label="Bias controller simulator">
+<p><label for="hands-u">Update speed u: <b id="hands-uv">0.001</b></label><br>
+<input id="hands-u" type="range" min="0" max="4" step="1" value="1" style="width:100%" aria-valuetext="0.001"></p>
+<svg id="hands-svg" viewBox="0 0 640 200" role="img" aria-label="Expert loads after training with chosen u" width="100%" style="max-width:100%;height:auto"></svg>
+<p id="hands-cap" class="mini" aria-live="polite"></p>
+</div>
+<script>
+(function(){
+  var sl=document.getElementById('hands-u');
+  if(!sl)return;
+  var us=[0,0.001,0.01,0.05,0.2];
+  function rng(seed){var a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function gauss(r){var u=1-r(),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  function run(u){
+    var N=16,k=2,T=1000,d=16,steps=150,r=rng(7);
+    var W=[];for(var i=0;i<d;i++){W.push([]);for(var j=0;j<N;j++)W[i].push(gauss(r)/Math.sqrt(d));}
+    var skew=[];for(var j=0;j<N;j++)skew.push(gauss(r)*0.8);
+    var b=new Array(N).fill(0),load;
+    for(var t=0;t<steps;t++){
+      load=new Array(N).fill(0);
+      for(var n=0;n<T;n++){
+        var x=[];for(var i=0;i<d;i++)x.push(gauss(r));
+        var sc=[];for(var j=0;j<N;j++){var z=skew[j];for(var i=0;i<d;i++)z+=x[i]*W[i][j];sc.push({j:j,v:1/(1+Math.exp(-z))+b[j]});}
+        sc.sort(function(a,c){return c.v-a.v;});
+        for(var q=0;q<k;q++)load[sc[q].j]++;
+      }
+      var mean=T*k/N;
+      for(var j=0;j<N;j++){b[j]+=u*Math.sign(mean-load[j]);}
+    }
+    return load;
+  }
+  var svg=document.getElementById('hands-svg'),cap=document.getElementById('hands-cap'),uv=document.getElementById('hands-uv');
+  function draw(){
+    var u=us[+sl.value];uv.textContent=u;sl.setAttribute('aria-valuetext',String(u));
+    var load=run(u),mean=125,mx=Math.max.apply(null,load),h='';
+    var sc=150/Math.max(mx,mean*1.2);
+    load.forEach(function(l,j){var x=20+j*38,hh=l*sc;h+='<rect class="'+(l>mean*1.3?'bar hot':'bar')+'" x="'+x+'" y="'+(170-hh)+'" width="28" height="'+hh+'"/><text x="'+x+'" y="188">E'+j+'</text>';});
+    h+='<line class="mean" x1="10" x2="630" y1="'+(170-mean*sc)+'" y2="'+(170-mean*sc)+'"/><text x="520" y="'+(164-mean*sc)+'">fair share '+mean+'</text>';
+    svg.innerHTML=h;
+    var mv=(mx-mean)/mean;
+    cap.textContent='u='+u+': after 150 steps (JS port, 1000 tokens per step), max load '+mx+' vs fair share '+mean+', so MaxVio ≈ '+mv.toFixed(2)+(u===0?' (no balancing).':u>=0.05?' (too fast: biases overshoot every step).':'.');
+  }
+  sl.addEventListener('input',draw);draw();
+})();
+</script>

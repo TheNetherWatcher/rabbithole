@@ -1,0 +1,7 @@
+<ul>
+<li><b>The balance versus specialization Pareto frontier</b> has no agreed shape. Batch-wise loosening helps (Qiu), and loss-free matches or beats aux loss (Wang), yet strict balance at inference is still wanted for EP.</li>
+<li><b>Training and serving mismatch</b>: the bias controller exists only in training. At serve time, batch makeup decides the load. Decoupling routing from batch composition is unsolved, and it is also the security issue.</li>
+<li><b>Learnability of routers</b>: linear routers with top-k have non-differentiable selection. ReLU, Dirichlet and OT routing trade stability for gradient. There is no sample-complexity theory.</li>
+<li><b>Optimal granularity</b> beyond small scale.</li>
+<li><b>Why the obvious fixes fail</b>: a bigger α kills specialization; per-sequence balance forces uniformity where the data isn’t uniform; expert choice gives balance but breaks batch independence.</li>
+</ul>

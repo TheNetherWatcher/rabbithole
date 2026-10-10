@@ -1,0 +1,56 @@
+<p>DeepSeek-V3-style routing (sigmoid affinities), with 4 experts and k = 2 for readability. One token has router logits <code>u·e_i = [1.2, 0.4, −0.3, 0.9]</code>. V3 uses sigmoid, not softmax.</p>
+<pre><code>affinity s_i = sigmoid(logit)    = [0.769, 0.599, 0.426, 0.711]
+bias b_i (running state)         = [-0.20, +0.05, +0.12,  0.00]   # expert 0 has been hot
+selection score s_i + b_i        = [0.569, 0.649, 0.546, 0.711]
+top-2 of selection score         -> experts {3, 1}      (unbiased top-2 would be {0, 3})
+gate g'_i = s_i for chosen       = {e1: 0.599, e3: 0.711}   # UNBIASED
+g_i = g'_i / sum(g')             = {e1: 0.457, e3: 0.543}
+y = x + 0.457*E1(x) + 0.543*E3(x) (+ shared expert output)</code></pre>
+<p>After the batch (T = 1000 tokens, k = 2, so 2000 assignments and a mean load of 500), the loads are <code>[820, 430, 300, 450]</code>:</p>
+<pre><code>e_i = mean - load_i = [-320, +70, +200, +50]
+b_i += gamma * sign(e_i), gamma = 0.001   ->  b = [-0.201, +0.051, +0.121, +0.001]</code></pre>
+<p>No gradient touched anything. The bias is controller state, not a parameter. Selection is not weighting: expert 0 lost the slot, but its gate math is unchanged for tokens that still pick it.</p>
+
+<div class="widget" role="group" aria-label="Routing step-through">
+<svg id="mech-svg" viewBox="0 0 640 230" role="img" aria-label="Step-through of routing one token" width="100%" style="max-width:100%;height:auto"></svg>
+<p id="mech-cap" aria-live="polite" class="mini"></p>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" type="button" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" type="button" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+</div>
+</div>
+<script>
+(function(){
+  var svg=document.getElementById('mech-svg'),cap=document.getElementById('mech-cap'),nEl=document.getElementById('mech-n');
+  if(!svg)return;
+  var s=[0.769,0.599,0.426,0.711],b=[-0.20,0.05,0.12,0.0];
+  var steps=[
+    {t:'Router logits [1.2, 0.4, −0.3, 0.9] pass through sigmoid to give affinities s_i.',show:'s'},
+    {t:'Add running bias b_i = [−0.20, +0.05, +0.12, 0.00] (expert 0 has been hot). Selection score s_i + b_i = [0.569, 0.649, 0.546, 0.711].',show:'sb'},
+    {t:'Top-2 of the selection score: experts 3 and 1. Without the bias it would have been experts 0 and 3.',show:'pick'},
+    {t:'Gate values come from the UNBIASED affinities: 0.599 and 0.711, normalised to 0.457 and 0.543. Output = 0.457·E1(x) + 0.543·E3(x) (+ shared).',show:'gate'},
+    {t:'After the batch, loads [820, 430, 300, 450] vs mean 500. b += 0.001·sign(mean − load): expert 0 goes down, experts 1–3 go up. No gradients involved.',show:'upd'}
+  ];
+  var i=0;
+  function draw(){
+    var sh=steps[i].show,h='';
+    var names=['E0','E1','E2','E3'],pick=[false,true,false,true];
+    for(var k=0;k<4;k++){
+      var x=40+k*150,sc=s[k],sel=s[k]+b[k];
+      var showB=(sh!=='s'),isPick=(sh==='pick'||sh==='gate'||sh==='upd')&&pick[k];
+      h+='<rect x="'+x+'" y="'+(170-sc*130)+'" width="50" height="'+(sc*130)+'" class="f-acc2" opacity=".85"/>';
+      h+='<text x="'+x+'" y="188">'+names[k]+'  s='+sc.toFixed(3)+'</text>';
+      if(showB){h+='<rect x="'+(x+56)+'" y="'+(170-sel*130)+'" width="50" height="'+(sel*130)+'" class="'+(isPick?'f-acc':'f-line')+'"/>';h+='<text x="'+(x+56)+'" y="'+(164-sel*130)+'">s+b='+sel.toFixed(3)+'</text>';}
+      if(sh==='gate'&&pick[k]){h+='<text x="'+x+'" y="'+(160-sc*130)+'" style="font-weight:700">gate '+(k===1?'0.457':'0.543')+'</text>';}
+    }
+    if(sh==='upd'){h+='<text x="40" y="215">b → [−0.201, +0.051, +0.121, +0.001]</text>';}
+    h+='<text x="40" y="14">bars: teal = raw affinity s, orange = selected by s+b</text>';
+    svg.innerHTML=h;cap.textContent=steps[i].t;nEl.textContent='Step '+(i+1)+' / '+steps.length;
+    document.getElementById('mech-prev').disabled=i===0;document.getElementById('mech-next').disabled=i===steps.length-1;
+  }
+  document.getElementById('mech-prev').onclick=function(){if(i>0){i--;draw();}};
+  document.getElementById('mech-next').onclick=function(){if(i<steps.length-1){i++;draw();}};
+  draw();
+})();
+</script>

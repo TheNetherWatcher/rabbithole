@@ -1,0 +1,7 @@
+<ul>
+<li><b>DeepSeek-V3</b>: bias γ = 0.001, then 0.0; sigmoid with normalisation; node-limited to M = 4; a tiny sequence-wise loss (α = 1e-4) as a safety net.</li>
+<li><b>Mixtral and the Megatron default</b>: Switch-style aux loss with a coefficient of about 1e-2, and a softmax over the top-k logits.</li>
+<li><b>Megablocks</b>: reformulates the experts as one block-sparse matmul, so imbalance costs no extra FLOPs. No drops.</li>
+<li><b>vLLM and SGLang serving</b>: <code>moe_align_block_size</code> sorts token-expert pairs and pads them to block multiples before the grouped GEMM.</li>
+<li><b>OLMoE</b>: dropless token-choice routing. It reports early routing saturation and low expert co-activation.</li>
+</ul>

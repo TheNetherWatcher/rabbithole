@@ -1,0 +1,13 @@
+<table>
+<thead><tr><th>Knob</th><th>Trade-off</th></tr></thead>
+<tbody>
+<tr><td><b>k / N</b> (granularity)</td><td>More experts, each smaller, give more combinations (Mixtral: C(8,2) = 28 pairs; fine-grained models have vastly more), better specialization, and more all-to-all.</td></tr>
+<tr><td><b>Shared experts</b> (DeepSeekMoE, Qwen1.5-MoE)</td><td>Absorb common knowledge so the routed experts can specialise.</td></tr>
+<tr><td><b>CF / dropless</b></td><td>CF 1.25 drops under about 1% in Switch’s setting but needs tuning. Megablocks removes CF via block-sparse GEMM (dropless).</td></tr>
+<tr><td><b>α, γ (u)</b></td><td>See §6. V3 anneals γ to 0 at the end.</td></tr>
+<tr><td><b>Balance scope</b></td><td>Sequence versus micro-batch versus global batch (Qwen).</td></tr>
+<tr><td><b>Expert Choice</b></td><td>Each expert picks its top-C tokens, giving perfect balance and no drops, but variable experts per token. It breaks causal and batch independence (the §9 attack).</td></tr>
+<tr><td><b>Sinkhorn / optimal transport</b> (a Megatron option)</td><td>Exact balancing, at extra compute.</td></tr>
+<tr><td><b>ReLU / Dirichlet routing</b></td><td>Differentiable, dynamic k (frontier).</td></tr>
+</tbody>
+</table>

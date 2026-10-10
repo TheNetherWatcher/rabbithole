@@ -1,0 +1,346 @@
+{
+ "meta": {
+  "title": "MoE routing and load balancing: from aux-loss to aux-loss-free",
+  "short": "MoE load balancing",
+  "subject": "Computer science",
+  "domain": "ML/AI",
+  "topic": "MoE top-k gating, expert collapse, aux-loss vs aux-loss-free (bias) balancing",
+  "depth": "hard",
+  "date": "2026-10-04"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "A Mixture-of-Experts router sends each token to its top-k experts, and left alone it collapses onto a few favourites, so the busiest expert sets the speed of the whole layer. The classic fix adds a loss that fights the real objective. DeepSeek-V3 instead keeps a per-expert <b>bias that steers selection only</b>, not the gate, and a toy controller with <b>u = 0.001</b> settles where no balancing stays at MaxVio 2.57.",
+ "why": "<b>Why it matters:</b> under expert parallelism every layer waits for its hottest expert, and at 3B the aux-loss method sits at MaxVio <b>0.52</b> against <b>0.04</b> for the bias method.",
+ "stats": [
+  {
+   "v": "2.57",
+   "l": "MaxVio with no balancing (toy run)"
+  },
+  {
+   "v": "0.52",
+   "l": "MaxVio, aux loss, 3B model"
+  },
+  {
+   "v": "0.04",
+   "l": "MaxVio, loss-free, 3B model"
+  },
+  {
+   "v": "37B",
+   "l": "active params per token, DeepSeek-V3 (671B total)"
+  },
+  {
+   "v": "0.001",
+   "l": "bias step size u (Wang et al.)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "A nurse with sticky notes, not fines",
+   "visual": "img/plain.svg",
+   "brief": "<p>A triage nurse sends each word to 8 of 256 specialist doctors. The busiest doctors get more traffic, so the nurse keeps favouring them. The fix leaves the nurse alone and puts a sticky note on each door, nudging close calls toward idle doctors.</p>",
+   "group": "Plain English",
+   "tone": "plain",
+   "file": "sections/00-plain.html"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six prerequisites: router, top-k, all-to-all, capacity",
+   "visual": "img/ctx.svg",
+   "brief": "<ul><li><b>Router</b>: a linear map from a token to N expert logits.</li><li><b>Top-k</b>: only k experts run per token.</li><li><b>Expert parallelism</b>: experts sharded across GPUs, tokens moved by all-to-all.</li><li><b>Capacity factor</b>: a hard per-expert cap, with overflow dropped.</li></ul>",
+   "group": "Context",
+   "file": "sections/01-context.html"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Where MoE ships, and the knobs you actually set",
+   "visual": "img/world.svg",
+   "brief": "<p>Mixtral, DeepSeek-V3, OLMoE, Qwen MoE and DBRX all route tokens to top-k experts. You set <code>num_experts_per_tok</code>, the balance-loss coefficient, the capacity factor and the EP size. Prefer dense for single-GPU or low-traffic serving.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "“Top-k plus a balance loss” hides five things",
+   "visual": "img/onel.svg",
+   "brief": "<p>Balance has three scopes. The aux loss is a second objective on the same weights. Selection and weighting can use different scores. Collapse is a feedback loop. And at inference, your batch-mates decide your routing.</p>",
+   "group": "Technical deep dive",
+   "file": "sections/02-one-liner.html"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "The busiest expert sets the speed of every layer",
+   "visual": "img/problem.svg",
+   "brief": "<p>Under expert parallelism the max expert load gates each layer, not the mean. In a toy run with mean 500 and max 1,750, the layer takes about 3.5× the balanced time. Capacity caps then turn the skew into dropped tokens.</p>",
+   "file": "sections/03-problem.html"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A triage nurse, and where the analogy breaks",
+   "visual": "img/model.svg",
+   "brief": "<p>The nurse-and-doctors picture carries the feedback loop. It breaks because tokens are not interchangeable: similar tokens going to similar experts is the point of specialization, and it is also what skews the load when the data is skewed.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "One token through four experts, then one bias update",
+   "visual": "img/mech.svg",
+   "brief": "<p>Sigmoid affinities plus a running bias pick experts 3 and 1 instead of 0 and 3. The gate still uses the unbiased scores. After the batch, loads of [820, 430, 300, 450] move the bias by 0.001 per step, with no gradient involved.</p><p class=\"mini\">Step-through of the routing inside.</p>",
+   "file": "sections/05-mechanism.html"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "The aux loss is a second objective; the bias is a controller",
+   "visual": "img/math.svg",
+   "brief": "<p>The Switch aux loss is <code>α N Σ f_i P_i</code>, and its gradient fights the LM loss on the same router weights. Loss-free balancing is an integral controller on load, <code>b_i += u·sign(mean − load_i)</code>, with u = 0.001 and no gradient path.</p>",
+   "file": "sections/06-math.html"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Selection and weighting can use different scores",
+   "visual": "img/why.svg",
+   "brief": "<p>Balance is a constraint on how often experts are selected, and an additive offset can steer selection without changing the scoring function. Gate from the raw score, or the bias leaks into the output. Remove the bias and MaxVio stays near 2.57.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs",
+   "title": "Granularity, shared experts and balance scope are the dials",
+   "visual": "img/knobs.svg",
+   "brief": "<p>More, smaller experts give more combinations and better specialization, but more all-to-all. Shared experts absorb common knowledge. Balance scope runs from sequence to micro-batch to global batch. Expert Choice gives perfect balance but breaks batch independence.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Collapse loops, micro-batch bugs and batch-coupled leaks",
+   "visual": "img/breaks.svg",
+   "brief": "<p>Collapse is self-reinforcing. Micro-batch balance loss punishes code-only sequences for using code experts. Under capacity limits, an attacker’s co-batched queries can drop your tokens: in Hayes et al., a victim’s tokens fall from 6 to 0 in one expert.</p><p class=\"mini\">Two figures from the attack paper inside.</p>",
+   "file": "sections/09-where-it-breaks.html"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "DeepSeek-V3, Mixtral, Megablocks and OLMoE choose differently",
+   "visual": "img/wild.svg",
+   "brief": "<p>V3 uses a sigmoid score, a bias with γ = 0.001 that is later annealed to 0, and a tiny sequence-wise loss. Mixtral and Megatron use a Switch-style aux loss near 1e-2. Megablocks makes imbalance free in FLOPs, and OLMoE is dropless.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier",
+   "title": "Differentiable and similarity-based routers are the 2025–26 frontier",
+   "visual": "img/frontier.svg",
+   "brief": "<p>ReMoE swaps top-k for ReLU gates. Global-batch balance loss fixes the micro-batch bug. Dirichlet and PI-controlled routers are new. The 2026 entries are lower confidence.</p>",
+   "group": "Research edge",
+   "file": "sections/11-frontier.html"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Balance versus specialization has no agreed optimum",
+   "visual": "img/open.svg",
+   "brief": "<p>Nobody agrees where to set the balance dial. Decoupling routing from batch composition at inference is unsolved, and it is the same problem as the security leak. Learnability of non-differentiable routers has no sample-complexity theory.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From 1991 mixtures to bias-based balancing in 2024",
+   "visual": "img/lineage.svg",
+   "brief": "<p>Jacobs 1991 gave mixtures of experts. Shazeer 2017 added noisy top-k and load losses. GShard, Switch and ST-MoE added capacity, the Switch aux loss and the z-loss. DeepSeek-V3 in 2024 swapped the loss for a bias.</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "Run the controller: u = 0 never balances, 0.05 never settles",
+   "visual": "img/hands.svg",
+   "brief": "<p>A 16-expert numpy toy: u = 0 stays at MaxVio 2.57, u = 0.001 settles to 0.08, u = 0.05 limit-cycles. The demo is a frozen-router toy, so it shows the controller, not model quality.</p><p class=\"mini\">Slider widget inside.</p>",
+   "group": "Practice & self-test",
+   "file": "sections/13-hands-on.html"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>20 questions across mechanism, why, counterfactual, adversarial, connection and open. Reveal answers one at a time.</p>",
+   "builtin": "quiz"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three directions to go deeper",
+   "visual": "img/next.svg",
+   "brief": "<p>Expert-parallel inference with all-to-all and replication, Megablocks and grouped-GEMM kernels, and differentiable routing with ReMoE, soft MoE or Sinkhorn.</p>",
+   "group": "Further",
+   "file": "sections/15-go-deeper.html"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and docs",
+   "visual": "img/sources.svg",
+   "brief": "<p>Shazeer 2017, GShard, Switch, ST-MoE, DeepSeekMoE, Wang et al., DeepSeek-V3, ReMoE, Demons in the Detail, OLMoE and the attack papers, plus the model and framework code the numbers come from.</p>",
+   "file": "sections/99-sources.html",
+   "credits": true
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "Why does top-k plus softmax-over-k give the router gradient only through the chosen experts?",
+   "a": "Unselected experts get gate 0 after masking, so their logits do not affect the output. Selection itself is discrete.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "In V3, which score multiplies the expert output, biased or raw?",
+   "a": "The raw sigmoid affinity, normalised over the selected set. The bias only affects selection.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What do <code>f_i</code> and <code>P_i</code> each represent, and why is only <code>P_i</code> differentiable?",
+   "a": "<code>f_i</code> is the hard fraction of tokens whose argmax is i (non-differentiable). <code>P_i</code> is the mean router probability (differentiable). The gradient is <code>α N f_i</code> on the <code>P_i</code> path.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does capacity <code>CF · T/N</code> do at overflow?",
+   "a": "Excess tokens skip the expert via the residual, so they are dropped.",
+   "sec": "problem"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What is MaxVio?",
+   "a": "(max load − mean load) / mean load. 0 means perfect balance.",
+   "sec": "problem"
+  },
+  {
+   "type": "Why",
+   "q": "Why use <code>sign</code> in the bias update?",
+   "a": "It gives a bounded step with no overshoot from outlier loads, and it is simple. The cost is jitter of order u.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why anneal γ to 0 at the end of V3 training?",
+   "a": "This rationale is my inference. The paper reports the schedule, and the likely purpose is to freeze the biases so the controller’s jitter does not perturb late training.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does a large aux-loss α hurt quality?",
+   "a": "Its gradient pulls router logits toward uniform regardless of token content, fighting the LM gradient.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does micro-batch balancing hurt specialization?",
+   "a": "It forces each tiny batch of 1–4 sequences to use all experts, even when every token is code.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Why",
+   "q": "Why do shared experts help?",
+   "a": "Common knowledge lives in the always-on experts, so the routed experts need not duplicate it.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If gating used <code>s_i + b_i</code>, what changes?",
+   "a": "The bias enters the output, so a controller meant to be neutral perturbs predictions and couples to the gradients.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If load were measured per sequence instead of per batch?",
+   "a": "The constraint is stricter and close to the micro-batch problem. V3 keeps only a tiny α for that purpose.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if N doubles at fixed active FLOPs?",
+   "a": "More combinations and usually better quality (granularity scaling), but more all-to-all traffic and memory. Balance is harder per expert, though each expert matters less.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How can an attacker in your batch change your output when capacity limits exist?",
+   "a": "By flooding an expert so your tokens overflow and are dropped or rerouted (Hayes et al. 2024).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Why does expert choice leak?",
+   "a": "Experts choose across the whole batch, which couples the tokens of different users. CUDA topk tie-breaking makes the coupling exploitable (Yona et al. 2024).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could you game a bias controller?",
+   "a": "Speculatively, by skewing traffic so the biases drift. It matters only if the bias is shared across users’ batches in serving. This is not shown in the literature I verified.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How is the bias controller like a PI loop or TCP congestion control?",
+   "a": "Both use feedback on an error signal, and the step size trades speed against oscillation.",
+   "sec": "why"
+  },
+  {
+   "type": "Connection",
+   "q": "How does Megablocks change the cost of imbalance?",
+   "a": "Its dropless block-sparse GEMM means imbalance causes no drops and no padding FLOPs, though cross-GPU stragglers remain.",
+   "sec": "wild"
+  },
+  {
+   "type": "Open",
+   "q": "Is there a balance versus specialization Pareto frontier?",
+   "a": "Unsettled. The evidence points both ways.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Can routing be made independent of batch composition at inference?",
+   "a": "Open.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "fig1": {
+   "file": "img/fig/buffer-overflow-fig1-attack-flow.png",
+   "caption": "Adversarial inputs share a batch with user data, fill the expert token queues and push the user’s tokens toward worse experts.",
+   "source": {
+    "cite": "Hayes, Shumailov and Yona et al., \"Buffer Overflow in Mixture of Experts\", arXiv 2024",
+    "url": "https://arxiv.org/abs/2402.05526",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "fig3": {
+   "file": "img/fig/buffer-overflow-fig3-expert-block.png",
+   "caption": "Tokens from a target prompt sent to one expert fall from 6 to 0 as adversarial tokens fill its 20-slot buffer over 28 iterations.",
+   "source": {
+    "cite": "Hayes, Shumailov and Yona et al., \"Buffer Overflow in Mixture of Experts\", arXiv 2024",
+    "url": "https://arxiv.org/abs/2402.05526",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

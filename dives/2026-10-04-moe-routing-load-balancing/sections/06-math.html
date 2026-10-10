@@ -1,0 +1,18 @@
+<h3>Switch/GShard aux loss</h3>
+<div class="eq"><code>L_aux = α · N · Σ_i f_i · P_i</code>, with <code>f_i = (1/T) Σ_x 1[argmax p(x) = i]</code> (hard fraction) and <code>P_i = (1/T) Σ_x p_i(x)</code> (soft probability mass). N = experts, T = tokens, α = 1e-2 in Switch. <small>→ in plain terms: how much of the traffic goes to expert i, times how much the router is leaning toward it, summed over experts.</small></div>
+<ul>
+<li>Under uniform routing, <code>f_i = P_i = 1/N</code>, so <code>L = αN · N · (1/N²) = α</code>. By a Cauchy–Schwarz-type rearrangement, this is the minimum for a fixed Σ P_i = 1.</li>
+<li><b>Why a product, not <code>f²</code> or <code>P²</code>?</b> <code>f_i</code> is non-differentiable (argmax). Using <code>f_i · P_i</code> lets the gradient flow through <code>P_i</code>, weighted by how loaded expert i actually is: <code>∂L/∂p_i(x) = α N f_i / T</code>. Popular experts get pushed down in proportion, and the loss stays differentiable.</li>
+</ul>
+<p class="mini">→ in plain terms: the penalty pushes the router’s probability down on experts in proportion to how overloaded they are.</p>
+
+<h3>Router z-loss (ST-MoE)</h3>
+<div class="eq"><code>L_z = (1/B) Σ_x (log Σ_j e^{x_j})²</code>, c_z = 1e-3. <small>→ in plain terms: penalises large router logits, to keep the softmax numerically sane.</small></div>
+
+<h3>Loss-free balancing (Wang et al. 2024; DeepSeek-V3)</h3>
+<div class="eq">Selection: <code>s_i + b_i ∈ TopK(·)</code>. Gate: from the unbiased <code>s_i</code>. Update: <code>b_i ← b_i + u · sign(c̄ − c_i)</code>, where <code>c_i</code> is the number of tokens routed to expert i in the batch and <code>c̄</code> is the mean. <small>→ in plain terms: an integral-style controller on load.</small></div>
+<p>Reported u = 0.001 (Wang) and γ = 0.001 for the first 14.3T tokens, then 0.0 for the last 500B (V3).</p>
+<p class="mini">Why <code>sign</code> and not a proportional update? The step size is independent of how large the violation is, so one wildly hot expert does not make the bias overshoot. The cost is a limit cycle with amplitude about u in score space. In the demo below, a u that is too big gives permanent jitter.</p>
+
+<p><b>Why there is no gradient interference.</b> <code>∂L_LM/∂W</code> sees only the LM objective, and <code>b</code> has no dependence on W through autograd. The aux-loss approach adds <code>α N f_i ∂P_i/∂W</code> to the same W: if α is too small, the router collapses; if α is too large, the router logits are pulled toward uniform regardless of input, erasing specialization.</p>
+<p><b>V3’s complement.</b> A sequence-wise balance loss with α = 0.0001 remains, “just to avoid extreme imbalance within any single sequence”.</p>

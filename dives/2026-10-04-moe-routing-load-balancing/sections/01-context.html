@@ -1,0 +1,8 @@
+<ul>
+<li><b>Transformer block</b> = attention + a position-wise feed-forward network (FFN). MoE replaces the one FFN with N parallel FFNs (“experts”) plus a router. <a href="https://arxiv.org/abs/1701.06538" target="_blank" rel="noopener">Shazeer 2017</a></li>
+<li><b>Router</b> = a linear map <code>W_g ∈ R^{d×N}</code> from a token’s hidden state <code>u</code> to N logits. Top-k picks experts; the output is the gate-weighted sum of their outputs.</li>
+<li><b>Total params ≠ active params.</b> FLOPs per token scale with the k active experts; memory scales with all N experts.</li>
+<li><b>Expert parallelism (EP)</b>: experts are sharded across GPUs. Tokens move with all-to-all dispatch and combine, so the slowest GPU gates each layer.</li>
+<li><b>Top-k is non-differentiable</b> with respect to <i>which</i> experts win. The gradient reaches the router only through the gate values of the chosen experts.</li>
+<li><b>Capacity factor (CF)</b>: a hard per-expert token cap of <code>CF · T/N</code>. Overflow tokens are dropped and skip the layer via the residual. <a href="https://arxiv.org/abs/2101.03961" target="_blank" rel="noopener">Switch Transformer</a></li>
+</ul>
