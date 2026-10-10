@@ -1,0 +1,69 @@
+<h3>What it is, in one paragraph</h3>
+<p>A metastable failure, in the words of the paper that named it, occurs "in open systems with an uncontrolled source of load where a trigger causes the system to enter a bad state that persists even when the trigger is removed. In this state the goodput … is unusably low, and there is a <b>sustaining effect</b>, often involving work amplification or decreased overall efficiency, that prevents the system from leaving the bad state" (<a href="https://sigops.org/s/conferences/hotos/2021/papers/hotos21-s11-bronson.pdf" target="_blank" rel="noopener">Bronson et al., HotOS'21</a>). The name comes from physics: a ball sitting in a shallow dip is stable until a push sends it over the lip, after which it settles somewhere worse and won't come back by itself.</p>
+<h3>Why it matters</h3>
+<ul>
+<li>Metastable failures are the long outages. In the OSDI'22 study of 22 incidents, outages lasted <b>1.5 to 73.53 hours</b>, and 4–10 hours was the most common range. The study also found that <b>at least 4 of 15 major AWS outages</b> in the previous decade were metastable (<a href="https://www.usenix.org/system/files/osdi22-huang-lexiang.pdf" target="_blank" rel="noopener">Huang et al., OSDI'22</a>).</li>
+<li>The root cause gets misdiagnosed. "It is common for an outage that involves a metastable failure to be initially blamed on the trigger, but the true root cause is the sustaining effect" (Bronson). Teams fix the bad deploy, the outage repeats with a different trigger, and the loop was never touched.</li>
+<li>The loops are built from features that help on a normal day: retries, caches, failover, aggressive timeouts, connection reuse. You add them for reliability and efficiency, and they make up the trap.</li>
+<li>Before the name existed the pattern was already known as <b>congestion collapse</b>. Nagle, RFC 896 (1984): "This condition is stable. Once the saturation point has been reached … the network will continue to operate in a degraded condition." Jacobson's 1988 TCP fixes (exponential retransmit backoff, slow start, AIMD) were the networking cure. Distributed services rebuilt the same disease one layer up.</li>
+</ul>
+<h3>Where it shows up (real incidents)</h3>
+<table><thead><tr><th>System</th><th>Trigger</th><th>Sustaining loop</th></tr></thead><tbody>
+<tr><td><b>AWS us-east-1, Oct 19–20 2025</b></td><td>DynamoDB DNS race left an empty record</td><td>EC2's DropletWorkflow Manager "entered a state of congestive collapse": re-establishing leases took longer than the lease timeout, so work was re-queued forever. Fixed by throttling incoming work and restarting hosts selectively (<a href="https://aws.amazon.com/message/101925/" target="_blank" rel="noopener">AWS</a>)</td></tr>
+<tr><td><b>AWS us-east-1, Dec 7 2021</b></td><td>Automated scaling on the internal network</td><td>"a large surge of connection activity"; a latent bug "prevented these clients from adequately backing off" (<a href="https://aws.amazon.com/message/12721/" target="_blank" rel="noopener">AWS</a>)</td></tr>
+<tr><td><b>AWS Kinesis, Nov 25 2020</b></td><td>Capacity add pushed servers past OS thread limit</td><td>Shard-map caches had to rebuild while serving traffic; servers came back "at the rate of a few hundred per hour", about 17 h total (<a href="https://aws.amazon.com/message/11201/" target="_blank" rel="noopener">AWS</a>)</td></tr>
+<tr><td><b>Slack, Jan 4 2021</b></td><td>Post-holiday reconnect surge hit an AWS Transit Gateway</td><td>Threads waiting on the network looked like idle CPU, so autoscaling scaled <i>down</i>; the later 1,200-server scale-up broke provisioning (<a href="https://slack.engineering/slacks-outage-on-january-4th-2021/" target="_blank" rel="noopener">Slack</a>)</td></tr>
+<tr><td><b>Slack, Feb 22 2022</b></td><td>Consul agent rollout restarted memcached nodes</td><td>Cold cache led to scatter queries across every Vitess shard. Clients already had backoff with jitter, yet "automated retries still contributed to the load" (<a href="https://slack.engineering/slacks-incident-on-2-22-22/" target="_blank" rel="noopener">Slack</a>)</td></tr>
+<tr><td><b>Google Cloud, Jun 12 2025</b></td><td>Bad Service Control push, then restart</td><td>Restarting tasks "created a herd effect" on a Spanner table because there was no randomized backoff (<a href="https://status.cloud.google.com/incidents/ow5i3PPK96RduMcb1SsW" target="_blank" rel="noopener">GCP</a>)</td></tr>
+<tr><td><b>Facebook link imbalance (2014)</b></td><td>A burst of cache misses</td><td>The MRU connection pool kept picking the most congested link. It "defied explanation for more than two years"; the fix was one line of pool policy (<a href="https://engineering.fb.com/2014/11/14/production-engineering/solving-the-mystery-of-link-imbalance-a-metastable-failure-state-at-scale/" target="_blank" rel="noopener">FB eng</a>)</td></tr>
+<tr><td><b>Twitter GC (OSDI'22 §4)</b></td><td>Load test peak</td><td>Queue grows → GC pressure → slower jobs → queue grows. Stayed below SLO with load 20% <i>lower</i> than before, "until the service is restarted"</td></tr>
+</tbody></table>
+<h3>How people defend against it (what you actually configure)</h3>
+<pre><code>// gRPC service config: retries + retry throttling (gRPC proposal A6)
+{"methodConfig":[{"name":[{"service":"pkg.Svc"}],
+  "retryPolicy":{"maxAttempts":4,"initialBackoff":"0.1s","maxBackoff":"1s",
+                 "backoffMultiplier":2,"retryableStatusCodes":["UNAVAILABLE"]}}],
+ "retryThrottling":{"maxTokens":10,"tokenRatio":0.1}}</code></pre>
+<p>Each server name has a token count starting at <code>maxTokens</code>. A failure takes away 1, a success adds <code>tokenRatio</code>, and retries stop while the count is ≤ <code>maxTokens/2</code>. Typical defaults elsewhere:</p>
+<ul>
+<li><b>Envoy</b> <code>retry_budget</code>: <code>budget_percent</code> 20%, <code>min_retry_concurrency</code> 3. Envoy recommends budgets over the static <code>max_retries</code> (default 3) (<a href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/circuit_breaker.proto" target="_blank" rel="noopener">Envoy docs</a>).</li>
+<li><b>Finagle <code>RetryBudget</code></b>: <code>percentCanRetry</code> 0.2, <code>minRetriesPerSec</code> 10, <code>ttl</code> 10 s (<a href="https://github.com/twitter/finagle/blob/develop/finagle-core/src/main/scala/com/twitter/finagle/service/RetryBudget.scala" target="_blank" rel="noopener">source</a>).</li>
+<li><b>AWS SDKs</b> (standard mode): 3 attempts and a 500-token retry quota. botocore/Go v2 charge 5 tokens per retry and 10 per timeout retry. An opt-in 2026 update (<code>AWS_NEW_RETRIES_2026=true</code>) charges 14 per transient retry so the quota engages sooner (<a href="https://aws.amazon.com/blogs/developer/announcing-updated-retry-behavior-for-aws-sdks-and-tools/" target="_blank" rel="noopener">AWS blog</a>, <a href="https://github.com/boto/botocore/blob/develop/botocore/retries/standard.py" target="_blank" rel="noopener">botocore</a>).</li>
+<li><b>Google SRE</b>: at most 3 attempts per request, per-client retries below 10% of requests, retry only at the layer directly above the failure, and return "overloaded; don't retry" upward (<a href="https://sre.google/sre-book/handling-overload/" target="_blank" rel="noopener">SRE book</a>).</li>
+<li><b>Backoff</b>: full jitter, <code>sleep = random(0, min(cap, base·2^attempt))</code> (<a href="https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/" target="_blank" rel="noopener">AWS Architecture blog, 2015</a>).</li>
+</ul>
+<div class="grid">
+ <div class="gc"><b>gRPC retryThrottling</b><span>token bucket per server; retries and hedges stop at ≤ maxTokens/2</span></div>
+ <div class="gc"><b>Envoy retry_budget</b><span>retries ≤ 20% of active+pending; min concurrency 3</span></div>
+ <div class="gc"><b>Finagle RetryBudget</b><span>20% + 10 retries/s floor, 10 s TTL</span></div>
+ <div class="gc"><b>AWS SDK retry quota</b><span>500 tokens; 5/retry, 10/timeout (14 per transient in the 2026 opt-in)</span></div>
+ <div class="gc"><b>Google client throttling</b><span>reject locally w.p. max(0,(req−2·acc)/(req+1))</span></div>
+ <div class="gc"><b>Facebook adaptive LIFO + CoDel</b><span>LIFO when a queue forms; short queue timeout under standing queue</span></div>
+ <div class="gc"><b>Memcache leases</b><span>one fill token per key per 10 s: peak DB 17K/s → 1.3K/s</span></div>
+ <div class="gc"><b>Uber Cinnamon / Netflix limits</b><span>adaptive concurrency (Vegas/Gradient, PID shed ratio)</span></div>
+</div>
+<h3>When to reach for which defense</h3>
+<table><thead><tr><th>Use it</th><th>Skip it / beware</th></tr></thead><tbody>
+<tr><td><b>Retry budget (ratio)</b> on every RPC client: cheap, bounds amplification to about 1.1–1.2×</td><td>A fixed <code>max_retries</code> count multiplies across layers</td></tr>
+<tr><td><b>Deadline propagation + drop expired work at dequeue</b>: cheapest way to stop burning capacity on dead requests</td><td>Only works if the protocol carries the deadline</td></tr>
+<tr><td><b>Adaptive LIFO + CoDel</b> on queue-heavy servers</td><td>Starves old requests; unfair under sustained overload</td></tr>
+<tr><td><b>Adaptive concurrency limits</b> (Netflix, Envoy, Uber Cinnamon) on large fleets</td><td>Can oscillate; minRTT probing causes periodic 503 spikes</td></tr>
+<tr><td><b>Circuit breaker</b>: zero added load at 100% failure</td><td>Turns partial failure into total failure in sharded systems (Brooker)</td></tr>
+<tr><td><b>Autoscaling</b> to keep headroom (stay out of the vulnerable band)</td><td>Too slow for minute-scale loops; can scale on the wrong signal (Slack 2021)</td></tr>
+</tbody></table>
+<div class="twocol">
+ <div class="use"><h4>Use it</h4><ul>
+  <li><b>Ratio retry budget</b> on every RPC client</li>
+  <li><b>Deadline propagation + drop expired at dequeue</b></li>
+  <li><b>Adaptive LIFO/CoDel</b> on queue-heavy servers</li>
+  <li><b>Singleflight / leases</b> on hot-key miss paths</li>
+  <li><b>Headroom below C<sub>stable</sub></b> for critical control planes</li></ul></div>
+ <div class="skip"><h4>Beware / skip</h4><ul>
+  <li><b>Fixed max_retries per layer</b>: multiplies across the stack</li>
+  <li><b>Backoff alone</b>: defers load but doesn't reduce it</li>
+  <li><b>Circuit breakers on sharded backends</b>: partial → total failure</li>
+  <li><b>Deep health checks</b>: remove capacity under load</li>
+  <li><b>Autoscaling as the cure</b>: too slow, wrong signal</li></ul></div>
+</div>
+<h3>Who should care</h3>
+<p>Backend engineers who write retry and timeout code. SRE/infra owners of load balancers, meshes and autoscalers. Database and cache owners, since a cold cache is the classic sustaining effect. Platform and control-plane teams: the AWS 2025 outage was a control-plane recovery path collapsing. Anyone serving LLMs, where KV-cache preemption plus client retries looks like the same loop (still a research gap, see §11b).</p>

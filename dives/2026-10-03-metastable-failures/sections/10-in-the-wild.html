@@ -1,0 +1,8 @@
+<ul>
+<li><b>AWS SDKs:</b> a token-bucket retry quota rather than a pure ratio. Timeouts cost double (10 vs 5) because a timeout already burned server work. The 2026 opt-in update raises the transient-retry cost to 14 so the quota drains at ~22% sustained failure instead of later. Adaptive mode adds a <i>client-side</i> rate limiter that can delay first attempts, which AWS does not recommend as a default.</li>
+<li><b>gRPC:</b> hedging and retries share one throttle. Servers can push back with <code>grpc-retry-pushback-ms</code>, and a negative value means "don't retry".</li>
+<li><b>Facebook:</b> adaptive LIFO (FIFO normally, LIFO when a queue forms) plus CoDel timeouts. Memcache <b>leases</b> hand out one fill token per key every 10 s, cutting peak DB rate from 17K/s to 1.3K/s in their measurement. A <b>gutter pool</b> of ~1% of servers absorbs load from failed servers. Open-source descendant: HBase <code>AdaptiveLifoCoDelCallQueue</code>.</li>
+<li><b>Google:</b> criticality classes (CRITICAL_PLUS … SHEDDABLE), deadline propagation, and the client-side throttle with K=2.</li>
+<li><b>AWS architecture:</b> cells and shuffle sharding (Route 53: 2,048 virtual name servers, 4 per domain, ~730 billion combinations) limit the blast radius. <b>Constant work</b> removes modes entirely. <b>Static stability</b> pre-provisions so a recovery path never has to scale up under stress.</li>
+<li><b>AWS post-2025:</b> throttling "based on the size of the waiting queue" for EC2 workflows, velocity control on NLB health-check failover, and a dedicated recovery-path scale test. The lesson: recovery paths need their own load testing.</li>
+</ul>

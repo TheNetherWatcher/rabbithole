@@ -1,0 +1,16 @@
+<p><b>The core insight:</b> the sustaining effect makes the cost of serving a request grow with how badly the system is doing. Healthy systems have per-request cost about constant. Metastable ones have cost(state) increasing in "badness" (more attempts per request, lower cache hit rate, more GC per job, more expensive error paths). Once badness pushes cost × load above capacity, badness grows on its own.</p>
+<h3>Ablation: remove each piece of the trap</h3>
+<table><thead><tr><th>Remove</th><th>Result</th><th>Why</th></tr></thead><tbody>
+<tr><td>Retries (r=0)</td><td>Recovers (sim t=51 s)</td><td>w*<sub>L</sub>=1 ⇒ C<sub>stable</sub> = C<sub>norm</sub>; the band disappears</td></tr>
+<tr><td>Timeouts on the <i>server</i> side (serve dead work)</td><td>Recovers instantly if the server drops expired attempts</td><td>Effective cost of a dead request → 0, so the loop can't burn capacity</td></tr>
+<tr><td>FIFO (use LIFO)</td><td>Recovers instantly</td><td>Newest request has a live client, so p drops at once and the fixed point moves</td></tr>
+<tr><td>Open-loop arrivals (closed system)</td><td>Self-limits</td><td>Clients wait for replies, so load falls as latency rises; this is why closed benchmarks such as YCSB and TPC-C can't show the failure (Brooker, ICPE'25)</td></tr>
+<tr><td>The trigger</td><td><b>Nothing changes</b></td><td>That's the definition</td></tr>
+</tbody></table>
+<h3>Which cures work and why</h3>
+<ul>
+<li><b>Retry budgets</b> cap w*<sub>L</sub> near 1.1–1.2 regardless of p, so the band shrinks to (μ/1.1, μ).</li>
+<li><b>Client-side adaptive throttling</b> (Google): reject locally with probability max(0, (requests − K·accepts)/(requests+1)), with K=2. "Backends end up rejecting one request for each request they actually process": it bounds wasted backend work at 1:1.</li>
+<li><b>CoDel-style queues</b>: when the queue hasn't been empty in N ms, cut the queue timeout from N to M ms (Facebook "Fail at Scale"). Requests that will miss their deadline get dropped before burning CPU.</li>
+<li><b>Constant work</b> (AWS Route 53 health checks, Hyperplane): every cycle pushes the full configuration, whether or not anything changed, so there's no mode where work grows with how bad things are.</li>
+</ul>

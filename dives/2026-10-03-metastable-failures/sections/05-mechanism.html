@@ -1,0 +1,178 @@
+<style>
+#mech-wrap .svg{width:100%;height:auto;display:block;margin:8px 0}
+#mech-wrap .lbl{font:12px system-ui,sans-serif;fill:var(--mute)}
+#mech-wrap .mono{font-family:ui-monospace,monospace;fill:var(--ink)}
+#mech-wrap .node{fill:var(--code);stroke:var(--line);stroke-width:1.5;transition:stroke .3s}
+#mech-wrap .node.hot{stroke:var(--accent);stroke-width:2.5}
+#mech-wrap .qbox{fill:none;stroke:var(--line);stroke-width:1.5}
+#mech-wrap .qfill{fill:var(--accent);opacity:.6;transition:width .5s}
+#mech-wrap .flow{stroke:var(--mute);stroke-width:2}
+#mech-wrap .flow.on{stroke:var(--accent);stroke-width:3;stroke-dasharray:6 4;animation:mech-dash 1s linear infinite}
+@keyframes mech-dash{to{stroke-dashoffset:-20}}
+#mech-wrap .sttext{min-height:4.5em}
+#mech-wrap input[type=range]{width:min(320px,100%);vertical-align:middle;accent-color:var(--accent2)}
+#mech-wrap label{display:block;margin:6px 0}
+#mech-wrap .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#mech-wrap .verdict{margin-top:10px;padding:10px 12px;border-radius:8px;font-weight:600;background:var(--code)}
+#mech-wrap .verdict.ok{color:var(--ok)}
+#mech-wrap .verdict.bad{color:var(--bad)}
+#mech-wrap .trig{fill:var(--hl);opacity:.7}
+#mech-wrap .gl{stroke:var(--line);stroke-width:1}
+#mech-wrap .cap{stroke:var(--mute);stroke-dasharray:4 4}
+#mech-wrap .pl{fill:none;stroke-width:2}
+#mech-wrap .pl.ok{stroke:var(--ok)}
+#mech-wrap .pl.bad{stroke:var(--bad)}
+#mech-wrap .legend{display:flex;gap:14px;font-size:13px;color:var(--mute);flex-wrap:wrap}
+#mech-wrap .lg::before{content:"";display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle;background:var(--c)}
+@media(max-width:860px){#mech-wrap .cols{grid-template-columns:1fr}}
+</style>
+<p>Replaying the sandwich shop with <code>metastable_sim.py</code> (in this folder). One server, μ = 100 req/s, FIFO queue, Poisson arrivals λ = 70/s, client timeout T = 1 s, up to 2 retries (3 attempts). The server doesn't know when a client has given up.</p>
+<div id="mech-wrap">
+<div class="widget" id="mech-stepper">
+ <div class="ctl"><button class="btn" id="mech-stPrev" aria-label="Previous step">&larr; Back</button><span class="stc" id="mech-stCount" aria-live="polite">STEP 1 / 7</span><button class="btn" id="mech-stNext" aria-label="Next step">Next &rarr;</button></div>
+ <svg viewBox="0 0 640 170" class="svg" role="img" aria-label="Clients, queue and server state for the current step">
+  <rect x="10" y="50" width="90" height="70" rx="10" class="node" id="mech-stCli"/><text x="55" y="80" text-anchor="middle" class="lbl">clients</text><text x="55" y="100" text-anchor="middle" class="lbl mono" id="mech-stAtt">72/s</text>
+  <rect x="140" y="65" width="340" height="40" rx="6" class="qbox"/>
+  <rect x="140" y="65" width="4" height="40" rx="6" class="qfill" id="mech-stQ"/>
+  <text x="310" y="58" text-anchor="middle" class="lbl">FIFO queue</text><text x="310" y="125" text-anchor="middle" class="lbl mono" id="mech-stQn">~2</text>
+  <rect x="520" y="50" width="110" height="70" rx="10" class="node" id="mech-stSrv"/><text x="575" y="80" text-anchor="middle" class="lbl">server μ=100</text><text x="575" y="100" text-anchor="middle" class="lbl mono" id="mech-stSrvT">72/s</text>
+  <line x1="100" y1="85" x2="138" y2="85" class="flow" id="mech-stE1"/><line x1="480" y1="85" x2="518" y2="85" class="flow" id="mech-stE2"/>
+  <text x="575" y="148" text-anchor="middle" class="lbl" id="mech-stGood">goodput 72/s</text>
+  <text x="55" y="148" text-anchor="middle" class="lbl mono" id="mech-stT">t = 0–20 s</text>
+ </svg>
+ <p id="mech-stText" class="sttext"></p>
+</div>
+<pre><code>t (s)   event                                queue    attempts/s  served/s  goodput/s
+------  -----------------------------------  -------  ----------  --------  ---------
+0-20    steady state, ρ = 0.70               ~1-3     ~72         ~72       ~72
+20-30   TRIGGER: server capacity -> 0         +72/s   rises        0          0
+          queue wait passes T after ~1.4 s;
+          timed-out requests get re-enqueued
+          as attempt 2, the old copy stays queued
+30      trigger removed, μ back to 100       ~1,870   ~210         100         0
+30-120  every dequeued attempt is >1 s old:   +110/s   ~210         100         0
+          server works on dead requests,
+          clients time out, retry, enqueue more
+120     still stuck. queue ≈ 11,800          11,826   210.1        100.0       0.0</code></pre>
+<p><b>One request, end to end, at t = 40 s (10 s after the trigger is gone):</b></p>
+<pre><code> client C                          server queue (FIFO, ~3,000 deep)              server
+ ───────                           ───────────────────────────────              ──────
+ 40.00 send req#3000 attempt 1 ──► [ ...~3,000 older attempts... | #3000a1 ]
+ 41.00 timeout, send attempt 2 ──► [ ...                    | #3000a1 ... #3000a2 ]
+ 42.00 timeout, send attempt 3 ──► [ ...                    | #3000a2 ... #3000a3 ]
+ 43.00 timeout, GIVE UP (no attempts left)
+ ~70                                                       dequeue #3000a1 ─► serve (10 ms CPU)
+                                                           client gone → WASTED
+ ~71                                                       #3000a2 → WASTED
+ ~72                                                       #3000a3 → WASTED</code></pre>
+<p>Queue depth from the sim: 1,871 at t=30, 2,971 at t=40, 5,191 at t=60, so a fresh attempt waits ~30 s for a 1 s timeout. Each user request costs the server 3 units of work and produces 0 goodput. Attempts arrive at 3 × 70 = 210/s against service at 100/s, so the queue grows by ~110/s, and the trigger is no longer needed to keep it that way.</p>
+<figure data-fig="simq"></figure>
+<p>The same stuck plateau shows up in Alvaro et al.'s independent toy server. Their queue sits at its cap for hundreds of time units after the spike (the red dashed lines) has ended.</p>
+<div class="widget" id="mech-sim">
+ <h3 style="margin-top:.2em">Try it: live metastability simulator</h3>
+ <p class="note">Port of <code>metastable_sim.py</code>: μ = 100 req/s, Poisson arrivals, outage starts at t = 20 s. Same seed every run, so results are deterministic.</p>
+ <div class="cols">
+  <div>
+   <label>user load λ <output id="mech-oLam">70</output> req/s<br><input type="range" id="mech-iLam" min="10" max="95" step="1" value="70"></label>
+   <label>trigger (outage) <output id="mech-oOut">10</output> s<br><input type="range" id="mech-iOut" min="0" max="20" step="0.1" value="10"></label>
+   <label>retries r <output id="mech-oR">2</output><br><input type="range" id="mech-iR" min="0" max="5" step="1" value="2"></label>
+   <label>client timeout T <output id="mech-oT">1</output> s<br><input type="range" id="mech-iT" min="0.5" max="3" step="0.1" value="1"></label>
+  </div>
+  <div>
+   <label><input type="checkbox" id="mech-iB"> retry budget 10%</label>
+   <label><input type="checkbox" id="mech-iD"> server drops expired (deadline-aware)</label>
+   <label><input type="checkbox" id="mech-iL"> LIFO queue</label>
+   <div class="verdict" id="mech-vOut" aria-live="polite"></div>
+   <div class="note" id="mech-vBand"></div>
+  </div>
+ </div>
+ <svg viewBox="0 0 640 220" class="svg" id="mech-simSvg" role="img" aria-label="Goodput and attempts per second over 120 seconds"></svg>
+ <div class="legend"><span class="lg" style="--c:var(--ok)">goodput/s</span><span class="lg" style="--c:var(--bad)">attempts/s</span><span class="lg" style="--c:var(--hl)">trigger</span></div>
+</div>
+</div>
+<p><b>What breaks the loop</b> (same trigger, one change each; real output of <code>python3 metastable_sim.py</code>):</p>
+<pre><code>scenario                         goodput last 20 s   healthy again at   verdict
+baseline (λ=70, 2 retries, FIFO)       0.0/s             never          STUCK
+lower load λ=25 (&lt; μ/3 = 33)          24.4/s             t=56 s         recovered
+edge of band λ=30                     16.6/s             t=111 s        recovered, slowly
+trigger only 0.5 s                    69.8/s             t=21 s         recovered
+no retries                            69.8/s             t=51 s         recovered
+retry budget 10%                      69.8/s             t=64 s         recovered
+deadline-aware dequeue (drop expired) 69.8/s             t=30 s         recovered at once
+LIFO queue                            69.8/s             t=30 s         recovered at once</code></pre>
+<p>Read the rows as the theory in §6:</p>
+<ul>
+<li><b>No retries</b> recovers, but takes 21 s. The 700-request backlog drains at μ − λ = 30/s ≈ 23 s, all of it wasted work.</li>
+<li><b>Deadline-aware dequeue</b> recovers almost immediately because skipping dead requests costs nothing. LIFO does the same thing differently: the freshest request, whose client is still waiting, gets served first.</li>
+<li><b>λ = 30 is just under μ/3</b> and escapes only after ~80 s, because the drain rate μ − 3λ is only 10/s.</li>
+<li><b>Minimum trigger that sticks</b> (scan in the sim): 1.5 s outage at λ=50, 1.2 s at λ=70, 1.1 s at λ=90. Higher load means a smaller kick is enough.</li>
+</ul>
+<script>
+(function(){
+// ---- step-through (the seven-step trace from the sim) ----
+function $(k){return document.getElementById('mech-'+k);}
+var steps=[
+ {t:'t = 0–20 s',att:'72/s',q:2,qn:'~2',srv:'72/s',good:'goodput 72/s',e1:0,e2:0,hot:'',txt:'<b>Steady state.</b> λ = 70 req/s against μ = 100 (ρ = 0.7). The queue is near empty, every attempt finishes in ~10 ms, and no timeouts fire. The system looks healthy, but it is inside the vulnerable band (33–100).'},
+ {t:'t = 20 s',att:'72/s',q:40,qn:'+72/s',srv:'0/s (down)',good:'goodput 0',e1:1,e2:0,hot:'srv',txt:'<b>Trigger.</b> Server capacity drops to 0 for 10 s. New requests pile up in the queue at ~72/s.'},
+ {t:'t ≈ 21.4 s',att:'↑ retries',q:90,qn:'>100 = wait > T',srv:'0/s',good:'goodput 0',e1:1,e2:0,hot:'cli',txt:'<b>Timeouts begin.</b> Once ~100 requests are queued, the queue wait exceeds the 1 s timeout. Clients re-send. The server never hears about the first copy, so the queue now holds duplicates.'},
+ {t:'t = 30 s',att:'~210/s',q:150,qn:'1,871',srv:'100/s',good:'goodput 0',e1:1,e2:1,hot:'srv',txt:'<b>Trigger removed.</b> The server is back at full speed (100/s), but every dequeued attempt is >1 s old and its client has already given up. 100% busy, 0% useful.'},
+ {t:'t = 40 s',att:'~210/s',q:220,qn:'2,971',srv:'100/s wasted',good:'goodput 0',e1:1,e2:1,hot:'cli',txt:'<b>One request.</b> req#3000 is sent at 40.0, times out at 41.0 (attempt 2) and 42.0 (attempt 3), and gives up at 43.0. All three copies get served around t ≈ 70–72 s, about 30 s too late. 3 units of work, 0 goodput.'},
+ {t:'t = 120 s',att:'210/s',q:336,qn:'11,826',srv:'100/s wasted',good:'goodput 0',e1:1,e2:1,hot:'srv',txt:'<b>Still stuck, 90 s after the trigger.</b> Attempts (3 × 70 = 210/s) exceed capacity (100/s), so the queue grows ~110/s. The loop no longer needs the trigger.'},
+ {t:'fix',att:'70/s',q:2,qn:'dead work skipped',srv:'70/s',good:'goodput 70/s',e1:1,e2:1,hot:'',txt:'<b>Break the loop.</b> Same trigger, but the server drops expired attempts at dequeue (or serves LIFO). The backlog vanishes at zero cost, fresh requests succeed, p → 0, and λ_eff → λ &lt; μ. Healthy at t = 30 s. Retry budget 10%: healthy at 64 s. No retries: 51 s.'}
+];
+var si=0;
+function renderStep(){var s=steps[si];$('stCount').textContent='STEP '+(si+1)+' / '+steps.length;
+ $('stT').textContent=s.t;$('stAtt').textContent=s.att;$('stQ').setAttribute('width',Math.max(4,s.q));$('stQn').textContent=s.qn;
+ $('stSrvT').textContent=s.srv;$('stGood').textContent=s.good;$('stText').innerHTML=s.txt;
+ $('stE1').classList.toggle('on',!!s.e1);$('stE2').classList.toggle('on',!!s.e2);
+ $('stCli').classList.toggle('hot',s.hot==='cli');$('stSrv').classList.toggle('hot',s.hot==='srv');
+ $('stPrev').disabled=si===0;$('stNext').disabled=si===steps.length-1;}
+if($('stepper')){$('stPrev').onclick=function(){if(si>0){si--;renderStep();}};$('stNext').onclick=function(){if(si<steps.length-1){si++;renderStep();}};renderStep();}
+
+// ---- simulator (port of metastable_sim.py; seeded PRNG) ----
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function simulate(o){
+ var TICK=0.01,rng=mulberry(7),mu=100,dur=120,os=20;
+ var q=[],head=0,pending=new Map(),id=0,credit=0,tokens=10,good=new Array(dur).fill(0),sent=new Array(dur).fill(0);
+ var steps=Math.round(dur/TICK),t=0;
+ for(var k=0;k<steps;k++){var sec=Math.floor(t);
+  var lamT=o.lam*TICK,n=0;for(var kk=lamT;kk>0;kk-=1){if(rng()<Math.min(kk,1))n++;}
+  for(var i=0;i<n;i++){pending.set(id,[0,t+o.T]);q.push([t,id]);sent[sec]++;if(o.budget)tokens=Math.min(tokens+0.1,10+0.1*o.lam*10);id++;}
+  var exp=[];pending.forEach(function(v,key){if(v[1]<=t)exp.push(key);});
+  for(var j=0;j<exp.length;j++){var rid=exp[j],a=pending.get(rid)[0];pending.delete(rid);
+   if(a<o.r&&(!o.budget||tokens>=1)){if(o.budget)tokens-=1;pending.set(rid,[a+1,t+o.T]);q.push([t,rid]);sent[sec]++;}}
+  if(!(t>=os&&t<os+o.out))credit+=mu*TICK;
+  while(credit>=1&&q.length>head){var it=o.lifo?q.pop():q[head++];
+   var waiting=pending.has(it[1])&&t-it[0]<o.T;
+   if(o.drop&&!waiting)continue;credit-=1;if(waiting){pending.delete(it[1]);good[sec]++;}}
+  if(head>4096){q=q.slice(head);head=0;}
+  if(q.length<=head)credit=Math.min(credit,1);
+  t+=TICK;}
+ return {good:good,sent:sent,qlen:q.length-head};
+}
+var svgNS='http://www.w3.org/2000/svg';
+function el(n,a){var e=document.createElementNS(svgNS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function draw(){
+ var o={lam:+$('iLam').value,out:+$('iOut').value,r:+$('iR').value,T:+$('iT').value,budget:$('iB').checked,drop:$('iD').checked,lifo:$('iL').checked};
+ $('oLam').textContent=o.lam;$('oOut').textContent=o.out;$('oR').textContent=o.r;$('oT').textContent=o.T;
+ var res=simulate(o),svg=$('simSvg');while(svg.firstChild)svg.removeChild(svg.firstChild);
+ var W=640,H=220,L=40,R=10,Tp=10,B=30,ymax=Math.max(120,Math.max.apply(null,res.sent)*1.05);
+ var X=function(s){return L+(W-L-R)*s/120;},Y=function(v){return Tp+(H-Tp-B)*(1-v/ymax);};
+ svg.appendChild(el('rect',{x:X(20),y:Tp,width:X(20+o.out)-X(20),height:H-Tp-B,class:'trig'}));
+ [0,50,100,150,200,250,300].forEach(function(v){if(v>ymax)return;svg.appendChild(el('line',{x1:L,x2:W-R,y1:Y(v),y2:Y(v),class:'gl'}));var tx=el('text',{x:L-6,y:Y(v)+4,'text-anchor':'end',class:'lbl'});tx.textContent=v;svg.appendChild(tx);});
+ [0,20,40,60,80,100,120].forEach(function(s){var tx=el('text',{x:X(s),y:H-10,'text-anchor':'middle',class:'lbl'});tx.textContent=s+'s';svg.appendChild(tx);});
+ svg.appendChild(el('line',{x1:L,x2:W-R,y1:Y(100),y2:Y(100),class:'cap'}));
+ function poly(arr,cls){var p=arr.map(function(v,i){return X(i+0.5).toFixed(1)+','+Y(v).toFixed(1);}).join(' ');svg.appendChild(el('polyline',{points:p,class:'pl '+cls}));}
+ poly(res.sent,'bad');poly(res.good,'ok');
+ var avg=function(a,s,e){var x=0;for(var i=s;i<e;i++)x+=a[i];return x/(e-s);};
+ var before=avg(res.good,10,20),back=null;
+ for(var s=21;s<120;s++){if(res.good[s]>=0.8*before){var okk=true;for(var u=s;u<Math.min(120,s+5);u++)if(res.good[u]<0.5*before)okk=false;if(okk){back=s;break;}}}
+ var v=$('vOut');
+ if(back!==null){v.className='verdict ok';v.textContent='Recovered: goodput back to normal at t = '+back+' s (trigger ended at t = '+(20+o.out).toFixed(1)+' s).';}
+ else{v.className='verdict bad';v.textContent='STUCK (metastable): goodput '+avg(res.good,100,120).toFixed(1)+'/s in the last 20 s, server busy, queue = '+res.qlen.toLocaleString()+'.';}
+ var amp=o.budget?'≈1.1':(o.r+1),edge=o.budget?'—':(100/(o.r+1)).toFixed(1);
+ $('vBand').innerHTML='Theory: worst-case amplification w* = '+amp+'; collapsed state sustainable when λ &gt; μ/w* = '+edge+' req/s'+(o.drop||o.lifo?' (but dead work is free to skip / fresh work served first, so the loop can\'t hold)':'')+'.';
+}
+if($('sim')){['iLam','iOut','iR','iT','iB','iD','iL'].forEach(function(k){$(k).addEventListener('input',draw);});draw();}
+})();
+</script>

@@ -1,0 +1,9 @@
+<p><b>"Retry storms take systems down."</b></p>
+<p>That sentence hides:</p>
+<ol>
+<li><b>Why the system stays down after the trigger is gone.</b> Ordinary overload ends when the load ends. This one has two equilibria (§6).</li>
+<li><b>That the server is 100% busy while goodput is zero.</b> The work is real. It's just useless, because it's served after the client has given up (§5).</li>
+<li><b>That vulnerability is invisible in normal metrics.</b> At 70% CPU the system looks healthy and is one 1.2-second hiccup from collapse. "Hidden capacity" can be 10× below advertised capacity (§6).</li>
+<li><b>That retries are only one of several loops.</b> Cold caches, GC, slow error paths, MRU connection pools and health checks that remove capacity all work the same way (§9).</li>
+<li><b>That the fix has to break the loop, not the trigger</b>, and naive fixes can create the next loop (AWS SimpleDB → DynamoDB, Spotify logging; §9).</li>
+</ol>

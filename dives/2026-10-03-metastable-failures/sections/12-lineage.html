@@ -1,0 +1,16 @@
+<pre><code>1979  lock convoys (single-machine sustaining effect)
+1984  Nagle, RFC 896: "congestion collapse ... This condition is stable"
+1988  Jacobson &amp; Karels: exponential backoff, slow start, AIMD; LBL→UCB fell 32 kbps → 40 bps (Oct '86)
+1996  Mogul &amp; Ramakrishnan: receive livelock (goodput collapse, but NOT metastable: exits when load drops)
+2006  Schroeder et al.: open vs closed systems
+2012  Nichols &amp; Jacobson: CoDel
+2013  Dean &amp; Barroso, "The Tail at Scale": hedging = deliberate amplification, cap it
+2013  Facebook memcache leases (NSDI); 2014 FB link-imbalance post
+2015  Brooker: exponential backoff &amp; jitter; Maurer: "Fail at Scale" (adaptive LIFO + CoDel)
+2016  Google SRE book: client-side adaptive throttling, retry budgets
+2019  Brooker: "bistability" (HPTS'19)
+2021  Bronson, Aghayev, Charapko, Zhu: "Metastable Failures in Distributed Systems" (HotOS): the name
+2022  Huang et al.: "Metastable Failures in the Wild" (OSDI): 22 incidents, theorems, reproductions
+2024  Wasabi (SOSP): retry-bug finding · MSF-Model (SRDS) · TopFull (SIGCOMM)
+2025  Isaacs et al. (HotOS): CTMC + DSL toolchain · Atropos (SOSP) · Rajomon (NSDI) · AWS Oct-2025 collapse
+2026  Characterizing Metastable Faults (Cornell/Penn) · CSnake (EuroSys) · Koopman learning</code></pre>

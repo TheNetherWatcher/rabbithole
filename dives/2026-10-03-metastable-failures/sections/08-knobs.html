@@ -1,0 +1,15 @@
+<table><thead><tr><th>Knob</th><th>Lower</th><th>Higher</th><th>Note</th></tr></thead><tbody>
+<tr><td>Max attempts r+1</td><td>Less amplification, more user-visible errors on transient blips</td><td>Band widens: lower bound μ/(r+1) falls</td><td>Google: ≤3 attempts; gRPC caps at 5</td></tr>
+<tr><td>Retry budget ratio</td><td>Safer under overload</td><td>Better transient masking</td><td>Finagle/Envoy 20%, Google 10%</td></tr>
+<tr><td>Client timeout T</td><td>Faster failover in healthy state; more false timeouts, so earlier collapse</td><td>Fewer false timeouts; slower detection</td><td>Brooker: pick T at the p99.9 of downstream latency. OSDI'22 cache test: 2 s less vulnerable than 1 s</td></tr>
+<tr><td>Queue bound / queue timeout</td><td>Sheds early, low wasted work</td><td>Absorbs bursts</td><td>SRE: queue ≤ 50% of thread pool</td></tr>
+<tr><td>Cache hit rate</td><td></td><td>Higher hit rate makes each RPS less vulnerable <i>but</i> lets you run at higher RPS, where vulnerability is larger</td><td>OSDI'22 Fig. 6c, the efficiency trap</td></tr>
+<tr><td>Backoff</td><td></td><td>Helps only if it reduces <i>total</i> work</td><td>"In open systems, deferring load does not work" (Brooker 2022)</td></tr>
+<tr><td>Headroom (L<sub>norm</sub>/C<sub>norm</sub>)</td><td>Efficient, vulnerable</td><td>Robust, expensive</td><td>The core tradeoff; organisations optimise toward vulnerability</td></tr>
+</tbody></table>
+<h3>Competing approaches</h3>
+<ul>
+<li><b>Circuit breaker vs token-bucket retry budget.</b> Brooker's simulation favours the bucket: it "behaves like N retries when failure rates are low, and 'some percent retries' when the failure rate is higher", with no mode switching. Breakers add zero load at 100% failure but "are designed to turn partial failures into complete failures", which is bad for sharded backends.</li>
+<li><b>Static limits vs adaptive concurrency</b> (Netflix Vegas/Gradient2, Envoy gradient controller, Uber Cinnamon with PID on shed ratio + modified-Vegas auto-tuner). Adaptive wins on fleets of thousands of services where hand tuning doesn't scale. Uber reports Cinnamon kept p99 ≈ 500 ms near capacity where its CoDel-based predecessor's goodput fell to 40%.</li>
+<li><b>Server-side shedding vs end-to-end shedding.</b> Shedding at a deep service still wastes the upstream work. TopFull (SIGCOMM'24) and Rajomon (NSDI'25) push admission control to the graph entry, or price it through the graph.</li>
+</ul>

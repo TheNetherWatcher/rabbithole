@@ -1,0 +1,9 @@
+<p>Production systems run in what Bronson calls the <b>vulnerable state</b>, deliberately: "many production systems choose to run in the vulnerable state all the time because it has much higher efficiency than the stable state." HotOS'21's worked example:</p>
+<ul>
+<li>A database answers in under 100 ms below 300 QPS. Above that, latency is "an order of magnitude worse".</li>
+<li>The app sends a query plus 1 retry after a 1 s timeout, and normally runs at <b>280 QPS</b> (93% of capacity, looks healthy).</li>
+<li>A 10 s network blip. Afterwards, clients send <b>560 QPS</b> (every query plus its retry) and every query times out: zero goodput.</li>
+<li>Recovery requires load <b>under 150 QPS</b> (= 300/2), or retries capped under 20 QPS (280+20 = 300).</li>
+</ul>
+<p>So the system was stable only below 150 QPS, half of what it could serve, and nobody knew, because the 150–300 band behaves perfectly until something bumps it.</p>
+<p>The look-aside cache version is worse. With a 90% hit rate the app serves 3,000 QPS against a DB that handles 300. Lose the cache and the DB gets 10× its capacity. The app times out before misses can refill the cache, so the cache never warms. <b>Advertised capacity 3,000, hidden capacity 300.</b></p>

@@ -1,0 +1,21 @@
+<p><b>Other sustaining loops besides retries:</b></p>
+<ul>
+<li><b>Look-aside cache:</b> cold cache → DB overload → app timeouts → fills never land → cache stays cold. Kinesis 2020 and Slack 2022 both had this cache rebuild competing with serving.</li>
+<li><b>GC death spiral:</b> queue → heap → GC → slower jobs → longer queue (Twitter, OSDI'22). Brooker (2024): the loop needs unbounded concurrency, so a concurrency limit kills it.</li>
+<li><b>Slow error paths:</b> stack traces, reverse DNS of the client, synchronous logging. Error handling consumes the same resource whose shortage caused the errors.</li>
+<li><b>Health checks that remove capacity:</b> overloaded hosts fail checks and get pulled, so the rest get more load. AWS Oct 2025 NLB health-check flapping until automatic failover was disabled. SRE book: "health-checking itself makes the service unhealthy".</li>
+<li><b>Autoscaling on the wrong signal:</b> network-blocked threads look idle (Slack 2021). A mass scale-up then overloads the provisioning control plane.</li>
+<li><b>Connection/TLS storms on reconnect</b> (AWS Dec 2021).</li>
+<li><b>MRU connection pools:</b> latency-sorted reuse concentrates traffic on the slowest link (FB 2014).</li>
+</ul>
+<p><b>Misconceptions:</b></p>
+<div class="callout mis"><p><b>"Remove the trigger and it'll recover."</b> The definition says otherwise. OSDI'22 reports a Cassandra cluster at only 10–30% load that still didn't recover after the trigger was removed. AWS 2025: EC2 took hours after the DNS fix.</p></div>
+<div class="callout mis"><p><b>"Backoff with jitter fixes retry storms."</b> Backoff spreads load in time; it doesn't remove it. Slack 2022 had exponential backoff <i>with</i> jitter and retries "still contributed to the load". Only budgets and caps reduce total work.</p></div>
+<div class="callout mis"><p><b>"Load testing at peak will find it."</b> Peak load in the healthy valley looks great. You have to test with a trigger <i>and</i> at production scale: Bronson notes loop strength "is affected by constant factors that vary with scale, so small scale tests don't provide much confidence." Most benchmarks are also closed-loop, which hides the failure entirely.</p></div>
+<div class="callout mis"><p><b>"Our fix will prevent recurrence."</b> "Fix to break" (OSDI'22 §6.3): after the AWS SimpleDB incident, servers were made to retry the lock service <i>indefinitely</i>, and a similar DynamoDB metastable failure followed. Spotify added error-path logging after SPF1, which made every retry in SPF2 more expensive.</p></div>
+<p><b>Scaling limits of the defenses:</b></p>
+<ul>
+<li>Retry budgets are per client. With 10,000 clients each allowed 10 retries/s minimum, the floor alone is 100k retries/s.</li>
+<li>Adaptive limiters estimate minRTT by periodically pinning concurrency low, which produces synchronised 503 spikes unless jittered (Envoy adds jitter for this).</li>
+<li>Load shedding is used in more than 50% of incidents, but "it is hard to know just how much the load needs to be reduced" (OSDI'22), so operators fall back to reboots.</li>
+</ul>

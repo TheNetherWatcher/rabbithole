@@ -1,0 +1,15 @@
+<ul>
+<li><b>Predicting the vulnerable region before you're in it.</b> Bronson: hidden capacity "is determined by the behavior … of the system when it is in a failure state, so it is difficult to measure during normal operation." Isaacs et al.: "gains in recognition and reproduction have not yet transferred to analysis and prediction." Why it's hard: the CTMC state space blows up with the number of queues, exponential service-time assumptions "deviate considerably" as amplification grows, and learning models from telemetry is unsolved (the Koopman work only runs on simulations).</li>
+<li><b>Loops that cross component boundaries.</b> Murat Demirbas's critique of HotOS'25: real feedback loops "cross the component boundaries", and the toy model shows no path to Kafka- or Spanner-scale systems. Farahbakhsh et al. take this compositional view but have no production tool yet.</li>
+<li><b>Safe testing.</b> You can't safely push production into a state that by definition doesn't exit on its own. Facebook-style traffic shifting (Kraken) needs a guaranteed drain. Small-scale tests miss scale-dependent loop gains. Closed-loop benchmarks hide the failure.</li>
+<li><b>Online detection.</b> Bronson's "characteristic metrics" (queueing delay, timeout rate, hit rate) return to normal only after recovery, but which metric matters differs per loop. Telling persistent overload from a spike is a "fundamental challenge"; the min-queue-delay-over-window (CoDel) trick is a partial answer.</li>
+<li><b>Coordination across clients and teams.</b> Each client decides its own retries. Spreading health information to them "can be a new way in which a failure can have a sustaining effect" (Bronson). Organisational incentives reward optimisations that shrink hidden capacity.</li>
+<li><b>Contested positions:</b>
+ <ul>
+  <li><b>Retry vs don't retry:</b> clients can't tell transient faults from overload.</li>
+  <li><b>Breaker vs bucket:</b> modal behaviour vs bounded load at 100% failure.</li>
+  <li><b>LIFO vs FIFO:</b> fresh-first recovery vs starvation and unfairness. No primary source argues against LIFO outright, but the fairness cost is real.</li>
+  <li><b>Client-side vs server-side throttling:</b> client-side saves work; Brooker shows breakers can widen outages in sharded systems.</li>
+ </ul></li>
+<li><b>LLM serving.</b> KV-cache preemption → recompute → longer queues, plus client retries on timeout, looks like a sustaining loop. Current work (JITServe, SCORPIO) does SLO-aware dropping, but no peer-reviewed paper frames it as metastability yet.</li>
+</ul>

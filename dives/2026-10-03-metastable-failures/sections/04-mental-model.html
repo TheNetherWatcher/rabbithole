@@ -1,0 +1,35 @@
+<style>
+#model-ball .land{fill:none;stroke:var(--ink);stroke-width:2.5}
+#model-ball .kick{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:5 4}
+#model-ball .ahead{fill:var(--accent)}
+#model-ball .okd{fill:var(--ok)}
+#model-ball .bad{fill:var(--bad)}
+#model-ball .lbl{font:12px system-ui,sans-serif;fill:var(--mute)}
+#model-ball .okt{font:12px system-ui,sans-serif;fill:var(--ok)}
+#model-ball .badt{font:12px system-ui,sans-serif;fill:var(--bad)}
+#model-ball{width:100%;height:auto;display:block;margin:8px 0}
+</style>
+<figure class="fig">
+<svg id="model-ball" viewBox="0 0 640 200" role="img" aria-labelledby="model-ballT">
+<title id="model-ballT">Ball in two valleys: shallow healthy valley, deep collapsed valley, trigger kicks the ball over the wall</title>
+<path d="M20 60 C 90 60, 110 130, 170 130 S 250 70, 300 70 S 380 185, 470 185 S 590 60, 620 50" class="land"/>
+<circle cx="170" cy="118" r="11" class="okd"/>
+<text x="170" y="155" text-anchor="middle" class="okt">healthy (stable)</text>
+<text x="470" y="175" text-anchor="middle" class="badt">metastable (collapsed)</text>
+<circle cx="470" cy="173" r="11" class="bad" opacity=".35"/>
+<path d="M185 108 Q 250 20 300 58" class="kick" marker-end="url(#model-arrow)"/>
+<defs><marker id="model-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="ahead"/></marker></defs>
+<text x="250" y="30" text-anchor="middle" class="lbl">trigger</text>
+<text x="300" y="98" text-anchor="middle" class="lbl">wall height ∝ headroom</text>
+</svg>
+<figcaption>Load tilts the landscape: the more load, the lower the wall and the smaller the kick needed. Removing the kick doesn't lift the ball back out.</figcaption>
+</figure>
+<p><b>A ball on a landscape with two valleys.</b> The healthy valley is shallow and sits higher; the collapsed valley is deep. Load tilts the landscape: at low load the bad valley doesn't exist, and as load rises it appears and the wall between the valleys gets lower (the vulnerable band). A trigger is a kick. A small kick at low tilt rolls back; the same kick at high tilt goes over the wall. Once the ball is in the deep valley, removing the kick does nothing. You have to change the landscape (cut load, cap retries) or carry the ball out (restart, flush queues).</p>
+<p>Alvaro et al. draw the same idea as a state space: regions that each pull the system toward a local attractor, with rare transitions between them.</p>
+<figure data-fig="pictorial"></figure>
+<p><b>Where the analogy breaks:</b></p>
+<ul>
+<li>The landscape isn't fixed. The bad valley is <i>created</i> by the system's own policies (retry count, timeout, cache), so you can engineer it away. A physical potential doesn't care about your config.</li>
+<li>Real systems are stochastic and multi-dimensional. Isaacs et al. model the state as (queue length, number of requests waiting to retry), and noise alone can tip the system across the boundary without any discrete trigger.</li>
+<li>Some metastable faults aren't "stuck low" at all. Farahbakhsh et al. (2026) show oscillating metastable states, such as cluster membership flapping, which have no single bad valley.</li>
+</ul>

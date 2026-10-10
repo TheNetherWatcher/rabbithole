@@ -1,0 +1,8 @@
+<ul>
+<li><b>Offered load λ vs capacity μ</b>: requests/s arriving vs requests/s the server can finish. Utilisation ρ = λ/μ. (<a href="https://brooker.co.za/blog/2021/08/05/utilization.html" target="_blank" rel="noopener">Brooker, "Latency sneaks up on you"</a>)</li>
+<li><b>Queueing delay explodes near ρ → 1</b>: for M/M/1, mean number in system = ρ/(1−ρ): 1 at ρ=0.5, 99 at ρ=0.99.</li>
+<li><b>Little's law</b>: N = λW. Concurrency equals arrival rate times time in system, so latency up means more in flight.</li>
+<li><b>Goodput ≠ throughput</b>: goodput counts only work that finished in time for someone to use it. (<a href="https://builder.aws.com/content/3Eun1EEyX6p2e3VYNyRLSJzLuMV/using-load-shedding-to-avoid-overload" target="_blank" rel="noopener">Amazon Builders' Library, load shedding</a>)</li>
+<li><b>Open vs closed system</b>: in an open system, new requests keep arriving regardless of how slow you are (internet traffic). In a closed system, a fixed set of clients waits for each reply before sending the next (most benchmarks). (<a href="https://www.usenix.org/conference/nsdi-06/open-versus-closed-cautionary-tale" target="_blank" rel="noopener">Schroeder et al., NSDI'06</a>)</li>
+<li><b>Timeout + retry</b>: the client gives up after T and sends another attempt. The server usually never finds out about the first one.</li>
+</ul>

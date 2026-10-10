@@ -1,0 +1,1 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="10" y="30" class="t-mute">λ arrivals</text><rect x="10" y="36" width="96" height="12" rx="3" class="f-ok"/><text x="10" y="70" class="t-mute">μ capacity</text><rect x="10" y="76" width="130" height="12" rx="3" class="f-line"/><line x1="124" y1="30" x2="124" y2="94" class="s-bad" stroke-dasharray="3 3"/></svg>

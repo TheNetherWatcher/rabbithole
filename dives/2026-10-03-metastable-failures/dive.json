@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "title": "Metastable failures: why a system stays down after the trigger is gone",
+    "short": "Metastable failures",
+    "subject": "Distributed systems",
+    "domain": "System design",
+    "topic": "Metastable failures: retry storms, sustaining feedback loops, hidden capacity",
+    "depth": "hard",
+    "date": "2026-10-03"
+  },
+  "hero": "img/hero.svg",
+  "tldr": "A short outage can leave a service down long after it ends. Retries turn each failed request into up to <b>3 attempts</b>, and the server then spends its capacity on attempts whose clients have already given up. With μ = 100 and two retries, any load between <b>33 and 100 req/s</b> admits two stable states, so history, not the current load, decides which one you are in.",
+  "why": "<b>Why it matters:</b> these are the long outages. In OSDI'22's 22 incidents the outage ran <b>1.5 to 73.5 hours</b>, and the trigger usually gets blamed while the loop keeps the system down.",
+  "stats": [
+    {
+      "v": "3×",
+      "l": "attempts per user request at 2 retries, if every attempt times out"
+    },
+    {
+      "v": "33 req/s",
+      "l": "lower edge of the two-state band, μ/(r+1) with μ = 100, r = 2"
+    },
+    {
+      "v": "0/s",
+      "l": "goodput while the server is 100% busy (sim, stuck state)"
+    },
+    {
+      "v": "64×",
+      "l": "load on the database from 3 layers × 4 attempts (Google SRE)"
+    },
+    {
+      "v": "22",
+      "l": "incidents in the OSDI'22 study of metastable failures"
+    }
+  ],
+  "cards": [
+    {
+      "id": "plain",
+      "group": "Plain English",
+      "tone": "plain",
+      "kicker": "In everyday words",
+      "title": "Re-ordering keeps the kitchen busy after the stove is fixed",
+      "visual": "img/plain.svg",
+      "file": "sections/00-plain.html",
+      "brief": "<p>A stove dies for ten minutes. Customers re-order after ten minutes, so the cook spends the rush making sandwiches nobody will eat, and the line never shrinks after the stove is fixed.</p><p>The cure is to throw out the stale tickets, not to fix the stove.</p>"
+    },
+    {
+      "id": "ctx",
+      "group": "Context",
+      "kicker": "§1 · Prerequisites",
+      "title": "Five ideas make a retry storm easy to see",
+      "visual": "img/ctx.svg",
+      "file": "sections/01-context.html",
+      "brief": "<ul><li><b>Load vs capacity</b>: ρ = λ/μ, and queueing delay explodes as ρ → 1.</li><li><b>Little's law</b>: N = λW.</li><li><b>Goodput</b>: only work finished in time counts.</li><li><b>Open vs closed</b>: open systems keep sending when you slow down.</li><li><b>Timeout + retry</b>: the server usually never learns the first attempt was abandoned.</li></ul>"
+    },
+    {
+      "id": "world",
+      "kicker": "§1b · Real-world context",
+      "title": "Real outages kept going after their trigger was gone",
+      "visual": "img/world.svg",
+      "file": "sections/01b-real-world.html",
+      "brief": "<p>AWS (2021 and 2025), Slack (2021 and 2022), Google Cloud (2025) and Facebook (2014). In each, a short trigger was followed by a loop: retries, re-queued leases, cold caches or a bad connection pool. Budgets, deadlines and throttling are the standard cures.</p>"
+    },
+    {
+      "id": "onel",
+      "group": "Technical deep dive",
+      "kicker": "§2 · The one-liner",
+      "title": "\"Retry storms\" hides five separate ideas",
+      "visual": "img/onel.svg",
+      "file": "sections/02-one-liner.html",
+      "brief": "<p>The server is 100% busy with zero goodput. The stuck state survives after the trigger ends. A system at 70% CPU can be one 1.2-second hiccup from collapse. Retries are only one of several loops. The fix has to break the loop, not the trigger.</p>"
+    },
+    {
+      "id": "problem",
+      "kicker": "§3 · The problem",
+      "title": "Hidden capacity can sit 10× below advertised capacity",
+      "visual": "img/problem.svg",
+      "file": "sections/03-problem.html",
+      "brief": "<p>In HotOS'21's example a database handles 300 QPS and looks healthy at 280. A 10 s blip sends 560 QPS (queries plus retries), and goodput drops to zero. Recovery needs load under 150 QPS. A cache at 90% hit rate hides the same gap: 3,000 advertised, 300 real.</p>"
+    },
+    {
+      "id": "model",
+      "kicker": "§4 · Mental model",
+      "title": "The trap lives in the landscape, not in the kick",
+      "visual": "img/model.svg",
+      "file": "sections/04-mental-model.html",
+      "brief": "<p>A ball sits in a shallow valley. Load tilts the landscape and lowers the wall between valleys, and a trigger is a kick. Once the ball crosses into the deep valley, removing the kick does nothing. Your own retry and timeout policies set the landscape, so you can change it.</p>"
+    },
+    {
+      "id": "mech",
+      "kicker": "§5 · Mechanism, traced",
+      "title": "Retries turn 70 req/s into 210 attempts, and the queue never drains",
+      "visual": "img/mech.svg",
+      "file": "sections/05-mechanism.html",
+      "brief": "<p>After a 10 s outage with μ = 100 and λ = 70, every request makes 3 attempts. Each attempt waits about 30 s, far past its 1 s timeout, so the server serves dead work. Attempts arrive at 210/s against 100/s capacity, so the queue grows by ~110/s with the trigger long gone.</p><p class=\"mini\">Seven-step walkthrough and live simulator inside.</p>"
+    },
+    {
+      "id": "math",
+      "kicker": "§6 · The math",
+      "title": "Two stable states exist for any load between μ/(r+1) and μ",
+      "visual": "img/math.svg",
+      "file": "sections/06-math.html",
+      "brief": "<p>If each request can make r+1 attempts, the collapsed state sustains itself when (r+1)λ &gt; μ. With μ = 100 and r = 2, any load from 33 to 100 req/s admits both states. A retry budget that caps amplification near 1.1× shrinks that band to almost nothing.</p>"
+    },
+    {
+      "id": "why",
+      "kicker": "§7 · Why it works",
+      "title": "Each cure removes one leg of a loop that needs all three",
+      "visual": "img/why.svg",
+      "file": "sections/07-why-it-works.html",
+      "brief": "<p>Remove retries and the band disappears. Drop dead work at dequeue, or serve LIFO, and recovery is almost immediate. Removing the trigger changes nothing, because the trigger was never part of the loop. Budgets, deadlines and constant work each cut one leg.</p>"
+    },
+    {
+      "id": "knobs",
+      "kicker": "§8 · Knobs & alternatives",
+      "title": "Attempts, budget ratio and timeout set where the band sits",
+      "visual": "img/knobs.svg",
+      "file": "sections/08-knobs.html",
+      "brief": "<p>Each attempt you add lowers the band's floor μ/(r+1). Google caps at 3 attempts, and budgets of 10–20% keep amplification near 1.1–1.2×. Timeouts trade false alarms against detection speed. Backoff helps only if it reduces total work.</p>"
+    },
+    {
+      "id": "breaks",
+      "kicker": "§9 · Where it breaks",
+      "title": "Cold caches, GC and health checks sustain the same loop",
+      "visual": "img/breaks.svg",
+      "file": "sections/09-where-it-breaks.html",
+      "brief": "<p>Cold caches, GC death spirals, slow error paths and health checks that pull healthy hosts all sustain the loop. Retry budgets are per client, so 10,000 clients at a 10 retries/s floor means 100k retries/s. Backoff with jitter spreads the load but doesn't reduce it.</p>"
+    },
+    {
+      "id": "wild",
+      "kicker": "§10 · In the wild",
+      "title": "Real engines use budgets, leases and gutter pools",
+      "visual": "img/wild.svg",
+      "file": "sections/10-in-the-wild.html",
+      "brief": "<p>AWS SDKs charge a token-bucket quota 10 tokens per timeout. Memcache leases cut peak DB reads from 17K/s to 1.3K/s. Facebook runs adaptive LIFO with CoDel, and Google adds criticality classes and deadline propagation. Recovery paths get their own load tests.</p>"
+    },
+    {
+      "id": "frontier",
+      "group": "Research edge",
+      "kicker": "§11 · Frontier",
+      "title": "The field moved from naming the trap to modelling and finding it",
+      "visual": "img/frontier.svg",
+      "file": "sections/11-frontier.html",
+      "brief": "<p>HotOS'25 proposes a DSL and a ladder of tools, from CTMC analysis to stress tests. A Koopman model flags metastability after ~10% of a run, though only in simulation. Wasabi found 100+ retry bugs in 8 Java apps, and Rajomon cut tail latency 78%.</p>"
+    },
+    {
+      "id": "open",
+      "kicker": "§11b · Open problems",
+      "title": "Nobody can yet predict the vulnerable band from normal telemetry",
+      "visual": "img/open.svg",
+      "file": "sections/11b-open-problems.html",
+      "brief": "<p>Hidden capacity depends on how the system behaves while failing, which you rarely observe while healthy. Loops cross component boundaries, safe production tests need a guaranteed drain, and no peer-reviewed analysis yet covers LLM KV-cache preemption as a metastable loop.</p>"
+    },
+    {
+      "id": "lineage",
+      "kicker": "§12 · Lineage",
+      "title": "From Nagle's 1984 congestion collapse to the 2021 name",
+      "visual": "img/lineage.svg",
+      "file": "sections/12-lineage.html",
+      "brief": "<p>Nagle called congestion collapse \"stable\" in 1984, and Jacobson's 1988 backoff and AIMD were the network cure. HotOS'21 named the pattern, OSDI'22 counted 22 incidents, and 2025 brought formal CTMC analysis.</p>"
+    },
+    {
+      "id": "hands",
+      "group": "Practice & self-test",
+      "kicker": "§13 · Hands-on",
+      "title": "Simulate the trap in under a second, with no dependencies",
+      "visual": "img/hands.svg",
+      "file": "sections/13-hands-on.html",
+      "brief": "<p><code>python3 metastable_sim.py</code> runs in under a second. At λ = 70 a 10 s outage stays stuck, a 1.0 s outage recovers, and 1.3 s sticks again. Then try <code>--drop-expired</code> and watch the outage clear at once.</p>"
+    },
+    {
+      "id": "quiz",
+      "builtin": "quiz",
+      "kicker": "§14 · Question ladder",
+      "title": "Test yourself",
+      "visual": "img/quiz.svg",
+      "brief": "<p>21 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+    },
+    {
+      "id": "next",
+      "group": "Further",
+      "kicker": "§15 · Go deeper next",
+      "title": "Three follow-ups: CoDel, adaptive limits, shuffle sharding",
+      "visual": "img/next.svg",
+      "file": "sections/15-go-deeper.html",
+      "brief": "<p>CoDel and adaptive LIFO internals · adaptive concurrency limits from Vegas to Envoy · shuffle sharding, where Route 53 gets ~730 billion combinations from 2,048 nodes.</p>"
+    },
+    {
+      "id": "sources",
+      "kicker": "Sources",
+      "title": "Papers, code and postmortems behind each claim",
+      "visual": "img/sources.svg",
+      "file": "sections/99-sources.html",
+      "brief": "<p>Over 20 papers, code references and postmortems, plus the claims I couldn't verify.</p>"
+    }
+  ],
+  "questions": [
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "In the sim's stuck state the server is 100% busy. Exactly what is it working on, and why does none of it count?",
+      "a": "Attempts whose clients timed out long ago. With FIFO and a backlog longer than T·μ, every dequeued attempt waited more than T, so its client has already given up (and retried). The server burns full CPU producing responses nobody reads. Throughput = μ, goodput = 0, or in Brooker's words \"Up, but down. Working, but broken.\""
+    },
+    {
+      "type": "Mechanism",
+      "sec": "mech",
+      "q": "Why does the queue keep growing after the outage ends, instead of just staying long?",
+      "a": "Each user request now generates r+1 attempts (every attempt times out, since the queue wait is greater than T). The arrival rate of attempts is (r+1)λ = 210/s, above μ = 100/s, so the queue grows by ~110/s. The trigger isn't needed any more: the amplified load alone exceeds capacity."
+    },
+    {
+      "type": "Mechanism",
+      "sec": "breaks",
+      "q": "How does a look-aside cache create a sustaining effect without any retries?",
+      "a": "The application fills the cache after a DB read. With the cache cold, most requests go to the overloaded DB, so the app times out <i>before</i> writing the result to the cache. The cache never warms, so DB load stays high. The sustaining effect is capacity degradation (w*<sub>C</sub> = 1/(1−hit rate) = 10 at 90%), not workload amplification. Bronson's fix: a more permissive DB timeout, or a read-through cache that fills even after the client leaves."
+    },
+    {
+      "type": "Mechanism",
+      "sec": "breaks",
+      "q": "Walk through Facebook's link-imbalance loop: why does an MRU pool concentrate load on the slowest link?",
+      "a": "After a burst of misses, connections on the most congested link (highest latency) are the last to return to the pool. An MRU pool hands out the most recently returned connection first, so it picks exactly those slow connections, putting more traffic on the congested link and keeping it congested. One line changing the pool policy fixed it."
+    },
+    {
+      "type": "Why",
+      "sec": "math",
+      "q": "Why is the stable region's lower edge μ/(r+1) and not μ?",
+      "a": "The collapsed state sustains itself only if its amplified load exceeds capacity: (r+1)λ &gt; μ. Below λ = μ/(r+1), even the worst-case amplification fits within capacity, so the backlog drains and p falls back to 0. Above μ the healthy state isn't self-consistent either. In between, both are."
+    },
+    {
+      "type": "Why",
+      "sec": "why",
+      "q": "Why do companies deliberately run in the vulnerable state?",
+      "a": "Efficiency. Staying below C<sub>stable</sub> = C<sub>norm</sub>/(w*<sub>L</sub>·w*<sub>C</sub>) means running at e.g. 50% (1 retry) or 10% (90% cache hit rate) of advertised capacity. That is very expensive, and the vulnerable band behaves perfectly on normal days. Bronson notes that common-case optimisations push systems to \"a larger multiple of the threshold\"."
+    },
+    {
+      "type": "Why",
+      "sec": "why",
+      "q": "Why does LIFO recover immediately when FIFO doesn't, even though both serve at the same rate?",
+      "a": "Under LIFO the next request served is the newest one, whose client is still waiting, so it succeeds. Its success means no retry, p drops and λ<sub>eff</sub> falls toward λ &lt; μ, which moves the system to the healthy fixed point. The stale backlog sits at the bottom of the stack and can be dropped. FIFO always serves the oldest (dead) request first."
+    },
+    {
+      "type": "Why",
+      "sec": "world",
+      "q": "Why do AWS SDKs charge more retry tokens for a timeout than for an error response?",
+      "a": "A timeout usually means the server did or is doing the work and the client didn't wait. A fast error (for example, throttling) cost the server little. Retrying after a timeout therefore adds more wasted server work, so it should drain the quota faster."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "math",
+      "q": "With r = ∞ (unbounded retries), what is C<sub>stable</sub>?",
+      "a": "w*<sub>L</sub> → ∞, so C<sub>stable</sub> → 0: there is no stable region. Any load can be tipped over by a long enough trigger. OSDI'22 says this explicitly."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "knobs",
+      "q": "If every client had a perfectly synchronised backoff (no jitter), what would the load look like after an outage?",
+      "a": "All clients that failed together retry together, giving periodic spikes with quiet gaps. Each spike can re-trigger overload, so the system stays bimodal. Jitter spreads the retries out; full jitter does the least total work (Brooker 2015). Jitter still doesn't reduce total load in an open system."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "knobs",
+      "q": "Remove server-side deadline checks but keep a 10% retry budget. Does the system recover, and what sets how long it takes?",
+      "a": "In the sim, yes: it recovers at t ≈ 64 s versus 51 s with no retries. The budget caps amplification near 1.1×, so λ<sub>eff</sub> ≈ 77 &lt; 100 and the backlog drains at μ − λ<sub>eff</sub>. Recovery time is B/(μ − λ<sub>eff</sub>), all of it spent serving dead work. Deadline checks would shrink B to only the live requests."
+    },
+    {
+      "type": "Counterfactual",
+      "sec": "why",
+      "q": "If the same service ran as a closed system (fixed clients waiting on replies), could it go metastable from retries?",
+      "a": "Not from load amplification in the usual sense: a fixed population of N clients, each waiting on one outstanding request, caps in-flight work at N, and latency rises instead of load. That is why closed benchmarks miss metastability. Capacity-degradation loops (GC thrash at fixed concurrency) could still persist in principle."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "You're an attacker who can cause brief stalls but not a sustained DDoS. How would you use metastability?",
+      "a": "Cause a short stall (for example 1–2 s of resource exhaustion, or a burst of expensive requests) while the target sits in its vulnerable band. The target's own retries do the rest, so a cheap kick yields a long outage that continues after the attack stops. RetryGuard (2025) treats this as a DDoS amplifier and a \"Denial-of-Wallet\" against autoscaling."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "How can a health check turn a 10% overload into a 100% outage?",
+      "a": "Overloaded hosts respond slowly and fail health checks, and the load balancer removes them. The remaining hosts get their share and also fail, so capacity collapses. Mitigations: fail open when most targets are unhealthy (NLB does), limit removal velocity (AWS post-2025), and use shallow checks that don't depend on shared dependencies."
+    },
+    {
+      "type": "Adversarial",
+      "sec": "breaks",
+      "q": "Give a fix that looks reasonable but makes the next incident worse.",
+      "a": "Making servers retry a dependency indefinitely (AWS SimpleDB → DynamoDB), or adding detailed error logging (Spotify). Both increase w*<sub>L</sub>, which shrinks C<sub>stable</sub> and enlarges the vulnerable band."
+    },
+    {
+      "type": "Connection",
+      "sec": "lineage",
+      "q": "How is TCP congestion collapse (1986) the same failure, and which TCP mechanisms map to retry budgets, backoff and admission control?",
+      "a": "In 1986 retransmissions filled links with duplicate copies, so goodput collapsed and stayed collapsed (Nagle: \"This condition is stable\"). TCP's exponential RTO backoff maps to retry backoff; the congestion window and AIMD map to adaptive concurrency limits; \"conservation of packets\" maps to retry budgets and closed-loop admission; RED and CoDel map to queue-delay-based shedding."
+    },
+    {
+      "type": "Connection",
+      "sec": "lineage",
+      "q": "Receive livelock causes zero goodput under overload. Why is it not metastable?",
+      "a": "Receive livelock wastes all capacity on interrupts under overload, but \"when the input load drops sufficiently, the system leaves this state\". There's no sustaining effect after the trigger load is gone. HotOS'21 excludes it explicitly."
+    },
+    {
+      "type": "Connection",
+      "sec": "lineage",
+      "q": "How do hedged requests from \"The Tail at Scale\" relate to retry storms?",
+      "a": "Hedging sends a duplicate before the first attempt fails, which is intentional work amplification. At 10 ms, hedging cut BigTable p99.9 from 1,800 ms to 74 ms for 2% more requests. Under overload, uncapped hedges behave exactly like retries; that's why gRPC throttles retries and hedges with the same token bucket."
+    },
+    {
+      "type": "Open",
+      "sec": "open",
+      "q": "Can you detect that a production system is in the vulnerable band without kicking it?",
+      "a": "Open. Approaches: model-based (estimate w* from policies, compare L<sub>norm</sub> to C<sub>norm</sub>/w*), CTMC and simulation sweeps (Isaacs), and learned spectral indicators (Koopman, simulation-only so far). The difficulty is that hidden capacity depends on behaviour in the failure state, which you don't observe while healthy."
+    },
+    {
+      "type": "Open",
+      "sec": "open",
+      "q": "How should retry policy be composed across a 20-service call graph owned by 10 teams?",
+      "a": "Current best practice: retry only at the layer directly above the failure, propagate a retry counter and deadline in metadata, and return \"overloaded; don't retry\" upward (Google SRE). Research directions: entry-point admission (TopFull), price propagation (Rajomon), graph-wide policy control (RetryGuard). None is a settled standard."
+    },
+    {
+      "type": "Open",
+      "sec": "open",
+      "q": "Are LLM-serving systems (KV-cache preemption plus client retries) metastable, and what would the sustaining effect be?",
+      "a": "A plausible loop: memory pressure → KV-cache preemption → recompute (more GPU work per request) → longer queues → client timeouts and retries → more memory pressure. That is capacity degradation plus workload amplification. JITServe and SCORPIO do SLO-aware dropping. No peer-reviewed metastability analysis exists yet (as of research for this dive)."
+    }
+  ],
+  "figures": {
+    "pictorial": {
+      "file": "img/fig/alvaro-fig-metastable-pictorial.png",
+      "caption": "Metastability drawn as a state space: each region pulls the system toward a local attractor, and moving between regions is rare.",
+      "source": {
+        "cite": "Alvaro et al., \"Formal Analysis of Metastable Failures in Software Systems\", arXiv 2025",
+        "url": "https://arxiv.org/abs/2510.03551",
+        "figure": "Fig. 3"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "simq": {
+      "file": "img/fig/alvaro-fig-sim-metastable.png",
+      "caption": "Queue size over time in the authors' toy server, in the metastable configuration. The queue climbs to about 100 and stays pinned there with brief dips.",
+      "source": {
+        "cite": "Alvaro et al., \"Formal Analysis of Metastable Failures in Software Systems\", arXiv 2025",
+        "url": "https://arxiv.org/abs/2510.03551",
+        "figure": "Fig. 1a"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "vf": {
+      "file": "img/fig/farahbakhsh-fig-vector-field.png",
+      "caption": "Vector field for a retry storm over (retrier's pending requests, server's queue). Some regions drift toward zero and others toward runaway growth.",
+      "source": {
+        "cite": "Farahbakhsh et al., \"Characterizing Metastable Faults and Failures\", arXiv 2026",
+        "url": "https://arxiv.org/abs/2606.00942",
+        "figure": "Fig. 3"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "scheme": {
+      "file": "img/fig/alvaro-fig-overall-scheme.png",
+      "caption": "The authors' pipeline: a server DSL compiles to a CTMC, which is calibrated and then analysed both qualitatively and quantitatively.",
+      "source": {
+        "cite": "Alvaro et al., \"Formal Analysis of Metastable Failures in Software Systems\", arXiv 2025",
+        "url": "https://arxiv.org/abs/2510.03551",
+        "figure": "Fig. 6"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    }
+  }
+}
