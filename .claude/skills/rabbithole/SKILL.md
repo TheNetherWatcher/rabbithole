@@ -1,7 +1,7 @@
 ---
 name: rabbithole
 model: haiku
-description: Deep, web-researched dive into ONE random non-trivial topic in a configurable subject (default CS — ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...; also math, physics, biology, medicine, economics, or any free-form subject) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a polished interactive HTML page per dive. Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS" (or any subject), "rabbit hole", or asks to blog a past dive.
+description: Deep, web-researched dive into ONE random non-trivial topic in a configurable subject (default CS — ML/AI, security, systems, distributed, DBs, networking, crypto, compilers, blockchain, graphics, hardware...; also math, physics, biology, medicine, economics, or any free-form subject) opening with real-world context (where/how/why it is used), then explained down to the mechanism, math, design reasoning, failure modes, and latest research, ending with a question ladder. Saves a README plus a layered interactive HTML page per dive (skim cards with a hero emblem, each expanding into its in-depth section). Logs every dive to history.md and the private rabbithole repo; can turn a dive into a blog post. Use when the user says /rabbithole, "deep dive", "teach me something random in CS" (or any subject), "rabbit hole", or asks to blog a past dive.
 ---
 
 # rabbithole
@@ -18,7 +18,8 @@ All files live in the current working directory (the repo root): `history.md` is
 | `/rabbithole research` | Random topic, **research** depth: everything in hard, but frontier-heavy — topic must have active recent research, 2–3 key recent papers dissected in depth, extra open-debates research |
 | `/rabbithole <topic>` | User-chosen topic, hard depth (add `research` anywhere for research depth) |
 | `/rabbithole blog [slug]` | Turn a saved dive (default: latest) into a blog post in `blog/` |
-| `/rabbithole history` | Show past dives grouped by domain |
+| `/rabbithole history` | Show past dives grouped by domain (the visual version is `dives/index.html`) |
+| `/rabbithole upgrade [slug]` | Convert a classic dive (single hand-written `index.html`, no `dive.json`) to the card format: write `dive.json`, `sections/`, `img/` from its README + existing page (reuse its widgets), build, rebuild the hub, commit `dive: upgrade <topic> to cards` |
 | `subject:<name>` (combine with any of the above) | Pick the topic from another subject for this run, e.g. `/rabbithole subject:physics research`. `<name>` is a key in `config.json` → `subjects`, or any free-form subject (`subject:"music theory"`) |
 
 ## Configuration
@@ -60,6 +61,7 @@ Do not explain from memory alone. Research first, thoroughly.
   2. **Implementation reality** — how real systems do it (source code, engineering blogs, docs, RFCs, kernel/compiler source), and where they deviate from the paper. Also return the adoption context for section 1b: which real products/systems use it, why they adopted it, how practitioners call/configure it (API, flags, sample usage), and when people choose alternatives.
   3. **Frontier** — new papers (arXiv, conference proceedings: NeurIPS/ICML/ICLR/USENIX Security/CCS/S&P/OSDI/SOSP/SIGMOD/VLDB/PLDI etc.), recent advancements, benchmarks, what changed in the last 1–2 years. Use WebSearch `extended` mode here.
   4. **Breakage + open problems** — known attacks, CVEs, failure modes, critiques, misconceptions, replication failures, and what remains unsolved.
+- Every agent also returns **figure candidates**: up to 4 figures from its sources that explain the mechanism better than prose (architecture diagrams, worked examples, the key result plot). For each: source URL, figure number and caption, and the source's license as stated on the page (arXiv abs page sidebar, repo LICENSE, docs footer). Unknown license means "not open".
 - Frontier agent (angle 3) runs in BOTH modes and must return ≥3–5 recent papers/advancements (last ~2 years) with links, or explicitly report that the topic is settled and where active work moved to.
 - In research mode, weight angle 3 heaviest and add a 5th agent for "open problems & active debates" (position papers, workshop discussions, conflicting results).
 - Fetch primary sources (arXiv abs/pdf, RFCs, specs, source code) over secondary summaries whenever possible.
@@ -158,42 +160,121 @@ All URLs used, grouped by type (papers, code/docs, articles).
 - Reader is a working engineer: skip basics, define domain jargon on first use.
 - Flag uncertainty explicitly.
 
-## Step 4 — HTML companion (always)
+## Step 4 — HTML companion (always): layered cards
 
-Every dive ships a polished HTML page alongside the README: `dives/YYYY-MM-DD-<slug>/index.html`. It is the nicer way to read the dive, not a copy-paste of the markdown.
+Every dive ships a page at `dives/YYYY-MM-DD-<slug>/index.html` with two layers: a **skim layer** (hero emblem, TL;DR, stat tiles, then one short card per section) and a **deep layer** (each card's "Go deeper" expands that section's full content in place). A reader should get the whole topic in ~3–5 minutes from the briefs alone, and open only the parts they want.
 
-Requirements:
-- **Self-contained single file**: inline CSS + JS, no build step. No external design kits; system fonts or one Google Font max. Must work offline.
-- **Reading order**: plain-English explainer and everyday example first (visually distinct, open by default, friendly tone), then real-world context, then a clear "Technical deep dive" divider before the rest.
-- **Complete**: contains every section of the dive, including 1b real-world context, frontier, open problems, question ladder, sources. Content must match the README (same facts, same links).
-- **Layout**: sticky sidebar / top table of contents with scroll-spy, topic card header (subject · domain · topic · depth · date), a "TL;DR + why it matters" hero block, readable measure (~70ch), responsive down to phone width, light + dark via `prefers-color-scheme`.
-- **Informative at a glance**: a "Where it's used" card grid (system → role), a "How it's used" code block with copy button, a pros/cons or "use it / skip it" two-column box, a key-numbers strip (latencies, sizes, params), callouts for misconceptions and gotchas.
-- **Diagrams**: render flows and state as inline SVG (or styled HTML), not ASCII. Where the topic has a process, add a step-through (Back/Next) of the traced example. Add an interactive widget (slider, toggle, simulator) when a parameter's effect is the point; skip it when forced.
-- **Math**: render equations legibly (inline MathML or KaTeX from cdnjs); each followed by its "in plain terms" line.
-- **Question ladder**: each question in `<details>` with the answer, grouped by type, plus a "reveal all" toggle.
-- **Sources**: grouped, links open in new tab.
-- Accessibility: semantic headings, sufficient contrast, keyboard-operable controls, `prefers-reduced-motion` respected.
-- Verify before finishing: open the file (or screenshot via `mcp__claude-in-chrome__*`) and check it renders, no console errors, diagrams and widgets work, nothing overflows at phone width.
+You do NOT hand-write `index.html`. You write source files, and `build.py` (next to this SKILL.md) stitches them with the shared template (`template/`) into one self-contained file. Look at `dives/2026-10-10-pagedattention-kv-cache/` as the reference example and copy its structure.
 
-Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverable is a plain HTML file in the dive folder, committed to the repo. In chat, mention the file path in one line.
+### Source files (in the dive folder)
+
+```
+dive.json          meta, hero, tldr, why, stats, ordered cards, questions
+sections/NN-*.html one fragment per card: the deep content for that section
+img/hero.svg       hero emblem (or img/hero.txt for ASCII art)
+img/<card>.svg     one small visual per card
+```
+
+**`dive.json`** shape:
+
+```json
+{
+  "meta": {"title": "...full title...", "short": "2–5 word name", "subject": "Computer science",
+           "domain": "LLM systems", "topic": "...", "depth": "hard", "date": "YYYY-MM-DD"},
+  "hero": "img/hero.svg",
+  "tldr": "2–3 sentences, <b> on the 2–3 key facts",
+  "why": "<b>Why it matters:</b> one sentence",
+  "stats": [{"v": "96.3%", "l": "what the number means"}],
+  "cards": [
+    {"id": "plain", "group": "Plain English", "tone": "plain", "kicker": "In everyday words",
+     "title": "Headline that states the takeaway", "visual": "img/plain.svg",
+     "file": "sections/00-plain.html", "brief": "<p>…</p>"},
+    {"id": "quiz", "builtin": "quiz", "kicker": "§14 · Question ladder", "title": "Test yourself",
+     "visual": "img/quiz.svg", "brief": "<p>N questions…</p>"}
+  ],
+  "questions": [{"type": "Mechanism", "q": "...", "a": "...", "sec": "mech"}],
+  "figures": {
+    "fig6": {"file": "img/fig/vllm-fig6-block-table.png",
+             "caption": "What the figure shows, in one sentence, tied to this section",
+             "source": {"cite": "Kwon et al., \"Efficient Memory Management …\", SOSP 2023",
+                        "url": "https://arxiv.org/abs/2309.06180", "figure": "Fig. 6"},
+             "license": "CC BY 4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/",
+             "modified": "cropped and recompressed"}
+  }
+}
+```
+
+- **Cards**: one per dive section, in dive order: plain-English (`tone: "plain"`), 1 context, 1b real-world, 2 one-liner, 3 problem, 4 mental model, 5 mechanism, 6 math, 7 why it works, 8 knobs, 9 where it breaks, 10 in the wild, 11 frontier, 11b open problems, 12 lineage, 13 hands-on, 14 question ladder (`builtin: "quiz"`, no `file`), 15 go deeper, sources. A `group` on a card starts a labelled band: "Plain English", "Context", "Technical deep dive", "Research edge", "Practice & self-test", "Further".
+- **Card `title`** states the takeaway, not the section name ("Contiguous reservation wastes 60–80% of KV memory", not "The problem"). `kicker` carries the section number and name.
+- **Card `brief`**: the skim layer. 2–4 sentences or ≤3 bullets, ≤60 words, with the section's single most important number or fact. It must stand on its own: someone who reads only briefs should understand the topic. If the deep part has an interactive widget, end with `<p class="mini">… interactive inside.</p>`.
+- **`questions`**: the full question ladder (Step 3 §14) with answers. `type` is the group (Mechanism, Why, Counterfactual, Adversarial, Connection, Open). `sec` is the card id that teaches the answer. Answers are HTML strings.
+- **`stats`**: 3–5 key numbers. A value that is a single number plus a unit ("96.3%", "128 KiB") counts up on screen; ranges ("2–4×") stay static.
+
+**`sections/*.html`**: plain HTML fragments, no `<html>`/`<body>`, no `<h2>` (the card supplies the title; start subsections at `<h3>`). Content = the full section from the dive, same facts and links as the README. Use the content kit classes from `template/app.css`: `.eq` (equation, with `<small>→ in plain terms: …</small>`), `.grid`+`.gc` (where-it's-used cards), `.two` with `.use`/`.skip`, `.callout.mis|.gotcha|.flag|.tip`, `table`, `pre><code` (copy buttons are automatic), `blockquote`, `.widget` + `.stepbar` + `.ctl` + `.bar` (interactive widgets), `button.btn`, `.mini`. A section may include its own `<style>` (scope selectors under a unique id) and `<script>` (wrap it in an IIFE; it runs at page load, collapsed or not). Prefix every element id with the card id (`mech-step`, not `step`) so ids never collide. Links open in a new tab (`target="_blank" rel="noopener"`).
+
+Where the topic has a process, the mechanism section gets a Back/Next step-through of the traced example. Add an interactive widget (slider, toggle, simulator) when a parameter's effect is the point; skip it when forced. Render equations as legible HTML (sub/sup, Unicode math) in `.eq` blocks.
+
+### Images
+
+The hero, card visuals and your own diagrams are hand-authored inline SVG: no AI-generated images, no stock photos. Real figures from sources go only in the deep layer, under the rules in "Reference figures" below. SVGs are inlined raw, so they pick up the page theme. Color them ONLY with the palette helper classes, never hex colors: fills `f-bg f-bg2 f-panel f-code f-line f-ink f-mute f-acc f-acc2 f-ok f-warn f-bad f-hl f-none`, strokes `s-ink s-mute s-line s-acc s-acc2 s-ok s-warn s-bad`, text `t-ink t-mute`. Motion helpers: `draw` (stroke draws in when scrolled into view; stagger with `style="--d:1"`), `flow` (dashes travel along a path), `pulse`, `float`, `blink`. No ids inside card visuals.
+
+**Hero emblem (`img/hero.svg`)**: an abstract picture of the core mechanism, not a literal illustration and with no text. Built from geometry (grids, blocks, nodes, edges, waves, lattices) that encodes the idea. PagedAttention's hero is a pool of KV blocks with scattered allocated blocks, block-table pointers running to them, a shared copy-on-write block pulsing and the next block blinking in. Other examples: BBR, a pipe whose rate line probes up and settles on a plateau; XOR filters, a hypergraph peeling edge by edge; ML-KEM, a lattice with a noisy point snapping to a vertex.
+- `viewBox="0 0 1200 320"`, `preserveAspectRatio="xMidYMid slice"`. Keep important shapes within y 60–280 and x 60–1140, since edges get cropped on some screens.
+- 3–4 top-level `<g class="layer" data-depth="0.05…0.32">` groups, back to front. The page staggers their intro and moves them at different speeds on scroll (parallax). Put a subtle background (dot pattern via `<pattern>`) in the first layer.
+- Animate at most 2–3 elements (`flow`, `pulse`, `blink`). Nothing frantic. ≤ ~12 KB: use `<pattern>` and loops instead of thousands of elements. Generate with a short Python script when there are many shapes.
+- ASCII alternative: for terminal-flavoured topics (schedulers, syscalls, allocators, shells) you may set `"hero": "img/hero.txt"` with ≤ 12 lines × 70 cols of box-drawing/ASCII art. It plays a scramble-then-resolve intro.
+
+**Card visuals (`img/<id>.svg`)**: one per card, `viewBox="0 0 160 100"`, a glyph-sized diagram of that card's idea (utilization bars for the problem, block-table arrows for the mechanism, a curve with a minimum for the math, a sawtooth for thrash, a timeline for frontier, a terminal for hands-on). 5–25 shapes, ≤ 2 KB. A tiny label (`t-mute`) is fine; sentences are not.
+
+### Reference figures (from papers, docs, repos)
+
+Inside the deep layer, real figures from the sources make a section concrete: the paper's own architecture diagram next to your step-through, the headline result plot next to the numbers. Aim for 6–16 per dive, placed where the text discusses them, never as a gallery. Card visuals and the hero stay hand-drawn SVG.
+
+**License gate (hard rule).** Citing is not permission. Embed a figure only when its source carries an open license: CC BY, CC BY-SA, CC0, public domain, or a permissive code/docs license (Apache-2.0, MIT, BSD) for figures in a repo or its docs. CC BY-NC is allowed in this private repo but must never go into blog posts. Do NOT embed ND-licensed figures (no modified copies), arXiv's default "non-exclusive license to distribute", publisher PDFs (ACM/IEEE/Springer copyright), vendor blogs, or anything with an unstated license. For those, link to the figure ("see Fig. 3 of [paper]") or draw your own SVG of the idea and caption it "adapted from Fig. N of …". `build.py` enforces this: it refuses non-open licenses and ND, and every figure needs a caption, cite, URL and license.
+
+Check the license on the source itself: the arXiv abs page names it in the sidebar (`curl -sL https://arxiv.org/abs/<id> | grep -oE 'licenses/[a-z-]+/[0-9.]+|nonexclusive-distrib'`); repos have a LICENSE file; docs sites state it in the footer or repo.
+
+**Getting the image.**
+- arXiv papers: download the source tarball (`https://arxiv.org/e-print/<id>`) into a new empty folder in the scratchpad and extract it there. The `figures/` (or `graphs/`) folder has the original vector PDFs/PNGs, and grepping the `.tex` for `includegraphics` maps file → figure number, caption and any `trim=`. Only read image files from it; never run or `\input` anything. Newer papers also serve PNGs from their HTML version (`https://arxiv.org/html/<id>`).
+- Docs and repos: the image file from the repo (`raw.githubusercontent.com/...`).
+- Never screenshot a rendered PDF page when the original figure file is available.
+
+**Preparing it**: `python3 <skill-dir>/fig.py <src.pdf|png|jpg> dives/<folder>/img/fig/<source>-fig<N>-<what>.png [--trim L,B,R,T]` renders PDFs, applies a LaTeX-style trim, strips white margins, caps width at 1400 px and writes a palette PNG (20–80 KB). Look at every result (Read the PNG) before using it; re-crop if it carries a stray caption or whitespace.
+
+**Placing it**: register it under `figures` in `dive.json`, then drop `<figure data-fig="<id>"></figure>` into the section HTML where the text refers to it. Two side by side: wrap them in `<div class="fig-pair">…</div>`. Precede a figure with a sentence that says what to look at. `build.py` turns each placeholder into a numbered figure (page order) with the image, your caption, a "Source: … · Fig. N · license · modifications" line, click-to-zoom, and appends a "Figure credits" list to the sources card (or the card with `"credits": true`). Captions are your own words, not the paper's caption copied.
+
+### Build and verify
+
+```bash
+python3 <skill-dir>/build.py dives/YYYY-MM-DD-<slug>   # writes index.html (prints size, card count, skim/deep minutes)
+python3 <skill-dir>/build.py --hub dives                # refreshes dives/index.html, the visual index of all dives
+```
+
+`<skill-dir>` is the directory containing this SKILL.md (`.claude/skills/rabbithole` in the rabbithole repo). Never edit the generated `index.html` by hand; fix the sources or the template and rebuild. Template changes (`template/app.css`, `app.js`, `dive.html`, `hub.html`) apply to every dive on rebuild.
+
+Verify before finishing. `file://` pages can't be opened by the browser tools, so serve the repo: `python3 -m http.server 8765 --bind 127.0.0.1` (in the background), open `http://127.0.0.1:8765/dives/<folder>/index.html` with `mcp__claude-in-chrome__*`, and check: no console errors; the hero renders; cards expand and collapse; the step-through and widgets work inside expanded cards; figures render, zoom opens and Esc closes it, and the credits list is complete; quiz reveal and ✓/✗ marks update the ring; no horizontal overflow at 375 px (test in a 390 px iframe if the window won't resize). Stop the server afterwards.
+
+What the template gives every page for free (don't rebuild these): sticky top bar with a progress ring, Expand-all toggle (deep mode, remembered), light/dark toggle, side dot-nav, scroll reveal, stat count-up, card expand animation, "Got it" checkboxes, quiz with self-marking, progress saved per browser (`localStorage` key `rh:p:<folder>`), deep links (`#c-<card id>` opens that card), `prefers-reduced-motion` support.
+
+Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverable is the built HTML file plus its sources in the dive folder, committed to the repo. In chat, mention the file path in one line.
 
 ## Step 5 — Save + log + push
 
-1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`) AND `dives/YYYY-MM-DD-<slug>/index.html` (Step 4). Put any code from the hands-on section in the same folder.
+1. Write the dive to `dives/YYYY-MM-DD-<slug>/README.md` (same content as chat, answers collapsed in `<details>`; it is the plain-markdown fallback and the source for blog mode) AND the Step 4 sources (`dive.json`, `sections/`, `img/`), then run `build.py` for the dive and `build.py --hub dives`. Put any code from the hands-on section in the same folder.
 2. The `history.md` row was already written in Step 1b. Confirm it exists and its links match the saved folder; fix it if the slug changed. Do not append a duplicate.
 3. **Guard before pushing**: run `git remote get-url origin`; it must be `https://github.com/TheNetherWatcher/rabbithole.git` (or the ssh equivalent), and `history.md` must exist in the cwd. If not, stop and tell the user — never push dives to another repo.
-4. `git add` the new dive folder (README.md, index.html, code) + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
+4. `git add` the new dive folder (README.md, dive.json, sections/, img/ including img/fig/, index.html, code) + `dives/index.html` + `history.md` by explicit path (never `git add .`/`-A`), commit `dive: <topic>`, `git push`. Commit messages carry NO `Co-Authored-By`, `Signed-off-by`, or AI attribution lines.
 
 ## Skill sync (when the skill itself changes)
 
-The skill (`SKILL.md`, `config.json`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit:
+The skill (`SKILL.md`, `config.json`, `build.py`, `fig.py`, `template/`) lives in two places: here (`.claude/skills/rabbithole/`, source of truth) and `~/Documents/GitHub/claude-skills/rabbithole/`. After any edit:
 1. Run `.claude/skills/rabbithole/sync.sh` (mirrors this folder, minus `sync.sh`, into the claude-skills repo and prints `git status` there).
 2. Commit it in both repos separately (`skill: <change>` here, `update rabbithole skill` there; no attribution lines), then push both.
 Never edit the claude-skills copy directly.
 
 ## Blog mode (`/rabbithole blog [slug]`)
 
-1. Load the dive (default: most recent row in `history.md`).
-2. Write `blog/YYYY-MM-DD-<slug>.md` with front matter (`title`, `date`, `tags`, `summary`). It's a narrative essay, not the dive reformatted: hook with the surprising thing, build the mechanism as a story, keep the best 1–2 diagrams and the key equation, end with the open question. ~1500–2500 words. First person is fine. Keep sources.
+1. Load the dive (default: most recent row in `history.md`) from its README.md.
+2. Write `blog/YYYY-MM-DD-<slug>.md` with front matter (`title`, `date`, `tags`, `summary`). It's a narrative essay, not the dive reformatted: hook with the surprising thing, build the mechanism as a story, keep the best 1–2 diagrams and the key equation (reference figures only if CC BY / CC0 / permissive, never NC, with the same credit line), end with the open question. ~1500–2500 words. First person is fine. Keep sources.
 3. Show draft in chat, ask for edits before committing.
 4. On approval: update blog column in `history.md`, commit `blog: <title>`, push.
