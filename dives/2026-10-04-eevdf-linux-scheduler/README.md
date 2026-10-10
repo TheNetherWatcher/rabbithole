@@ -112,7 +112,7 @@ CABCABABCCABCABABCCABCAB      # 24 ms: A=8, B=8, C=8
 
 What to see:
 - **Equal CPU** (8/8/8) because eligibility forces everyone back to V.
-- **C runs in 1 ms bursts, 2× as often**, because its deadline `ve + 1` is always earlier than `ve + 3`. Short slice = low latency, no extra share.
+- **C asks for shorter turns**, so its deadline `ve + 1` is always earlier than `ve + 3`. Over 24 ms it still gets 8 ms, like A and B. Short slice = low latency, no extra share.
 - At `t=7→8` B finishes its 3 ms request (`v=3 ≥ vd=3`), gets `vd = 3 + 3 = 6` (`update_deadline()`).
 - Weights: H(w=2048) vs L(w=1024) with equal slices gives `HLHHLHHLHHLH`: H 8, L 4 → 2:1. H's vruntime advances at half speed, so it stays eligible longer.
 

@@ -30,7 +30,7 @@ CABCABABCCABCABABCCABCAB      # 24 ms: A=8, B=8, C=8</code></pre>
 <p>What to see:</p>
 <ul>
 <li><b>Equal CPU</b> (8 / 8 / 8) because eligibility forces everyone back to V.</li>
-<li><b>C runs in 1 ms bursts, about twice as often</b>, because its deadline <code>ve + 1</code> is always earlier than <code>ve + 3</code>. A short slice buys low latency, not extra share.</li>
+<li><b>C asks for shorter turns</b>, so its deadline <code>ve + 1</code> is always earlier than <code>ve + 3</code>. Over 24 ms it still gets 8 ms, the same as the others. A short slice buys low latency, not extra share.</li>
 <li>At <code>t = 7 → 8</code> B finishes its 3 ms request (<code>v = 3 ≥ vd = 3</code>) and gets <code>vd = 3 + 3 = 6</code> (<code>update_deadline()</code>).</li>
 <li><b>Weights:</b> H (w = 2048) vs L (w = 1024) with equal slices gives <code>HLHHLHHLHHLH</code>: H 8, L 4, a 2:1 ratio. H's vruntime advances at half speed, so it stays eligible longer.</li>
 </ul>

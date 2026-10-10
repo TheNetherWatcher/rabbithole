@@ -1,0 +1,106 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:14px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-cell{fill:var(--bg);font:700 15px var(--mono)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One CPU with three tasks. Ledger dots show each task against the average V. Then the schedule runs one millisecond at a time, with 8 ms each in 24 ms, a 2 to 1 weight ratio, and headline numbers.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One CPU, three runnable tasks</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Old rule: serve the least-served task</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Eligible means not ahead of V</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Pick the earliest virtual deadline</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Working: one millisecond per turn</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Over 24 ms, every task gets 8 ms</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Weight sets the share</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">The cost is switches, not share</text>
+<text x="20" y="26" class="sf-cap" data-in="9">The numbers behind the rule</text>
+<line x1="285" y1="44" x2="285" y2="136" class="s-ink" stroke-width="1.5" stroke-dasharray="4 4" data-out="5"/>
+<text x="285" y="152" class="sf-lab" text-anchor="middle" data-out="5">V, the weighted average</text>
+<rect x="110" y="52" width="350" height="20" rx="4" class="f-code s-line" stroke-width="1" data-out="5"/>
+<text x="20" y="67" class="sf-lab" data-out="5">A  3 ms</text>
+<rect x="110" y="82" width="350" height="20" rx="4" class="f-code s-line" stroke-width="1" data-out="5"/>
+<text x="20" y="97" class="sf-lab" data-out="5">B  3 ms</text>
+<rect x="110" y="112" width="350" height="20" rx="4" class="f-code s-line" stroke-width="1" data-out="5"/>
+<text x="20" y="127" class="sf-lab" data-out="5">C  1 ms</text>
+<circle cx="285" cy="62" r="8" class="f-acc s-ink" stroke-width="1.5" data-in="1" data-out="3"/>
+<circle cx="285" cy="92" r="8" class="f-acc2 s-ink" stroke-width="1.5" data-in="1" data-out="3"/>
+<circle cx="285" cy="122" r="8" class="f-ok s-ink" stroke-width="1.5" data-in="1" data-out="3"/>
+<circle cx="252" cy="62" r="8" class="f-acc s-ink" stroke-width="1.5" data-in="3" data-out="4"/>
+<circle cx="252" cy="92" r="8" class="f-acc2 s-ink" stroke-width="1.5" data-in="3" data-out="4"/>
+<circle cx="352" cy="122" r="8" class="f-ok s-ink" stroke-width="1.5" data-in="3" data-out="4" data-hl="3"/>
+<circle cx="285" cy="62" r="8" class="f-acc s-ink" stroke-width="1.5" data-in="4" data-out="5"/>
+<circle cx="285" cy="92" r="8" class="f-acc2 s-ink" stroke-width="1.5" data-in="4" data-out="5"/>
+<circle cx="285" cy="122" r="8" class="f-ok s-ink" stroke-width="1.5" data-in="4" data-out="5"/>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">C asks for 1 ms turns. A and B ask for 3 ms.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">CFS is fair over time, but takes no turn length.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">C ran, so it is ahead of V: not eligible.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">All square again. C has deadline 2, A and B 3.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Each millisecond goes to one eligible task.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">Over 24 ms: A 8, B 8, C 8. Equal shares.</text>
+<text x="20" y="400" class="sf-lab" data-in="7" data-out="8">Weight 2048 vs 1024: H gets 8 ms, L gets 4.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">Short turns mean more switches. Share unchanged.</text>
+<text x="24" y="170" class="sf-lab" data-in="5" data-out="7">ms 0 to 11</text>
+<g data-in="5" data-out="7"><rect x="24" y="178" width="30" height="30" rx="5" class="f-ok"/><text x="39" y="198" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="5" data-out="7"><rect x="60" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="75" y="198" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="5" data-out="7"><rect x="96" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="111" y="198" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="5" data-out="7"><rect x="132" y="178" width="30" height="30" rx="5" class="f-ok"/><text x="147" y="198" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="5" data-out="7"><rect x="168" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="183" y="198" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="5" data-out="7"><rect x="204" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="219" y="198" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="5" data-out="7"><rect x="240" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="255" y="198" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="5" data-out="7"><rect x="276" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="291" y="198" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="5" data-out="7"><rect x="312" y="178" width="30" height="30" rx="5" class="f-ok"/><text x="327" y="198" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="5" data-out="7"><rect x="348" y="178" width="30" height="30" rx="5" class="f-ok"/><text x="363" y="198" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="5" data-out="7"><rect x="384" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="399" y="198" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="5" data-out="7"><rect x="420" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="435" y="198" class="sf-cell" text-anchor="middle">B</text></g>
+<text x="24" y="228" class="sf-lab" data-in="6" data-out="7">ms 12 to 23</text>
+<g data-in="6" data-out="7"><rect x="24" y="236" width="30" height="30" rx="5" class="f-ok"/><text x="39" y="256" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="6" data-out="7"><rect x="60" y="236" width="30" height="30" rx="5" class="f-acc"/><text x="75" y="256" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="6" data-out="7"><rect x="96" y="236" width="30" height="30" rx="5" class="f-acc2"/><text x="111" y="256" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="6" data-out="7"><rect x="132" y="236" width="30" height="30" rx="5" class="f-acc"/><text x="147" y="256" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="6" data-out="7"><rect x="168" y="236" width="30" height="30" rx="5" class="f-acc2"/><text x="183" y="256" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="6" data-out="7"><rect x="204" y="236" width="30" height="30" rx="5" class="f-ok"/><text x="219" y="256" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="6" data-out="7"><rect x="240" y="236" width="30" height="30" rx="5" class="f-ok"/><text x="255" y="256" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="6" data-out="7"><rect x="276" y="236" width="30" height="30" rx="5" class="f-acc"/><text x="291" y="256" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="6" data-out="7"><rect x="312" y="236" width="30" height="30" rx="5" class="f-acc2"/><text x="327" y="256" class="sf-cell" text-anchor="middle">B</text></g>
+<g data-in="6" data-out="7"><rect x="348" y="236" width="30" height="30" rx="5" class="f-ok"/><text x="363" y="256" class="sf-cell" text-anchor="middle">C</text></g>
+<g data-in="6" data-out="7"><rect x="384" y="236" width="30" height="30" rx="5" class="f-acc"/><text x="399" y="256" class="sf-cell" text-anchor="middle">A</text></g>
+<g data-in="6" data-out="7"><rect x="420" y="236" width="30" height="30" rx="5" class="f-acc2"/><text x="435" y="256" class="sf-cell" text-anchor="middle">B</text></g>
+<text x="24" y="170" class="sf-lab" data-in="7" data-out="9">H: weight 2048 · L: weight 1024</text>
+<g data-in="7" data-out="9"><rect x="24" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="39" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="60" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="75" y="198" class="sf-cell" text-anchor="middle">L</text></g>
+<g data-in="7" data-out="9"><rect x="96" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="111" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="132" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="147" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="168" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="183" y="198" class="sf-cell" text-anchor="middle">L</text></g>
+<g data-in="7" data-out="9"><rect x="204" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="219" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="240" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="255" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="276" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="291" y="198" class="sf-cell" text-anchor="middle">L</text></g>
+<g data-in="7" data-out="9"><rect x="312" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="327" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="348" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="363" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<g data-in="7" data-out="9"><rect x="384" y="178" width="30" height="30" rx="5" class="f-acc2"/><text x="399" y="198" class="sf-cell" text-anchor="middle">L</text></g>
+<g data-in="7" data-out="9"><rect x="420" y="178" width="30" height="30" rx="5" class="f-acc"/><text x="435" y="198" class="sf-cell" text-anchor="middle">H</text></g>
+<text x="24" y="290" class="sf-lab" data-in="8" data-out="9">Each change of task is a context switch.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/>
+<text x="40" y="110" class="sf-num">0.7–2.8 ms</text>
+<text x="40" y="134" class="sf-lab">default base slice, from 1 CPU to 8 or more</text>
+<text x="40" y="184" class="sf-num">8 / 8 / 8</text>
+<text x="40" y="208" class="sf-lab">ms of CPU each task gets in 24 ms, slices unequal</text>
+<text x="40" y="258" class="sf-num">2 : 1</text>
+<text x="40" y="282" class="sf-lab">CPU share for weight 2048 against 1024</text>
+<text x="40" y="332" class="sf-num">6.6</text>
+<text x="40" y="356" class="sf-lab">first mainline kernel with EEVDF, Oct 2023</text>
+<text x="40" y="404" class="sf-big">The cards below take each piece apart.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap"><b>One CPU, three tasks.</b> A and B each ask for 3 ms turns. C asks for 1 ms. The dots show how much each task has been served, and V is their weighted average. Right now all three sit on V.</p></div>
+<div class="step"><p><b>The old rule.</b> CFS ran whichever task had been served least. That is fair over time. But a task wanting 100 µs turns and one wanting 10 ms turns got the same treatment, so latency had to come from extra tuning.</p></div>
+<div class="step"><p><b>Eligible means not ahead.</b> C ran for 1 ms, so its dot moves past V. A task ahead of the average is <b>not eligible</b> and cannot run. A and B are behind, so they are.</p></div>
+<div class="step"><p><b>Pick the earliest deadline.</b> Each request gets a deadline: its position plus slice ÷ weight. At t = 3 ms everyone is square again, C has deadline 2 and A and B have 3. Among the eligible tasks, the <b>earliest deadline</b> runs, so C goes.</p></div>
+<div class="step"><p><b>Working.</b> The tasks take turns one millisecond at a time. Each turn puts the task out of eligibility until the average catches up. The first 12 ms of the trace are on the diagram.</p></div>
+<div class="step"><p><b>Over 24 ms, each gets 8 ms.</b> A, B and C each get 8 ms of CPU. The short slice changed when C ran, not how much it got. Short slices buy low latency, not extra share.</p></div>
+<div class="step"><p><b>Weight sets the share.</b> With equal slices, weight 2048 against 1024 gives HLHHLHHLHHLH: <b>8 ms against 4</b>, a 2:1 ratio over 12 ms.</p></div>
+<div class="step"><p><b>The cost.</b> Every change of task is a context switch, and short turns mean more of them. The share stays the same. Slice trades latency for switch rate, and weight trades share.</p></div>
+<div class="step"><p><b>The numbers.</b> The default base slice runs from 0.7 to 2.8 ms, and EEVDF arrived in Linux 6.6. Each card below takes one piece apart. Guess first where a card asks you to.</p></div>
+</div>
+</div>

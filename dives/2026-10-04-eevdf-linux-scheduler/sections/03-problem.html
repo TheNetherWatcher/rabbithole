@@ -1,3 +1,5 @@
+<div class="pull"><b>6.6</b><span>the first mainline kernel to swap CFS's pick rule for EEVDF (Oct 2023).</span></div>
+
 <p>CFS picks the task with the smallest vruntime. That gives long-run fairness, but a task that wakes after sleeping is placed near <code>min_vruntime</code> and wins immediately. Placement was the only latency lever, controlled by tunables with mixed units (ns, scaled by log2 of the CPU count). A task that wants 100 µs turns and a task that wants 10 ms turns got the same treatment unless priority was abused.</p>
 
 <p>Lag was unbounded in theory for unfairly placed sleepers, and was not even a tracked quantity. Server regressions and desktop stutter were each fixed by retuning one knob and breaking another.</p>

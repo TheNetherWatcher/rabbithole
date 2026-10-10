@@ -9,6 +9,12 @@
   "date": "2026-10-04"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "How Linux 6.6 lets short turns jump the line, without extra CPU"
+ },
  "tldr": "Linux 6.6 replaced CFS's \"smallest vruntime\" rule and its pile of latency heuristics with two checks. A task is <b>eligible</b> only if it is not ahead of the weighted average, and among eligible tasks the one with the <b>earliest virtual deadline</b> runs. Each request's size sets its deadline, so latency is chosen per task while long-run share is still set by <b>weight</b>.",
  "why": "<b>Why it matters:</b> every mainline kernel from 6.6 on runs it, and it is the source of most latency tuning questions and kernel-upgrade regressions in CPU-bound services.",
  "stats": [
@@ -85,10 +91,11 @@
   {
    "id": "mech",
    "kicker": "§5 · Mechanism, traced",
-   "title": "Equal 8/8/8 shares, with the 1 ms task bursting twice as often",
+   "title": "Eligibility and deadlines pick every millisecond",
    "visual": "img/mech.svg",
    "file": "sections/05-mechanism.html",
-   "brief": "<p>Three equal-weight tasks ask for 3 ms, 3 ms and 1 ms slices. Over 24 ms each gets eight turns, and the short-slice task runs about twice as often. The deadline ordering is the only reason.</p><p class=\"mini\">Step-through trace inside.</p>"
+   "brief": "<p>Three equal-weight tasks ask for 3 ms, 3 ms and 1 ms slices. Over 24 ms each gets 8 ms, the same as the others. The eligibility check and the deadline order decide every millisecond.</p><p class=\"mini\">Step-through trace inside.</p>",
+   "guess": "mech"
   },
   {
    "id": "math",
@@ -112,7 +119,8 @@
    "title": "Slice sets when a task runs, weight sets how much",
    "visual": "img/knobs.svg",
    "file": "sections/08-knobs.html",
-   "brief": "<p>Slice and weight are orthogonal. Custom slices run from 100 µs to 100 ms. Alternatives are CFS-style heuristics, SCHED_DEADLINE reservations and BPF sched_ext.</p><p class=\"mini\">Slice and weight simulator inside.</p>"
+   "brief": "<p>Slice and weight are orthogonal. Custom slices run from 100 µs to 100 ms. Alternatives are CFS-style heuristics, SCHED_DEADLINE reservations and BPF sched_ext.</p><p class=\"mini\">Slice and weight simulator inside.</p>",
+   "guess": "knobs"
   },
   {
    "id": "breaks",
@@ -120,7 +128,8 @@
    "title": "A 2024 overflow turned a weight change into a NULL dereference",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>CVE-2024-35985 made every entity look ineligible, so the picker returned NULL. Tick granularity, per-CPU-only fairness and cgroup reweighting also bite, and \"short slice = more CPU\" is a myth.</p>"
+   "brief": "<p>CVE-2024-35985 made every entity look ineligible, so the picker returned NULL. Tick granularity, per-CPU-only fairness and cgroup reweighting also bite, and \"short slice = more CPU\" is a myth.</p>",
+   "guess": "breaks"
   },
   {
    "id": "wild",
@@ -190,6 +199,52 @@
    "brief": "<p>The 1995 paper, kernel source and docs, LWN and Phoronix, seven arXiv entries, and a list of claims I could not verify.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "What is the default slice on a machine with 8 or more CPUs?",
+   "min": 0,
+   "max": 10,
+   "step": 0.1,
+   "unit": "ms",
+   "answer": 2.8,
+   "start": 8,
+   "tol": 0.3,
+   "reveal": "<p>On 8 or more CPUs it is <b>2.8 ms</b>. The base is 0.7 ms, multiplied by 1 + the rounded-down log<sub>2</sub> of the CPU count, with the count capped at 8. Many distro docs just say 3 ms, from an older constant.</p>"
+  },
+  "mech": {
+   "q": "Three equal-weight tasks run for 24 ms. A and B ask for 3 ms turns, C asks for 1 ms. How much CPU does C get?",
+   "options": [
+    "Half of what A gets",
+    "The same as A and B: 8 ms each",
+    "Twice what A gets",
+    "Under 2 ms"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>8 ms, the same as A and B.</b> The eligibility check forces everyone back to the average, so the short slice changes when C runs, not how much it gets.</p>"
+  },
+  "knobs": {
+   "q": "A thread asks for a custom slice of 1 µs. What range does the kernel clamp it into?",
+   "options": [
+    "10 µs to 10 ms",
+    "100 µs to 100 ms",
+    "1 ms to 1 s",
+    "Any value is accepted"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>100 µs to 100 ms.</b> The kernel clamps <code>sched_runtime</code> into that range (Linux 6.12 and later). Shorter requests are raised to 100 µs.</p>"
+  },
+  "breaks": {
+   "q": "Which kernel release fixed the CVE-2024-35985 overflow?",
+   "options": [
+    "6.6, the first EEVDF kernel",
+    "6.8",
+    "6.9",
+    "6.12, the custom-slice kernel"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>6.9</b>, fixed in 6.9-rc6 (commit 1560d1f6eb6b) and backported. An s64 multiply overflowed, so every task looked ineligible, and <code>pick_eevdf()</code> returned NULL.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

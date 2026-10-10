@@ -1,0 +1,27 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-bars{display:grid;gap:7px;margin:8px 0 4px}
+.cv-bar{display:grid;grid-template-columns:78px 1fr 58px;gap:10px;align-items:center}
+.cv-track{height:16px;background:var(--code);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.cv-fill{display:block;height:100%;width:var(--w);background:var(--accent);transform-origin:left center}
+.js .cv-fill{transform:scaleX(0);animation:cv-grow .7s var(--ease) forwards;animation-delay:calc(var(--d)*140ms + .1s)}
+@keyframes cv-grow{to{transform:scaleX(1)}}
+.cv-val{font-family:var(--mono);color:var(--ink);text-align:right}
+</style>
+<p class="cold-line">A Linux CPU runs one task at a time, in turns.</p>
+<p class="cold-line sm">Each turn is a <em>slice</em>. Shorter slices get waiting tasks back on the CPU sooner, so the default matters.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Default slice: 0.7 to 2.8 ms</b>, by CPU count.
+    <div class="cv-bars">
+      <div class="cv-bar"><span>1 CPU</span><span class="cv-track"><i class="cv-fill" style="--w:25%;--d:0"></i></span><span class="cv-val">0.7 ms</span></div>
+      <div class="cv-bar"><span>2 CPUs</span><span class="cv-track"><i class="cv-fill" style="--w:50%;--d:1"></i></span><span class="cv-val">1.4 ms</span></div>
+      <div class="cv-bar"><span>4 CPUs</span><span class="cv-track"><i class="cv-fill" style="--w:75%;--d:2"></i></span><span class="cv-val">2.1 ms</span></div>
+      <div class="cv-bar"><span>8+ CPUs</span><span class="cv-track"><i class="cv-fill" style="--w:100%;--d:3"></i></span><span class="cv-val">2.8 ms</span></div>
+    </div>
+  </div>
+</div>
