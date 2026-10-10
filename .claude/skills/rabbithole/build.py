@@ -195,6 +195,48 @@ class Figures:
                 'with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits">' + "".join(items) + "</ol>")
 
 
+def check_guess(gid, g):
+    if not g.get("q") or not g.get("reveal"):
+        sys.exit(f"guess '{gid}': needs 'q' and 'reveal'")
+    if "options" in g:
+        if not isinstance(g.get("answer"), int) or not 0 <= g["answer"] < len(g["options"]):
+            sys.exit(f"guess '{gid}': 'answer' must index into 'options'")
+    else:
+        for k in ("min", "max", "answer"):
+            if k not in g:
+                sys.exit(f"guess '{gid}': a range guess needs 'min', 'max', 'answer' (number or [lo, hi])")
+
+
+def render_guess(gid, g):
+    """Predict-then-reveal block: the reader commits to a guess before the answer is shown."""
+    q = f'<p class="g-q"><span class="g-tag">Guess first</span> {g["q"]}</p>'
+    reveal = f'<div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p>{g["reveal"]}</div></div>'
+    if "options" in g:
+        opts = "".join(f'<button class="g-opt" type="button" data-k="{k}">{o}</button>' for k, o in enumerate(g["options"]))
+        return f'<div class="guess" data-g="{esc(gid)}" data-kind="choice" data-ans="{g["answer"]}">{q}<div class="g-opts">{opts}</div>{reveal}</div>'
+    a = g["answer"] if isinstance(g["answer"], list) else [g["answer"], g["answer"]]
+    lo, hi, step = g["min"], g["max"], g.get("step", 1)
+    start = g.get("start", round((lo + hi) / 2 / step) * step)
+    tol = g.get("tol", (hi - lo) * 0.08)
+    unit = esc(g.get("unit", ""))
+    return (f'<div class="guess" data-g="{esc(gid)}" data-kind="range" data-min="{lo}" data-max="{hi}" data-lo="{a[0]}" data-hi="{a[1]}" '
+            f'data-tol="{tol}" data-unit="{unit}">{q}'
+            f'<div class="g-ctl"><input type="range" min="{lo}" max="{hi}" step="{step}" value="{start}" aria-label="Your guess">'
+            f'<output>{start}{unit}</output><button class="g-lock" type="button">Lock it in</button></div>'
+            f'<div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i>'
+            f'<span>{lo}{unit}</span><span>{hi}{unit}</span></div>{reveal}</div>')
+
+
+def expand_guesses(frag, guesses, used):
+    def sub(m):
+        gid = m.group(1)
+        if gid not in guesses:
+            sys.exit(f"unknown guess '{gid}'")
+        used.add(gid)
+        return render_guess(gid, guesses[gid])
+    return re.sub(r'<div\s+data-guess="([^"]+)"\s*>\s*</div>', sub, frag)
+
+
 CHECK_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>'
 
 
@@ -236,10 +278,27 @@ def build_dive(dive):
     figs = Figures(dive, D.get("figures", {}))
     credits_id = next((c["id"] for c in D["cards"] if c.get("credits")),
                       "sources" if any(c["id"] == "sources" for c in D["cards"]) else D["cards"][-1]["id"])
+    guesses, used = D.get("guesses", {}), set()
+    for gid, g in guesses.items():
+        check_guess(gid, g)
+    cold = ""
+    if D.get("cold_open"):
+        frag = expand_guesses(inline_imgs(dive, read(dive / D["cold_open"])), guesses, used)
+        skim_words += words(frag)
+        cold = (f'<section class="cold" id="cold"><div class="cold-inner">{frag}</div>'
+                f'<a class="cold-cue" href="#top">{esc(m.get("short", m["title"]))} <span>↓</span></a></section>')
+    story = ""
+    if D.get("story"):
+        st = D["story"]
+        frag = figs.expand(expand_guesses(inline_imgs(dive, read(dive / st["file"])), guesses, used))
+        skim_words += words(frag)
+        story = (f'<section class="story" id="story"><div class="story-head wrap"><div class="kicker">{esc(st.get("kicker", "The whole idea, scroll by scroll"))}</div>'
+                 f'<h2>{esc(st["title"])}</h2></div>{frag}</section>')
     deeps = {}
     for c in D["cards"]:  # expand figures in card order so numbering follows the page
         deeps[c["id"]] = render_quiz(D.get("questions", [])) if c.get("builtin") == "quiz" \
             else inline_imgs(dive, read(dive / c["file"]))
+        deeps[c["id"]] = expand_guesses(deeps[c["id"]], guesses, used)
         deeps[c["id"]] = (figs.count(deeps[c["id"]]), figs.expand(deeps[c["id"]]))
     deeps[credits_id] = (deeps[credits_id][0], deeps[credits_id][1] + figs.credits())
     unused = set(figs.figs) - set(figs.order)
@@ -257,7 +316,13 @@ def build_dive(dive):
         brief = c["brief"]
         if c.get("builtin") == "quiz":
             brief += '<p class="score" id="quiz-score"></p>'
-        cls = "card rv" + (" plain" if c.get("tone") == "plain" else "")
+        gate = ""
+        if c.get("guess"):
+            if c["guess"] not in guesses:
+                sys.exit(f"card '{cid}': unknown guess '{c['guess']}'")
+            used.add(c["guess"])
+            gate = render_guess(c["guess"], guesses[c["guess"]]) + '<button class="g-skip" type="button">Skip the guess, just show me</button>'
+        cls = "card rv" + (" plain" if c.get("tone") == "plain" else "") + (" gated" if gate else "")
         opened = " data-open" if c.get("open") else ""
         vis = visual(dive, c.get("visual"))
         vis_html = f'<div class="card-vis" aria-hidden="true">{vis}</div>' if vis else '<div class="card-vis" aria-hidden="true"></div>'
@@ -265,7 +330,7 @@ def build_dive(dive):
         cards_html.append(f'''<article class="{cls}" id="c-{esc(cid)}" data-id="{esc(cid)}"{opened}>
 <div class="card-head">{vis_html}
 <div class="card-body"><div class="kicker">{kicker}</div><h2>{esc(c["title"])}</h2>
-<div class="brief">{brief}</div>
+{gate}<div class="brief">{brief}</div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-{esc(cid)}">Go deeper <span class="chev">▸</span> <small>{minutes(w)} min{f" · {nfig} fig" if nfig else ""}</small></button>
 <label class="got"><input type="checkbox"><span class="box">{CHECK_SVG}</span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-{esc(cid)}"><div class="deep-inner"><div class="deep-content">
@@ -274,6 +339,10 @@ def build_dive(dive):
 </article>''')
         dots.append(f'<a href="#c-{esc(cid)}" data-id="{esc(cid)}" aria-label="{esc(c["title"])}"><span>{esc(c["title"])}</span></a>')
         data_cards.append(cid)
+
+    unused_g = set(guesses) - used
+    if unused_g:
+        print(f"warning: guesses defined but never placed: {', '.join(sorted(unused_g))}", file=sys.stderr)
 
     stats = "".join(
         f'<div class="stat rv" style="--i:{i}"><div class="v">{esc(s["v"])}</div><div class="l">{s["l"]}</div></div>'
@@ -291,6 +360,8 @@ def build_dive(dive):
         "{{JS}}": read(TPL / "app.js"),
         "{{HERO}}": visual(dive, D.get("hero")),
         "{{CHIPS}}": chips,
+        "{{OPEN}}": cold,
+        "{{STORY}}": story,
         "{{TLDR}}": D.get("tldr", ""),
         "{{WHY}}": D.get("why", ""),
         "{{STATS}}": stats,

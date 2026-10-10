@@ -23,7 +23,8 @@
   </div>
 </header>
 
-<section class="hero">
+{{OPEN}}
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true">{{HERO}}</div>
   <div class="hero-text wrap">
     <div class="chips rv">{{CHIPS}}</div>
@@ -33,9 +34,12 @@
     <div class="stats">{{STATS}}</div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
       <span>{{NCARDS}} cards</span><span>· ~{{SKIM}} min skim</span><span>· ~{{DEEP}} min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
 </section>
+
+{{STORY}}
 
 <nav class="dots" aria-label="Cards">{{DOTS}}</nav>
 
