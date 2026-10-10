@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,40 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.nc-row{margin:0 0 12px}
+.nc-row b{color:var(--ink)}
+.nc-quad{display:grid;grid-template-columns:repeat(2,40px);gap:3px;margin:6px 0 4px}
+.nc-one{display:grid;grid-template-columns:40px;margin:6px 0 4px}
+.nc-quad i,.nc-one i{display:block;width:40px;height:40px;border-radius:3px;background:var(--code);border:1px solid var(--line)}
+.nc-quad i.u,.nc-one i.u{background:var(--accent);border-color:var(--accent)}
+.nc-quad i.r{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--warn) 55%,transparent) 0 2px,transparent 2px 5px);border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
+.js .nc-quad i,.js .nc-one i{opacity:0;transform:scale(.4);animation:nc-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*140ms + var(--o,0s))}
+@keyframes nc-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">A triangle covering one pixel still uses four shader lanes.</p>
+<p class="cold-line sm">GPUs shade pixels in <em>2×2 quads</em>, so one covered pixel drags along three helper lanes. Nanite draws its tiniest triangles in compute instead.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> A triangle covers one pixel. What share of the GPU's pixel-shading work is thrown away?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 10%</button><button class="g-opt" type="button" data-k="1">About 25%</button><button class="g-opt" type="button" data-k="2">At least 75%</button><button class="g-opt" type="button" data-k="3">None. The GPU shades it exactly</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>At least 75%.</b> GPUs shade pixels in 2×2 quads, so a one-pixel triangle still runs four lanes. Three of them are helpers whose output is thrown away.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="nc-row"><b>Hardware quad: 4 lanes run, 1 pixel kept. At least 75% wasted.</b>
+    <div class="nc-quad" id="nc-hw"></div></div>
+  <div class="nc-row"><b>Compute rasterizer: no helper lanes.</b>
+    <div class="nc-one" id="nc-cs" style="--o:1.1s"></div></div>
+</div>
+<script>
+(function(){
+  function cell(g,cls,d){var i=document.createElement('i');i.className=cls;i.style.setProperty('--d',d);g.appendChild(i);}
+  var hw=document.getElementById('nc-hw'),cs=document.getElementById('nc-cs');
+  if(!hw||!cs)return;
+  cell(hw,'u',0);cell(hw,'r',1);cell(hw,'r',2);cell(hw,'r',3);
+  cell(cs,'u',0);
+})();
+</script>
+</div><a class="cold-cue" href="#top">Nanite cluster LOD <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g class="layer" data-depth="0.05"><defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs><rect width="1200" height="320" fill="url(#dots)"/></g><g class="layer" data-depth="0.14"><rect x="142.0" y="70" width="226.0" height="56" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="372.0" y="70" width="226.0" height="56" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="602.0" y="70" width="226.0" height="56" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="832.0" y="70" width="226.0" height="56" rx="6" class="f-panel s-line" stroke-width="1.4"/><line x1="370.0" y1="70" x2="370.0" y2="126" class="s-acc" stroke-width="2.4"/><line x1="600.0" y1="70" x2="600.0" y2="126" class="s-acc" stroke-width="2.4"/><line x1="830.0" y1="70" x2="830.0" y2="126" class="s-acc" stroke-width="2.4"/></g><g class="layer" data-depth="0.22"><rect x="142.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="257.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="372.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="487.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="602.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="717.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="832.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><rect x="947.0" y="146" width="111.0" height="40" rx="6" class="f-panel s-line" stroke-width="1.4"/><line x1="255.0" y1="146" x2="255.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="370.0" y1="146" x2="370.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="485.0" y1="146" x2="485.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="600.0" y1="146" x2="600.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="715.0" y1="146" x2="715.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="830.0" y1="146" x2="830.0" y2="186" class="s-acc" stroke-width="2.4"/><line x1="945.0" y1="146" x2="945.0" y2="186" class="s-acc" stroke-width="2.4"/></g><g class="layer" data-depth="0.30"><rect x="508" y="70" width="136" height="56" rx="6" class="f-hl s-acc" stroke-width="2.2"/><line x1="508" y1="132" x2="644" y2="132" class="s-acc" stroke-width="2.4" stroke-dasharray="6 4"/><rect x="142.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="199.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="257.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="314.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="372.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="429.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="487.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="544.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="602.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="659.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="717.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="774.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="832.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="889.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="947.0" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/><rect x="1004.5" y="206" width="53.5" height="40" rx="6" class="f-line s-line" stroke-width="1.4"/></g></svg></div>
   <div class="hero-text wrap">
     <div class="chips rv"><span class="chip">Computer science</span><span class="chip">graphics/GPU</span><span class="chip">Depth: hard</span><span class="chip">2026-10-04</span></div>
@@ -307,9 +432,81 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> film-quality assets run in real time with no LOD authoring and no popping.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">128</div><div class="l">triangles per cluster</div></div><div class="stat rv" style="--i:1"><div class="v">≈1 px</div><div class="l">target projected error</div></div><div class="stat rv" style="--i:2"><div class="v">14.4 B</div><div class="l">average per input triangle on disk (Epic)</div></div><div class="stat rv" style="--i:3"><div class="v">7.6×</div><div class="l">smaller than a 4-LOD static mesh (Epic example)</div></div><div class="stat rv" style="--i:4"><div class="v">64 bit</div><div class="l">visibility-buffer word</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~4 min skim</span><span>· ~32 min deep</span>
+      <span>19 cards</span><span>· ~7 min skim</span><span>· ~32 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Cut a million-triangle statue into patches that never crack</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Twelve clusters of one mesh. Simplifying each alone leaves cracks at the seams. Locking a group border lets one parent replace four children, and camera distance picks the cut.">
+<defs><pattern id="sth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One mesh, cut into 128-triangle clusters</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Naive: simplify each cluster on its own</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Fix: lock the border of each group</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Next level: four clusters merge into one parent</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Camera at 25 m: the coarse parent is enough</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Camera at 12 m: the parent is too coarse</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Each cut lines up with its neighbours</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Trade-off: dense borders resist simplification</text>
+<text x="20" y="26" class="sf-cap" data-in="9">On disk, from Epic’s own example</text>
+<rect x="20" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="135" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="250" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="135" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="250" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="135" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="250" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M244.5 62 L239 76 L248 90 L241 104 L247 118 L243 124" class="f-none s-bad" stroke-width="2.5" data-in="2" data-out="3"/>
+<path d="M24 130 L40 126 L56 134 L72 127 L88 133 L104 127 L120 131 L140 130 L160 126 L176 134 L192 127 L208 133 L224 128 L236 130" class="f-none s-bad" stroke-width="2.5" data-in="2" data-out="3"/>
+<rect x="16" y="54" width="227" height="152" rx="10" class="f-none s-ok" stroke-width="2.5" data-in="3" data-out="9"/>
+<rect x="20" y="58" width="219" height="144" rx="8" class="f-panel s-acc" stroke-width="2.5" data-in="4" data-out="6"/>
+<text x="30" y="84" class="sf-lab" data-in="4" data-out="6">parent</text>
+<rect x="20" y="58" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="20" y="134" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="135" y="58" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="135" y="134" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<text x="30" y="84" class="sf-lab" data-in="6" data-out="9">child 0.62 px</text>
+<rect x="250" y="210" width="219" height="68" rx="7" fill="url(#sth)" class="s-warn" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="20" y="404" class="sf-lab" data-in="1" data-out="2">Each tile is one cluster of 128 triangles.</text>
+<text x="20" y="404" class="sf-lab sf-bad" data-in="2" data-out="3">Seams no longer match, so cracks open.</text>
+<text x="20" y="404" class="sf-lab" data-in="3" data-out="4">Shared border vertices never move.</text>
+<text x="20" y="404" class="sf-lab" data-in="4" data-out="5">Parent keeps about 50% of the triangles.</text>
+<text x="20" y="404" class="sf-lab" data-in="5" data-out="6">25 m: parent 0.71 px, under 1 px. Draw it.</text>
+<text x="20" y="404" class="sf-lab" data-in="6" data-out="7">12 m: parent 1.48 px is over 1. Draw children.</text>
+<text x="20" y="404" class="sf-lab" data-in="7" data-out="8">Same vertices on the shared edge: no cracks.</text>
+<text x="20" y="404" class="sf-lab" data-in="8" data-out="9">Border vertices: 30–50% of verts at level 1.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/>
+<text x="50" y="150" class="sf-num">14.4 B</text>
+<text x="50" y="178" class="sf-lab">average on disk per input triangle (Epic)</text>
+<text x="50" y="250" class="sf-num">7.6×</text>
+<text x="50" y="278" class="sf-lab">smaller than a 4-LOD static mesh (Epic’s example)</text>
+<text x="50" y="350" class="sf-num">≈1 px</text>
+<text x="50" y="378" class="sf-lab">target projected error per cluster</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A statue of about 1,000,000 triangles is far more detail than a screen can show. Nanite cuts it into <b>clusters of 128 triangles</b>, and each cluster is one unit the GPU can keep or replace.</p></div>
+<div class="step"><p><b>The naive way.</b> Simplify each cluster on its own and the edges stop matching. The red seams are cracks. At level 1, border vertices are 30–50% of all vertices, so the problem is not a corner case.</p></div>
+<div class="step"><p><b>The fix: lock the border.</b> Take a group of four clusters. Every edge shared with a different group keeps its vertices in place, and only the interior gets simplified.</p></div>
+<div class="step"><p><b>Then build a parent.</b> The locked group is simplified to about half its triangles and re-clustered. Each cluster stores its own error and its parent’s, and all four children share the same pair.</p></div>
+<div class="step"><p><b>Far away, the parent is enough.</b> At 25 m the parent projects to <b>0.71 px</b>, under the 1 px target. The GPU draws the parent and skips the four children.</p></div>
+<div class="step"><p><b>Move closer and it flips.</b> At 12 m the parent projects to <b>1.48 px</b>, over the target. The children project to <b>0.62 px</b>, so the GPU draws them. The test is self ≤ τ &lt; parent.</p></div>
+<div class="step"><p><b>No seams at any mix.</b> Neighbours at different levels share the same vertices on the locked edges, so fine and coarse pieces meet exactly. No stitching runs at render time.</p></div>
+<div class="step"><p><b>The trade-off.</b> A locked border never simplifies, so it stays dense. The hatched tiles stand for parts that will not collapse, like leaves, and the cut stays fine there.</p></div>
+<div class="step"><p><b>What it buys on disk.</b> Epic reports <b>14.4 bytes</b> per input triangle on average. Its 1.5M-triangle example comes to 19.64 MB against 148.95 MB for a 4-LOD static mesh. Keep scrolling for the cards below.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Patches swap to coarse stand-ins that nobody can see"><span>Patches swap to coarse stand-ins that nobody can see</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six ideas to know before the cluster DAG"><span>Six ideas to know before the cluster DAG</span></a><a href="#c-world" data-id="world" aria-label="Shipped in Unreal Engine 5 and cloned in open engines"><span>Shipped in Unreal Engine 5 and cloned in open engines</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Unlimited triangles&quot; hides five hard problems"><span>&quot;Unlimited triangles&quot; hides five hard problems</span></a><a href="#c-problem" data-id="problem" aria-label="Triangle count must track pixels, not source size"><span>Triangle count must track pixels, not source size</span></a><a href="#c-model" data-id="model" aria-label="A tiled map with pinned borders, and where it breaks"><span>A tiled map with pinned borders, and where it breaks</span></a><a href="#c-mech" data-id="mech" aria-label="Locked borders let each cluster pick its own LOD"><span>Locked borders let each cluster pick its own LOD</span></a><a href="#c-math" data-id="math" aria-label="Projected error picks the cut, and monotone bounds keep it consistent"><span>Projected error picks the cut, and monotone bounds keep it consistent</span></a><a href="#c-why" data-id="why" aria-label="Locked borders and monotone error make every decision local"><span>Locked borders and monotone error make every decision local</span></a><a href="#c-knobs" data-id="knobs" aria-label="128-triangle clusters, one pixel of error, and the alternatives"><span>128-triangle clusters, one pixel of error, and the alternatives</span></a><a href="#c-breaks" data-id="breaks" aria-label="Foliage, animation and masks defeat the cluster cut"><span>Foliage, animation and masks defeat the cluster cut</span></a><a href="#c-wild" data-id="wild" aria-label="Real engines lock, quantise and bin far more than the paper"><span>Real engines lock, quantise and bin far more than the paper</span></a><a href="#c-frontier" data-id="frontier" aria-label="The cluster idea is moving into ray tracing and Gaussian splats"><span>The cluster idea is moving into ray tracing and Gaussian splats</span></a><a href="#c-open" data-id="open" aria-label="Trees, deforming meshes and ray tracing still break the cut"><span>Trees, deforming meshes and ray tracing still break the cut</span></a><a href="#c-lineage" data-id="lineage" aria-label="From Hoppe&#x27;s progressive meshes (1996) to Nanite (2021)"><span>From Hoppe&#x27;s progressive meshes (1996) to Nanite (2021)</span></a><a href="#c-hands" data-id="hands" aria-label="A 1-D cluster DAG shows why monotone error matters"><span>A 1-D cluster DAG shows why monotone error matters</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three topics that build on this"><span>Three topics that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, docs and code, with what I could not verify"><span>Papers, docs and code, with what I could not verify</span></a></nav>
@@ -324,7 +521,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
 <h3>Explain it simply</h3>
-<p>Think of a map app. Zoomed out, a city is a grey blob; zoomed in, you see every house. The app does not keep one giant picture and shrink it. It keeps the city cut into small tiles, and for every tile it keeps cruder versions too. You only load the tiles you can see, at just the sharpness your screen can show.</p>
+<p class="dropcap">Think of a map app. Zoomed out, a city is a grey blob; zoomed in, you see every house. The app does not keep one giant picture and shrink it. It keeps the city cut into small tiles, and for every tile it keeps cruder versions too. You only load the tiles you can see, at just the sharpness your screen can show.</p>
 <p>Nanite does this for 3D models. A statue with a million tiny triangles is chopped into little patches of 128 triangles. Each patch has coarser stand-ins. Every frame the GPU asks, for each patch: "if I used the coarse version, would anyone notice on screen?" If not, it uses the coarse one. The trick that makes it work is that neighbouring patches always agree on the exact points along their shared edges, so a coarse patch next to a fine patch still fits like a jigsaw piece, with no gaps.</p>
 <h3>Everyday example</h3>
 <p>A game has a stone dragon statue made of about 1,000,000 triangles. Stand 2 metres away: the statue fills the screen, so you need nearly all the detail; the game draws the fine patches facing you and skips the back of the statue. Walk 200 metres away: the statue is a 30-pixel smudge. The game swaps each patch for its coarsest stand-in, maybe a few hundred triangles in total, and nobody can tell. Walk back slowly: patches near the middle of the statue get sharper first, one patch at a time, and no seam ever opens up because the borders between patches never moved.</p>
@@ -430,6 +627,7 @@ size_t out = meshopt_simplify(dst, group_idx, group_idx_count,
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>≈ 2M</b><span>visible triangles at most on a 1080p screen, whatever the source size.</span></div>
 <ul>
 <li><b>Source size vs screen size.</b> A source asset has 1M–1B triangles. A 1080p screen has 2.07M pixels. The detail you can actually see is at most about one triangle per pixel, so at most roughly 2M visible triangles, or about 16k clusters, <i>independent of source size</i>.</li>
 <li><b>Classic discrete LOD</b> pops when it switches, needs authoring per asset, and costs a draw call and CPU culling per object.</li>
@@ -549,10 +747,10 @@ until one root cluster remains</code></pre>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="12" y1="84" x2="150" y2="84" class="s-line" stroke-width="1"/><line x1="12" y1="14" x2="12" y2="84" class="s-line" stroke-width="1"/><path d="M16 20 C40 80 70 82 90 58 C110 36 130 30 146 28" fill="none" class="s-acc" stroke-width="2"/><circle cx="80" cy="70" r="3.5" class="f-acc s-acc"/><text x="86" y="66" class="t-ink" font-size="8">min</text><text x="120" y="96" class="t-mute" font-size="8">error vs cost</text></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>Projected error picks the cut, and monotone bounds keep it consistent</h2>
-<div class="brief"><p>Draw a cluster when <b>proj(self) ≤ τ &lt; proj(parent)</b>, with τ ≈ 1 px and proj(e,d) = e·H/(2·d·tan(φ/2)). Monotone error and nested bounds mean exactly one crossing per path. The whole DAG costs about <b>2×</b> the source triangles.</p><p class="mini">Interactive LOD calculator inside.</p></div>
+<div class="guess" data-g="dag" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> A cluster DAG keeps about half the triangles at each level. How many triangles does the whole DAG hold, compared with the source mesh?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About the same</button><button class="g-opt" type="button" data-k="1">About 2×</button><button class="g-opt" type="button" data-k="2">About 10×</button><button class="g-opt" type="button" data-k="3">About 100×</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 2×.</b> Each level keeps about half the level below it, so the sum is T(1 + ½ + ¼ + …) = 2T. For a billion triangles the DAG is about 23 levels deep.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Draw a cluster when <b>proj(self) ≤ τ &lt; proj(parent)</b>, with τ ≈ 1 px and proj(e,d) = e·H/(2·d·tan(φ/2)). Monotone error and nested bounds mean exactly one crossing per path. The whole DAG costs about <b>2×</b> the source triangles.</p><p class="mini">Interactive LOD calculator inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -678,10 +876,10 @@ until one root cluster remains</code></pre>
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-wild" data-id="wild">
+<article class="card rv gated" id="c-wild" data-id="wild">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="14" y="16" width="132" height="16" rx="3" class="f-line s-line" stroke-width="1.2"/><rect x="14" y="40" width="132" height="16" rx="3" class="f-line s-line" stroke-width="1.2"/><rect x="14" y="64" width="132" height="16" rx="3" class="f-line s-line" stroke-width="1.2"/><rect x="14" y="16" width="84" height="16" rx="3" class="f-ok s-ok" stroke-width="1.2"/><rect x="14" y="40" width="58" height="16" rx="3" class="f-acc2 s-acc2" stroke-width="1.2"/><rect x="14" y="64" width="112" height="16" rx="3" class="f-hl s-warn" stroke-width="1.2"/><text x="14" y="94" class="t-mute" font-size="8">three engines, three choices</text></svg></div>
 <div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Real engines lock, quantise and bin far more than the paper</h2>
-<div class="brief"><p>UE5 bit-packs everything and bins materials in compute. Bevy runs a meshlet DAG on hardware rasterization only. meshoptimizer's border-locked roots stall at 5–19 meshlets, never 1, without extra tricks.</p></div>
+<div class="guess" data-g="meshlets" data-kind="range" data-min="1" data-max="40" data-lo="5" data-hi="19" data-tol="1" data-unit="meshlets"><p class="g-q"><span class="g-tag">Guess first</span> meshoptimizer's border-locked simplification on Bunny, Dragon and Cliff: how many root meshlets are left at the top?</p><div class="g-ctl"><input type="range" min="1" max="40" step="1" value="35" aria-label="Your guess"><output>35meshlets</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>1meshlets</span><span>40meshlets</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>5 to 19.</b> Locked borders and disjoint triangles stop the top level from collapsing to one meshlet. The reported counts were never 1 without extra tricks.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>UE5 bit-packs everything and bins materials in compute. Bevy runs a meshlet DAG on hardware rasterization only. meshoptimizer's border-locked roots stall at 5–19 meshlets, never 1, without extra tricks.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
@@ -694,10 +892,10 @@ until one root cluster remains</code></pre>
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
 <div class="group rv">Research edge</div>
-<article class="card rv" id="c-frontier" data-id="frontier">
+<article class="card rv gated" id="c-frontier" data-id="frontier">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="12" y1="50" x2="150" y2="50" class="s-line" stroke-width="1.5"/><circle cx="22" cy="50" r="5" class="f-acc s-acc"/><circle cx="52" cy="50" r="5" class="f-acc s-acc"/><circle cx="82" cy="50" r="5" class="f-acc s-acc"/><circle cx="112" cy="50" r="5" class="f-acc s-acc"/><circle cx="142" cy="50" r="5" class="f-acc s-acc"/><text x="14" y="36" class="t-mute" font-size="7">91</text><text x="44" y="72" class="t-mute" font-size="7">94</text><text x="74" y="36" class="t-mute" font-size="7">98</text><text x="104" y="72" class="t-mute" font-size="7">00</text><text x="134" y="36" class="t-mute" font-size="7">05</text><text x="12" y="92" class="t-mute" font-size="8">packing → placing</text></svg></div>
 <div class="card-body"><div class="kicker">§11 · Frontier</div><h2>The cluster idea is moving into ray tracing and Gaussian splats</h2>
-<div class="brief"><p>CuRast's software rasterizer is 2–5× faster than Vulkan on dense meshes. Virtualized 3D Gaussians and LODGE adapt the hierarchy to splats, where seams are hidden by blending. RTX Mega Geometry brings clusters to ray tracing.</p></div>
+<div class="guess" data-g="curast" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> CuRast is a CUDA software rasterizer. On hundreds of millions of triangles, how does it compare with Vulkan's hardware rasterizer?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">About 2× slower</button><button class="g-opt" type="button" data-k="1">About the same speed</button><button class="g-opt" type="button" data-k="2">2–5× faster on unique meshes</button><button class="g-opt" type="button" data-k="3">10× faster on low-poly meshes</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>2–5× faster</b> on unique geometry, and up to 12× when instanced. Vulkan stays about an order of magnitude faster on low-poly meshes.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>CuRast's software rasterizer is 2–5× faster than Vulkan on dense meshes. Virtualized 3D Gaussians and LODGE adapt the hierarchy to splats, where seams are hidden by blending. RTX Mega Geometry brings clusters to ray tracing.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
@@ -986,13 +1184,45 @@ cut cam=-500 tau=20  :  16 clusters, per level {4: 16}</code></pre>
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1012,11 +1242,63 @@ cut cam=-500 tau=20  :  16 clusters, per level {4: 16}</code></pre>
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');

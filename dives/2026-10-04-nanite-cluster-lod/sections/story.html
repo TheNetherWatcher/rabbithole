@@ -1,0 +1,69 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Twelve clusters of one mesh. Simplifying each alone leaves cracks at the seams. Locking a group border lets one parent replace four children, and camera distance picks the cut.">
+<defs><pattern id="sth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One mesh, cut into 128-triangle clusters</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Naive: simplify each cluster on its own</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Fix: lock the border of each group</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Next level: four clusters merge into one parent</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Camera at 25 m: the coarse parent is enough</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Camera at 12 m: the parent is too coarse</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Each cut lines up with its neighbours</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Trade-off: dense borders resist simplification</text>
+<text x="20" y="26" class="sf-cap" data-in="9">On disk, from Epic’s own example</text>
+<rect x="20" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="135" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="250" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="58" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="135" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="4"/>
+<rect x="250" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="134" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="135" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="250" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="365" y="210" width="104" height="68" rx="7" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M244.5 62 L239 76 L248 90 L241 104 L247 118 L243 124" class="f-none s-bad" stroke-width="2.5" data-in="2" data-out="3"/>
+<path d="M24 130 L40 126 L56 134 L72 127 L88 133 L104 127 L120 131 L140 130 L160 126 L176 134 L192 127 L208 133 L224 128 L236 130" class="f-none s-bad" stroke-width="2.5" data-in="2" data-out="3"/>
+<rect x="16" y="54" width="227" height="152" rx="10" class="f-none s-ok" stroke-width="2.5" data-in="3" data-out="9"/>
+<rect x="20" y="58" width="219" height="144" rx="8" class="f-panel s-acc" stroke-width="2.5" data-in="4" data-out="6"/>
+<text x="30" y="84" class="sf-lab" data-in="4" data-out="6">parent</text>
+<rect x="20" y="58" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="20" y="134" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="135" y="58" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<rect x="135" y="134" width="104" height="68" rx="7" class="f-acc s-acc" stroke-width="2" opacity=".35" data-in="6" data-out="9"/>
+<text x="30" y="84" class="sf-lab" data-in="6" data-out="9">child 0.62 px</text>
+<rect x="250" y="210" width="219" height="68" rx="7" fill="url(#sth)" class="s-warn" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="20" y="404" class="sf-lab" data-in="1" data-out="2">Each tile is one cluster of 128 triangles.</text>
+<text x="20" y="404" class="sf-lab sf-bad" data-in="2" data-out="3">Seams no longer match, so cracks open.</text>
+<text x="20" y="404" class="sf-lab" data-in="3" data-out="4">Shared border vertices never move.</text>
+<text x="20" y="404" class="sf-lab" data-in="4" data-out="5">Parent keeps about 50% of the triangles.</text>
+<text x="20" y="404" class="sf-lab" data-in="5" data-out="6">25 m: parent 0.71 px, under 1 px. Draw it.</text>
+<text x="20" y="404" class="sf-lab" data-in="6" data-out="7">12 m: parent 1.48 px is over 1. Draw children.</text>
+<text x="20" y="404" class="sf-lab" data-in="7" data-out="8">Same vertices on the shared edge: no cracks.</text>
+<text x="20" y="404" class="sf-lab" data-in="8" data-out="9">Border vertices: 30–50% of verts at level 1.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/>
+<text x="50" y="150" class="sf-num">14.4 B</text>
+<text x="50" y="178" class="sf-lab">average on disk per input triangle (Epic)</text>
+<text x="50" y="250" class="sf-num">7.6×</text>
+<text x="50" y="278" class="sf-lab">smaller than a 4-LOD static mesh (Epic’s example)</text>
+<text x="50" y="350" class="sf-num">≈1 px</text>
+<text x="50" y="378" class="sf-lab">target projected error per cluster</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A statue of about 1,000,000 triangles is far more detail than a screen can show. Nanite cuts it into <b>clusters of 128 triangles</b>, and each cluster is one unit the GPU can keep or replace.</p></div>
+<div class="step"><p><b>The naive way.</b> Simplify each cluster on its own and the edges stop matching. The red seams are cracks. At level 1, border vertices are 30–50% of all vertices, so the problem is not a corner case.</p></div>
+<div class="step"><p><b>The fix: lock the border.</b> Take a group of four clusters. Every edge shared with a different group keeps its vertices in place, and only the interior gets simplified.</p></div>
+<div class="step"><p><b>Then build a parent.</b> The locked group is simplified to about half its triangles and re-clustered. Each cluster stores its own error and its parent’s, and all four children share the same pair.</p></div>
+<div class="step"><p><b>Far away, the parent is enough.</b> At 25 m the parent projects to <b>0.71 px</b>, under the 1 px target. The GPU draws the parent and skips the four children.</p></div>
+<div class="step"><p><b>Move closer and it flips.</b> At 12 m the parent projects to <b>1.48 px</b>, over the target. The children project to <b>0.62 px</b>, so the GPU draws them. The test is self ≤ τ &lt; parent.</p></div>
+<div class="step"><p><b>No seams at any mix.</b> Neighbours at different levels share the same vertices on the locked edges, so fine and coarse pieces meet exactly. No stitching runs at render time.</p></div>
+<div class="step"><p><b>The trade-off.</b> A locked border never simplifies, so it stays dense. The hatched tiles stand for parts that will not collapse, like leaves, and the cut stays fine there.</p></div>
+<div class="step"><p><b>What it buys on disk.</b> Epic reports <b>14.4 bytes</b> per input triangle on average. Its 1.5M-triangle example comes to 19.64 MB against 148.95 MB for a 4-LOD static mesh. Keep scrolling for the cards below.</p></div>
+</div>
+</div>
