@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "Two shared rings: how io_uring batches reads, and what it costs"
+ },
  "tldr": "io_uring gives Linux two shared rings: the app fills a submission queue, the kernel fills a completion queue, and one <b>io_uring_enter</b> can submit and reap many I/Os. The win is batching and concurrency, not a faster epoll: a naive swap gains only <b>1.06–1.10×</b>. The price is a second syscall surface that seccomp cannot inspect.",
  "why": "<b>Why it matters:</b> it is now an opt-in I/O path in PostgreSQL 18, a read path in RocksDB, and the file path in several runtimes, and it is why security teams ask whether to allow it in containers at all.",
  "stats": [
@@ -76,7 +82,8 @@
    "title": "Linux aio copies 104 bytes and needs two syscalls per I/O",
    "visual": "img/problem.svg",
    "brief": "<p>Linux aio was async only for O_DIRECT, copied 104 bytes per I/O and took at least two syscalls, so apps bolted on thread pools. The paper's 4K random reads: 608K IOPS for aio, 1.2M for io_uring without polling, 1.7M with it.</p>",
-   "file": "sections/03-problem.html"
+   "file": "sections/03-problem.html",
+   "guess": "problem"
   },
   {
    "id": "model",
@@ -100,7 +107,8 @@
    "title": "Batching divides the syscall cost; queue depth sets IOPS",
    "visual": "img/math.svg",
    "brief": "<p>Cost per op is c<sub>s</sub>/B + c<sub>o</sub>, so batching only hides the entry cost. Little's law gives IOPS = QD / latency: 100 µs reads need QD ≈ 100 for 1M IOPS. Sync POSIX ran 16.5K tx/s against 376K with io_uring, mostly from queue depth.</p><p class=\"mini\">Two sliders inside.</p>",
-   "file": "sections/06-math.html"
+   "file": "sections/06-math.html",
+   "guess": "math"
   },
   {
    "id": "why",
@@ -116,7 +124,8 @@
    "title": "Batch size, SQPOLL and polling trade cores for latency",
    "visual": "img/knobs.svg",
    "brief": "<p>You choose SQ depth, batch size, and whether to burn a core on SQPOLL or IOPOLL. Alternatives: epoll with threads (about 10% behind at 1,000 connections, one vendor benchmark), libaio for O_DIRECT, SPDK at about 2× the cores.</p>",
-   "file": "sections/08-knobs.html"
+   "file": "sections/08-knobs.html",
+   "guess": "knobs"
   },
   {
    "id": "breaks",
@@ -124,7 +133,8 @@
    "title": "A second syscall surface that seccomp cannot see",
    "visual": "img/breaks.svg",
    "brief": "<p>Google's kCTF: 60% of 42 Linux kernel exploit submissions targeted io_uring, so it was disabled on ChromeOS and production and blocked for Android apps. Seccomp sees only setup and enter calls, not the SQE opcodes.</p>",
-   "file": "sections/09-where-it-breaks.html"
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "breaks"
   },
   {
    "id": "wild",
@@ -194,6 +204,63 @@
    "file": "sections/99-sources.html"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "What did a naive libaio-to-io_uring swap gain in a database buffer manager?",
+   "options": [
+    "About 2×",
+    "1.06×",
+    "About 5×",
+    "About 10×"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>1.06×.</b> A drop-in swap barely moves the buffer manager. Jasny et al. (PVLDB 2026) get <b>2.05×</b> only after redesigning it around completions and batching.</p>"
+  },
+  "problem": {
+   "q": "On 4K random reads with no polling, how much faster was io_uring than Linux aio?",
+   "options": [
+    "Under 1.1×",
+    "About 2×",
+    "About 5×",
+    "About 10×"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>About 2×.</b> The paper measured 1.2M IOPS for io_uring without polling and 608K for aio. With polling it reached 1.7M.</p>"
+  },
+  "math": {
+   "q": "Sync POSIX ran 16.5K transactions per second in one buffer-manager thread. How much did io_uring reach?",
+   "options": [
+    "About 40K",
+    "About 100K",
+    "About 376K",
+    "About 1M"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 376K</b>, roughly 23× more. Little's law says most of that gap is queue depth: many requests in flight from one thread, not only the saved syscalls.</p>"
+  },
+  "knobs": {
+   "q": "At 1,000 connections, how far ahead of tuned epoll did io_uring run in one vendor benchmark?",
+   "options": [
+    "About 1%",
+    "About 10%",
+    "About 50%",
+    "About 2×"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>About 10%.</b> Alibaba Cloud's comparison, with CPU mitigations on, reports io_uring about 10% higher than epoll. It is one vendor benchmark, and no raw numbers were published.</p>"
+  },
+  "breaks": {
+   "q": "Google's kCTF study of 42 Linux kernel exploit submissions: what share targeted io_uring?",
+   "options": [
+    "6%",
+    "20%",
+    "60%",
+    "90%"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>60%.</b> The Google Security Blog kCTF post (June 2023) reports that 60% of the submissions exploited io_uring. Google then disabled it on ChromeOS and production servers.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

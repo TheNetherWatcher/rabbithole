@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-track{height:16px;margin:6px 0 0;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv-track i{display:block;height:100%;width:0;background:var(--accent);border-radius:3px}
+.cv-track i.b{background:var(--accent2)}
+.js .guess.done ~ .cold-viz .cv-track i{animation:cv2-grow .8s var(--ease) forwards}
+@keyframes cv2-grow{from{width:0}}
+</style>
+<p class="cold-line">Linux aio copied 104 bytes for every I/O.</p>
+<p class="cold-line sm">io_uring fixed that with two rings that the app and kernel share. Jasny et al. then tested a <em>drop-in swap</em> inside a real database buffer manager.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Naive swap: 1.06×</b> over the old path.
+    <div class="cv-track"><i style="width:42%"></i></div></div>
+  <div class="cv-row"><b>Redesigned buffer manager: 2.05×.</b> Bars run from 0 to 2.5×.
+    <div class="cv-track"><i class="b" style="width:82%"></i></div></div>
+</div>

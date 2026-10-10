@@ -1,3 +1,4 @@
+<div class="pull"><b>1.2M</b><span>4K random reads per second for io_uring without polling, against 608K for Linux aio.</span></div>
 <p>Before: Linux aio (<code>io_submit</code>/<code>io_getevents</code>).</p>
 <ul>
 <li>Async only for O_DIRECT; buffered "behaves in a synchronous manner". <span class="mini">[V]</span> paper &sect;1</li>

@@ -1,0 +1,82 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-a{fill:var(--accent)}
+#story-fig .sf-bad{fill:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two shared rings between app and kernel. Old aio path, then batched submission, inline completion, poll wait and io-wq fallback, then the cost and the measured gains">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One ring pair, shared by app and kernel</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Old way: one request, wait, then the next</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">Why it fails: buffered reads still block</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">Key idea: queue many, enter once</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Cached reads finish inline, with no thread</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">A socket with no data waits on a poll list</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">Buffered file reads go to a worker thread</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">The cost: a syscall filter sees only enter</text>
+<text x="20" y="62" class="sf-lab">SQ: app writes requests</text>
+<text x="20" y="142" class="sf-lab">CQ: kernel posts results</text>
+<rect x="20" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="76" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="76" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="132" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="132" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="188" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="188" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="244" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="244" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="300" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="300" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="356" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="356" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="412" y="70" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="412" y="150" width="48" height="36" rx="5" class="f-code s-line" stroke-width="1"/>
+<rect x="20" y="70" width="48" height="36" rx="5" class="f-warn" data-in="2" data-out="4"/>
+<rect x="20" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="76" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="132" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="188" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="244" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="300" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="356" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="412" y="70" width="48" height="36" rx="5" class="f-acc" data-in="4" data-out="9"/>
+<rect x="20" y="150" width="48" height="36" rx="5" class="f-ok" data-in="5" data-out="9"/>
+<rect x="76" y="150" width="48" height="36" rx="5" class="f-ok" data-in="7" data-out="9"/>
+<rect x="14" y="64" width="452" height="50" rx="10" class="f-none s-bad" stroke-width="2" stroke-dasharray="6 4" data-in="8" data-out="9"/>
+<rect x="20" y="200" width="440" height="44" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<text x="32" y="228" class="sf-lab">kernel: try inline, else park or punt</text>
+<text x="330" y="228" class="sf-lab sf-a" data-in="4" data-out="5">one enter call</text>
+<rect x="20" y="262" width="140" height="76" rx="8" class="f-panel s-line" stroke-width="1.5" data-hl="5"/>
+<text x="32" y="292" class="sf-big">Inline</text>
+<text x="32" y="318" class="sf-lab">cache hit</text>
+<rect x="170" y="262" width="140" height="76" rx="8" class="f-panel s-line" stroke-width="1.5" data-hl="6"/>
+<text x="182" y="292" class="sf-big">Socket</text>
+<text x="182" y="318" class="sf-lab">no data yet</text>
+<rect x="320" y="262" width="140" height="76" rx="8" class="f-panel s-line" stroke-width="1.5" data-hl="7"/>
+<text x="332" y="292" class="sf-big">File</text>
+<text x="332" y="318" class="sf-lab">buffered read</text>
+<text x="20" y="404" class="sf-lab" data-in="1" data-out="2">Requests and results are plain memory writes.</text>
+<text x="20" y="404" class="sf-lab sf-bad" data-in="2" data-out="3">aio: 104 bytes copied, 2+ syscalls per I/O.</text>
+<text x="20" y="404" class="sf-lab sf-bad" data-in="3" data-out="4">Buffered reads block, so apps add thread pools.</text>
+<text x="20" y="404" class="sf-lab" data-in="4" data-out="5">One io_uring_enter submits all eight at once.</text>
+<text x="20" y="404" class="sf-lab" data-in="5" data-out="6">Cached read: result posted before enter returns.</text>
+<text x="20" y="404" class="sf-lab" data-in="6" data-out="7">No data yet: the request sleeps, no thread does.</text>
+<text x="20" y="404" class="sf-lab" data-in="7" data-out="8">Only the slow fallback uses an iou-wrk thread.</text>
+<text x="20" y="404" class="sf-lab sf-bad" data-in="8" data-out="9">seccomp sees io_uring_enter, not OPENAT or READ.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="100" class="sf-cap" text-anchor="middle">What the numbers say</text><text x="60" y="150" class="sf-lab">buffer manager, naive libaio-to-io_uring swap</text><text x="60" y="184" class="sf-num">1.06×</text><text x="60" y="224" class="sf-lab">same buffer manager, after redesign</text><text x="60" y="258" class="sf-num">2.05×</text><text x="60" y="298" class="sf-lab">transactions/s, io_uring vs sync POSIX</text><text x="60" y="332" class="sf-num">376K vs 16.5K</text><text x="240" y="384" class="sf-big" text-anchor="middle">The gain comes from the redesign, not a swap.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Picture two notepads that the app and the kernel can both read and write. One holds requests (the <b>submission queue</b>), the other holds results (the <b>completion queue</b>). The app writes a request into a slot, and the kernel reads that slot from the same memory.</p></div>
+<div class="step"><p><b>The old way.</b> Linux aio copied 104 bytes for each I/O and took at least two syscalls. Buffered I/O behaved synchronously, so one slow read held up the loop.</p></div>
+<div class="step"><p><b>Why it fails.</b> A buffered file read blocks. Apps worked around that with thread pools, and each handoff costs at least two context switches, even on a page-cache hit.</p></div>
+<div class="step"><p><b>The key idea.</b> Put many requests in the submission queue, then call <code>io_uring_enter</code> once. The shared rings replace the copies, and one call covers the whole batch.</p></div>
+<div class="step"><p><b>Inline first.</b> The kernel tries each read right away without blocking. A read that hits the page cache finishes before the call returns, so its result is already in the completion queue.</p></div>
+<div class="step"><p><b>Sockets wait cheaply.</b> A socket with no data yet is parked on a poll list, and no thread sleeps on it. When data arrives, the kernel runs the request as task work and posts its result.</p></div>
+<div class="step"><p><b>Files fall back.</b> A buffered file read that cannot finish inline goes to an <code>iou-wrk</code> worker in the kernel. Only that slow path uses a helper thread.</p></div>
+<div class="step"><p><b>The bill.</b> The reads live inside the rings, so seccomp sees only the setup and <code>io_uring_enter</code> calls. Google disabled io_uring on ChromeOS and production servers; 60% of its kCTF Linux exploit submissions targeted it.</p></div>
+<div class="step"><p><b>The numbers.</b> A naive swap gains 1.06× in a buffer manager. The redesign reaches 2.05×, and sync POSIX ran 16.5K transactions per second against 376K with io_uring. Each card below takes one piece of this apart.</p></div>
+</div>
+</div>
