@@ -1,0 +1,60 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A CDCL trail of decisions and forced literals. A clash is traced back to a learned clause, the solver jumps back, and the clause stays.">
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Five clauses. The solver builds a trail.</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="4">Decide, then propagate: each choice forces more</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">A clash: one clause has every literal false</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">Trace the clash back to one literal</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="8">Jump back past the innocent choices</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Where it still fails: pigeonhole counting</text>
+<text x="20" y="92" class="sf-lab" data-in="1" data-out="2">C1   ¬3 ∨ 4</text>
+<text x="20" y="116" class="sf-lab" data-in="1" data-out="2">C2   ¬4 ∨ 5</text>
+<text x="20" y="140" class="sf-lab" data-in="1" data-out="2">C3   ¬4 ∨ 6</text>
+<text x="20" y="164" class="sf-lab" data-in="1" data-out="2">C4   ¬5 ∨ ¬6 ∨ ¬2</text>
+<text x="20" y="188" class="sf-lab" data-in="1" data-out="2">C5   1 ∨ 2 ∨ 3 ∨ 7</text>
+<rect x="12" y="56" width="456" height="42" rx="8" class="f-panel s-line" stroke-width="1" data-in="2"/>
+<text x="20" y="82" class="sf-lab" data-in="2">L1</text>
+<rect x="12" y="106" width="456" height="42" rx="8" class="f-panel s-line" stroke-width="1" data-in="2"/>
+<text x="20" y="132" class="sf-lab" data-in="2">L2</text>
+<rect x="12" y="156" width="456" height="42" rx="8" class="f-panel s-line" stroke-width="1" data-in="2"/>
+<text x="20" y="182" class="sf-lab" data-in="2">L3</text>
+<g data-in="2"><rect x="80" y="62" width="58" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="109.0" y="82" class="sf-cell" text-anchor="middle">x1</text></g>
+<g data-in="2" data-out="4"><rect x="80" y="112" width="58" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="109.0" y="132" class="sf-cell" text-anchor="middle">x2</text></g>
+<g data-in="6"><rect x="80" y="112" width="58" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="109.0" y="132" class="sf-cell" text-anchor="middle">x2</text></g>
+<g data-in="3" data-out="6"><rect x="80" y="162" width="58" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="109.0" y="182" class="sf-cell" text-anchor="middle">x3</text></g>
+<g data-in="3" data-out="6"><rect x="146" y="162" width="58" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="175.0" y="182" class="sf-cell" text-anchor="middle">x4</text></g>
+<g data-in="3" data-out="4"><rect x="212" y="162" width="58" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="241.0" y="182" class="sf-cell" text-anchor="middle">x5</text></g>
+<g data-in="3" data-out="4"><rect x="278" y="162" width="58" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="307.0" y="182" class="sf-cell" text-anchor="middle">x6</text></g>
+<g data-in="4" data-out="6"><rect x="80" y="112" width="58" height="30" rx="6" class="f-panel s-bad" stroke-width="2"/><text x="109.0" y="132" class="sf-cell" text-anchor="middle">x2</text></g>
+<g data-in="4" data-out="6"><rect x="212" y="162" width="58" height="30" rx="6" class="f-panel s-bad" stroke-width="2"/><text x="241.0" y="182" class="sf-cell" text-anchor="middle">x5</text></g>
+<g data-in="4" data-out="6"><rect x="278" y="162" width="58" height="30" rx="6" class="f-panel s-bad" stroke-width="2"/><text x="307.0" y="182" class="sf-cell" text-anchor="middle">x6</text></g>
+<rect x="12" y="206" width="456" height="34" rx="8" class="f-panel s-acc2" stroke-width="2" data-in="5"/>
+<text x="20" y="228" class="sf-big" data-in="5">learned clause:  (¬2 ∨ ¬4)</text>
+<g data-in="6"><rect x="146" y="112" width="58" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="175.0" y="132" class="sf-cell" text-anchor="middle">¬4</text></g>
+<text x="20" y="340" class="sf-lab" data-in="2" data-out="3">Decide x1, then x2. Nothing is forced yet.</text>
+<text x="20" y="340" class="sf-lab" data-in="3" data-out="4">Decide x3. C1, C2, C3 force x4, x5, x6.</text>
+<text x="20" y="340" class="sf-lab" data-in="4" data-out="5">C4 is false. Plain search undoes only x3.</text>
+<text x="20" y="340" class="sf-lab" data-in="5" data-out="6">Learn (¬2 ∨ ¬4). Level-3 literals resolved away.</text>
+<text x="20" y="340" class="sf-lab" data-in="6" data-out="7">Jump back to level 2. The clause is unit: ¬4.</text>
+<text x="20" y="340" class="sf-lab" data-in="7" data-out="8">The clause stays: x2 and x4 can’t both be true.</text>
+<text x="20" y="340" class="sf-lab" data-in="8" data-out="9">Pigeonhole, n=5: 137 conflicts. n=10: 2,657,952.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="370" rx="14" class="f-bg" opacity=".97"/><text x="240" y="84" class="sf-cap" text-anchor="middle">What the dive measured</text><text x="60" y="150" class="sf-num">2000</text><text x="60" y="176" class="sf-lab">random formulas fuzzed against brute force, 0 mismatches</text><text x="60" y="236" class="sf-num">2.66M</text><text x="60" y="262" class="sf-lab">conflicts on pigeonhole n=10, CaDiCaL</text><text x="60" y="322" class="sf-num">×7–8</text><text x="60" y="348" class="sf-lab">more conflicts per extra hole</text><text x="240" y="392" class="sf-big" text-anchor="middle">Learned clauses change speed, never the answer</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A CDCL solver keeps a <b>trail</b>: the choices it has made, plus everything those choices force. Here are five rules over seven variables. Nothing is decided yet.</p></div>
+<div class="step"><p><b>Decide, then propagate.</b> The solver guesses x1, then x2. Any clause left with a single open literal forces it. With these two guesses, nothing is forced.</p></div>
+<div class="step"><p><b>Decide x3.</b> Now C1, C2 and C3 each force one more literal: x4, x5 and x6, all at level 3. Each forced literal records the clause that forced it.</p></div>
+<div class="step"><p><b>A clash.</b> C4 has all three literals false. Plain search would undo only x3 and retry, and the same clash comes back in another corner. Pre-1996 solvers handled only <b>hundreds</b> of variables this way.</p></div>
+<div class="step"><p><b>Trace it back.</b> Resolve the clash clause with the clauses that forced its literals, one literal at a time, until a single literal from the current level is left: ¬4. The result is the <b>learned clause</b> (¬2 ∨ ¬4).</p></div>
+<div class="step"><p><b>Jump back past the innocent choices.</b> The solver returns to level 2 and drops x3. The learned clause now has one open literal, so it forces <b>¬4</b> with no search.</p></div>
+<div class="step"><p><b>The clause stays.</b> It is implied by the formula, so it never changes the answer. It only forbids x2 and x4 being true together, so the solver never walks into that mix again.</p></div>
+<div class="step"><p><b>Where it still fails.</b> Pigeonhole counting has no short resolution proof, and CDCL works by resolution. For 5 holes CaDiCaL needs <b>137</b> conflicts; for 10 holes, <b>2,657,952</b>.</p></div>
+<div class="step"><p><b>The numbers.</b> <b>2000</b> random formulas agreed with brute force, 0 mismatches. Each extra pigeonhole hole multiplies the conflicts by <b>7–8×</b>. The cards below show the mechanism, the math and the failure cases.</p></div>
+</div>
+</div>

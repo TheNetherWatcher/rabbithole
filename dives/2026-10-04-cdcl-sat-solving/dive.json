@@ -9,6 +9,12 @@
   "date": "2026-10-04"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "A clash becomes a rule the solver keeps"
+ },
  "tldr": "A CDCL solver turns every conflict into a <b>learned clause</b>, jumps back past the innocent decisions, and keeps the clause forever. Learned clauses are implied, so they never change the answer, only the speed. Kissat-class solvers now run this loop on <b>millions of variables</b>, and an UNSAT answer can ship a <b>DRAT proof</b> that an independent checker verifies.",
  "why": "<b>Why it matters:</b> hardware checking, SMT solvers, package managers and math proofs (Boolean Pythagorean triples) all reduce to a CDCL core, and it still fails on pigeonhole-style counting, where conflicts grow about <b>7–8×</b> per extra hole.",
  "stats": [
@@ -72,7 +78,8 @@
    "title": "Chronological backtracking re-derives the same contradiction exponentially often",
    "visual": "img/problem.svg",
    "file": "sections/03-problem.html",
-   "brief": "<p>DPLL undoes the newest decision even when it is irrelevant to the conflict, so the same dead sub-structure is rediscovered. CDCL moved the frontier from hundreds of variables to millions, on structured instances, not on random or crafted ones.</p>"
+   "brief": "<p>DPLL undoes the newest decision even when it is irrelevant to the conflict, so the same dead sub-structure is rediscovered. CDCL moved the frontier from hundreds of variables to millions, on structured instances, not on random or crafted ones.</p>",
+   "guess": "hundreds"
   },
   {
    "id": "model",
@@ -112,7 +119,8 @@
    "title": "Branching, restarts and clause deletion are the knobs that move runtime",
    "visual": "img/knobs.svg",
    "file": "sections/08-knobs.html",
-   "brief": "<p>VSIDS, VMTF, CHB and LRB pick variables; Luby and LBD-driven restarts pace them. Kissat and CaDiCaL alternate focused and stable modes, so one solver gets both SAT and UNSAT strength.</p>"
+   "brief": "<p>VSIDS, VMTF, CHB and LRB pick variables; Luby and LBD-driven restarts pace them. Kissat and CaDiCaL alternate focused and stable modes, so one solver gets both SAT and UNSAT strength.</p>",
+   "guess": "restart"
   },
   {
    "id": "breaks",
@@ -120,7 +128,8 @@
    "title": "Pigeonhole conflicts grow about 7–8× per extra hole, forever",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>Measured CaDiCaL on PHP(n+1→n): 137 conflicts at n=5 and 2.66 M at n=10. A human proves it in one sentence. Parity chains are exponential for resolution, and random 3-SAT near ratio 4.27 is hard for every solver.</p><p class=\"mini\">Measured curve inside the hands-on section.</p>"
+   "brief": "<p>Measured CaDiCaL on PHP(n+1→n): 137 conflicts at n=5 and 2.66 M at n=10. A human proves it in one sentence. Parity chains are exponential for resolution, and random 3-SAT near ratio 4.27 is hard for every solver.</p><p class=\"mini\">Measured curve inside the hands-on section.</p>",
+   "guess": "ratio"
   },
   {
    "id": "wild",
@@ -128,7 +137,8 @@
    "title": "Real solvers are a small core plus decades of heuristics",
    "visual": "img/wild.svg",
    "file": "sections/10-in-the-wild.html",
-   "brief": "<p>MiniSat is about 2k lines: <code>propagate()</code>, <code>analyze()</code>, <code>cancelUntil()</code> and <code>pickBranchLit()</code> are the engine. Blocking literals, LBD deletion, Z3's theory lemmas and CaDiCaL's inprocessing supply the rest.</p>"
+   "brief": "<p>MiniSat is about 2k lines: <code>propagate()</code>, <code>analyze()</code>, <code>cancelUntil()</code> and <code>pickBranchLit()</code> are the engine. Blocking literals, LBD deletion, Z3's theory lemmas and CaDiCaL's inprocessing supply the rest.</p>",
+   "guess": "loc"
   },
   {
    "id": "frontier",
@@ -190,6 +200,63 @@
    "brief": "<p>Papers, code and frontier pages, plus a log of claims the research notes made that I could not verify and left out.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "How many conflicts does a modern solver need to prove that 11 pigeons cannot fit in 10 holes?",
+   "options": [
+    "About 300",
+    "About 3,000",
+    "About 30,000",
+    "About 2.7 million"
+   ],
+   "answer": 3,
+   "reveal": "<p><b>About 2.66 million.</b> CaDiCaL on 11 pigeons and 10 holes (n=10) took 2,657,952 conflicts, 26.9 s on a laptop. Each extra hole multiplies the count by about <b>7–8×</b>.</p>"
+  },
+  "hundreds": {
+   "q": "How many variables could pre-1996 solvers handle on hard combinatorial instances?",
+   "options": [
+    "A few dozen",
+    "Hundreds",
+    "Tens of thousands",
+    "Millions"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>Hundreds.</b> Pre-1996 solvers managed about a few hundred variables on hard combinatorial instances. Real structured instances now run to 10<sup>5</sup>–10<sup>7</sup> variables, and CDCL reaches millions on them, though not on random or crafted-hard ones.</p>"
+  },
+  "restart": {
+   "q": "Which kind of instance gains more from aggressive restarts?",
+   "options": [
+    "SAT instances",
+    "UNSAT instances",
+    "Both equally",
+    "Neither"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>UNSAT.</b> Aggressive restarts help UNSAT proofs, and fewer restarts help SAT. Kissat and CaDiCaL alternate focused and stable modes, so one solver gets both.</p>"
+  },
+  "ratio": {
+   "q": "Random 3-SAT formulas turn hard near which clauses-per-variable ratio?",
+   "options": [
+    "2.0",
+    "3.0",
+    "4.27",
+    "6.5"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 4.27.</b> Random 3-SAT shows a phase transition there, and it is hard for every solver, CDCL included. Structured industrial instances behave very differently.</p>"
+  },
+  "loc": {
+   "q": "How many lines of code is MiniSat, a solver with the full CDCL loop?",
+   "options": [
+    "About 200",
+    "About 2,000",
+    "About 20,000",
+    "About 200,000"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>About 2,000.</b> MiniSat's propagate, 1-UIP analysis, backjump and VSIDS heap fit in about 2k lines. Kissat and CaDiCaL add decades of heuristics on top of that small core.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

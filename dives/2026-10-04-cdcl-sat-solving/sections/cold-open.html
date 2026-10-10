@@ -1,0 +1,27 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cvc-row{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;margin:0 0 7px}
+.cvc-row b{color:var(--ink);font-weight:600}
+.cvc-bar{height:14px;border-radius:3px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cvc-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .9s var(--ease)}
+.cvc-row.last .cvc-bar i{background:var(--warn)}
+.js .guess.done ~ .cold-viz .cvc-bar i{width:var(--w)}
+.cvc-num{font-variant-numeric:tabular-nums;color:var(--ink);min-width:6.5em;text-align:right}
+</style>
+<p class="cold-line">Eleven pigeons won't fit in ten holes.</p>
+<p class="cold-line sm">A SAT solver must prove that by search, learning a <em>clause</em> from every dead end it runs into. How many dead ends does a modern solver hit on this small case?</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <b>Conflicts to prove it (CaDiCaL), log scale.</b>
+  <div style="margin-top:10px">
+    <div class="cvc-row"><b>n=5</b><div class="cvc-bar"><i style="--w:33%"></i></div><span class="cvc-num">137</span></div>
+    <div class="cvc-row"><b>n=6</b><div class="cvc-bar"><i style="--w:47%"></i></div><span class="cvc-num">994</span></div>
+    <div class="cvc-row"><b>n=7</b><div class="cvc-bar"><i style="--w:59%"></i></div><span class="cvc-num">6,383</span></div>
+    <div class="cvc-row"><b>n=8</b><div class="cvc-bar"><i style="--w:71%"></i></div><span class="cvc-num">37,288</span></div>
+    <div class="cvc-row"><b>n=9</b><div class="cvc-bar"><i style="--w:86%"></i></div><span class="cvc-num">319,668</span></div>
+    <div class="cvc-row last"><b>n=10</b><div class="cvc-bar"><i style="--w:100%"></i></div><span class="cvc-num"><b>2,657,952</b></span></div>
+  </div>
+  <div>n is the number of holes; the pigeons are n+1. Each extra hole multiplies the count by about 7–8.</div>
+</div>
