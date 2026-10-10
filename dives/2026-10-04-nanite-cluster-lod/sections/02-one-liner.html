@@ -1,0 +1,8 @@
+<p><i>"Nanite renders unlimited triangles by streaming and LOD-ing 128-triangle clusters at pixel scale."</i> That sentence hides five things:</p>
+<ol>
+<li><b>How can two independently simplified neighbouring groups meet without cracks?</b></li>
+<li><b>How does the GPU pick a consistent LOD cut with no neighbour communication?</b></li>
+<li><b>Why a DAG and not a tree, and why do the borders alternate?</b></li>
+<li><b>Why does a software rasterizer beat the hardware one for tiny triangles?</b></li>
+<li><b>What does it cost?</b> Overdraw, masked materials, animation, ray tracing and streaming.</li>
+</ol>

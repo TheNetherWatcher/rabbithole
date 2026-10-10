@@ -1,0 +1,44 @@
+<h3>What it is</h3>
+<p>A rendering pipeline (Unreal Engine 5's Nanite, plus open clones) that stores each mesh as a hierarchy of triangle clusters at many detail levels, selects the right cut through that hierarchy on the GPU every frame so that error is ≲1 pixel, and rasterizes the result with a mix of hardware and compute-shader rasterization.</p>
+<h3>Why it exists</h3>
+<p>Classic LOD has three costs: artists and tools must author LOD chains per asset; each object pops when it switches level; and the CPU submits a draw call per object, capping scene complexity. Film-quality or photogrammetry assets (millions of triangles each) were unusable in real time. Nanite makes triangle count roughly scale with <i>pixels on screen</i>, not scene size, and moves culling, LOD and draw-building to the GPU.</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div><b>Unreal Engine 5</b>Nanite, the original. <a target="_blank" rel="noopener" href="https://dev.epicgames.com/documentation/unreal-engine/nanite-virtualized-geometry-in-unreal-engine">Epic docs</a></div>
+<div><b>Fortnite</b>Epic's blog says Nanite is used from Chapter 4 on, for building meshes. <a target="_blank" rel="noopener" href="https://www.unrealengine.com/blog/battle-testing-unreal-engine-5-1-s-new-features-on-fortnite-battle-royale-chapter-4">Epic blog</a> <i>(secondary)</i></div>
+<div><b>The Matrix Awakens (2021)</b>Epic tech demo, city-scale geometry.</div>
+<div><b>Black Myth: Wukong, Hellblade II</b>Reported as shipped users, from community lists <i>(secondary)</i>.</div>
+<div><b>meshoptimizer</b>Meshlet building, border-locking simplification, and the cluster partitioning that Nanite clones build on. <a target="_blank" rel="noopener" href="https://github.com/zeux/meshoptimizer">GitHub</a></div>
+<div><b>Bevy virtual geometry</b>Meshlet renderer, experimental since 0.14; hardware rasterization only at the time of the author's post. <a target="_blank" rel="noopener" href="https://jms55.github.io/posts/2024-06-09-virtual-geometry-bevy-0-14/">jms55</a> <i>(secondary)</i></div>
+<div><b>NVIDIA RTX Mega Geometry</b>(Feb 2025) cluster acceleration structures (<code>VK_NV_cluster_acceleration_structure</code>) so ray tracing can use the same cluster idea. <a target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/nvidia-rtx-mega-geometry-now-available-with-new-vulkan-samples/">NVIDIA</a> <i>(verified)</i></div>
+<div><b>Unity</b>An official <code>com.unity.virtualmesh</code> reference package, not production-ready <i>(secondary)</i>.</div>
+</div>
+<h3>How it's used</h3>
+<ul>
+<li>In Unreal: tick <b>Enable Nanite Support</b> on a Static Mesh; global <code>r.Nanite 0/1</code>; streaming pool <code>r.Nanite.Streaming.StreamingPoolSize</code>; buffer-size cvars <code>r.Nanite.MaxCandidateClusters</code> (12 B each) and <code>r.Nanite.MaxVisibleClusters</code> (16 B each) <i>(verified against Epic's technical details)</i>. Epic also exposes Position and Normal Precision per mesh.</li>
+<li>Open-source build side, via meshoptimizer. The signatures below are from memory of the public header, so check <code>meshoptimizer.h</code> for your version.</li>
+</ul>
+<div class="codewrap"><pre><code>// 1. cluster a mesh into &lt;=128-tri meshlets
+size_t maxm = meshopt_buildMeshletsBound(index_count, 128, 128);
+std::vector&lt;meshopt_Meshlet&gt; ml(maxm);
+std::vector&lt;unsigned&gt; mv(maxm * 128);      // vertex indices
+std::vector&lt;unsigned char&gt; mt(maxm * 128 * 3);
+size_t n = meshopt_buildMeshlets(ml.data(), mv.data(), mt.data(),
+    indices, index_count, &amp;pos[0].x, vcount, sizeof(Vec3),
+    /*max_vertices*/128, /*max_triangles*/128, /*cone_weight*/0.f);
+
+// 2. simplify a merged group with its border locked (per Nanite group step)
+float err = 0;
+size_t out = meshopt_simplify(dst, group_idx, group_idx_count,
+    &amp;pos[0].x, vcount, sizeof(Vec3),
+    group_idx_count / 2, /*target_error*/1e9f,
+    meshopt_SimplifyLockBorder | meshopt_SimplifySparse, &amp;err);
+// err is relative to mesh extent; scale with meshopt_simplifyScale()</code></pre></div>
+<p>A single-header <code>clusterlod.h</code> that does the whole DAG is reported in meshoptimizer's recent releases <i>(secondary)</i>.</p>
+<h3>Use it / skip it</h3>
+<div class="two">
+<div class="use"><b>Use it</b><ul><li>Opaque, mostly static, high-poly geometry: scans, sculpts, CAD, rock and architecture kits.</li><li>Many instances of heavy assets.</li></ul></div>
+<div class="skip"><b>Skip it</b><ul><li>Translucency, and forward or mobile renderers (Nanite needs the deferred pipeline and SM6-class features).</li><li>Small low-poly meshes, where classic LOD wins. One measured test claims Nanite loses under about 2M triangles per mesh; that is blog-grade evidence (<a target="_blank" rel="noopener" href="https://crdg.jp/studio-tech-1/en/2025/05/29/3338/">CRDG Japan</a>).</li><li>Heavily masked or alpha-tested foliage, and large WPO animation (see the "Where it breaks" card).</li></ul></div>
+</div>
+<h3>Who should care</h3>
+<p>Engine and graphics programmers; technical artists deciding import settings; and ML or vision people doing 3D Gaussian-splat LOD, who are porting the same DAG idea (see the frontier card).</p>

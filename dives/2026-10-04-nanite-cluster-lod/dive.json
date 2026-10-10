@@ -1,0 +1,362 @@
+{
+  "meta": {
+    "title": "Nanite-style virtualized geometry: cluster DAG, crack-free LOD, micro-triangle rasterization",
+    "short": "Nanite cluster LOD",
+    "subject": "Computer science",
+    "domain": "graphics/GPU",
+    "topic": "Nanite-style virtualized geometry: cluster DAG, locked-border LOD, software rasterization",
+    "depth": "hard",
+    "date": "2026-10-04"
+  },
+  "hero": "img/hero.svg",
+  "tldr": "Chop a mesh into 128-triangle clusters, build a DAG of ever-coarser clusters whose group borders are <b>locked</b> so neighbours always meet exactly, and let the GPU pick the cut where projected error is about one pixel. Triangle count then tracks <b>screen pixels</b>, not scene size.",
+  "why": "<b>Why it matters:</b> film-quality assets run in real time with no LOD authoring and no popping.",
+  "stats": [
+    {
+      "v": "128",
+      "l": "triangles per cluster"
+    },
+    {
+      "v": "\u22481 px",
+      "l": "target projected error"
+    },
+    {
+      "v": "14.4 B",
+      "l": "average per input triangle on disk (Epic)"
+    },
+    {
+      "v": "7.6\u00d7",
+      "l": "smaller than a 4-LOD static mesh (Epic example)"
+    },
+    {
+      "v": "64 bit",
+      "l": "visibility-buffer word"
+    }
+  ],
+  "cards": [
+    {
+      "id": "plain",
+      "group": "Plain English",
+      "tone": "plain",
+      "kicker": "In everyday words",
+      "title": "Patches swap to coarse stand-ins that nobody can see",
+      "visual": "img/plain.svg",
+      "file": "sections/00-plain.html",
+      "brief": "<p>A statue of a million triangles is cut into 128-triangle patches, each with cruder stand-ins. Each frame, the GPU asks whether a coarse patch would be visible. If not, it uses the coarse one, and neighbours share border points so nothing cracks.</p>"
+    },
+    {
+      "id": "ctx",
+      "group": "Context",
+      "kicker": "\u00a71 \u00b7 Prerequisites",
+      "title": "Six ideas to know before the cluster DAG",
+      "visual": "img/ctx.svg",
+      "file": "sections/01-context.html",
+      "brief": "<ul><li><b>LOD</b>: cheaper mesh versions at distance.</li><li><b>Meshlet</b>: a 128-triangle batch handled as one unit.</li><li><b>QEM</b>: the edge-collapse error metric.</li><li><b>Visibility buffer</b>: store the triangle ID per pixel, shade later.</li><li><b>HZB</b>: a depth mip pyramid for occlusion.</li></ul>"
+    },
+    {
+      "id": "world",
+      "kicker": "\u00a71b \u00b7 Real-world context",
+      "title": "Shipped in Unreal Engine 5 and cloned in open engines",
+      "visual": "img/world.svg",
+      "file": "sections/01b-real-world.html",
+      "brief": "<p>Nanite in UE5, plus meshoptimizer for the build side and Bevy's experimental meshlet renderer. It exists so that triangle count tracks <b>screen pixels</b> rather than scene size. Skip it for translucent, mobile or forward renderers.</p>"
+    },
+    {
+      "id": "onel",
+      "kicker": "\u00a72 \u00b7 The one-liner",
+      "title": "\"Unlimited triangles\" hides five hard problems",
+      "visual": "img/onel.svg",
+      "file": "sections/02-one-liner.html",
+      "brief": "<p>The hard parts: crack-free neighbours with no synchronisation, a DAG rather than a tree, a software rasterizer for tiny triangles, and the costs of overdraw, masks, animation and streaming.</p>"
+    },
+    {
+      "id": "problem",
+      "kicker": "\u00a73 \u00b7 The problem",
+      "title": "Triangle count must track pixels, not source size",
+      "visual": "img/problem.svg",
+      "file": "sections/03-problem.html",
+      "brief": "<p>A 1080p screen has 2.07M pixels, so roughly 2M visible triangles is the most that can matter, whatever the source size. A hardware rasterizer shades 2\u00d72 quads, so a one-pixel triangle wastes at least 75% of its lanes.</p>"
+    },
+    {
+      "id": "model",
+      "kicker": "\u00a74 \u00b7 Mental model",
+      "title": "A tiled map with pinned borders, and where it breaks",
+      "visual": "img/model.svg",
+      "file": "sections/04-mental-model.html",
+      "brief": "<p>Fine and coarse tiles share the same border points, so they always interlock. The analogy breaks because pinned borders never simplify, so the map must be re-tiled at every level. That is why the structure is a DAG.</p>"
+    },
+    {
+      "id": "mech",
+      "kicker": "\u00a75 \u00b7 Mechanism, traced",
+      "title": "Locked borders let each cluster pick its own LOD",
+      "visual": "img/mech.svg",
+      "file": "sections/05-mechanism.html",
+      "brief": "<p>Cluster error 0.8 cm, parent 1.9 cm. At 25 m the parent projects to 0.71 px, so it is drawn; at 12 m the cluster projects to 0.62 px and the parent to 1.48 px, so the cluster is drawn. Visibility goes into a 64-bit atomic-max buffer.</p><p class=\"mini\">6-step interactive walkthrough inside.</p>"
+    },
+    {
+      "id": "math",
+      "kicker": "\u00a76 \u00b7 The math",
+      "title": "Projected error picks the cut, and monotone bounds keep it consistent",
+      "visual": "img/math.svg",
+      "file": "sections/06-math.html",
+      "brief": "<p>Draw a cluster when <b>proj(self) \u2264 \u03c4 &lt; proj(parent)</b>, with \u03c4 \u2248 1 px and proj(e,d) = e\u00b7H/(2\u00b7d\u00b7tan(\u03c6/2)). Monotone error and nested bounds mean exactly one crossing per path. The whole DAG costs about <b>2\u00d7</b> the source triangles.</p><p class=\"mini\">Interactive LOD calculator inside.</p>"
+    },
+    {
+      "id": "why",
+      "kicker": "\u00a77 \u00b7 Why it works",
+      "title": "Locked borders and monotone error make every decision local",
+      "visual": "img/why.svg",
+      "file": "sections/07-why-it-works.html",
+      "brief": "<p>Shared border vertices give watertight meshes with no stitching. Shared group numbers let each cluster decide alone, in parallel. Remove the border lock or the monotone rule and the cut cracks, overlaps or never reaches a single root.</p>"
+    },
+    {
+      "id": "knobs",
+      "kicker": "\u00a78 \u00b7 Knobs & alternatives",
+      "title": "128-triangle clusters, one pixel of error, and the alternatives",
+      "visual": "img/knobs.svg",
+      "file": "sections/08-knobs.html",
+      "brief": "<p>Clusters of 128 triangles fit a 7-bit ID and the wave size. A user report found 256 vertices with 128 triangles beat 64 with 64. Alternatives: discrete LOD, Hoppe's progressive meshes, Quick-VDR, and voxels for aggregates.</p>"
+    },
+    {
+      "id": "breaks",
+      "kicker": "\u00a79 \u00b7 Where it breaks",
+      "title": "Foliage, animation and masks defeat the cluster cut",
+      "visual": "img/breaks.svg",
+      "file": "sections/09-where-it-breaks.html",
+      "brief": "<p>Disconnected parts like leaves and hair do not simplify into planes. Wind and skinning break the static bounds. Masked materials need extra raster bins. Nanite is deferred-only and needs a large streaming pool.</p>"
+    },
+    {
+      "id": "wild",
+      "kicker": "\u00a710 \u00b7 In the wild",
+      "title": "Real engines lock, quantise and bin far more than the paper",
+      "visual": "img/wild.svg",
+      "file": "sections/10-in-the-wild.html",
+      "brief": "<p>UE5 bit-packs everything and bins materials in compute. Bevy runs a meshlet DAG on hardware rasterization only. meshoptimizer's border-locked roots stall at 5\u201319 meshlets, never 1, without extra tricks.</p>"
+    },
+    {
+      "id": "frontier",
+      "group": "Research edge",
+      "kicker": "\u00a711 \u00b7 Frontier",
+      "title": "The cluster idea is moving into ray tracing and Gaussian splats",
+      "visual": "img/frontier.svg",
+      "file": "sections/11-frontier.html",
+      "brief": "<p>CuRast's software rasterizer is 2\u20135\u00d7 faster than Vulkan on dense meshes. Virtualized 3D Gaussians and LODGE adapt the hierarchy to splats, where seams are hidden by blending. RTX Mega Geometry brings clusters to ray tracing.</p>"
+    },
+    {
+      "id": "open",
+      "kicker": "\u00a711b \u00b7 Open problems",
+      "title": "Trees, deforming meshes and ray tracing still break the cut",
+      "visual": "img/open.svg",
+      "file": "sections/11b-open-problems.html",
+      "brief": "<p>No accepted coarse representation for foliage keeps coverage and shading. Error bounds must hold for every pose of a skinned mesh. Ray tracing needs LOD consistency across rays, and mobile ports are partial.</p>"
+    },
+    {
+      "id": "lineage",
+      "kicker": "\u00a712 \u00b7 Lineage",
+      "title": "From Hoppe's progressive meshes (1996) to Nanite (2021)",
+      "visual": "img/lineage.svg",
+      "file": "sections/12-lineage.html",
+      "brief": "<p>Progressive meshes \u2192 quadric error metrics (1997) \u2192 Quick-VDR clustered hierarchies (2004) \u2192 meshlets and mesh shaders \u2192 Nanite (2021) \u2192 open clones, GPU-driven materials and cluster ray tracing.</p>"
+    },
+    {
+      "id": "hands",
+      "group": "Practice & self-test",
+      "kicker": "\u00a713 \u00b7 Hands-on",
+      "title": "A 1-D cluster DAG shows why monotone error matters",
+      "visual": "img/hands.svg",
+      "file": "sections/13-hands-on.html",
+      "brief": "<p><code>python3 cluster_dag_1d.py</code>: monotone rules give 0 tiling failures in 3000 random cameras, and ablating them gives 50. Then try never moving the borders and watch the root error change.</p>"
+    },
+    {
+      "id": "quiz",
+      "builtin": "quiz",
+      "kicker": "\u00a714 \u00b7 Question ladder",
+      "title": "Test yourself",
+      "visual": "img/quiz.svg",
+      "brief": "<p>19 questions from mechanism to open research. Reveal, then mark \u2713 or \u2717; marks feed your progress ring.</p>"
+    },
+    {
+      "id": "next",
+      "group": "Further",
+      "kicker": "\u00a715 \u00b7 Go deeper next",
+      "title": "Three topics that build on this",
+      "visual": "img/next.svg",
+      "file": "sections/15-go-deeper.html",
+      "brief": "<p>Mesh shaders and work graphs \u00b7 virtual shadow maps, which Nanite was co-designed with \u00b7 3D Gaussian splatting level of detail and streaming.</p>"
+    },
+    {
+      "id": "sources",
+      "kicker": "Sources",
+      "title": "Papers, docs and code, with what I could not verify",
+      "visual": "img/sources.svg",
+      "file": "sections/99-sources.html",
+      "brief": "<p>About 10 primary and secondary references, with unverified claims flagged. Karis's slides were too large to fetch, so the mechanism rests on secondary write-ups.</p>"
+    }
+  ],
+  "questions": [
+    {
+      "type": "Mechanism",
+      "q": "What do two adjacent groups at different LOD levels have in common along their border, and why does that prevent cracks?",
+      "a": "They share identical vertex positions on the shared edges, locked during both groups' simplification, so the geometry meets exactly whatever each side's density.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "Walk one cluster through the selection test when the camera moves from 25 m to 12 m.",
+      "a": "At 25 m: self 0.30 px, parent 0.71 px, both \u2264 \u03c4 = 1, so a coarser cluster is chosen and X is skipped. At 12 m: self 0.62 px, parent 1.48 px &gt; 1, so self \u2264 \u03c4 &lt; parent holds and X is drawn.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "What exactly happens in pass 2 of two-pass occlusion culling, and why is pass 1 needed at all?",
+      "a": "Pass 1 culls against last frame's (stale) HZB, draws the survivors, and builds a fresh HZB from that depth. Pass 2 re-tests the clusters pass 1 culled against the new HZB and draws the ones now visible. Pass 1 gives a good depth pyramid cheaply, with no CPU readback.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "How does a 64-bit atomic max implement visibility and the depth test at once?",
+      "a": "Depth sits in the high bits, so max (with reverse-Z) keeps the nearest sample. The low bits carry the IDs, so the surviving value <i>is</i> the visible triangle.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "Why must every cluster in a group share the same parent error and bounds?",
+      "a": "If siblings disagreed, one could be drawn fine while a neighbour in the same group is coarse. Their shared interior vertices are not locked, so cracks or overlaps appear. Shared numbers make the group switch atomically.",
+      "sec": "mech"
+    },
+    {
+      "type": "Why",
+      "q": "Why 128 triangles per cluster?",
+      "a": "It matches the 7-bit triangle ID in the visibility buffer and multiples of the wave size. It is small enough for fine culling and large enough to amortise per-cluster overhead.",
+      "sec": "knobs"
+    },
+    {
+      "type": "Why",
+      "q": "Why a DAG and not a tree?",
+      "a": "In a tree, each group's borders would be the same at every level and never simplify. A DAG lets level k+1 re-group clusters so the old borders land inside new groups.",
+      "sec": "why"
+    },
+    {
+      "type": "Why",
+      "q": "Why is a software rasterizer faster for tiny triangles, even on slower silicon?",
+      "a": "Hardware shades 2\u00d72 quads with per-triangle setup, so a one-pixel triangle wastes at least 75% of its lanes. Compute rasterizes a cluster per wave with tiny loops and atomic writes, with no helper lanes.",
+      "sec": "why"
+    },
+    {
+      "type": "Why",
+      "q": "Why use the nearest point of the bounding sphere rather than its centre?",
+      "a": "The error bound must hold for the nearest point of the cluster's volume. The centre under-estimates projected error for large clusters.",
+      "sec": "math"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "What if you did not lock group borders and stitched afterwards instead?",
+      "a": "Stitching needs per-pair logic for every LOD combination, plus runtime neighbour checks. Locking trades simplification quality (dense borders) for zero runtime coordination.",
+      "sec": "mech"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "What if a parent's error could be smaller than its child's?",
+      "a": "The parent could be selected together with its child, or neither could be selected. That gives overlaps and holes; in my toy ablation, 50 of 3000 random views broke.",
+      "sec": "math"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "What if the cluster size doubled to 256 triangles?",
+      "a": "Fewer clusters and less culling overhead, but coarser culling granularity and more overdraw waste, and the ID bit budget changes. meshoptimizer's 256-vertex, 128-triangle result hints that larger vertex budgets simplify better.",
+      "sec": "knobs"
+    },
+    {
+      "type": "Adversarial",
+      "q": "Build a mesh that makes Nanite's cut huge at any distance.",
+      "a": "Dense layered or disconnected sheets, such as foliage cards and hair. Simplification cannot remove triangles without changing coverage, so the projected error stays small and the cut stays fine.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Adversarial",
+      "q": "How does a wind shader make a leaf disappear at the edge of the screen?",
+      "a": "Culling uses the original bounds, but WPO moves vertices outside them, so the cluster is culled while it is still visible. A max-WPO-distance setting expands the bounds to fix this.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Adversarial",
+      "q": "Which streaming pattern thrashes the 128 KB page pool?",
+      "a": "A fast camera sweep through high-detail areas that need more distinct pages than the pool holds, which gives an evict-and-reload loop.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Connection",
+      "q": "How does this relate to mip-mapping and virtual textures?",
+      "a": "It is the same idea: about one texel or triangle per pixel, streamed on demand with feedback about what is needed. The geometry version has the extra difficulty of staying watertight.",
+      "sec": "onel"
+    },
+    {
+      "type": "Connection",
+      "q": "How is a 3D Gaussian splat LOD hierarchy the same as, or different from, this?",
+      "a": "It uses the same hierarchical selection by projected footprint. But splats have no shared borders, so seams are hidden by opacity blending (LODGE) rather than by locked vertices.",
+      "sec": "frontier"
+    },
+    {
+      "type": "Open",
+      "q": "How would you build a proper LOD for a tree canopy that keeps its average colour, silhouette and shadow casting?",
+      "a": "Open. It needs a coverage-preserving aggregate representation (voxels, impostors, or a learned model) plus a shadow-consistent proxy. Epic's voxels are one answer.",
+      "sec": "open"
+    },
+    {
+      "type": "Open",
+      "q": "Can a forward renderer use a visibility-buffer pipeline without a deferred G-buffer?",
+      "a": "Partly. Visibility-buffer forward variants exist in research and in some engines, but Nanite as shipped requires deferred shading, and the mobile gap is still open.",
+      "sec": "open"
+    }
+  ],
+  "figures": {
+    "tree": {
+      "file": "img/fig/virtgs-fig-tree-structure.png",
+      "caption": "Pairs of clusters merge into coarser clusters (left), and different cameras select different cuts through the same hierarchy (right).",
+      "source": {
+        "cite": "Yang et al., \"Virtualized 3D Gaussians: Flexible Cluster-based Level-of-Detail System for Real-Time Rendering of Composed Scenes\", arXiv 2025",
+        "url": "https://arxiv.org/abs/2505.06523",
+        "figure": "Fig. 6"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "clust": {
+      "file": "img/fig/virtgs-fig-clustering.png",
+      "caption": "The same tree with Gaussians grouped into clusters, then into cluster groups: the locality idea behind the cluster DAG.",
+      "source": {
+        "cite": "Yang et al., \"Virtualized 3D Gaussians: Flexible Cluster-based Level-of-Detail System for Real-Time Rendering of Composed Scenes\", arXiv 2025",
+        "url": "https://arxiv.org/abs/2505.06523",
+        "figure": "Fig. 3"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "visbuf": {
+      "file": "img/fig/curast-fig-visbuffer.png",
+      "caption": "Deferred shading writes several attribute buffers per pixel; a visibility buffer stores only the mesh and triangle indices and shades later.",
+      "source": {
+        "cite": "Sch\u00fctz et al., \"CuRast: Cuda-Based Software Rasterization for Billions of Triangles\", arXiv 2026",
+        "url": "https://arxiv.org/abs/2604.21749",
+        "figure": "Fig. 1"
+      },
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "modified": "cropped and recompressed"
+    },
+    "stages": {
+      "file": "img/fig/curast-fig-raster-stages.png",
+      "caption": "CuRast's three raster stages, chosen by triangle size: one thread per sample for small triangles, a warp for medium ones, a workgroup tile for large ones.",
+      "source": {
+        "cite": "Sch\u00fctz et al., \"CuRast: Cuda-Based Software Rasterization for Billions of Triangles\", arXiv 2026",
+        "url": "https://arxiv.org/abs/2604.21749",
+        "figure": "Fig. 2"
+      },
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "modified": "cropped and recompressed"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<ul>
+<li><b>Aggregate LOD.</b> No accepted way to simplify foliage or hair into a coarser <i>representation</i> that preserves coverage and shading. Voxels are Epic's first production answer (UE 5.8), and they are still new.</li>
+<li><b>Deforming geometry.</b> The bounds and the DAG assume rigid shapes, and skinning, WPO and morphs break the error bounds. Skinned Nanite is marked experimental in UE 5.5+ <i>(secondary)</i>. It is hard because the error bound must hold for every pose.</li>
+<li><b>Ray tracing.</b> Cluster BVHs are rebuilt per frame at about 1 px LOD. Open question: how engines keep LOD consistent between primary and secondary rays, and how they stream and blend LOD for them.</li>
+<li><b>Portability.</b> 64-bit image atomics and persistent threads limit Nanite to desktop-class GPUs. Mobile and WebGPU ports (community, such as Scthe's nanite-webgpu) are partial <i>(secondary)</i>.</li>
+<li><b>Attribute-aware error.</b> QEM weights normals and UVs heuristically, with no perceptual error model tied to shading.</li>
+<li><b>Splats vs meshes.</b> A 3DGS splat has no shared border to lock, so seams are hidden by blending (LODGE). A principled analogue is unsettled.</li>
+</ul>

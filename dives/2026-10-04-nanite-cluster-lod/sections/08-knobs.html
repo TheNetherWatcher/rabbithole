@@ -1,0 +1,8 @@
+<ul>
+<li><b>Cluster size: 128 triangles.</b> It gives a 7-bit triangle ID and is a multiple of the wave size. A meshoptimizer user report found 256 vertices with 128 triangles beat 64 with 64, because rasterization cost dominated <i>(verified)</i>.</li>
+<li><b>Group size: 8–32 clusters</b> <i>(secondary)</i>. Bigger groups simplify better but couple more tightly to streaming.</li>
+<li><b>τ ≈ 1 px.</b> A bigger τ is faster but shimmers more. Nanite's visual stability leans on temporal AA.</li>
+<li><b>Position precision.</b> A 2<sup>P</sup> grid, at most 21 bits per axis, trades size against stair-stepping <i>(secondary)</i>.</li>
+<li><b>Streaming pages.</b> 128 KB pages, with 32 KB root pages <i>(secondary; not stated on the Epic technical-details page I fetched)</i>.</li>
+<li><b>Alternatives.</b> Classic discrete LOD (cheap, but pops and needs authoring). View-dependent progressive meshes (Hoppe), which cannot be evaluated in parallel per cluster. Quick-VDR's clustered hierarchy of progressive meshes (Yoon et al., 2004) <i>(secondary)</i>. Mesh shaders and meshlets without a DAG. Voxels or impostors for aggregates.</li>
+</ul>

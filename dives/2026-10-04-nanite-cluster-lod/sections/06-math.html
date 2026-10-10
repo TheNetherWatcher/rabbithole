@@ -1,0 +1,54 @@
+<h3>QEM collapse cost</h3>
+<p>For a triangle plane p = (a, b, c, d), with a² + b² + c² = 1, the squared distance of a point v = (x, y, z, 1) to the plane is (pᵀv)² = vᵀ(ppᵀ)v. Each vertex keeps Q = Σ ppᵀ over its planes, a 4×4 symmetric matrix. Collapsing vertices 1 and 2 to a point v̄ costs:</p>
+<div class="eq">Δ(v̄) = v̄ᵀ (Q₁ + Q₂) v̄ , minimised by solving the 4×4 system with last row (0, 0, 0, 1) [Garland &amp; Heckbert 1997]
+<small>→ in plain terms: each vertex remembers how far it may drift from its old surface planes. Summing the matrices means the errors add without storing the planes, which is why a collapse costs O(1) after setup.</small></div>
+<h3>Screen-space error</h3>
+<p>At distance d, the image plane's half-height is d·tan(φ/2) world units and maps to H/2 pixels. So one world unit is (H/2)/(d·tan(φ/2)) pixels, and an error e at distance d projects to:</p>
+<div class="eq">proj(e, d) = e · H / (2 · d · tan(φ/2)),   d = max(‖cam − c‖ − r, ε)   (bounding sphere centre c, radius r)
+<small>→ in plain terms: error shrinks with distance and grows with resolution. Using the nearest point of the sphere makes the estimate conservative, so it is never optimistic.</small></div>
+<h3>Selection rule</h3>
+<div class="eq">draw cluster c  ⇔  proj(e_self, d_self) ≤ τ &lt; proj(e_parent, d_parent),   τ ≈ 1 px
+<small>→ in plain terms: "I am fine enough, and my coarser parent is not." Exactly one cluster on every leaf-to-root path satisfies this.</small></div>
+<h3>Why it stays monotone</h3>
+<p>If e_parent ≥ e_self and bounds_parent ⊇ bounds_self, then d_parent ≤ d_self, so proj never decreases as you go up any DAG path. That gives exactly one τ-crossing per path. Siblings share the parent's numbers, so they all agree. The cut is consistent without anyone talking to a neighbour.</p>
+<h3>Size accounting</h3>
+<div class="eq">Σ triangles = T(1 + ½ + ¼ + …) = 2T ;  depth ≈ log₂(T / 128) ;  T = 10⁹ → about 23 levels</div>
+<p>Each level keeps about half the triangles, so the whole DAG costs about twice the source mesh. Epic reports 14.4 bytes per input triangle on average. A 1.5M-triangle example takes 19.64 MB, against 148.95 MB for a 4-LOD standard static mesh, a 7.6× saving <i>(verified against Epic's technical details)</i>.</p>
+<h3>Interactive: which LOD gets chosen?</h3>
+<p>This is an illustrative model, not Nanite's real numbers: a 1M-triangle object where each coarser level halves the triangles and doubles the world error from e₀ = 0.05 cm.</p>
+<style>
+#math-w .sl{display:grid;grid-template-columns:140px 1fr 90px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+#math-w .sl input{width:100%}
+#math-w table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0}
+#math-w td,#math-w th{border:1px solid var(--line);padding:5px 8px;text-align:right}
+#math-w th:first-child,#math-w td:first-child{text-align:left}
+</style>
+<div class="widget" id="math-w">
+<div class="sl"><label for="math-sd">Distance</label><input id="math-sd" type="range" min="1" max="500" value="25"><output id="math-sdo"></output></div>
+<div class="sl"><label for="math-sh">Screen height</label><input id="math-sh" type="range" min="480" max="2160" step="120" value="1080"><output id="math-sho"></output></div>
+<div class="sl"><label for="math-st">τ (pixels)</label><input id="math-st" type="range" min="0.25" max="4" step="0.25" value="1"><output id="math-sto"></output></div>
+<table id="math-lt"><thead><tr><th>Level</th><th>Triangles</th><th>World error</th><th>Projected</th><th></th></tr></thead><tbody></tbody></table>
+<div id="math-lres" class="info" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function upd(){
+    var d=+$("math-sd").value,H=+$("math-sh").value,t=+$("math-st").value;
+    $("math-sdo").textContent=d+" m";$("math-sho").textContent=H+" px";$("math-sto").textContent=t+" px";
+    var rows="",chosen=-1,L=0,tri=1e6,e0=0.05,K=H/(2*Math.tan(Math.PI/6));
+    for(L=0;L<=12;L++){
+      var tr=Math.round(tri/Math.pow(2,L)),e=e0*Math.pow(2,L),p=e*K/(d*100);
+      var pe=e0*Math.pow(2,L+1)*K/(d*100);
+      var ok=p<=t&&(L===12||pe>t);
+      if(ok&&chosen<0)chosen=L;
+      rows+="<tr"+(ok?' style="background:var(--hl);font-weight:600"':"")+"><td>L"+L+"</td><td>"+tr.toLocaleString()+"</td><td>"+e.toFixed(2)+" cm</td><td>"+p.toFixed(3)+" px</td><td>"+(ok?"◀ drawn":"")+"</td></tr>";
+    }
+    document.querySelector("#math-lt tbody").innerHTML=rows;
+    var tr2=chosen<0?1e6:Math.round(1e6/Math.pow(2,chosen));
+    $("math-lres").innerHTML=chosen<0?"All levels too coarse; L0 (1,000,000 tris) is used.":"Level <b>L"+chosen+"</b> is chosen: about <b>"+tr2.toLocaleString()+"</b> triangles for this object (≈ "+(1e6/tr2).toFixed(0)+"× fewer).";
+  }
+  ["math-sd","math-sh","math-st"].forEach(function(id){$(id).addEventListener("input",upd)});
+  upd();
+})();
+</script>

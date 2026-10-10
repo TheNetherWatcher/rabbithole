@@ -1,0 +1,18 @@
+<ul>
+<li><b>Watertight.</b> Locked border vertices are identical at every level, so a fine group beside a coarse group shares exact vertices. No stitching, no skirts.</li>
+<li><b>Local decisions.</b> Monotone error, nested bounds and group-shared numbers let the GPU decide per cluster, in parallel, with no synchronisation.</li>
+<li><b>Constant work per pixel.</b> Error of about 1 px means about 1 triangle per pixel, whatever the source size.</li>
+<li><b>Two-pass occlusion culling</b> <i>(secondary)</i>. Pass 1 draws the clusters that were visible last frame, tested against last frame's HZB. It then builds a new HZB from that depth. Pass 2 re-tests everything pass 1 culled against the new HZB and draws the clusters that were wrongly culled. The result is conservative-correct with no CPU readback.</li>
+<li><b>Software raster.</b> One wave handles a whole cluster, with a 64-bit atomic write to the visibility buffer and no quad waste. Reports put it up to about 3× faster than hardware for pixel-sized triangles <i>(secondary: reported by Karis and blogs)</i>.</li>
+</ul>
+<figure data-fig="stages"></figure>
+<h3>Ablations</h3>
+<table>
+<thead><tr><th>Remove…</th><th>What breaks</th></tr></thead>
+<tbody>
+<tr><td>border locking</td><td style="text-align:left">cracks between groups</td></tr>
+<tr><td>alternating borders</td><td style="text-align:left">border triangles never simplify, so the root cluster never reaches 1 (border vertices are 30–50% of vertices at level 1 <i>(verified, meshoptimizer discussion)</i>)</td></tr>
+<tr><td>monotone error or nested bounds</td><td style="text-align:left">overlaps or holes; in my toy, 50 of 3000 random views break</td></tr>
+<tr><td>the DAG (use a tree)</td><td style="text-align:left">the same borders at every level</td></tr>
+</tbody>
+</table>

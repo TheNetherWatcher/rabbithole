@@ -1,0 +1,8 @@
+<ul>
+<li><b>Rasterization</b>: the GPU turns triangles into pixels; hardware shades pixels in 2×2 quads (needed for texture derivatives).</li>
+<li><b>LOD (level of detail)</b>: cheaper versions of a mesh used when far away. Classic LOD is a few hand- or auto-made versions per object, switched by distance.</li>
+<li><b>Meshlet / cluster</b>: a small fixed-size triangle batch (here 128 triangles) processed as a unit.</li>
+<li><b>Quadric error metric (QEM)</b>: Garland &amp; Heckbert's way to collapse mesh edges while tracking geometric error (<a target="_blank" rel="noopener" href="https://publications.ri.cmu.edu/surface-simplification-using-quadric-error-metrics">CMU</a>).</li>
+<li><b>Visibility buffer</b>: write "which triangle is here" per pixel instead of shading; shade later, once per pixel.</li>
+<li><b>HZB</b>: hierarchical Z-buffer, a mip pyramid of the depth buffer holding the farthest depth per region; used for conservative occlusion tests.</li>
+</ul>

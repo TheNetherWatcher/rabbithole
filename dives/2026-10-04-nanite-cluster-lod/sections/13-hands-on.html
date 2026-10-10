@@ -1,0 +1,10 @@
+<p><code>cluster_dag_1d.py</code> (same folder) is a 1-D toy. A polyline stands in for the mesh: clusters of 8 segments, groups of 4, each group simplified to half with its end points locked, offsets alternating by level, and monotone error plus nested bounds. It then picks cuts for random cameras and checks that the selected clusters tile the curve exactly.</p>
+<pre><code>$ python3 cluster_dag_1d.py
+DAG: 511 clusters, root err 60.817
+monotone err + nested bounds : tiling failures 0 / 3000
+ablate monotone rules        : tiling failures 50 / 3000
+cut cam=-500 tau=0.5 : 256 clusters, per level {0: 256}
+cut cam=-500 tau=4   : 128 clusters, per level {0: 8, 1: 116, 2: 4}
+cut cam=-500 tau=20  :  16 clusters, per level {4: 16}</code></pre>
+<p>Try this: set <code>G=2</code>, then change the offset line to <code>off = 0</code> always (never move the borders), and watch the root error and cluster counts. Or break only the bounds hull, to see which half of the ablation does the damage.</p>
+<p><b>Caveat:</b> this is a 1-D toy with error measured vertically. It demonstrates the consistency argument, not Nanite's quality or speed.</p>

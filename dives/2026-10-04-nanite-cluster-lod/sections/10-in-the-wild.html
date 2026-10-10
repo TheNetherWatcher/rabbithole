@@ -1,0 +1,5 @@
+<ul>
+<li><b>UE5</b> deviates from the textbook by quantising and bit-packing everything, and by binning materials in compute (UE 5.4; GDC 2024 "Nanite GPU Driven Materials"). I could not fetch the slides, so these details come from Scthe's notes <i>(secondary)</i>. Optional work graphs are also used.</li>
+<li><b>Bevy</b> builds the meshlet DAG with meshopt and METIS, and runs two-pass culling at runtime. Hardware rasterization only at the time of the post, so expect worse micro-triangle performance <i>(secondary)</i>.</li>
+<li><b>meshoptimizer</b>'s recipes ask for <code>LockBorder</code> and <code>Sparse</code>. Discussion #750 reports root counts of 5–19 meshlets on Bunny, Dragon and Cliff, never 1 without tricks, because disjoint triangles block further simplification <i>(verified)</i>.</li>
+</ul>

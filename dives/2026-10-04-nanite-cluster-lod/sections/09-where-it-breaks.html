@@ -1,0 +1,9 @@
+<div class="callout bad"><b>Overdraw and thin geometry.</b> Simplification removes few triangles from layered or holey meshes, so many depth layers must be drawn before occlusion helps. One article claims up to 2× worse than expected <i>(80.lv, blog-grade)</i>.</div>
+<div class="callout bad"><b>Aggregates</b> (leaves, grass, hair). Disconnected parts do not collapse into a plane, so thin features vanish or stay dense. Epic's answer in the UE 5.8 docs is Assemblies, Voxels and Skinning <i>(verified)</i>.</div>
+<div class="callout warn"><b>WPO and animation.</b> Cluster bounds are static, so displaced vertices can be culled wrongly and need a max-WPO-distance setting. Animation also invalidates cached virtual-shadow-map pages <i>(forums and blogs, secondary)</i>.</div>
+<div class="callout warn"><b>Masked materials</b> need separate raster bins and a per-pixel alpha test inside the raster loop, which is costly.</div>
+<div class="callout warn"><b>No translucency, and deferred only.</b> Forward VR and mobile are out <i>(Meta docs and an Arm blog, secondary)</i>.</div>
+<div class="callout warn"><b>Ray tracing.</b> Nanite clusters do not map directly to hardware BLAS. Cluster acceleration structures (RTX Mega Geometry, 2025) are the hardware answer <i>(verified that they exist)</i>.</div>
+<div class="callout warn"><b>Streaming.</b> An undersized pool thrashes, and fast cameras cause pop-in. An SSD is effectively required <i>(secondary)</i>.</div>
+<div class="callout warn"><b>Subpixel shimmer.</b> Sub-pixel triangles cause temporal instability and rely on TSR or TAA <i>(Epic thin-geometry docs, secondary)</i>.</div>
+<div class="callout info"><b>Misconceptions.</b> "Free LODs": the cost moves to material shading, shadows and memory. "Always faster": measured results are mixed. One forum test found Nanite about 1.5 ms slower than an overdraw-optimised LOD scene; another found 55–58 FPS against 47–49 on an RTX 3090 <i>(secondary)</i>.</div>
