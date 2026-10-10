@@ -1,0 +1,27 @@
+<svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.14">
+<path d="M200 160 L420 96 L640 64" class="s-acc flow" fill="none" stroke-width="3" stroke-dasharray="8 6"/>
+<path d="M200 160 L420 96 L640 128" class="s-line" fill="none" stroke-width="1.5"/>
+<path d="M200 160 L420 224 L640 192" class="s-line" fill="none" stroke-width="1.5"/>
+<path d="M200 160 L420 224 L640 256" class="s-line" fill="none" stroke-width="1.5"/>
+<circle cx="200" cy="160" r="18" class="f-panel s-acc" stroke-width="2"/>
+<circle cx="420" cy="96" r="16" class="f-panel s-line" stroke-width="1.5"/>
+<circle cx="420" cy="224" r="16" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="612" y="44" width="56" height="40" rx="8" class="f-acc2 s-acc" stroke-width="1.5"/>
+<rect x="612" y="108" width="56" height="40" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="612" y="172" width="56" height="40" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="612" y="236" width="56" height="40" rx="8" class="f-line s-line" stroke-width="1.5"/>
+</g>
+<g class="layer" data-depth="0.22">
+<path d="M60 110 H1140" class="s-acc2" fill="none" stroke-width="1.5" stroke-dasharray="4 6"/>
+<rect x="840" y="60" width="44" height="220" rx="4" class="f-line s-line" stroke-width="1.5"/>
+<rect x="960" y="60" width="44" height="220" rx="4" class="f-line s-line" stroke-width="1.5"/>
+<rect x="1080" y="60" width="44" height="220" rx="4" class="f-acc2 s-acc" stroke-width="1.5"/>
+</g>
+<g class="layer" data-depth="0.32">
+<circle cx="640" cy="64" r="36" class="f-none s-acc pulse" stroke-width="1.5" stroke-dasharray="3 5"/>
+<rect x="612" y="236" width="56" height="40" rx="8" class="f-none s-acc blink" stroke-width="2"/>
+</g>
+</svg>

@@ -1,0 +1,10 @@
+<div class="tw"><table>
+<thead><tr><th>Knob</th><th>Value</th><th>Trade</th></tr></thead>
+<tbody>
+<tr><td>Slot / epoch</td><td>12 s / 32 slots</td><td>shorter slots → more P2P load; shorter epochs → fewer aggregates per checkpoint, less safety margin</td></tr>
+<tr><td>Committee size</td><td>128 target</td><td>smaller = cheaper aggregation, weaker per-slot sampling</td></tr>
+<tr><td>Proposer boost</td><td>40%</td><td>higher → proposer can reorg more easily (ex-post reorg); lower → balancing attack</td></tr>
+<tr><td>Effective balance cap</td><td>32 → 2048 ETH (EIP-7251)</td><td>fewer validators (less P2P/BLS cost), fatter slashing risk per key</td></tr>
+<tr><td>Weak-subjectivity period</td><td>~ weeks, scales with validator churn</td><td>shorter = more social trust</td></tr>
+</tbody></table></div>
+<p>Alternatives: Tendermint/CometBFT (BFT, halts), GRANDPA+BABE (finalizes <em>chains</em>), Algorand BA★, Avalanche. Gasper's selling point: the head layer and finality layer degrade independently (an "ebb-and-flow protocol", Neu–Tas–Tse, <a href="https://arxiv.org/abs/2009.04987" target="_blank" rel="noopener">arXiv 2009.04987</a>).</p>

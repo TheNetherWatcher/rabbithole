@@ -1,0 +1,12 @@
+<ul>
+<li><b>Balancing attack</b> (Neu–Tas–Tse 2021): adversary with a few % of stake per slot withholds votes, releases to keep two forks tied under LMD-GHOST ⇒ liveness lost. <em>Mitigation: proposer boost (2021–22)</em>.</li>
+<li><b>Bouncing attack</b> (2019): withheld votes make justification alternate between forks; patched by only updating the justified checkpoint early in the epoch (the old <code>SAFE_SLOTS_TO_UPDATE_JUSTIFIED</code>, now removed from the spec in favor of the unrealized-justification design (spec check: constant absent from current <code>fork-choice.md</code>)).</li>
+<li><b>Ex-ante / sandwich reorgs</b> (Schwarz-Schilling et al., <a href="https://eprint.iacr.org/2021/1413" target="_blank" rel="noopener">IACR 2021/1413</a>): adversary controlling consecutive proposals reorgs honest blocks by <em>pre-committing</em> in a way proposer boost (within-slot only) cannot stop.</li>
+<li><b>Avalanche attack</b>: reuse of withheld blocks via equivocation; fixed by <em>equivocation discounting</em> (<code>equivocating_indices</code> excluded from weights).</li>
+<li><b>Commitment attacks</b> (2024, <a href="https://arxiv.org/abs/2407.19479" target="_blank" rel="noopener">arXiv 2407.19479</a>): proposer coerces prior-slot attesters with reward threats; mitigation unresolved.</li>
+<li><b>Client bugs / finality delays</b>: May 2023 two finality delays (11–12 May) under load (conflicting notes: one source also says May 2024 Prysm bug — <b>unverified, treat the year as 2023 until confirmed</b>); client concentration is a systemic risk.</li>
+<li><b>MEV timing games</b>: proposers delay publishing to extract more MEV; risk of more missed slots/reorgs.</li>
+<li><b>Misconception:</b> "finalized = cryptographically final." It's final unless ≥1/3 stake is willing to burn, and weak subjectivity means a new node can be fed a bogus checkpoint.</li>
+</ul>
+<p>The commitment-attack paper's extended case, with the adversary two slots deep, is the clearest picture of how a reorg can reach past the boost window:</p>
+<figure data-fig="commit"></figure>

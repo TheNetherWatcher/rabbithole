@@ -1,0 +1,1 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="18" y="20" width="124" height="26" rx="5" class="f-acc"/><rect x="18" y="54" width="124" height="26" rx="5" class="f-ok" opacity=".8"/><path d="M14 50 H146" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><circle cx="80" cy="50" r="4" class="f-bad"/></svg>

@@ -1,0 +1,21 @@
+<p><b>What it is.</b> The consensus protocol of Ethereum's Beacon Chain since the Merge (Sept 2022). A <em>fork-choice rule</em> (LMD-GHOST) picks a head so liveness never stalls; a <em>finality gadget</em> (Casper FFG) layered on checkpoints gives economic irreversibility. Formalized as "Gasper" by Buterin et al., <a href="https://arxiv.org/abs/2003.03052" target="_blank" rel="noopener">arXiv 2003.03052</a>.</p>
+<p><b>Why it exists.</b> Tendermint-style BFT halts if ≥1/3 are offline and needs all-to-all voting rounds per block, which does not scale to ~10^5–10^6 validators with open, dynamic membership. Gasper keeps the chain <em>growing</em> whenever anyone is online (availability) and adds finality as an overlay that can stall without killing the chain. Cost of not having it: reorg-able chain, or a chain that halts.</p>
+<p><b>Where it's used.</b></p>
+<ul>
+<li><b>Ethereum mainnet</b>: ~0.9M active validators, ~39M ETH staked (secondary sources, <b>unverified</b> figures).</li>
+<li><b>Consensus clients</b>: Lighthouse (Rust), Prysm (Go), Teku (Java), Nimbus (Nim), Lodestar (TS), Grandine (Rust); each implements the same spec fork choice.</li>
+<li><b>Execution clients</b> (Geth, Nethermind, Besu, Erigon, Reth) take <code>safe</code>/<code>finalized</code> block tags from it; exchanges and bridges wait for <code>finalized</code>.</li>
+<li><b>Gnosis Chain</b> runs an adaptation of the same beacon-chain design.</li>
+<li><b>L2 rollups</b> (Optimism, Arbitrum, Base) derive "finalized" L1 status from it.</li>
+<li><b>Staking pools / restaking</b> (Lido, EigenLayer) are slashed by its rules.</li>
+</ul>
+<p><b>How it's used.</b> A practitioner touches the Beacon API:</p>
+<pre><code># checkpoints (justified / finalized)
+curl -s localhost:5052/eth/v1/beacon/states/head/finality_checkpoints | jq
+# whole fork-choice tree with weights (debug)
+curl -s localhost:5052/eth/v1/debug/fork_choice | jq '.fork_choice_nodes | length'
+# start a node from a recent finalized state instead of genesis (weak subjectivity)
+lighthouse bn --checkpoint-sync-url https://&lt;trusted-beacon-api&gt;</code></pre>
+<p>JSON-RPC lets dapps ask for <code>eth_getBlockByNumber("finalized")</code> or <code>"safe"</code>. Typical rule: exchanges credit deposits at <code>finalized</code> (~13 min); wallets show <code>latest</code> (head).</p>
+<p><b>When to use / not.</b> Wait for <code>finalized</code> when value at risk &gt; cost of ~13 min; use <code>safe</code> (justified) for mid-latency; <code>latest</code> only for UX. Gasper itself is not something you "choose", but the design choice recurs: if you need sub-second finality, you want BFT (Tendermint/CometBFT) with a small validator set, and you accept halting.</p>
+<p><b>Who should care.</b> Node operators (missed attestations, slashing, client diversity), MEV/builder teams (reorg windows), bridge/exchange/rollup engineers (finality semantics), protocol researchers.</p>

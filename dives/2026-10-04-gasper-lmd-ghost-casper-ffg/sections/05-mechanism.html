@@ -1,0 +1,86 @@
+<style>
+#mech-w #mech-dot{fill:var(--accent);transition:cx .5s}
+#mech-w #mech-lbl{fill:var(--ink);font-size:14px;transition:x .5s}
+#mech-w .tk{stroke:var(--mute)}
+#mech-w .tt{fill:var(--mute);font-size:12px;text-anchor:middle}
+</style>
+<p>Trace epoch <em>e</em>, one honest validator <em>v</em> (balance 32 ETH), 900,000 validators.</p>
+<pre><code>slot 0 of epoch e   (t=0s)    proposer P builds block B_e on head H
+t = 0..4s                      attesters in slot's committee wait for B_e (deadline 4s = 1/3 slot)
+t = 4s                         v signs AttestationData:
+   { slot, index, beacon_block_root = B_e,           &lt;- LMD-GHOST head vote
+     source = justified checkpoint (epoch e-1, root S),
+     target = (epoch e, root of epoch-boundary block) }  &lt;- FFG vote (S -&gt; T link)
+t = 4..8s                      aggregators (selected by hash of slot signature) aggregate BLS sigs
+t = 8s                         aggregates broadcast; next proposer includes them
+epoch end                      process_epoch: sum balances with target==T;
+                               if 3*target_balance &gt;= 2*total_active_balance: justify T
+                               if justified(e-1) and justified(e) consecutive: finalize e-1 (rules 1-4)</code></pre>
+
+<div class="widget" id="mech-w" role="group" aria-label="Step-through of one attestation">
+  <div class="wtitle"><b>Step through one attestation</b> <span class="mini">(epoch e, one honest validator)</span></div>
+  <svg viewBox="0 0 720 150" role="img" aria-label="Timeline of a 12 second slot" style="width:100%;height:auto">
+    <line x1="30" y1="75" x2="690" y2="75" stroke="var(--line)" stroke-width="3"/>
+    <g><line class="tk" x1="30" y1="68" x2="30" y2="82"/><text class="tt" x="30" y="102">0s</text></g>
+    <g><line class="tk" x1="250" y1="68" x2="250" y2="82"/><text class="tt" x="250" y="102">4s</text></g>
+    <g><line class="tk" x1="470" y1="68" x2="470" y2="82"/><text class="tt" x="470" y="102">8s</text></g>
+    <g><line class="tk" x1="690" y1="68" x2="690" y2="82"/><text class="tt" x="690" y="102">12s</text></g>
+    <circle id="mech-dot" cx="30" cy="75" r="9"/>
+    <text id="mech-lbl" x="30" y="40">proposer builds block</text>
+  </svg>
+  <div class="stepbar">
+    <button class="btn" id="mech-back" type="button">← Back</button>
+    <button class="btn" id="mech-next" type="button">Next →</button>
+    <span class="mini" id="mech-n" aria-live="polite"></span>
+    <div class="info" id="mech-info" aria-live="polite"></div>
+  </div>
+</div>
+
+<p><b>FFG: one attestation = one supermajority-link vote</b> (source → target). Justification (spec <code>weigh_justification_and_finalization</code>): <code>previous_epoch_target_balance * 3 &gt;= total_active_balance * 2</code>. Finalization needs a justified checkpoint C whose <em>direct child</em> checkpoint is also justified via a link from C (4 patterns over the last four epochs).</p>
+<p><b>LMD-GHOST head</b> (spec <code>get_head</code>, simplified):</p>
+<pre><code class="language-python">def get_head(store):
+    blocks = get_filtered_block_tree(store)       # drop branches whose leaf state disagrees with
+    head = store.justified_checkpoint.root        #   store's justified/finalized checkpoints
+    while True:
+        children = [r for r in blocks if blocks[r].parent_root == head]
+        if not children: return head
+        head = max(children, key=lambda r: (get_weight(store, r), r))   # weight, then root as tiebreak
+
+def get_weight(store, root):
+    state = store.checkpoint_states[store.justified_checkpoint]
+    score = sum(state.validators[i].effective_balance
+                for i in active_unslashed(state)
+                if i in store.latest_messages and i not in store.equivocating_indices
+                and get_ancestor(store, store.latest_messages[i].root, store.blocks[root].slot) == root)
+    if store.proposer_boost_root != Root() and get_ancestor(store, store.proposer_boost_root, slot_of(root)) == root:
+        score += (total_active_balance // SLOTS_PER_EPOCH) * PROPOSER_SCORE_BOOST // 100   # = 40% of one slot's committee
+    return score</code></pre>
+<p>A vote for block X counts for X and <em>every ancestor</em> (subtree weight). Only the <b>latest</b> message per validator counts.</p>
+<p><b>Proposer boost</b>: if a block arrives for the current slot <b>before the attesting interval</b> (4 s) and is the first such block (and has the same shuffling-dependent root as the head), <code>store.proposer_boost_root</code> is set; reset on the next slot. Spec constant <code>PROPOSER_SCORE_BOOST = 40</code> (percent of one slot's committee weight).</p>
+<p><b>Real clients</b>: instead of walking the tree each time, <b>proto-array</b> (Lighthouse, Prysm, Teku, Nimbus, Lodestar) stores nodes in a flat vec in insertion (parent-before-child) order and applies weight <em>deltas</em> in one backward pass: <code>apply_score_changes</code> updates each node's weight and bubbles deltas to the parent; each node caches <code>best_child</code>/<code>best_descendant</code>, so head lookup is O(1) after a pass that is O(N) in nodes (N pruned at finalization). (The research notes claimed O(log n); that is wrong: it is an O(N) linear pass, O(1) lookup.)</p>
+
+<script>
+(function(){
+  var steps=[
+    {x:30,l:'proposer builds block',t:'t=0s. Proposer P builds block B_e on the current head H and broadcasts it. Fork choice gives B_e the proposer boost if it arrives before the 4 s attesting interval (first block of the slot, same dependent root).'},
+    {x:250,l:'attest (4 s)',t:'t=4s. Committee member v signs AttestationData {slot, index, beacon_block_root=B_e (LMD head vote), source=justified checkpoint S, target=(epoch e, boundary block T) (FFG vote S to T)}.'},
+    {x:360,l:'aggregators collect',t:'t=4..8s. Aggregators (selected by hashing a slot signature) combine BLS signatures from the committee (~128 members) into one aggregate per committee.'},
+    {x:470,l:'aggregates broadcast (8 s)',t:'t=8s. Aggregates go out on the global topic. Nodes update store.latest_messages for each validator: only the newest message per validator counts, older ones are overwritten.'},
+    {x:690,l:'next slot / epoch end',t:'t=12s. Next proposer packs aggregates into its block. At the epoch boundary process_epoch sums target balances: if 3*target_balance >= 2*total_active_balance, T is justified; two consecutive justified checkpoints finalize the earlier one.'}
+  ];
+  var i=0;
+  var dot=document.getElementById('mech-dot'),lbl=document.getElementById('mech-lbl');
+  var txt=document.getElementById('mech-info'),n=document.getElementById('mech-n');
+  function draw(){
+    var s=steps[i];
+    dot.setAttribute('cx',s.x);
+    lbl.setAttribute('x',Math.min(Math.max(s.x-60,10),520));
+    lbl.textContent=s.l;
+    txt.textContent=s.t;
+    n.textContent='STEP '+(i+1)+' / '+steps.length;
+  }
+  document.getElementById('mech-next').onclick=function(){i=Math.min(i+1,steps.length-1);draw()};
+  document.getElementById('mech-back').onclick=function(){i=Math.max(i-1,0);draw()};
+  draw();
+})();
+</script>

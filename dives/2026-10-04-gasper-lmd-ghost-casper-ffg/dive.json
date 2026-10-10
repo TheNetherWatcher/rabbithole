@@ -1,0 +1,363 @@
+{
+  "meta": {
+    "title": "Ethereum Gasper: LMD-GHOST fork choice + Casper FFG finality",
+    "short": "Gasper: LMD-GHOST & Casper FFG",
+    "subject": "Computer science",
+    "domain": "blockchain",
+    "topic": "Gasper: LMD-GHOST fork choice and Casper FFG finality",
+    "depth": "hard",
+    "date": "2026-10-04"
+  },
+  "hero": "img/hero.svg",
+  "tldr": "Ethereum picks its chain head by following the heaviest subtree of each validator's <b>latest</b> vote, and finalizes checkpoints once two-thirds of stake links them in consecutive rounds. Reversing a finalized checkpoint burns at least <b>one third</b> of all stake. Exchanges, bridges and rollups all decide how long to wait from these rules, and every known reorg attack targets the seam between the two layers.",
+  "why": "<b>Why it matters:</b> finalized is about 13 minutes away, not seconds, and the rules that set that delay are the same ones attackers probe.",
+  "stats": [
+    {
+      "v": "12 s",
+      "l": "per slot; one proposer each"
+    },
+    {
+      "v": "2/3",
+      "l": "stake needed to justify a checkpoint"
+    },
+    {
+      "v": "1/3",
+      "l": "stake that must burn to reverse finality"
+    },
+    {
+      "v": "40%",
+      "l": "proposer boost, of one slot's committee"
+    },
+    {
+      "v": "64–95",
+      "l": "slots to finalize today (3SF paper)"
+    }
+  ],
+  "cards": [
+    {
+      "id": "plain",
+      "group": "Plain English",
+      "tone": "plain",
+      "kicker": "In everyday words",
+      "title": "Two rules: follow the latest pointers, lock in what two-thirds sign",
+      "visual": "img/plain.svg",
+      "file": "sections/00-plain.html",
+      "brief": "<p>About 900,000 people share one notebook with no boss. One random person writes a page every 12 seconds, and pages sometimes collide. Gasper is the rulebook: <b>follow</b> the version most people most recently pointed at, and <b>lock in</b> a page once two-thirds sign for it, so reversing it would cost cheaters a fortune.</p>"
+    },
+    {
+      "id": "ctx",
+      "group": "Context",
+      "kicker": "§1 · Prerequisites",
+      "title": "Six ideas to know first",
+      "visual": "img/ctx.svg",
+      "file": "sections/01-context.html",
+      "brief": "<ul><li><b>Stake</b>: 32 ETH locked per validator, voting power = effective balance.</li><li><b>Slot</b> = 12 s; <b>epoch</b> = 32 slots = 6.4 min.</li><li><b>Committees</b> of ≈128 validators attest each slot.</li><li><b>BFT</b>: below 1/3 Byzantine stake is tolerable; 2/3 quorums overlap by 1/3.</li><li><b>Slashing</b> burns stake for provable equivocation.</li><li><b>Dynamic availability</b>: the chain keeps going when many validators go offline.</li></ul>"
+    },
+    {
+      "id": "world",
+      "kicker": "§1b · Real-world context",
+      "title": "Every Ethereum client runs this, and exchanges wait on it",
+      "visual": "img/world.svg",
+      "file": "sections/01b-real-world.html",
+      "brief": "<p>Consensus clients (Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine) all implement it. Execution clients expose <code>safe</code> and <code>finalized</code> tags built on it, and exchanges credit deposits at <code>finalized</code>, about 13 minutes out. Rollups and restaking pools inherit the same rules.</p>"
+    },
+    {
+      "id": "onel",
+      "group": "Technical deep dive",
+      "kicker": "§2 · The one-liner",
+      "title": "\"Fork choice plus finality\" hides five couplings",
+      "visual": "img/onel.svg",
+      "file": "sections/02-one-liner.html",
+      "brief": "<p>Gasper is LMD-GHOST for the head and Casper FFG for finality. FFG votes double as head votes, \"latest message\" overwrites old votes, and finality is economic rather than cryptographic. The head rule has no safety proof below 1/3 adversaries, and offline stake bleeds away over days.</p>"
+    },
+    {
+      "id": "problem",
+      "kicker": "§3 · The problem",
+      "title": "Nakamoto gives liveness, BFT gives finality, Ethereum wanted both",
+      "visual": "img/problem.svg",
+      "file": "sections/03-problem.html",
+      "brief": "<p>Longest-chain never halts but only gives probabilistic finality. Classical BFT is final but halts at 1/3 offline and needs O(n²) messages. Ethereum needed 10^5+ validators, an open set, a chain that never halts and slashable finality. Normal finality lands about 13–19 minutes out.</p>"
+    },
+    {
+      "id": "model",
+      "kicker": "§4 · Mental model",
+      "title": "A raft steered by latest votes, with piers only 2/3 can build",
+      "visual": "img/model.svg",
+      "file": "sections/04-mental-model.html",
+      "brief": "<p>LMD-GHOST is a raft that follows the strongest current, the most recent votes. FFG drives a stone pier into the riverbed once two-thirds sign. The raft can drift between piers but never cross one. A patient adversary can game which current counts as latest.</p>"
+    },
+    {
+      "id": "mech",
+      "kicker": "§5 · Mechanism, traced",
+      "title": "One attestation carries two votes: a head vote and a finality link",
+      "visual": "img/mech.svg",
+      "file": "sections/05-mechanism.html",
+      "brief": "<p>At 4 s a validator signs one object with a <code>beacon_block_root</code> (head vote) and a source→target link (finality vote). Latest messages overwrite older ones. At epoch end 2/3 of stake on a target justifies it, and two consecutive justified checkpoints finalize.</p><p class=\"mini\">5-step interactive walkthrough inside.</p>"
+    },
+    {
+      "id": "math",
+      "kicker": "§6 · The math",
+      "title": "2/3 quorums overlap by a third, and that overlap is slashable",
+      "visual": "img/math.svg",
+      "file": "sections/06-math.html",
+      "brief": "<p>Two conflicting finalized checkpoints must share at least n/3 of stake, and every validator in that overlap signed both links. Double votes and surround votes are slashable, so that third is provably guilty. The inactivity leak is quadratic: about 21 days to halve a stake.</p><p class=\"mini\">Inactivity leak calculator and proposer-boost threshold inside.</p>"
+    },
+    {
+      "id": "why",
+      "kicker": "§7 · Why it works",
+      "title": "Remove any one rule and a specific attack opens",
+      "visual": "img/why.svg",
+      "file": "sections/07-why-it-works.html",
+      "brief": "<p>Drop the surround-vote rule and conflicting checkpoints finalize with no double vote. Drop the coupling filter and honest validators sign slashable votes. Drop the latest-message rule and state grows with every vote ever cast. Each rule closes a specific attack.</p>"
+    },
+    {
+      "id": "knobs",
+      "kicker": "§8 · Knobs & alternatives",
+      "title": "Proposer boost trades balancing attacks against ex-post reorgs",
+      "visual": "img/knobs.svg",
+      "file": "sections/08-knobs.html",
+      "brief": "<p>Boost at 40% of one committee stops a balancing attack but lets a proposer reorg more easily. Slot, epoch, committee size and effective-balance cap set the P2P and aggregation load. Tendermint halts instead of degrading, and GRANDPA finalizes chains rather than checkpoints.</p>"
+    },
+    {
+      "id": "breaks",
+      "kicker": "§9 · Where it breaks",
+      "title": "Withheld votes can stall the head, and finality is only economic",
+      "visual": "img/breaks.svg",
+      "file": "sections/09-where-it-breaks.html",
+      "brief": "<p>Balancing and bouncing attacks use withheld votes to keep forks tied or justification flip-flopping. Ex-ante reorgs pre-commit across slots, beyond what boost covers. Finalized means final only while 1/3 of stake will burn, and a new node needs a trusted checkpoint.</p>"
+    },
+    {
+      "id": "wild",
+      "kicker": "§10 · In the wild",
+      "title": "Clients run the same spec, and MEV timing stresses the 4 s deadline",
+      "visual": "img/wild.svg",
+      "file": "sections/10-in-the-wild.html",
+      "brief": "<p>Clients share proto-array fork choice and consensus-spec test vectors. Spec-level proposer reorgs let a proposer drop a weak late block. About 90% of blocks come from external MEV builders, and timing games push attestations toward the 4 s deadline.</p>"
+    },
+    {
+      "id": "frontier",
+      "group": "Research edge",
+      "kicker": "§11 · Frontier",
+      "title": "Research is pushing finality from about 13 minutes toward a few slots",
+      "visual": "img/frontier.svg",
+      "file": "sections/11-frontier.html",
+      "brief": "<p>Three-slot finality (3SF), single-slot finality, fast confirmation and Available Attestation all aim at faster or more reorg-resilient finality. Several 2024–26 papers propose ways to aggregate signatures for a million validators. Most are research, not shipped.</p>"
+    },
+    {
+      "id": "open",
+      "kicker": "§11b · Open problems",
+      "title": "Reorg resistance under 1/3 adversaries is still unproven",
+      "visual": "img/open.svg",
+      "file": "sections/11b-open-problems.html",
+      "brief": "<p>No one has proved LMD-GHOST plus boost reorg-resistant below 1/3 adversaries, and the availability–finality tradeoff stays open. Message load at 10^6 signers, timing games and post-quantum aggregation remain unsolved.</p>"
+    },
+    {
+      "id": "lineage",
+      "kicker": "§12 · Lineage",
+      "title": "GHOST (2013) to Gasper (2020) to 3-slot finality (2024)",
+      "visual": "img/lineage.svg",
+      "file": "sections/12-lineage.html",
+      "brief": "<p>GHOST (2013) → Casper FFG (2017) → Gasper (2020) → ebb-and-flow analysis → proposer boost and equivocation discounting (2021–23) → Goldfish, RLMD-GHOST and view-merge → 3-slot finality (2024) → Lean consensus and Minimmit (2025+).</p>"
+    },
+    {
+      "id": "hands",
+      "group": "Practice &amp; self-test",
+      "kicker": "§13 · Hands-on",
+      "title": "Run the simulator: a vote flip, a boost threshold, a leak curve",
+      "visual": "img/hands.svg",
+      "file": "sections/13-hands-on.html",
+      "brief": "<p><code>python3 gasper_sim.py</code> (stdlib only) shows the head flipping when latest messages move, the 40% boost breaking an adversary tie at k=39, and offline stake ejected after about 21 days at 50–60% offline.</p>"
+    },
+    {
+      "id": "quiz",
+      "builtin": "quiz",
+      "kicker": "§14 · Question ladder",
+      "title": "Test yourself",
+      "visual": "img/quiz.svg",
+      "brief": "<p>21 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+    },
+    {
+      "id": "next",
+      "group": "Further",
+      "kicker": "§15 · Go deeper next",
+      "title": "Three threads to pull next",
+      "visual": "img/next.svg",
+      "file": "sections/15-go-deeper.html",
+      "brief": "<p>RLMD-GHOST and Goldfish (vote expiry), BLS aggregation and the subnet P2P layer, and ePBS with the Payload Timeliness Committee.</p>"
+    },
+    {
+      "id": "sources",
+      "kicker": "Sources",
+      "title": "Papers, code and docs",
+      "visual": "img/sources.svg",
+      "file": "sections/99-sources.html",
+      "brief": "<p>12 papers, 5 code and doc references, and a list of claims marked unverified in the text.</p>"
+    }
+  ],
+  "questions": [
+    {
+      "type": "Mechanism",
+      "q": "Walk through what a single attestation commits to (which fields serve FFG, which serve LMD-GHOST).",
+      "a": "<code>beacon_block_root</code> = LMD-GHOST head vote; <code>source</code> and <code>target</code> checkpoints = FFG link; <code>slot</code>/<code>index</code> locate the committee.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "When exactly does a checkpoint become justified, and when finalized?",
+      "a": "Justified when ≥2/3 of total active balance attests the same target in the epoch (processed at epoch boundary); finalized when a justified checkpoint's next epoch's checkpoint is also justified via a link from it (4 rules over the last 4 epochs).",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "How does a vote for block X contribute to weight of its ancestors?",
+      "a": "Subtree weight: the weight of a node is the sum of effective balances of validators whose latest message points at the node <em>or any descendant</em>.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "What does <code>filter_block_tree</code> remove and why?",
+      "a": "Drops branches whose leaf state's justified/finalized checkpoints are inconsistent with the store, so head never follows a chain that would force a slashable vote.",
+      "sec": "mech"
+    },
+    {
+      "type": "Mechanism",
+      "q": "When is proposer boost applied and when is it reset?",
+      "a": "Applied when the block for the current slot is first seen before the 4 s attesting interval (plus same dependent-root condition); reset at the next slot tick.",
+      "sec": "mech"
+    },
+    {
+      "type": "Why",
+      "q": "Why 2/3 and not 1/2 or 3/4?",
+      "a": "2/3 is the minimum quorum such that two quorums intersect in ≥ 1/3 (accountability) while f &lt; 1/3 faults still permit a quorum (liveness).",
+      "sec": "math"
+    },
+    {
+      "type": "Why",
+      "q": "Why does finalization need <em>two</em> justified consecutive checkpoints?",
+      "a": "So that no honest validator can be driven by fork choice into signing a link that contradicts an already-justified checkpoint without being slashable themselves; a one-round rule leaves a gap with conflicting justifications.",
+      "sec": "why"
+    },
+    {
+      "type": "Why",
+      "q": "Why is the inactivity leak quadratic?",
+      "a": "Score grows linearly, penalty ∝ score, so loss ∝ t²: short outages are cheap, long ones ruinous.",
+      "sec": "math"
+    },
+    {
+      "type": "Why",
+      "q": "Why only the <em>latest</em> message per validator?",
+      "a": "Bounded state and recency; the cost is that old votes can be overwritten, enabling balancing/bouncing.",
+      "sec": "why"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "Remove the surround-vote rule: describe an attack.",
+      "a": "Adversary (≥1/3) signs A→B (wide) and later a nested C→D inside it; both finalize on conflicting forks with no double vote.",
+      "sec": "why"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "Remove proposer boost: describe a balancing attack.",
+      "a": "Split honest votes with delayed delivery; release withheld votes each slot to keep a tie, no block ever gets decisive weight.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "Double the committee size: what changes?",
+      "a": "More aggregation cost, better per-slot sampling of the validator set; shifts attack thresholds.",
+      "sec": "knobs"
+    },
+    {
+      "type": "Counterfactual",
+      "q": "Make boost 100%: what attack opens?",
+      "a": "A single proposer can force the weight of its (possibly late, adversarial) block over a majority of attestations: a cheap ex-post reorg of honest blocks.",
+      "sec": "knobs"
+    },
+    {
+      "type": "Adversarial",
+      "q": "How does an adversary with 20% stake try to prevent finality?",
+      "a": "Stay online but withhold and release votes to bounce justification or balance forks; needs ~&lt;1/3 but exploits LMD.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Adversarial",
+      "q": "Why does proposer boost fail against ex-ante reorgs?",
+      "a": "Boost is slot-local; an ex-ante adversary controls the next slot's proposer too and pre-arranges votes across slots.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Adversarial",
+      "q": "How could a long-range attacker rewrite history and what stops a new node from believing it?",
+      "a": "Slashing penalties do not apply to exited validators; weak-subjectivity checkpoints (social consensus) tell a new node which history to follow.",
+      "sec": "breaks"
+    },
+    {
+      "type": "Connection",
+      "q": "How does ebb-and-flow relate to the CAP theorem?",
+      "a": "Under partition you must choose availability (chain grows, no finality) or consistency (halt); ebb-and-flow exposes both views.",
+      "sec": "onel"
+    },
+    {
+      "type": "Connection",
+      "q": "How is Gasper's finality different from Tendermint's?",
+      "a": "Gasper finality is economic and delayed (~2 epochs); Tendermint is immediate but halts when ≥1/3 are offline.",
+      "sec": "math"
+    },
+    {
+      "type": "Connection",
+      "q": "What does ePBS change for the fork choice?",
+      "a": "In-protocol builders; the Payload Timeliness Committee votes on payload reveal; fork choice weights must account for payload status; proposer boost semantics change.",
+      "sec": "frontier"
+    },
+    {
+      "type": "Open",
+      "q": "Can finality be single-slot without losing 1/3 fault tolerance at 10^6 validators?",
+      "a": "Open: message load for 10^6 signers per slot (hence Orbit/Wonderboom/Minimmit), and thresholds below 1/3 are discussed.",
+      "sec": "open"
+    },
+    {
+      "type": "Open",
+      "q": "Is there a reorg-resilient, dynamically available protocol that survives asynchrony?",
+      "a": "Open: Goldfish is secure in sync but brittle to asynchrony; RLMD-GHOST trades vote expiry for asynchrony resilience.",
+      "sec": "open"
+    }
+  ],
+  "figures": {
+    "commit": {
+      "file": "img/fig/monnot-fig-commit-extended-attack.png",
+      "source": {
+        "cite": "Sarenche et al., \"Commitment Attacks on Ethereum's Reward Mechanism\", arXiv 2024",
+        "url": "https://arxiv.org/abs/2407.19479",
+        "figure": "Fig. 2"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed",
+      "caption": "The extended attack with p=2: the slot-3 adversary's block reorgs two honest blocks by building a fork of empty blocks on the block from slot -2, and the green votes follow that fork."
+    },
+    "unsucc": {
+      "file": "img/fig/monnot-fig-simple-game-unsuccessful.png",
+      "source": {
+        "cite": "Sarenche et al., \"Commitment Attacks on Ethereum's Reward Mechanism\", arXiv 2024",
+        "url": "https://arxiv.org/abs/2407.19479",
+        "figure": "Fig. 1(a)"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed",
+      "caption": "The simple game with solo validators, unsuccessful case: the non-compliant votes reach the proposer-boost weight, so the honest block keeps the head."
+    },
+    "succ": {
+      "file": "img/fig/monnot-fig-simple-game-successful.png",
+      "source": {
+        "cite": "Sarenche et al., \"Commitment Attacks on Ethereum's Reward Mechanism\", arXiv 2024",
+        "url": "https://arxiv.org/abs/2407.19479",
+        "figure": "Fig. 1(b)"
+      },
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "modified": "cropped and recompressed",
+      "caption": "The simple game, successful case: the non-compliant votes fall below the boost weight, so the adversary's block reorgs the honest block of slot t out."
+    }
+  }
+}

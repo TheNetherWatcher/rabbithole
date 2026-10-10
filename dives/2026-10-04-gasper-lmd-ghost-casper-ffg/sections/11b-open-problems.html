@@ -1,0 +1,9 @@
+<ol>
+<li><b>Reorg resilience below 1/3</b>: LMD-GHOST + boost is not proven reorg-resilient; Available Attestation, view-merge, RLMD-GHOST are candidates. Why hard: any rule using <em>latest</em> messages lets withheld votes act later.</li>
+<li><b>Availability–finality dilemma</b> (Neu–Tas–Tse): impossible to have dynamic participation <em>and</em> safety under partitions simultaneously; ebb-and-flow is the best known compromise. SSF designs trade fault tolerance (some proposals discuss &lt; 1/3 thresholds) for latency.</li>
+<li><b>Ex-ante reorg/MEV during the 13-min window</b>: removing it needs SSF/3SF, which raise message load (aggregation: Orbit, Wonderboom).</li>
+<li><b>Timing games &amp; rational incentives</b>: delaying publication is individually profitable; no protocol-level equilibrium fix. Prevalence numbers in the notes (62.8% / 28.8%) are <b>unverified/contested</b>.</li>
+<li><b>Weak subjectivity</b>: social-layer trust remains; unresolved how to make it objective.</li>
+<li><b>Correlation penalty adequacy</b> (2024 critique) — theoretical, no live exploit known.</li>
+<li><b>Post-quantum</b>: BLS aggregation is not PQ-secure; hash-based aggregation (leanXMSS+STARKs) is research.</li>
+</ol>

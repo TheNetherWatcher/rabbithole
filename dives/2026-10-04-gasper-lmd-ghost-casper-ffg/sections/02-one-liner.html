@@ -1,0 +1,8 @@
+<p><em>"Gasper = LMD-GHOST for the head + Casper FFG for finality."</em> Hides:</p>
+<ol>
+<li>FFG votes carry <b>two</b> roles: a finality link <em>and</em> a GHOST head vote; the two layers are coupled by a <em>filter</em> on the block tree.</li>
+<li>"Latest message" means old votes are <b>overwritten</b>, which is exactly what makes balancing/bouncing attacks possible.</li>
+<li>Finality is <b>economic</b>, not cryptographic: it needs ≥1/3 of stake slashable (accountable safety), and only works if slashing is detectable within the weak-subjectivity period.</li>
+<li>The head rule has <b>no safety proof for sub-1/3 adversaries</b>: the fixes (proposer boost, equivocation discounting) are patches.</li>
+<li>Under &gt;1/3 offline, finality stops; the <b>inactivity leak</b> bleeds offline stake until 2/3 is restored (days).</li>
+</ol>

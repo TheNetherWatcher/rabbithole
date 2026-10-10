@@ -1,0 +1,8 @@
+<ul>
+<li><b>Proof-of-stake</b>: validators lock 32 ETH (up to 2048 post-Pectra, EIP-7251); voting power = <em>effective balance</em>. <a href="https://ethereum.org/developers/docs/consensus-mechanisms/pos/" target="_blank" rel="noopener">ethereum.org</a></li>
+<li><b>Slot = 12 s, epoch = 32 slots = 6.4 min.</b> One proposer per slot; every active validator attests once per epoch, spread across slots via committees. <a href="https://eth2book.info/latest/part3/config/preset/" target="_blank" rel="noopener">eth2book</a></li>
+<li><b>Committees</b>: validators shuffled each epoch into ≤64 committees/slot of ≈128 (<code>TARGET_COMMITTEE_SIZE = 128</code>).</li>
+<li><b>BFT thresholds</b>: tolerate &lt; 1/3 Byzantine stake; 2/3 supermajorities intersect in &gt; 1/3.</li>
+<li><b>Slashing</b>: provable equivocation burns stake.</li>
+<li><b>Partial synchrony</b>: messages arrive within an unknown bound Δ; <b>dynamic availability</b>: protocol keeps going when many validators go offline.</li>
+</ul>

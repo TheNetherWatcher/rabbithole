@@ -1,0 +1,7 @@
+<ul>
+<li><b>Safety (FFG):</b> 2/3 quorums intersect in ≥1/3, and intersection = slashable. Remove surround rule → attacker can finalize conflicting checkpoints by "wrapping" with no double vote. Remove double-vote rule → trivially sign both forks.</li>
+<li><b>Availability (LMD-GHOST):</b> the head never depends on 2/3 participation; any online subset keeps extending.</li>
+<li><b>Coupling:</b> the filter ensures the head follows the <em>latest justified checkpoint</em>, so honest validators following fork choice never produce slashable votes (this was the bug class behind "unrealized justification" fixes).</li>
+<li><b>Latest message</b> keeps state O(#validators) rather than O(votes ever).</li>
+<li>Ablation: no proposer boost → balancing attack with a handful of validators per slot (§9). No equivocation discounting → avalanche attack. No inactivity leak → &gt;1/3 offline halts finality forever.</li>
+</ul>

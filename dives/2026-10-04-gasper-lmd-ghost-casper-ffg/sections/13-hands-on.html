@@ -1,0 +1,9 @@
+<p><code>gasper_sim.py</code> (stdlib Python) in this folder:</p>
+<pre><code>python3 gasper_sim.py</code></pre>
+<p>Observed output:</p>
+<ol>
+<li><b>LMD latest message:</b> 3 votes A vs 1 B → head A; after the 3 validators' <em>latest</em> messages move to B, head flips to B.</li>
+<li><b>Proposer boost threshold (toy):</b> committee=100 votes; adversary releases k withheld votes for B. With 40% boost the timely honest block's branch wins for k=10, 30; at k=39 B's lead is 40 (honest split 30/31 plus 39 adversary votes), exactly equal to the boost, so the tie goes to B by root-name tiebreak; k=41 loses outright. With 0% boost it never wins. Boost beats adversaries holding fewer than ~40% of one committee.</li>
+<li><b>Inactivity leak:</b> 34% offline → 1,005 epochs (4.5 days, 0.94 ETH lost each); 40% → 3,111 epochs (13.8 d, 8 ETH); 50%/60% → ejection at 16 ETH after 4,826 epochs (21.4 d). Caveat: toy model, uniform offline validators, ejection at exactly 16 ETH balance, bias 4 and quotient 2²⁴.</li>
+</ol>
+<p>Extension: query a real beacon node with the <code>curl</code> commands in §1b and watch <code>finalized.epoch</code> lag <code>current_justified.epoch</code> by 1–2.</p>

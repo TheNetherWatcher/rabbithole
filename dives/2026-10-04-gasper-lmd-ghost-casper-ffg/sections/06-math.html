@@ -1,0 +1,87 @@
+<style>
+#math-leak .kv,#math-boost .bars{display:grid;gap:8px;margin:8px 0}
+#math-leak .kv{grid-template-columns:repeat(3,1fr)}
+#math-leak .kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+#math-leak .kv b{display:block;font-size:1.25rem;color:var(--accent)}
+#math-leak .kv span{font-size:12px;color:var(--mute)}
+#math-boost .bars span{font-size:12px;color:var(--mute)}
+#math-boost #math-barB{background:var(--bad)}
+#math-boost .verdict{margin-top:8px;font-weight:600}
+#math-leak label,#math-boost label{display:block;margin:8px 0;font-size:.9rem}
+#math-leak input[type=range],#math-boost input[type=range]{width:100%}
+</style>
+<p><b>Supermajority and accountable safety.</b> Let total stake = <em>n</em>. A supermajority link has ≥ 2n/3 stake. Two conflicting finalized checkpoints need two sets V₁, V₂ each with ≥ 2n/3; by inclusion–exclusion |V₁ ∩ V₂| ≥ 2n/3 + 2n/3 − n = n/3. Validators in the intersection signed <em>both</em> links. Claim (Casper FFG): any such overlap violates a slashing condition:</p>
+<ul>
+<li><b>Double vote:</b> <code>data_1 != data_2 and data_1.target.epoch == data_2.target.epoch</code></li>
+<li><b>Surround vote:</b> <code>data_1.source.epoch &lt; data_2.source.epoch and data_2.target.epoch &lt; data_1.target.epoch</code></li>
+</ul>
+<p>→ in plain terms: you cannot sign two different statements about the same epoch, or a statement that "wraps" an earlier one, without a witness being able to prove it. So ≥ n/3 stake is provably guilty (<em>accountable safety</em>). Why 2/3 and not 1/2: with 1/2, intersection could be empty; 2/3 is the smallest threshold giving a <em>non-empty-by-a-third</em> intersection robust to f &lt; n/3 faults while keeping liveness (n − f ≥ 2n/3 honest can still reach it).</p>
+<p><b>Why finalization needs two rounds, not one.</b> Justification alone only says "2/3 voted source→target"; a later conflicting justification could exist built from different sources without overlap violations. Finality of C requires a link C → C' with C justified, so that <em>any</em> conflicting justified checkpoint would need a link that surrounds or double-votes with C → C'. → in plain terms: the second round stops honest validators from being asked to sign something that contradicts an already-justified thing.</p>
+<p><b>Inactivity leak.</b> Spec: each epoch of non-finality (after 4), offline validator's inactivity score <code>s += INACTIVITY_SCORE_BIAS (=4)</code>; penalty per epoch <code>balance * s / (INACTIVITY_SCORE_BIAS * INACTIVITY_PENALTY_QUOTIENT_BELLATRIX)</code> with quotient 2²⁴ = 16,777,216 (phase0 launch value 2²⁶ = 67,108,864; <b>quotient value checked for phase0 only; Bellatrix+ value from eth2book notes</b>).</p>
+<p>Score grows linearly in time t (s ≈ 4t), penalty rate ∝ s, so the balance decays as B(t) ≈ B₀ · exp(−t²/(2·2²⁴)) <em>(since dB/dt = −B · 4t / (4·2²⁴) = −B·t / 2²⁴)</em>. Solving for a halving: t ≈ √(2·2²⁴·ln 2) ≈ 4,800 epochs ≈ 21 days (matches the toy sim below at the 16 ETH ejection point).</p>
+<p>→ in plain terms: loss is <em>quadratic</em> in outage length. A 1-hour outage costs nearly nothing; 3 weeks costs half the stake. Quadratic form (not linear) is chosen so short outages are cheap but a long attack is ruinous, and so the offline fraction drops fast enough to recover finality in weeks, not years.</p>
+<p><b>Proposer boost threshold.</b> Boost weight W_b = 0.4·W_c (W_c = one slot's committee weight). A timely honest block's branch overtakes a withheld-vote lead L iff W_b &gt; L. So a balancing adversary needs to hold ≥ 40% of a slot's committee; at adversary fraction β of total stake, expected adversarial votes in a committee ≈ β·W_c, so boost beats it when β &lt; 0.4 (in the idealized model; the research notes say it is "designed for ~20%" because real attacks use multi-slot sandwiches, see §9).</p>
+
+<div class="widget" id="math-leak">
+  <div class="wtitle"><b>Inactivity leak calculator</b></div>
+  <label>Offline stake fraction <b id="math-ofv">40</b>% <input id="math-of" type="range" min="34" max="70" value="40"></label>
+  <div class="kv">
+    <div><b id="math-lk1">-</b><span>epochs to regain 2/3</span></div>
+    <div><b id="math-lk2">-</b><span>days</span></div>
+    <div><b id="math-lk3">-</b><span>ETH lost per offline validator</span></div>
+  </div>
+  <p class="mini">Same toy model as <code>gasper_sim.py</code>: offline score += 4 / epoch after 4 epochs, penalty = balance &times; score / (4 &times; 2<sup>24</sup>), ejection at 16 ETH.</p>
+</div>
+
+<p>The simple game from the same paper shows the boost threshold at work. Left: the non-compliant votes reach the boost weight, so the honest block keeps the head. Right: they fall short, and the adversary's block takes the head.</p>
+<div class="fig-pair"><figure data-fig="unsucc"></figure><figure data-fig="succ"></figure></div>
+
+<div class="widget" id="math-boost">
+  <div class="wtitle"><b>Proposer boost vs a withheld-vote lead</b></div>
+  <p class="mini">Committee weight W<sub>c</sub> = 100 votes. Adversary releases <b id="math-kv">30</b> withheld votes so fork B leads by that much. The honest timely block on A gets boost = <b id="math-bv">40</b>% of W<sub>c</sub>.</p>
+  <label>Adversary votes k <input id="math-kr" type="range" min="0" max="80" value="30"></label>
+  <label>Boost % <input id="math-br" type="range" min="0" max="100" value="40"></label>
+  <div class="bars">
+    <div><span>Fork A (honest, +boost)</span><div class="bar"><i id="math-barA"></i></div></div>
+    <div><span>Fork B (adversary lead)</span><div class="bar"><i id="math-barB"></i></div></div>
+  </div>
+  <div id="math-boostOut" class="verdict"></div>
+</div>
+
+<script>
+(function(){
+  // boost widget (same arithmetic as gasper_sim.py)
+  var kr=document.getElementById('math-kr'),br=document.getElementById('math-br');
+  function boost(){
+    var k=+kr.value,b=+br.value,C=100,honest=C-k;
+    var a=Math.floor(honest/2),bh=honest-a;
+    var A=a+C*b/100,B=bh+k;
+    document.getElementById('math-kv').textContent=k;
+    document.getElementById('math-bv').textContent=b;
+    var max=Math.max(A,B,1);
+    document.getElementById('math-barA').style.width=(A/max*100)+'%';
+    document.getElementById('math-barB').style.width=(B/max*100)+'%';
+    var o=document.getElementById('math-boostOut');
+    o.textContent=A>B?'Honest branch wins (A '+A.toFixed(1)+' vs B '+B.toFixed(1)+')':(A===B?'Tie: root-hash tiebreak decides':'Adversary branch holds (B '+B.toFixed(1)+' vs A '+A.toFixed(1)+')');
+  }
+  kr.oninput=boost;br.oninput=boost;boost();
+
+  // leak widget (mirrors gasper_sim.py leak())
+  var of=document.getElementById('math-of');
+  function leak(){
+    var f=+of.value/100,start=32,bal=start,score=0,res=null;
+    var Q=Math.pow(2,24),non=1000*(1-f),noff=1000*f;
+    for(var e=1;e<20000;e++){
+      if(e>4){score+=4;bal-=bal*score/(4*Q)}
+      var offEff=bal<=16?0:noff;
+      var on=non*start,off=offEff*bal;
+      if(on*3>=(on+off)*2){res=e;break}
+    }
+    document.getElementById('math-ofv').textContent=Math.round(f*100);
+    document.getElementById('math-lk1').textContent=res;
+    document.getElementById('math-lk2').textContent=(res*6.4/60/24).toFixed(1);
+    document.getElementById('math-lk3').textContent=(start-bal).toFixed(2);
+  }
+  of.oninput=leak;leak();
+})();
+</script>

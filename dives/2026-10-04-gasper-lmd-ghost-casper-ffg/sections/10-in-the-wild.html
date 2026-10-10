@@ -1,0 +1,7 @@
+<ul>
+<li>Clients implement spec fork choice via <b>proto-array</b> (Lighthouse, Prysm, Teku, Nimbus, Lodestar); fork-choice compliance test vectors live in <code>ethereum/consensus-specs</code>.</li>
+<li>Spec adds <b>proposer reorg</b> logic (<code>REORG_HEAD_WEIGHT_THRESHOLD = 20</code>, <code>REORG_PARENT_WEIGHT_THRESHOLD = 160</code>, <code>REORG_MAX_EPOCHS_SINCE_FINALIZATION = 2</code>): a proposer may deliberately build on the parent of a weak late block (reorging an unattested head).</li>
+<li><b>MEV-Boost</b>: ~90% of blocks come from external builders; fork choice is oblivious, but timing games stress the 4 s attestation deadline.</li>
+<li><b>Checkpoint sync</b> replaces genesis sync (weak subjectivity in practice).</li>
+<li><b>EIP-7251 (Pectra, May 2025)</b> consolidates validators to cut P2P load.</li>
+</ul>
