@@ -162,14 +162,16 @@ All URLs used, grouped by type (papers, code/docs, articles).
 
 ## Step 4 — HTML companion (always): layered cards
 
-Every dive ships a page at `dives/YYYY-MM-DD-<slug>/index.html` with two layers: a **skim layer** (hero emblem, TL;DR, stat tiles, then one short card per section) and a **deep layer** (each card's "Go deeper" expands that section's full content in place). A reader should get the whole topic in ~3–5 minutes from the briefs alone, and open only the parts they want.
+Every dive ships a page at `dives/YYYY-MM-DD-<slug>/index.html` built to be read, not filed: a **cold open** (the first screen is a hook and a guess, not a title), the **hero** (emblem, title, TL;DR, stats), a **scroll story** (one sticky diagram that changes as the reader scrolls through the whole idea), then the **skim layer** (one short card per section, some gated by a guess) and the **deep layer** (each card's "Go deeper" expands that section's full content in place). A reader should get the whole topic in ~3–5 minutes from the cold open, story and briefs alone, and open only the parts they want.
 
 You do NOT hand-write `index.html`. You write source files, and `build.py` (next to this SKILL.md) stitches them with the shared template (`template/`) into one self-contained file. Look at `dives/2026-10-10-pagedattention-kv-cache/` as the reference example and copy its structure.
 
 ### Source files (in the dive folder)
 
 ```
-dive.json          meta, hero, tldr, why, stats, ordered cards, questions
+dive.json          meta, hero, cold_open, story, tldr, why, stats, ordered cards, guesses, questions
+sections/cold-open.html  the first screen: 2–3 hook lines + a guess + a payoff visual
+sections/story.html      the scroll story: a .scrolly with one sticky SVG and 6–9 steps
 sections/NN-*.html one fragment per card: the deep content for that section
 img/hero.svg       hero emblem (or img/hero.txt for ASCII art)
 img/<card>.svg     one small visual per card
@@ -182,6 +184,9 @@ img/<card>.svg     one small visual per card
   "meta": {"title": "...full title...", "short": "2–5 word name", "subject": "Computer science",
            "domain": "LLM systems", "topic": "...", "depth": "hard", "date": "YYYY-MM-DD"},
   "hero": "img/hero.svg",
+  "cold_open": "sections/cold-open.html",
+  "story": {"file": "sections/story.html", "kicker": "The whole idea in 9 scrolls",
+            "title": "How a 1962 operating-system trick fit 2–4× more conversations on a GPU"},
   "tldr": "2–3 sentences, <b> on the 2–3 key facts",
   "why": "<b>Why it matters:</b> one sentence",
   "stats": [{"v": "96.3%", "l": "what the number means"}],
@@ -189,9 +194,18 @@ img/<card>.svg     one small visual per card
     {"id": "plain", "group": "Plain English", "tone": "plain", "kicker": "In everyday words",
      "title": "Headline that states the takeaway", "visual": "img/plain.svg",
      "file": "sections/00-plain.html", "brief": "<p>…</p>"},
+    {"id": "problem", "guess": "oracle", "kicker": "§3 · The problem", "title": "…", "visual": "img/problem.svg",
+     "file": "sections/03-problem.html", "brief": "<p>…</p>"},
     {"id": "quiz", "builtin": "quiz", "kicker": "§14 · Question ladder", "title": "Test yourself",
      "visual": "img/quiz.svg", "brief": "<p>N questions…</p>"}
   ],
+  "guesses": {
+    "cold":   {"q": "Before 2023, what share of KV memory held actual tokens?", "min": 0, "max": 100, "step": 1,
+               "unit": "%", "answer": [20, 38], "start": 50, "tol": 6, "reveal": "<p>Only <b>20–38%</b>. …</p>"},
+    "oracle": {"q": "If the old server knew every exact length, how would paging compare?",
+               "options": ["Old server wins", "A tie", "Paging 1.1× faster", "Paging 1.7–2.7× faster"],
+               "answer": 3, "reveal": "<p>Still <b>1.7–2.7×</b>. …</p>"}
+  },
   "questions": [{"type": "Mechanism", "q": "...", "a": "...", "sec": "mech"}],
   "figures": {
     "fig6": {"file": "img/fig/vllm-fig6-block-table.png",
@@ -210,7 +224,38 @@ img/<card>.svg     one small visual per card
 - **`questions`**: the full question ladder (Step 3 §14) with answers. `type` is the group (Mechanism, Why, Counterfactual, Adversarial, Connection, Open). `sec` is the card id that teaches the answer. Answers are HTML strings.
 - **`stats`**: 3–5 key numbers. A value that is a single number plus a unit ("96.3%", "128 KiB") counts up on screen; ranges ("2–4×") stay static.
 
-**`sections/*.html`**: plain HTML fragments, no `<html>`/`<body>`, no `<h2>` (the card supplies the title; start subsections at `<h3>`). Content = the full section from the dive, same facts and links as the README. Use the content kit classes from `template/app.css`: `.eq` (equation, with `<small>→ in plain terms: …</small>`), `.grid`+`.gc` (where-it's-used cards), `.two` with `.use`/`.skip`, `.callout.mis|.gotcha|.flag|.tip`, `table`, `pre><code` (copy buttons are automatic), `blockquote`, `.widget` + `.stepbar` + `.ctl` + `.bar` (interactive widgets), `button.btn`, `.mini`. A section may include its own `<style>` (scope selectors under a unique id) and `<script>` (wrap it in an IIFE; it runs at page load, collapsed or not). Prefix every element id with the card id (`mech-step`, not `step`) so ids never collide. Links open in a new tab (`target="_blank" rel="noopener"`).
+### Hook the reader: cold open, scroll story, guesses
+
+These three are what make someone read the page instead of skimming past it. Every dive gets all three.
+
+**Cold open (`sections/cold-open.html`)**: the first screen, before the title. Write 2–3 `<p class="cold-line">` lines: the first is a short concrete fact in plain words ("An A100 GPU has 40 GB of memory."); the next (`<p class="cold-line sm">`) sets up the stakes in one or two sentences; wrap the key term in `<em>`. Then a `<div data-guess="cold"></div>` asking for the dive's most surprising number, so the reader commits before seeing it. End with a payoff visual inside `<div class="cold-viz">` (hidden until the guess is locked, via `.js .guess.done ~ .cold-viz`): a small animated grid, bar or curve that shows the answer, with a one-line label that states the numbers. No title, no jargon before it is explained, ≤60 words of text. The page adds the lines' staggered entrance and a "<short name> ↓" cue that scrolls to the hero.
+
+**Scroll story (`sections/story.html`)**: the whole idea in 6–9 steps, Pudding/Distill style. Structure:
+
+```html
+<style>#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)} …</style>
+<div class="scrolly">
+  <div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430">… elements with data-in / data-out / data-hl …</svg></div>
+  <div class="scrolly-steps">
+    <div class="step"><p class="dropcap">Step 1 text…</p></div>
+    <div class="step"><p><b>The old way.</b> …</p></div>
+  </div>
+</div>
+```
+
+- One SVG, drawn once. Each element that should appear or disappear carries `data-in="N"` (visible from step N) and/or `data-out="M"` (hidden from step M); `data-hl="N M"` gives it an accent stroke at those steps. Elements with none of these are always visible (the base grid). Steps count from 1.
+- Arc: the setup → the naive way and why it fails (with a real number) → the key idea → 2–4 steps of it working (growth, sharing, edge case) → the failure mode it trades for → a final step with the headline numbers drawn big (overlay a `f-bg` rect at opacity .97 over the diagram). Each step is 2–4 sentences, one idea, numbers from the dive.
+- Geometry: viewBox about 480 × 400–440 (it must stay readable at phone width, where it is pinned in the top half of the screen); labels ≥14 px in the viewBox; palette classes or `var(--…)` in a scoped `<style>` only, no hex colors. Give the SVG a unique id (`story-fig`) and `role="img"` plus an `aria-label`. Generate it with a short Python script when there are many shapes; `dives/2026-10-10-pagedattention-kv-cache/story_svg.py` is the reference.
+- Keep text that swaps per step in the same spot (caption line at the top, status line at the bottom), each with its own `data-in`/`data-out` range.
+- A `.scrolly` also works inside a card's deep section (the card lets sticky positioning through once opened), e.g. for a long mechanism trace.
+
+**Guesses (`guesses` in `dive.json`)**: predict-then-reveal prompts. Each is either a choice (`options` + `answer` index) or a range (`min`, `max`, `step`, `unit`, `answer` as a number or `[lo, hi]`, optional `start` and `tol` for "close enough"; default tolerance is 8% of the range). `reveal` is HTML shown after the reader commits: the answer in `<b>`, then one or two sentences on why. Place a guess:
+- in the cold open (`<div data-guess="cold"></div>`), always;
+- on 3–5 cards with `"guess": "<id>"`, which shows it above the brief and blurs the brief until the reader answers or presses "Skip the guess, just show me". Pick cards whose brief contains a surprising number or counterintuitive answer (problem, mechanism, math, where it breaks are typical). The card title and visual must not give the answer away;
+- anywhere in a section with `<div data-guess="<id>"></div>`.
+Ask about things a smart reader would plausibly get wrong, never trivia. Distractors are plausible. Answers come from the dive's sources, and the reveal says where the number comes from when it is not obvious. The page saves each guess and shows "guesses: x / y right" in the hero.
+
+**`sections/*.html`**: plain HTML fragments, no `<html>`/`<body>`, no `<h2>` (the card supplies the title; start subsections at `<h3>`). Content = the full section from the dive, same facts and links as the README. Use the content kit classes from `template/app.css`: `.eq` (equation, with `<small>→ in plain terms: …</small>`), `.grid`+`.gc` (where-it's-used cards), `.two` with `.use`/`.skip`, `.callout.mis|.gotcha|.flag|.tip`, `table`, `pre><code` (copy buttons are automatic), `blockquote`, `.widget` + `.stepbar` + `.ctl` + `.bar` (interactive widgets), `button.btn`, `.mini`, `.pull` (`<div class="pull"><b>20–38%</b><span>what the number means</span></div>`, a big-number pull quote: one near the top of the problem section, at most 2–3 per dive), `.dropcap` (on the first paragraph of the plain-English card and the story's first step). Body text is set in a serif (`var(--serif)`) for long reading; widgets, tables, callouts and captions stay sans automatically. A section may include its own `<style>` (scope selectors under a unique id) and `<script>` (wrap it in an IIFE; it runs at page load, collapsed or not). Prefix every element id with the card id (`mech-step`, not `step`) so ids never collide. Links open in a new tab (`target="_blank" rel="noopener"`).
 
 Where the topic has a process, the mechanism section gets a Back/Next step-through of the traced example. Add an interactive widget (slider, toggle, simulator) when a parameter's effect is the point; skip it when forced. Render equations as legible HTML (sub/sup, Unicode math) in `.eq` blocks.
 
@@ -254,9 +299,9 @@ python3 <skill-dir>/build.py --hub dives                # refreshes dives/index.
 
 `<skill-dir>` is the directory containing this SKILL.md (`.claude/skills/rabbithole` in the rabbithole repo). Never edit the generated `index.html` by hand; fix the sources or the template and rebuild. Template changes (`template/app.css`, `app.js`, `dive.html`, `hub.html`) apply to every dive on rebuild.
 
-Verify before finishing. `file://` pages can't be opened by the browser tools, so serve the repo: `python3 -m http.server 8765 --bind 127.0.0.1` (in the background), open `http://127.0.0.1:8765/dives/<folder>/index.html` with `mcp__claude-in-chrome__*`, and check: no console errors; the hero renders; cards expand and collapse; the step-through and widgets work inside expanded cards; figures render, zoom opens and Esc closes it, and the credits list is complete; quiz reveal and ✓/✗ marks update the ring; no horizontal overflow at 375 px (test in a 390 px iframe if the window won't resize). Stop the server afterwards.
+Verify before finishing. `file://` pages can't be opened by the browser tools, so serve the repo: `python3 -m http.server 8765 --bind 127.0.0.1` (in the background), open `http://127.0.0.1:8765/dives/<folder>/index.html` with `mcp__claude-in-chrome__*`, and check: no console errors; the cold open lines appear, the guess locks and reveals its payoff visual; scrolling through the story changes the sticky diagram at every step with no overlapping labels (check steps at desktop width and in the 390 px iframe); gated cards unblur after a guess or a skip; the hero renders; cards expand and collapse; the step-through and widgets work inside expanded cards; figures render, zoom opens and Esc closes it, and the credits list is complete; quiz reveal and ✓/✗ marks update the ring; no horizontal overflow at 375 px (test in a 390 px iframe if the window won't resize). Stop the server afterwards.
 
-What the template gives every page for free (don't rebuild these): sticky top bar with a progress ring, Expand-all toggle (deep mode, remembered), light/dark toggle, side dot-nav, scroll reveal, stat count-up, card expand animation, "Got it" checkboxes, quiz with self-marking, progress saved per browser (`localStorage` key `rh:p:<folder>`), deep links (`#c-<card id>` opens that card), `prefers-reduced-motion` support.
+What the template gives every page for free (don't rebuild these): cold-open entrance and scroll cue, scrolly step tracking, guess controls with saved results and score, brief gating, sticky top bar with a progress ring, Expand-all toggle (deep mode, remembered), light/dark toggle, side dot-nav, scroll reveal, stat count-up, card expand animation, "Got it" checkboxes, quiz with self-marking, progress saved per browser (`localStorage` key `rh:p:<folder>`), deep links (`#c-<card id>` opens that card), `prefers-reduced-motion` support.
 
 Do NOT create a Claude artifact and do NOT use the Artifact tool. The deliverable is the built HTML file plus its sources in the dive folder, committed to the repo. In chat, mention the file path in one line.
 
