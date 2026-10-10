@@ -1,0 +1,31 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cr-label{margin:0 0 8px}
+.cr-label b{color:var(--ink)}
+.cr-grid{display:grid;grid-template-columns:repeat(15,1fr);gap:3px;margin:6px 0 4px}
+.cr-grid i{display:block;aspect-ratio:1;border-radius:2px;background:var(--code);border:1px solid var(--line)}
+.cr-grid i.f{border:0;background:var(--bad)}
+.js .cr-grid i{opacity:0;transform:scale(.4);animation:cr-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*7ms)}
+@keyframes cr-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">Reading memory can flip bits you never touched.</p>
+<p class="cold-line sm">Read one row fast enough and its neighbour leaks charge before the refresh arrives. That is <em>Rowhammer</em>, and a single flipped bit can hand an attacker a machine they share with you.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <p class="cr-label"><b>110 of 129 modules flipped.</b> Each square is one DDR3 module.</p>
+  <div class="cr-grid" id="cr-grid"></div>
+</div>
+<script>
+(function(){
+  var g=document.getElementById('cr-grid');
+  if(!g)return;
+  for(var k=0;k<129;k++){
+    var i=document.createElement('i');
+    if(k<110)i.className='f';
+    i.style.setProperty('--d',k);
+    g.appendChild(i);
+  }
+})();
+</script>

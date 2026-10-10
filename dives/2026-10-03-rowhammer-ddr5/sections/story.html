@@ -1,0 +1,107 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One DRAM bank: hammering two rows drains a victim row to the sense point and flips it. Then TRR tracks only a few rows, PRAC counts every row, and the headline numbers.">
+<defs></defs>
+<rect x="20" y="50" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="75" class="sf-lab" data-out="6">V−2</text>
+<rect x="130" y="63" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="63" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="100" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6" data-hl="2 3 4 5"/>
+<text x="32" y="125" class="sf-lab" data-out="6">A1 (V−1)</text>
+<rect x="130" y="113" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="113" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="150" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="175" class="sf-lab" data-out="6">V (victim)</text>
+<rect x="130" y="163" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="20" y="200" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6" data-hl="2 3 4 5"/>
+<text x="32" y="225" class="sf-lab" data-out="6">A2 (V+1)</text>
+<rect x="130" y="213" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="213" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="20" y="250" width="300" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="6"/>
+<text x="32" y="275" class="sf-lab" data-out="6">V+2</text>
+<rect x="130" y="263" width="170" height="14" rx="3" class="f-code" data-out="6"/>
+<rect x="130" y="263" width="170" height="14" rx="3" class="f-ok" data-out="6"/>
+<rect x="130" y="163" width="170" height="14" rx="3" class="f-ok" data-in="1" data-out="2"/>
+<rect x="130" y="163" width="150" height="14" rx="3" class="f-ok" data-in="2" data-out="3"/>
+<rect x="130" y="163" width="115" height="14" rx="3" class="f-ok" data-in="3" data-out="4"/>
+<rect x="130" y="163" width="85" height="14" rx="3" class="f-ok" data-in="4" data-out="5"/>
+<rect x="130" y="163" width="30" height="14" rx="3" class="f-bad" data-in="5" data-out="6"/>
+<line x1="215" y1="44" x2="215" y2="294" class="s-mute" stroke-width="2" stroke-dasharray="4 4" data-out="6"/>
+<text x="215" y="312" class="sf-lab" text-anchor="middle" data-in="1" data-out="6">sense point</text>
+<text x="340" y="175" class="sf-lab" data-in="1" data-out="5">bit = 1</text>
+<text x="340" y="175" class="sf-lab sf-bad" data-in="5" data-out="6">bit = 0</text>
+<rect x="20" y="60" width="440" height="110" rx="8" class="f-panel s-line" stroke-width="1.5" data-in="6" data-out="8"/>
+<text x="32" y="80" class="sf-lab" data-in="6" data-out="8">TRR tracker: 4 entries</text>
+<rect x="32" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="80" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A1</text>
+<rect x="140" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="188" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A2</text>
+<rect x="248" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="296" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A3</text>
+<rect x="356" y="94" width="96" height="46" rx="6" class="f-code s-acc" stroke-width="2" data-in="6" data-out="8"/>
+<text x="404" y="123" class="sf-cell" text-anchor="middle" data-in="6" data-out="8">A4</text>
+<text x="20" y="274" class="sf-lab" data-in="6" data-out="8">victim V</text>
+<rect x="100" y="260" width="350" height="18" rx="3" class="f-code" data-in="6" data-out="8"/>
+<rect x="100" y="260" width="350" height="18" rx="3" class="f-ok" data-in="6" data-out="7"/>
+<rect x="100" y="260" width="110" height="18" rx="3" class="f-bad" data-in="7" data-out="8"/>
+<rect x="20" y="182" width="440" height="40" rx="8" class="f-none s-bad" stroke-width="2" stroke-dasharray="6 4" data-in="7" data-out="8"/>
+<text x="32" y="207" class="sf-lab sf-bad" data-in="7" data-out="8">A5: not in the tracker, never refreshed</text>
+<text x="20" y="82" class="sf-lab" data-in="8" data-out="9">A1</text>
+<rect x="110" y="66" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="66" width="300" height="22" rx="4" class="f-bad" data-in="8" data-out="9"/>
+<text x="20" y="122" class="sf-lab" data-in="8" data-out="9">A2</text>
+<rect x="110" y="106" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="106" width="200" height="22" rx="4" class="f-acc" data-in="8" data-out="9"/>
+<text x="20" y="162" class="sf-lab" data-in="8" data-out="9">V+2</text>
+<rect x="110" y="146" width="330" height="22" rx="4" class="f-code" data-in="8" data-out="9"/>
+<rect x="110" y="146" width="40" height="22" rx="4" class="f-ok" data-in="8" data-out="9"/>
+<text x="374" y="50" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">threshold</text>
+<line x1="374" y1="56" x2="374" y2="172" class="s-bad" stroke-width="2" stroke-dasharray="4 4" data-in="8" data-out="9"/>
+<g data-in="9">
+<rect x="12" y="38" width="456" height="360" rx="14" class="f-bg" opacity=".97"/>
+<text x="240" y="74" class="sf-cap" text-anchor="middle">The numbers in this dive</text>
+<text x="60" y="114" class="sf-lab" data-in="9">DDR3 modules with bit flips, 2014</text>
+<rect x="60" y="124" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="124" width="307" height="18" rx="4" class="f-warn" data-in="9"/>
+<text x="60" y="166" class="sf-num" data-in="9">110 of 129</text>
+<text x="60" y="214" class="sf-lab" data-in="9">SK Hynix DDR5 DIMMs flipped by Phoenix, 2026</text>
+<rect x="60" y="224" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="224" width="360" height="18" rx="4" class="f-bad" data-in="9"/>
+<text x="60" y="266" class="sf-num" data-in="9">15 of 15</text>
+<text x="60" y="304" class="sf-lab" data-in="9">PRAC latency cost, as reported (up to)</text>
+<rect x="60" y="314" width="360" height="18" rx="4" class="f-code" data-in="9"/>
+<rect x="60" y="314" width="65" height="18" rx="4" class="f-acc2" data-in="9"/>
+<text x="60" y="356" class="sf-num" data-in="9">10–18%</text>
+<text x="240" y="388" class="sf-lab" text-anchor="middle" data-in="9">Details in the cards below</text>
+</g>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">One DRAM bank: a bit is a little charge</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="6">Hammer the rows beside victim V</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="8">Defense 1, TRR: a short list of hot rows</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">Defense 2, PRAC: an exact count per row</text>
+<text x="20" y="396" class="sf-lab" data-in="1" data-out="2">Refresh tops every row up within 64 ms.</text>
+<text x="20" y="396" class="sf-lab" data-in="2" data-out="3">A1 and A2 are read. V is never opened.</text>
+<text x="20" y="396" class="sf-lab" data-in="3" data-out="4">Each hammer bleeds a sliver of V's charge.</text>
+<text x="20" y="396" class="sf-lab" data-in="4" data-out="5">~9.6K total hammers: V reaches the sense point.</text>
+<text x="20" y="396" class="sf-lab sf-bad" data-in="5" data-out="6">Read V: it returns 0, and V was never opened.</text>
+<text x="20" y="396" class="sf-lab" data-in="6" data-out="7">Tracker: 4 rows. Their neighbours get refreshed.</text>
+<text x="20" y="396" class="sf-lab sf-bad" data-in="7" data-out="8">Untracked aggressor: 13 of 42 DDR4 DIMMs flipped.</text>
+<text x="20" y="396" class="sf-lab" data-in="8" data-out="9">Count crosses the threshold, so V is refreshed.</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A DRAM bank is a stack of rows. Every bit is a sliver of charge in a tiny capacitor, and that charge leaks. So every row is refreshed within <b>64 ms</b>. Software assumes that memory you do not own cannot change.</p></div>
+<div class="step"><p><b>The naive hammer.</b> Read the two rows either side of victim <b>V</b>, again and again. V is never opened. Each read couples a little charge out of V's cells.</p></div>
+<div class="step"><p><b>Charge drains.</b> Both neighbours add their coupling, so V loses charge from two sides. Its next scheduled refresh can be up to 64 ms away, so nothing puts the charge back.</p></div>
+<div class="step"><p><b>The sense point.</b> After about <b>9.6K</b> total hammers, V sits at the decision point between 1 and 0. That is the lowest count measured in 2020, split 4.8K per aggressor.</p></div>
+<div class="step"><p><b>The flip.</b> Read V and the sense amp returns 0. V was never activated, so a bit changed in a row the attacker never touched. A defense has to refresh V before its charge gets there.</p></div>
+<div class="step"><p><b>Defense 1: TRR.</b> The chip keeps a short list of hot rows, four here, and refreshes their neighbours early. A small list is cheap, and it works while the aggressors fit in it.</p></div>
+<div class="step"><p><b>The bypass.</b> Use more aggressors than the list can hold. The fifth row is never tracked, so its victims are never refreshed. TRRespass flipped <b>13 of 42</b> DDR4 DIMMs, from all three vendors.</p></div>
+<div class="step"><p><b>Defense 2: PRAC.</b> Keep an exact count for every row, so there is no list to overflow. When a count crosses the threshold, the neighbours get refreshed. The price is latency, reported at up to about <b>10–18%</b>.</p></div>
+<div class="step"><p><b>The headline.</b> Flips hit <b>110 of 129</b> DDR3 modules in 2014, and Phoenix flipped <b>15 of 15</b> SK Hynix DDR5 DIMMs. Counting is the structural fix, but it is costly and not yet proven safe. The cards below cover the details.</p></div>
+</div>
+</div>

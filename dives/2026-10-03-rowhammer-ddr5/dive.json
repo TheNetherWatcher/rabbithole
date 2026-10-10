@@ -9,6 +9,12 @@
   "date": "2026-10-03"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "How hammering two rows flips a bit in a row nobody opened"
+ },
  "tldr": "Hammering one DRAM row electrically disturbs its neighbours and flips bits nobody touched. The defenses split into two camps. <b>Sampling</b> (TRR) keeps a bounded list of \"hot\" rows and refreshes their neighbours, and it is repeatedly broken because the list is bounded and its schedule can be learned. <b>Counting</b> (DDR5's PRAC) keeps an exact per-row counter, which is the structural fix, but 2024–26 work shows it is expensive and is itself a side channel.",
  "why": "<b>Why it matters:</b> a single flipped bit, such as a page-table permission, a pointer, or an ML weight, can hand an attacker a machine they share with you. It is a software-triggered <i>hardware</i> bug, so you can't patch it away. Phoenix flipped bits on 15 of 15 DDR5 DIMMs and reached root on a default desktop (CVE-2025-6202).",
  "stats": [
@@ -76,7 +82,8 @@
    "title": "HC_first fell from 139K to 4.8K, and keeps falling",
    "visual": "img/problem.svg",
    "file": "sections/03-problem.html",
-   "brief": "<p>A bank admits at most about <b>1.36M</b> activations per 64 ms window. Each generation needs fewer hammers to flip a bit: <b>4.8K</b> on LPDDR4, and projected near <b>128</b>. The defense must catch a row before a threshold that keeps shrinking.</p>"
+   "brief": "<p>A bank admits at most about <b>1.36M</b> activations per 64 ms window. Each generation needs fewer hammers to flip a bit: <b>4.8K</b> on LPDDR4, and projected near <b>128</b>. The defense must catch a row before a threshold that keeps shrinking.</p>",
+   "guess": "budget"
   },
   {
    "id": "model",
@@ -92,7 +99,8 @@
    "title": "Two rows that are only read leak a victim nobody opened",
    "visual": "img/mech.svg",
    "file": "sections/05-mechanism.html",
-   "brief": "<p>Aggressors A₁ and A₂ sit either side of victim V, and each activation bleeds a sliver of V's charge. After about <b>9.6K</b> total activations the next read returns the wrong bit, and V was never activated.</p><p class=\"mini\">6-step interactive walkthrough inside.</p>"
+   "brief": "<p>Aggressors A₁ and A₂ sit either side of victim V, and each activation bleeds a sliver of V's charge. After about <b>9.6K</b> total activations the next read returns the wrong bit, and V was never activated.</p><p class=\"mini\">6-step interactive walkthrough inside.</p>",
+   "guess": "victim"
   },
   {
    "id": "math",
@@ -116,7 +124,8 @@
    "title": "Only the counting designs are exact, and they cost area and latency",
    "visual": "img/knobs.svg",
    "file": "sections/08-knobs.html",
-   "brief": "<p>Refresh, ECC, PARA, TRR, Graphene, CoMeT, and PRAC each buy protection with a different cost. Only the counting designs are exact, and their storage scales as <b>1/T_RH</b>. PRAC's per-precharge update adds up to <b>10–18%</b> latency.</p>"
+   "brief": "<p>Refresh, ECC, PARA, TRR, Graphene, CoMeT, and PRAC each buy protection with a different cost. Only the counting designs are exact, and their storage scales as <b>1/T_RH</b>. PRAC's per-precharge update adds up to <b>10–18%</b> latency.</p>",
+   "guess": "prac"
   },
   {
    "id": "breaks",
@@ -124,7 +133,8 @@
    "title": "Bounded trackers break, and Phoenix took root on default DDR5",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>A tracker that remembers N rows falls to N+1 aggressors. TRRespass flipped <b>13 of 42</b> DDR4 DIMMs, and Blacksmith <b>40 of 40</b>. Phoenix flipped <b>15 of 15</b> SK Hynix DDR5 DIMMs and reached root in about 5 minutes.</p>"
+   "brief": "<p>A tracker that remembers N rows falls to N+1 aggressors. TRRespass flipped <b>13 of 42</b> DDR4 DIMMs, and Blacksmith <b>40 of 40</b>. Phoenix flipped <b>15 of 15</b> SK Hynix DDR5 DIMMs and reached root in about 5 minutes.</p>",
+   "guess": "trr"
   },
   {
    "id": "wild",
@@ -194,6 +204,63 @@
    "brief": "<p>Fifteen papers, four code and docs references, and four articles or vendor pages. Five reference figures are reused under CC BY 4.0, and each has its own credit line.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "In Kim et al.'s 2014 tests, how many of the 129 DDR3 modules showed bit flips?",
+   "min": 0,
+   "max": 129,
+   "step": 1,
+   "unit": "modules",
+   "answer": 110,
+   "start": 40,
+   "tol": 5,
+   "reveal": "<p><b>110 of 129.</b> Disturbance errors appeared in 110 modules, with as few as 139K reads to a row. Every module made in 2012–2013 was affected. Smaller cells and tighter spacing make the effect worse each generation.</p>"
+  },
+  "budget": {
+   "q": "How many activations can one bank take in one 64 ms refresh window?",
+   "min": 0,
+   "max": 3,
+   "step": 0.05,
+   "unit": "million",
+   "answer": 1.36,
+   "start": 0.3,
+   "tol": 0.1,
+   "reveal": "<p><b>About 1.36 million.</b> That is 64 ms divided by the 47 ns row cycle (tRC). It is arithmetic from the timing parameters, not a measured figure. Against a threshold of 4.8K, the budget is generous.</p>"
+  },
+  "victim": {
+   "q": "In the lowest case measured in 2020, how many total activations on the two neighbours flipped the victim?",
+   "options": [
+    "About 1,000",
+    "About 9.6K",
+    "About 139K",
+    "About 1.36M"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>9.6K.</b> The minimum across 1,580 chips in the 2020 study, split 4.8K per aggressor, double-sided. The 139K figure is an older 2014 DDR3 read count, not this case.</p>"
+  },
+  "trr": {
+   "q": "What share of DDR4 DIMMs did TRRespass flip?",
+   "options": [
+    "About 1 in 10",
+    "About 1 in 3",
+    "About 9 in 10",
+    "All of them"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>13 of 42, about 1 in 3.</b> TRRespass used many-sided hammering on chips from all three vendors. Blacksmith's non-uniform patterns later flipped 40 of 40 DDR4 DIMMs.</p>"
+  },
+  "prac": {
+   "q": "How much latency does PRAC's counter update add, as reported?",
+   "options": [
+    "Under 1%",
+    "About 2–3%",
+    "About 10–18%",
+    "About 50%"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Up to about 10–18%.</b> The cost is a read-modify-write on each precharge. Much of the 2024–26 PRAC work is about clawing that cost back.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",
