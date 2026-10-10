@@ -1,0 +1,107 @@
+<style>
+#math-w .sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+#math-w .sliders label{font-size:14px;display:block}
+#math-w .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+#math-w output{font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+#math-w .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+#math-w .readout div{background:var(--bg2);border-radius:10px;padding:10px 12px}
+#math-w .readout b{font-size:22px;display:block;font-variant-numeric:tabular-nums}
+#math-w .readout small{color:var(--mute);font-size:12.5px}
+#math-w .readout .good b{color:var(--ok)}
+#math-w .readout .badv b{color:var(--bad)}
+#math-plot{width:100%;height:auto;display:block}
+#math-plot text{font-family:system-ui,sans-serif;font-size:12px;fill:var(--mute)}
+</style>
+<h3>6.1 Exactness (one position)</h3>
+<p><b>Symbols.</b> p(x) is the target distribution at one position, q(x) the draft's, both over vocab V. γ is the draft length. α is the expected acceptance probability. c is the cost ratio = (time of one draft pass) / (time of one target pass).</p>
+<p>Draft samples x ~ q. Accept with probability a(x) = min(1, p(x)/q(x)). On reject, sample from r(x) = max(0, p(x) − q(x)) / Z.</p>
+<p>Probability of emitting x′ <b>via acceptance</b>:</p>
+<div class="eq">q(x′) · min(1, p(x′)/q(x′)) = min(q(x′), p(x′))<small>→ in plain terms: the draft "covers" each token up to whichever of p, q is smaller.</small></div>
+<p>Total rejection probability:</p>
+<div class="eq">β = Σ_x min(p,q) &nbsp;(acceptance prob)<br>P(reject) = 1 − β = Σ_x (p − min(p,q)) = Σ_x max(0, p − q) = Z<small>The normalizer of the residual equals the rejection probability. That isn't luck: it's forced by both being "the mass of p not covered by q".</small></div>
+<p>Probability of emitting x′ <b>via rejection</b>:</p>
+<div class="eq">P(reject) · r(x′) = Z · max(0, p(x′) − q(x′)) / Z = p(x′) − min(p(x′), q(x′))</div>
+<p>Sum:</p>
+<div class="eq">P(emit x′) = min(p,q) + (p − min(p,q)) = p(x′)&nbsp;&nbsp;∎<small>→ in plain terms: acceptance hands out <code>min(p,q)</code> of each token's mass. Rejection hands out exactly the leftover <code>p − min(p,q)</code>, never more, because the residual only lives where p &gt; q.</small></div>
+<p><b>Why this form and not simpler:</b></p>
+<ul>
+<li><i>Plain rejection sampling</i> accepts with p/(M·q), M = max p/q. That's exact but needs a global bound M and accepts much less often. Leviathan A.2 shows the one-shot version accepts Σ p·min(q/p) ≤ Σ min(p,q).</li>
+<li><i>"Keep the draft if the target's own sample equals it"</i> (sample-and-match) is exact too: emit the target's sample regardless. But it accepts with probability Σ p·q. For the toy in §13 that's <b>0.23 vs 0.83</b>.</li>
+<li><code>min(1, p/q)</code> is the <i>largest</i> per-token accept probability that still leaves a valid (non-negative) correction. Accepting more anywhere would require negative residual mass. This is the maximal coupling of p and q.</li>
+</ul>
+<p><b>Sequence level.</b> The argument applies position by position. After a rejection the remaining drafts are discarded, so every emitted token is p-distributed conditional on the prefix actually emitted. Induction gives the joint distribution.</p>
+<p><b>Greedy as a special case.</b> With temperature → 0, p and q become one-hot. min(1, p/q) ∈ {0, 1}, so you accept iff argmax q = argmax p. The residual is the target's one-hot, so you emit the target's argmax. That is exactly Stern et al.'s 2018 greedy-match rule.</p>
+
+<h3>6.2 Acceptance rate is 1 − TV</h3>
+<div class="eq">β = Σ_x min(p(x), q(x))<br>&nbsp;&nbsp;= 1 − ½ Σ_x |p(x) − q(x)|&nbsp;&nbsp;(since min(a,b) = (a+b−|a−b|)/2, Σp = Σq = 1)<br>α = E_prefix[β]<small>→ in plain terms: you accept exactly as often as the two distributions overlap. Leviathan calls the distance D_LK and proves D_LK = 1 − Σ min(p,q). The TV identity is ours (D_LK = ½‖p−q‖₁); the paper doesn't use the words "total variation". It's also the best possible: no coupling of p and q can make X_draft = X_target with probability above 1 − TV.</small></div>
+
+<h3>6.3 Expected tokens per iteration</h3>
+<p>Assume each position accepts independently with probability α (Leviathan's simplifying i.i.d. assumption). The number of accepted drafts N is a geometric variable capped at γ, and you emit N + 1 tokens:</p>
+<div class="eq">E[tokens] = Σ_{k=0}^{γ} α^k = (1 − α^{γ+1}) / (1 − α)<small>→ in plain terms: each extra drafted token is worth α^k, so returns decay geometrically. With α = 0.8 the 10th draft token is worth 0.8¹⁰ ≈ 0.11 tokens.</small></div>
+<figure data-fig="lev4"></figure>
+
+<h3>6.4 Wall-time speedup</h3>
+<p>One iteration costs γ draft passes plus one target pass = T(γc + 1), where T is the time of one target pass. Assume scoring γ+1 tokens costs the same as one. Then:</p>
+<div class="eq">speedup(α, γ, c) = (1 − α^{γ+1}) / ((1 − α)(γc + 1))<small>The numerator rewards drafting. The denominator charges γc for it. There is no closed-form optimal γ.</small></div>
+<table><thead><tr><th>c \ α</th><th>0.6</th><th>0.7</th><th>0.8</th><th>0.9</th></tr></thead><tbody>
+<tr><td>0.01</td><td>γ=7, 2.30×</td><td>γ=9, 2.97×</td><td>γ=14, 4.23×</td><td>γ=24, 7.49×</td></tr>
+<tr><td>0.05</td><td>γ=4, 1.92×</td><td>γ=6, 2.35×</td><td>γ=8, 3.09×</td><td>γ=13, 4.67×</td></tr>
+<tr><td>0.10</td><td>γ=3, 1.67×</td><td>γ=4, 1.98×</td><td>γ=6, 2.47×</td><td>γ=10, 3.43×</td></tr>
+</tbody></table>
+<p class="mini">Reproduced by <code>spec_sim.py</code> in this folder.</p>
+<figure data-fig="lev5"></figure>
+<p>A useful corollary (Leviathan 3.9): any speedup is possible iff α &gt; c, and γ = 1 already gives ≥ (1+α)/(1+c).</p>
+<p><b>Compute cost.</b> Total FLOPs grow by (1 − α)(γĉ + γ + 1)/(1 − α^{γ+1}), where ĉ is the per-token FLOP ratio. At α = 0.8, γ = 5 that's <b>1.63× more arithmetic for 3.69× less latency</b> (Table 1). Speculative decoding <i>spends</i> FLOPs. That's the whole bet, and it's why §9's batch problem exists.</p>
+
+<div class="widget" id="math-w" role="group" aria-label="Speedup explorer">
+  <b>Interactive: speedup(α, γ, c)</b>
+  <div class="sliders" style="margin-top:8px">
+    <label>α (acceptance) <output id="math-oa">0.80</output><input id="math-a" type="range" min="0.05" max="0.99" step="0.01" value="0.80"></label>
+    <label>c (draft cost / target cost) <output id="math-oc">0.05</output><input id="math-c" type="range" min="0" max="0.3" step="0.005" value="0.05"></label>
+    <label>γ (draft length) <output id="math-og">5</output><input id="math-g" type="range" min="1" max="32" step="1" value="5"></label>
+  </div>
+  <label style="display:block;margin-top:10px;font-size:14px"><input id="math-cb" type="checkbox"> Target is compute-bound (scoring γ+1 tokens costs γ+1 passes; §9, Q13)</label>
+  <div class="readout">
+    <div id="math-rsp"><b>-</b><small>speedup at this γ</small></div>
+    <div><b id="math-re">-</b><small>expected tokens / iteration</small></div>
+    <div><b id="math-ropt">-</b><small>best γ (1..64) and its speedup</small></div>
+    <div id="math-rbe"><b>-</b><small>break-even check (α &gt; c)</small></div>
+  </div>
+  <svg id="math-plot" viewBox="0 0 640 210" role="img" aria-label="Speedup versus draft length for the current alpha and c"></svg>
+  <p class="mini">Dots: speedup at each γ; ring = your γ; filled marker = best γ. Dashed line: 1× (no gain). Same formula as <code>spec_sim.py</code> (Theorem 3.8). The compute-bound toggle replaces the denominator with (γ+1) + γc, assuming the verify pass scales linearly with positions.</p>
+</div>
+
+<p class="mini">The hands-on simulator that reproduces §6.1–6.4 numerically is in §13.</p>
+
+<script>
+(function(){
+  var R=function(id){return document.getElementById(id)};
+  var sp=function(a,g,c,cb){var e=(1-Math.pow(a,g+1))/(1-a);return e/(cb?(g+1)+g*c:(g*c+1))};
+  function sim(){
+    var a=+R('math-a').value,c=+R('math-c').value,g=+R('math-g').value,cb=R('math-cb').checked;
+    R('math-oa').textContent=a.toFixed(2);R('math-oc').textContent=c.toFixed(3).replace(/0$/,'');R('math-og').textContent=g;
+    var s=sp(a,g,c,cb),e=(1-Math.pow(a,g+1))/(1-a),bg=1,bs=0;
+    for(var k=1;k<=64;k++){var v=sp(a,k,c,cb);if(v>bs){bs=v;bg=k}}
+    var r1=R('math-rsp');r1.querySelector('b').textContent=s.toFixed(2)+'×';r1.className=s>=1?'good':'badv';
+    R('math-re').textContent=e.toFixed(2);R('math-ropt').textContent='γ='+bg+', '+bs.toFixed(2)+'×';
+    var be=R('math-rbe');
+    if(cb){be.querySelector('b').textContent=bs>1?'speeds up':'slower than plain';be.className=bs>1?'good':'badv'}
+    else{be.querySelector('b').textContent=a>c?'yes':'no';be.className=a>c?'good':'badv'}
+    var W=640,H=210,L=40,B=26,T=14,Rm=10,mx=1.2,i;
+    for(i=1;i<=32;i++)mx=Math.max(mx,sp(a,i,c,cb));mx*=1.08;
+    var X=function(k){return L+(k-1)/31*(W-L-Rm)},Y=function(v){return H-B-(v/mx)*(H-B-T)};
+    var h='<line x1="'+L+'" y1="'+(H-B)+'" x2="'+(W-Rm)+'" y2="'+(H-B)+'" stroke="var(--line)"/><line x1="'+L+'" y1="'+T+'" x2="'+L+'" y2="'+(H-B)+'" stroke="var(--line)"/>';
+    h+='<line x1="'+L+'" x2="'+(W-Rm)+'" y1="'+Y(1)+'" y2="'+Y(1)+'" stroke="var(--bad)" stroke-dasharray="5 4"/><text x="'+(L+4)+'" y="'+(Y(1)-4)+'">1×</text>';
+    var pts=[];for(i=1;i<=32;i++)pts.push(X(i).toFixed(1)+','+Y(sp(a,i,c,cb)).toFixed(1));
+    h+='<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="'+pts.join(' ')+'"/>';
+    for(i=1;i<=32;i++)h+='<circle cx="'+X(i)+'" cy="'+Y(sp(a,i,c,cb))+'" r="2.5" fill="var(--accent)"/>';
+    h+='<circle cx="'+X(g)+'" cy="'+Y(s)+'" r="7" fill="none" stroke="var(--ink)" stroke-width="2"/>';
+    if(bg<=32)h+='<circle cx="'+X(bg)+'" cy="'+Y(bs)+'" r="5" fill="var(--ok)"/>';
+    [1,8,16,24,32].forEach(function(k){h+='<text text-anchor="middle" x="'+X(k)+'" y="'+(H-8)+'">'+k+'</text>'});
+    h+='<text x="'+(W-Rm)+'" y="'+(H-8)+'" text-anchor="end">draft length γ</text><text x="4" y="'+(T+4)+'">'+mx.toFixed(1)+'×</text>';
+    R('math-plot').innerHTML=h;
+  }
+  ['math-a','math-c','math-g','math-cb'].forEach(function(i){R(i).addEventListener('input',sim)});
+  sim();
+})();
+</script>

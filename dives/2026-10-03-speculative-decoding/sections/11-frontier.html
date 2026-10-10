@@ -1,0 +1,23 @@
+<table><thead><tr><th>Year · venue</th><th>Work</th><th>Contribution</th></tr></thead><tbody>
+<tr><td>2024 · ICML*</td><td><a href="https://arxiv.org/abs/2401.15077" target="_blank" rel="noopener">EAGLE</a></td><td>Draft autoregressively at the <i>feature</i> level (second-to-top layer) with the next token fed in. 2.7–3.5× on LLaMA2-Chat-70B.</td></tr>
+<tr><td>2024 · EMNLP*</td><td><a href="https://arxiv.org/abs/2406.16858" target="_blank" rel="noopener">EAGLE-2</a></td><td>Acceptance is context-dependent. Grow a dynamic tree using the drafter's calibrated confidence. 3.05–4.26×.</td></tr>
+<tr><td>2025 · NeurIPS*</td><td><a href="https://arxiv.org/abs/2503.01840" target="_blank" rel="noopener">EAGLE-3</a></td><td>Drop feature regression and predict tokens directly. Fuse low/mid/high features. Train with simulated multi-step drafting ("training-time test"), so it scales with data. Up to 6.5×; ~1.38× at bs=64 in SGLang. De facto production drafter through mid-2026.</td></tr>
+<tr><td>2024 · ICLR 2025*</td><td><a href="https://arxiv.org/abs/2408.11049" target="_blank" rel="noopener">MagicDec</a></td><td>At long context + large batch the bottleneck is KV loading, not weights. A sparse-KV (StreamingLLM-style) drafter stays cheap, so <b>speedup grows with batch</b>. Up to 2.51× for Llama-3.1-8B at bs 32–256.</td></tr>
+<tr><td>2024 · ICLR 2025*</td><td><a href="https://arxiv.org/abs/2403.10444" target="_blank" rel="noopener">Block verification</a></td><td>Token-by-token verification is suboptimal. Verifying the draft jointly is optimal in expected tokens and never worse. Drop-in, +5–8% wall-clock.</td></tr>
+<tr><td>2025 · ICLR spotlight</td><td><a href="https://arxiv.org/abs/2410.18234" target="_blank" rel="noopener">Multi-draft canonical decomposition</a></td><td>Optimal multi-draft acceptance = importance-sampling selection + single-draft speculative sampling. Closed form for 2 identical drafts.</td></tr>
+<tr><td>2026 · ICLR</td><td><a href="https://arxiv.org/abs/2603.03251" target="_blank" rel="noopener">Speculative Speculative Decoding (Saguaro)</a></td><td>While the target verifies, the drafter pre-drafts for each <i>likely verification outcome</i>. If the real outcome is in the set, the next draft is ready instantly. ~30% over optimized speculative baselines, up to 5× over autoregressive.</td></tr>
+<tr><td>2026 · ICML</td><td><a href="https://arxiv.org/abs/2602.06036" target="_blank" rel="noopener">DFlash</a></td><td>A lightweight <b>block-diffusion</b> drafter conditioned on target hidden features denoises the whole draft block in one pass, removing the drafter's own serial loop. Verification is standard, so still lossless. &gt;6× and up to 2.5× over EAGLE-3.</td></tr>
+<tr><td>2026 · arXiv</td><td><a href="https://arxiv.org/abs/2604.12989" target="_blank" rel="noopener">DDTree</a>, <a href="https://arxiv.org/abs/2608.02438" target="_blank" rel="noopener">xPress</a></td><td>DFlash samples positions independently, so drafts are individually likely but jointly improbable. DDTree builds best-first trees from its per-position marginals. xPress adds a small causal refiner (a few Jacobi passes): ~30% longer acceptance, ~1.3× throughput over DFlash on Qwen3-8B.</td></tr>
+<tr><td>2026 · MLSys oral</td><td><a href="https://arxiv.org/abs/2601.11580" target="_blank" rel="noopener">Performance or Illusion?</a></td><td>First systematic study on production vLLM. Speedups shrink with batch, verification dominates, and per-position acceptance decays (MTP 0.92 → 0.68 → 0.38). An oracle proposer would get 2.75× vs 2.1× actual.</td></tr>
+<tr><td>2026 · ICML</td><td><a href="https://arxiv.org/abs/2604.09557" target="_blank" rel="noopener">SPEED-Bench</a></td><td>Successor to Spec-Bench, with throughput split across concurrencies. Synthetic inputs overestimate real throughput, and optimal γ depends on batch size.</td></tr>
+</tbody></table>
+<p class="mini">* Venue from the frontier agent's knowledge / a search result, not confirmed on the arXiv page.</p>
+<p><b>The arc:</b></p>
+<ol>
+<li>Separate small drafter (2023).</li>
+<li>Heads on the target's own hidden states (Medusa/Hydra/EAGLE/MTP, 2024).</li>
+<li>Smarter trees (Sequoia, EAGLE-2).</li>
+<li>EAGLE-3 (2025).</li>
+<li>Parallel drafters, mainly block diffusion (2026).</li>
+</ol>
+<p>The serial bottleneck has moved from the target into the drafter, and now the drafter is being parallelized too. In parallel, systems work (MagicDec, Saguaro) is rescuing the large-batch regime, and theory work (block verification, multi-draft OT) is squeezing the verifier.</p>

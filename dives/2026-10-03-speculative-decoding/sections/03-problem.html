@@ -1,0 +1,8 @@
+<p>Decoding a 70B model at batch 1 reads ~140 GB of bf16 weights per token. On Chinchilla 70B across 16 TPU v4, Chen et al. measured <b>14.1 ms/token</b> for plain sampling. The hardware is mostly idle on compute: the minimum time per token is model bytes ÷ memory bandwidth, and that floor holds no matter how many FLOPs remain unused.</p>
+<p>The constraint that forces the design: <b>you can't parallelize across output positions</b>, because token t+1 needs token t. But scoring a <i>known</i> sequence of k tokens <i>is</i> parallel (it's a prefill), and at small k it costs about the same wall time as one decode step. Chen et al. give three reasons:</p>
+<ol>
+<li>Linear layers stay memory-bound for small k.</li>
+<li>Attention is dominated by reading the KV cache, which doesn't grow with k.</li>
+<li>Tensor-parallel all-reduces are latency-bound, not throughput-bound.</li>
+</ol>
+<p>So the question becomes: <i>can we get a cheap guess of the next k tokens, score them in one target pass, and still produce samples from exactly the target distribution?</i> Blockwise parallel decoding (Stern et al., NeurIPS 2018) already did this for <b>greedy</b> decoding only, with custom-trained heads. The 2022–23 papers did it for <b>sampling</b>, with any off-the-shelf drafter.</p>

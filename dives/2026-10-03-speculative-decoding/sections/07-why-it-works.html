@@ -1,0 +1,14 @@
+<p>Core insight: <b>verification of k known tokens is parallel; generation isn't; and the maximal coupling of p and q lets you convert a cheap guess into an exact sample with acceptance 1 − TV.</b> Two independent properties:</p>
+<ul>
+<li><b>Correctness</b> comes from the accept/residual pair being the maximal coupling. It holds for any q.</li>
+<li><b>Speed</b> comes from the hardware regime: memory-bound target, so γ+1 positions ≈ 1 position. Plus a q that's cheap (small c) and close (small TV).</li>
+</ul>
+<p>Ablations:</p>
+<table><thead><tr><th>Remove / change</th><th>What breaks</th></tr></thead><tbody>
+<tr><td>Residual resampling (just resample from p on reject)</td><td>Biased: tokens where q &gt; p get over-represented. Mass is double-counted.</td></tr>
+<tr><td>Discarding drafts after first reject</td><td>Later drafts were conditioned on a token you didn't emit, so the distribution is wrong.</td></tr>
+<tr><td>Bonus token</td><td>Still correct, but you lose one free token per fully-accepted iteration (~α^γ fraction).</td></tr>
+<tr><td><code>min(1, p/q)</code> → <code>p ≥ q ? 1 : 0</code></td><td>Lossy and biased toward the draft. This is what "lenience" knobs do.</td></tr>
+<tr><td>Memory-bound regime</td><td>Scoring γ+1 costs ~(γ+1)×, so the speedup can drop below 1.</td></tr>
+<tr><td>Same tokenizer</td><td>p and q are over different supports. Σ min(p,q) is undefined, and you need string-level methods.</td></tr>
+</tbody></table>

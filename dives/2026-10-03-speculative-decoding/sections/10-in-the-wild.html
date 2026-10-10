@@ -1,0 +1,51 @@
+<ul>
+<li><b>vLLM</b> (<a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/rejection_sampler.py" target="_blank" rel="noopener">rejection_sampler.py</a>):
+  <ul>
+  <li>The docstring says it "strictly follows" Leviathan et al.</li>
+  <li>Ragged flattened batch: <code>draft_token_ids [num_tokens]</code> + <code>cu_num_draft_tokens</code>, output <code>[batch, max_spec_len+1]</code> padded with −1, <code>MAX_SPEC_LEN=128</code>.</li>
+  <li>Greedy rows use a Triton kernel that stops at the first draft ≠ argmax. Random rows accept if <code>draft_prob &gt; 0 and target_prob/draft_prob &gt;= u</code>.</li>
+  <li>The residual is sampled with an exponential race <code>argmax(prob / Exp(1))</code>, Gumbel-max-equivalent and needing no renormalization.</li>
+  <li>Defaults to argmax drafts. Also offers <code>rejection_sample_method="block"</code>.</li>
+  <li>Methods: EAGLE-3, MTP, draft model, n-gram, suffix decoding. Main branch verifies chains, not trees, as of this snapshot.</li>
+  </ul>
+</li>
+<li><b>SGLang</b>:
+  <ul>
+  <li>EAGLE-2/3 with dynamic trees, three knobs <code>--speculative-num-steps / -eagle-topk / -num-draft-tokens</code>, auto-tuned if unset.</li>
+  <li>Tree verification kernel walks one coin per depth over siblings (SpecInfer-style sampling without replacement), with top-k/top-p applied by renormalizing the target before verify.</li>
+  <li>Lossy thresholds <code>speculative_accept_threshold_{single,acc}</code> default to 1.0 (lossless).</li>
+  <li>Llama-3.1-8B, MT-Bench, H100, bs=1: 158 → 373 tok/s with EAGLE-3 (2.4×).</li>
+  </ul>
+</li>
+<li><b>TensorRT-LLM</b>:
+  <ul>
+  <li>Medusa is <b>greedy-only</b> there (no typical acceptance).</li>
+  <li>DeepSeek-R1 MTP uses strict top-1 prefix matching by default, plus an optional <b>relaxed acceptance</b> (draft within target top-10 and δ=0.6 of top-1) applied only to the thinking phase. 2.16× → 2.33× on 8×B200 at bs=1.</li>
+  <li>Docs call speculative decoding a technique "at low batch sizes".</li>
+  </ul>
+</li>
+<li><b>HuggingFace transformers</b>:
+  <ul>
+  <li><code>assistant_model=</code> is <b>batch size 1 only</b>.</li>
+  <li>Uses Leviathan's rule when <code>do_sample=True</code>, plus a heuristic draft-length schedule (+2 on full accept, −1 otherwise).</li>
+  <li>Prompt lookup via <code>prompt_lookup_num_tokens</code>.</li>
+  <li>Universal assisted generation re-tokenizes drafts through text to support different tokenizers, using match-based acceptance.</li>
+  </ul>
+</li>
+<li><b>llama.cpp</b>:
+  <ul>
+  <li>Default verification is <b>sample-and-match</b> (<code>common_sampler_sample_and_accept_n</code>): sample from the full sampler chain (temp/top-k/top-p/grammar) and accept while equal. Exact for any sampler, lower α.</li>
+  <li>A newer rejection path takes real draft distributions.</li>
+  <li>Many <code>--spec-type</code> options including <code>draft-eagle3</code>, <code>draft-mtp</code>, <code>draft-dflash</code>, n-gram variants.</li>
+  </ul>
+</li>
+<li><b>DeepSeek-V3 MTP</b>:
+  <ul>
+  <li>One MTP module (depth 1) trained with the model.</li>
+  <li>2nd-token acceptance <b>85–90%</b>, giving <b>1.8× TPS</b> (tech report §5.4.3).</li>
+  <li>Engines reuse that single module recurrently to draft 3+ tokens (SGLang steps=3; TRT-LLM "MTP Eagle"), so deeper positions accept less than 85–90%.</li>
+  <li>SGLang: 1.8× at bs=1, 1.5× at bs=32 on H200 TP8.</li>
+  </ul>
+</li>
+<li><b>Chinchilla 70B</b> (Chen et al.): 2.0–2.5× on 16 TPU v4, bs=1. HumanEval: 14.1 → 5.73 ms/token.</li>
+</ul>

@@ -1,0 +1,9 @@
+<blockquote>"A small model guesses a few tokens, the big model checks them in one pass, so you get 2–3× faster decoding with identical output."</blockquote>
+<p>What that sentence hides:</p>
+<ol>
+<li><b>"Checks them"</b> isn't "keeps the matching ones". Under sampling, checking means a specific accept rule <code>min(1, p/q)</code> plus a specific <i>resample from the residual</i> on rejection. A naive "keep if equal" check is also correct but accepts far less (Σ p·q instead of Σ min(p,q)).</li>
+<li><b>"Identical output"</b> means identical <i>in distribution</i>, in exact arithmetic. It is not bitwise identical in practice, and batched implementations have been shown to break even the distributional guarantee.</li>
+<li><b>"One pass costs the same as one token"</b> is only true while the target is memory-bound. At large batch it's compute-bound and the speedup can go <b>below 1×</b>.</li>
+<li><b>"2–3×"</b> depends on the acceptance rate α, the cost ratio c, and draft length γ through one formula, and α depends on temperature, domain, language and tokenizer.</li>
+<li><b>"Small model"</b>: modern drafters aren't separate small models. They're heads on the target's hidden states (EAGLE, MTP) or block-diffusion drafters (DFlash), and in production drafts are usually argmax.</li>
+</ol>

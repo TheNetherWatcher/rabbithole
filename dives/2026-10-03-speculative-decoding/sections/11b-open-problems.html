@@ -1,0 +1,46 @@
+<ul>
+<li><b>Optimal multi-draft verification.</b>
+  <ul>
+  <li>The optimal acceptance rule for n drafts is an optimal-transport LP over V^n outcomes.</li>
+  <li>Closed form is known only for 2 identical drafts (Khisti et al.).</li>
+  <li>Hu et al. 2025 computed the true bound via the dual and showed existing verifiers fall short, with sampling <i>without</i> replacement beating with-replacement.</li>
+  <li>Thomas &amp; Pal (Nov 2025) reduce it to a convex problem in ≤ V variables using polymatroid structure.</li>
+  <li>Hard because the obvious greedy construction (verify drafts one by one) isn't optimal, and the exact LP is exponential.</li>
+  </ul>
+</li>
+<li><b>Optimal tree shape under real acceptance.</b>
+  <ul>
+  <li>Sequoia's DP assumes positional independence; real acceptance depends on context (EAGLE-2's observation).</li>
+  <li>EAGLE-2's dynamic tree is a heuristic, not proven optimal.</li>
+  <li>Joint optimization of tree shape × verifier × <i>batch-level</i> compute budget is open.</li>
+  </ul>
+</li>
+<li><b>Adaptive draft length at large batch.</b>
+  <ul>
+  <li>SpecDec++ frames per-step γ as an MDP with a threshold policy (+7–11%), but that's batch 1.</li>
+  <li>At large batch, one row's long draft costs every row compute.</li>
+  <li>SPEED-Bench finds optimal γ depends on batch size. There's no principled scheduler.</li>
+  </ul>
+</li>
+<li><b>Fundamental limits.</b>
+  <ul>
+  <li>Yin et al. (NeurIPS 2024): expected rejections ≥ Σ TV, and speculative decoding is instance-optimal among unbiased sequential algorithms.</li>
+  <li>Pankratov &amp; Alistarh (Dec 2025): accepted tokens per iteration grow only <b>logarithmically</b> in verifier parallelism.</li>
+  <li>Open: whether parallel drafters (diffusion) change the constants enough to matter at production batch sizes.</li>
+  </ul>
+</li>
+<li><b>Exactness in batched, nondeterministic systems.</b>
+  <ul>
+  <li>Distributional exactness assumes the target's logits don't depend on batch composition. They do.</li>
+  <li>Open: cheap batch-invariant kernels, and correct ragged-acceptance batching without a 40% tax.</li>
+  </ul>
+</li>
+<li><b>Lossy vs lossless.</b>
+  <ul>
+  <li>Judge Decoding (ICLR 2025) argues the standard test rejects <i>good</i> drafts: even human or GPT-4o text gets low acceptance. It reports 9× on 8B/405B with a learned judge.</li>
+  <li>Critics (lossy-verification study, 2026) show quality loss grows with task difficulty.</li>
+  <li>Unresolved: is "match the target distribution" even the right objective for reasoning models? SpecReason and Speculative Thinking move to step-level, semantics-based acceptance.</li>
+  </ul>
+</li>
+<li><b>Side channels vs speed.</b> No mitigation found removes input-dependent timing without giving back a meaningful fraction of the speedup.</li>
+</ul>

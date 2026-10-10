@@ -1,0 +1,113 @@
+<style>
+#mech-sv text{font-family:var(--mono);font-size:13px;fill:var(--ink)}
+#mech-sv .lbl{font-family:system-ui,sans-serif;font-size:12px;fill:var(--mute)}
+#mech-sv .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#mech-sv .arrow{stroke:var(--mute);stroke-width:1.5;fill:none}
+#mech-sv .g{transition:opacity .35s ease}
+#mech-sv .hid{opacity:0}
+#mech-sv .hl .box{stroke:var(--accent);stroke-width:3}
+#mech-sv .ok .box{fill:var(--plain);stroke:var(--ok)}
+#mech-sv .bad .box{fill:color-mix(in srgb,var(--bad) 14%,var(--panel));stroke:var(--bad)}
+#mech-sv .ok text.v{fill:var(--ok);font-weight:700}
+#mech-sv .bad text.v{fill:var(--bad);font-weight:700}
+#mech-sv .gr .box{fill:var(--bg2);stroke:var(--line);stroke-dasharray:4 3}
+#mech-cap{min-height:3.2em}
+</style>
+<p>One iteration, γ = 3, temperature 1. Prefix: <code>"The cat sat on the"</code>. The diagram below is the interactive version; the code after it is the same algorithm.</p>
+<div class="widget" role="group" aria-label="Step-through of the traced example">
+<svg id="mech-sv" viewBox="0 0 800 360" role="img" aria-label="Diagram of one speculative decoding iteration: draft three tokens, verify in one target pass, accept mat, reject and, emit a resampled token">
+  <defs><marker id="mech-ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="currentColor" style="color:var(--mute)"/></marker></defs>
+  <text class="lbl" x="10" y="22">prefix</text>
+  <g class="g" data-show="0" data-hl="0"><rect class="box" x="10" y="30" width="190" height="46" rx="8"/><text x="105" y="58" text-anchor="middle">The cat sat on the</text></g>
+  <text class="lbl g hid" data-show="1" x="250" y="22">draft q &mdash; 3 serial cheap passes</text>
+  <path class="arrow g hid" data-show="1" d="M200 53 H250" marker-end="url(#mech-ah)"/>
+  <g class="g hid" data-show="1" data-hl="1" transform="translate(250,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x1 = "mat"</text><text x="65" y="37" text-anchor="middle" class="lbl">q1(x1) = 0.50</text></g>
+  <path class="arrow g hid" data-show="1" d="M380 53 H410" marker-end="url(#mech-ah)"/>
+  <g class="g hid" data-show="1" data-hl="1" transform="translate(410,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x2 = "and"</text><text x="65" y="37" text-anchor="middle" class="lbl">q2(x2) = 0.40</text></g>
+  <path class="arrow g hid" data-show="1" d="M540 53 H570" marker-end="url(#mech-ah)"/>
+  <g class="g hid" data-show="1" data-hl="1" transform="translate(570,30)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">x3 = "purred"</text><text x="65" y="37" text-anchor="middle" class="lbl">q3(x3)</text></g>
+  <text class="lbl g hid" data-show="2" x="10" y="132">target p &mdash; ONE forward pass over prefix + [x1,x2,x3]</text>
+  <path class="arrow g hid" data-show="2" d="M315 76 V142 M475 76 V142 M635 76 V142" marker-end="url(#mech-ah)"/>
+  <g class="g hid" data-show="2" data-hl="2,3" transform="translate(250,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p1(x1) = 0.60</text><text x="65" y="37" text-anchor="middle" class="lbl">p1(&middot;|prefix)</text></g>
+  <g class="g hid" data-show="2" data-hl="2,4,5" transform="translate(410,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p2(x2) = 0.10</text><text x="65" y="37" text-anchor="middle" class="lbl">p2(&middot;|&hellip;mat)</text></g>
+  <g class="g hid" data-show="2" data-hl="2" transform="translate(570,146)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">p3(&middot;|&hellip;mat and)</text><text x="65" y="37" text-anchor="middle" class="lbl">never used</text></g>
+  <g class="g hid" data-show="2" transform="translate(710,146)"><rect class="box" width="84" height="46" rx="8"/><text x="42" y="20" text-anchor="middle">p4</text><text x="42" y="37" text-anchor="middle" class="lbl">bonus slot</text></g>
+  <text class="lbl g hid" data-show="3" x="10" y="226">verdict, left to right</text>
+  <g class="g hid ok" data-show="3" data-hl="3" transform="translate(250,234)"><rect class="box" width="130" height="46" rx="8"/><text class="v" x="65" y="20" text-anchor="middle">accept</text><text x="65" y="37" text-anchor="middle" class="lbl">p/q&#8805;1, so keep</text></g>
+  <g class="g hid bad" data-show="4" data-hl="4" transform="translate(410,234)"><rect class="box" width="130" height="46" rx="8"/><text class="v" x="65" y="20" text-anchor="middle">reject</text><text x="65" y="37" text-anchor="middle" class="lbl">p/q=.25 &lt; r=.83</text></g>
+  <g class="g hid gr" data-show="4" transform="translate(570,234)"><rect class="box" width="130" height="46" rx="8"/><text x="65" y="20" text-anchor="middle">discarded</text><text x="65" y="37" text-anchor="middle" class="lbl">conditioned on "and"</text></g>
+  <text class="lbl g hid" data-show="5" x="10" y="312">emitted</text>
+  <g class="g hid ok" data-show="5" data-hl="5,6" transform="translate(250,320)"><rect class="box" width="130" height="34" rx="8"/><text class="v" x="65" y="22" text-anchor="middle">"mat"</text></g>
+  <g class="g hid ok" data-show="5" data-hl="5,6" transform="translate(410,320)"><rect class="box" width="210" height="34" rx="8"/><text class="v" x="105" y="22" text-anchor="middle">"." (from residual)</text></g>
+</svg>
+<p class="mini" id="mech-cap" aria-live="polite"></p>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+</div>
+</div>
+<p>Position by position (numbers illustrative):</p>
+<table><thead><tr><th>i</th><th>draft token</th><th>q_i(x_i)</th><th>p_i(x_i)</th><th>accept prob min(1, p/q)</th><th>r_i ~ U(0,1)</th><th>result</th></tr></thead><tbody>
+<tr><td>1</td><td>"mat"</td><td>0.50</td><td>0.60</td><td>1.00</td><td>0.71</td><td>accept</td></tr>
+<tr><td>2</td><td>"and"</td><td>0.40</td><td>0.10</td><td>0.25</td><td>0.83</td><td><b>reject</b> → stop</td></tr>
+<tr><td>3</td><td>"purred"</td><td>—</td><td>—</td><td>—</td><td>—</td><td>discarded</td></tr>
+</tbody></table>
+<p>On the rejection at i = 2 we sample a replacement from <code>norm(max(0, p2 − q2))</code>. Suppose for the vocab slice <code>{and, ., ,, while}</code>:</p>
+<pre><code>p2 = [0.10, 0.50, 0.30, 0.10]
+q2 = [0.40, 0.30, 0.20, 0.10]
+p2−q2 clipped = [0, 0.20, 0.10, 0]  →  normalized [0, 0.667, 0.333, 0]</code></pre>
+<p>"and" can't be chosen again: it was already over-proposed. Sample "." → emit <code>"mat ."</code>. Two tokens for one target pass plus three cheap draft passes.</p>
+<figure data-fig="lev1"></figure>
+<p>If all three had been accepted, we'd also sample a 4th token from p4 (the "bonus" token). So each iteration emits 1..γ+1 tokens, and it is never slower in target calls than plain decoding.</p>
+<p><b>KV-cache bookkeeping</b> (what engines actually do):</p>
+<ul>
+<li>vLLM v1 schedules the draft tokens as part of the request's lookahead slots. After verify it does <code>num_computed_tokens -= num_rejected</code>. The rejected K/V entries stay in the paged blocks and get overwritten next step. Rollback is pointer arithmetic, no copy. (<a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py" target="_blank" rel="noopener">scheduler.py</a>)</li>
+<li>HF transformers crops both caches with <code>past_key_values.crop(-n)</code>.</li>
+<li>llama.cpp calls <code>llama_memory_seq_rm(mem, seq, n_past, -1)</code>. For recurrent/SSM hybrids, which can't drop a suffix of the state, it checkpoints the state before verifying and restores it on partial accept.</li>
+</ul>
+<p>Leviathan's Algorithm 1, compactly:</p>
+<pre><code class="language-python">def spec_step(prefix, Mp, Mq, gamma):
+    xs, qs = [], []
+    for _ in range(gamma):                      # serial, cheap
+        q = Mq(prefix + xs); x = sample(q)
+        xs.append(x); qs.append(q)
+    ps = Mp.score(prefix, xs)                   # ONE pass → gamma+1 dists
+    for i, x in enumerate(xs):
+        if rand() > min(1, ps[i][x] / qs[i][x]):
+            resid = clip(ps[i] - qs[i], 0); resid /= resid.sum()
+            return prefix + xs[:i] + [sample(resid)]
+    return prefix + xs + [sample(ps[gamma])]    # all accepted: bonus token</code></pre>
+<p class="mini">Notation trap: Leviathan uses p = target, q = draft. Chen et al. (DeepMind) <b>swap</b> them, so their <code>min(1, q/p)</code> is the same rule.</p>
+<script>
+(function(){
+// step-through of the traced example (gamma = 3, T = 1)
+  var STEPS=[
+    "Start: prefix <code>\"The cat sat on the\"</code>. We want the next tokens from the target p, but only want to pay for one target pass.",
+    "Draft: the cheap model q samples three tokens serially: <code>mat</code>, <code>and</code>, <code>purred</code>, each conditioned on the previous draft token.",
+    "Verify: ONE target forward over prefix + the three drafts returns p at every position (p1..p4, the fourth is for the bonus token).",
+    "Position 1: <code>mat</code> has q=0.50, p=0.60. Accept probability min(1, 0.60/0.50) = 1.00, so it is accepted regardless of r = 0.71.",
+    "Position 2: <code>and</code> has q=0.40, p=0.10. Accept probability min(1, 0.10/0.40) = 0.25, but r = 0.83 &gt; 0.25: <b>reject</b>.",
+    "After the rejection, <code>purred</code> is discarded: it was drafted conditional on <code>and</code>, which was not emitted. Replacement comes from norm(max(0, p2 &minus; q2)) = [0, 0.667, 0.333, 0] over {and, ., ,, while}; <code>and</code> cannot be chosen again.",
+    "Result: sample <code>.</code> from the residual and emit <code>mat .</code>: two tokens for one target pass plus three cheap draft passes. If all three had been accepted, a bonus token from p4 would be added too. The engine rolls the KV cache back by pointer arithmetic."];
+  var st=0, N=STEPS.length, svg=document.getElementById('mech-sv');
+  function render(){
+    svg.querySelectorAll('[data-show]').forEach(function(g){
+      var show=+g.getAttribute('data-show')<=st;
+      g.classList.toggle('hid',!show);
+      var hl=(g.getAttribute('data-hl')||'').split(',').filter(Boolean).map(Number);
+      g.classList.toggle('hl',hl.indexOf(st)>=0);
+    });
+    document.getElementById('mech-cap').innerHTML=STEPS[st];
+    document.getElementById('mech-n').textContent='STEP '+(st+1)+' / '+N;
+    document.getElementById('mech-prev').disabled=st===0;
+    document.getElementById('mech-next').disabled=st===N-1;
+  }
+  document.getElementById('mech-prev').onclick=function(){if(st>0){st--;render()}};
+  document.getElementById('mech-next').onclick=function(){if(st<N-1){st++;render()}};
+  document.getElementById('mech-sv').parentNode.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight')document.getElementById('mech-next').click();
+    if(e.key==='ArrowLeft')document.getElementById('mech-prev').click();});
+  render();
+})();
+</script>

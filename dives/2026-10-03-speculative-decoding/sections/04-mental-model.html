@@ -1,0 +1,7 @@
+<p><b>An intern and an editor.</b> The intern (draft model q) quickly writes the next γ words. The editor (target p) reads the whole draft in one sitting. Reading goes left to right: each word is kept with a probability that depends on how much the editor "agrees". At the first word the editor strikes out, they write their own word instead and throw away everything after. If they keep everything, they add one more word of their own for free.</p>
+<p><b>Where the analogy breaks:</b></p>
+<ul>
+<li>The editor doesn't "pick a better word" on rejection. They sample from a specific <b>residual distribution</b> <code>max(0, p − q)</code> that excludes exactly the mass the intern already over-proposed. That's what makes the result exact, and it's non-intuitive: the replacement is biased <i>away</i> from what the intern liked.</li>
+<li>The editor's read isn't free when the editor is busy with many manuscripts (large batch). Then reading γ+1 words costs γ+1 times as much.</li>
+<li>The intern isn't required to be any good. Correctness holds for <b>any</b> q, even uniform. Only speed depends on q.</li>
+</ul>

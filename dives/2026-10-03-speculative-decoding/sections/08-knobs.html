@@ -1,0 +1,27 @@
+<ul>
+<li><b>γ (draft length)</b>: optimal grows with α and shrinks with c (table in §6.4). Chen et al. found K = 3 best on XSum nucleus. Total generation-time <i>variance</i> rises with K, which hurts P99. vLLM's MTP docs recommend starting at <code>num_speculative_tokens=1</code>.</li>
+</ul>
+<figure data-fig="chen2"></figure>
+<ul>
+<li><b>Draft type</b>:
+  <ul>
+  <li><i>Separate small model</i>: Leviathan used drafts ~100× smaller than the target. Chen used a 4B draft deliberately <b>wide and shallow</b> (8 layers, d=6144) because depth is serial latency.</li>
+  <li>Yan et al. (NAACL 2025): drafter LM quality correlates weakly with speedup; latency (depth) dominates. A shallow-wide drafter gave +41% throughput despite lower acceptance.</li>
+  <li><i>Heads on target hidden states</i>: Medusa (independent heads), Hydra (sequentially dependent heads), EAGLE (feature-level autoregression → EAGLE-3 fuses low/mid/high features, "training-time test"), DeepSeek-V3 MTP (trained in at pretraining).</li>
+  <li><i>No drafter</i>: n-gram / prompt lookup, Lookahead (Jacobi iteration), suffix decoding. Strong on code and repetition, weak on open text (n-gram ≈ 2.1× on code vs ≈ 1.3× GSM8K in vLLM per Liu et al. 2026).</li>
+  <li><i>Block-diffusion drafter</i> (DFlash, 2026): drafts the whole block in one pass, removing the draft's own serial loop.</li>
+  </ul>
+</li>
+<li><b>Chain vs tree</b>: a token tree (SpecInfer, Medusa, EAGLE-2 dynamic trees, Sequoia DP-optimal trees) verifies many branches in one pass with a tree attention mask. More accepted tokens, more verify FLOPs.</li>
+<li><b>Verification rule</b>:
+  <ul>
+  <li>Token-wise <code>min(1,p/q)</code> (standard).</li>
+  <li><b>Block verification</b> (Sun et al.): accept jointly; provably optimal in expected tokens and never worse; +5–8% wall-clock.</li>
+  <li>Multi-draft optimal transport (SpecTr and follow-ups).</li>
+  <li>Sample-and-match: exact, lower α.</li>
+  <li>Lossy rules: Medusa typical acceptance, TRT-LLM relaxed acceptance, Judge Decoding.</li>
+  </ul>
+</li>
+<li><b>Draft sampling</b>: Leviathan samples drafts from q. vLLM defaults <code>draft_sample_method="greedy"</code> and SGLang uses "target_only" (draft probs = 0). Both treat the draft as a <b>point mass</b>. Still exact (q is one-hot, so accept with prob p(x), residual = p with x removed), but acceptance is p(x) rather than min(1, p/q).</li>
+</ul>
+<p>Why the paper version "won": it's exact for <i>any</i> drafter with no retraining, so you could bolt it onto an existing serving stack. Blockwise parallel decoding needed custom heads and was greedy-only. Lossy variants win benchmarks and lose trust.</p>

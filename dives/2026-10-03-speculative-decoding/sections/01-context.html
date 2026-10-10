@@ -1,0 +1,8 @@
+<ul>
+<li><b>Autoregressive decoding</b>: one forward pass of the model per output token; token t+1 depends on token t, so passes are serial. (<a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noopener">Leviathan et al.</a>)</li>
+<li><b>Memory-bandwidth bound</b>: at small batch, each decode step reads all weights + the KV cache from HBM but does very little math on them; time ≈ bytes / bandwidth, not FLOPs / peak. (<a href="https://arxiv.org/abs/2302.01318" target="_blank" rel="noopener">Chen et al.</a>)</li>
+<li><b>KV cache</b>: per-layer keys/values for every previous token, kept so each new token only computes its own row of attention. (<a href="https://docs.vllm.ai/en/latest/features/speculative_decoding/" target="_blank" rel="noopener">vLLM docs</a>)</li>
+<li><b>Logits → distribution</b>: temperature, top-k, top-p are transforms that turn logits into the distribution p you actually sample from.</li>
+<li><b>Total variation distance</b> TV(p,q) = ½ Σ|p(x) − q(x)|: the largest gap between the probabilities p and q assign to any event.</li>
+<li><b>Teacher forcing / scoring</b>: given a known sequence, one forward pass returns the model's next-token distribution at <i>every</i> position at once (same thing as a prefill).</li>
+</ul>

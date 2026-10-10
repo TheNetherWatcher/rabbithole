@@ -1,0 +1,21 @@
+<p><code>spec_sim.py</code> in this folder (numpy only, runs in ~2 s):</p>
+<pre><code class="language-bash">python spec_sim.py</code></pre>
+<p>What it shows, with actual output on seed 0 (V = 8, draft = target logits + Gaussian noise):</p>
+<pre><code>target p   : [0.0436 0.026  0.122  0.0418 0.0116 0.0698 0.4599 0.2253]
+empirical  : [0.0434 0.0264 0.1217 0.0414 0.012  0.0706 0.4584 0.2261]
+max |diff| : 0.0015   (sampling noise ~ 0.0022)
+alpha theory = sum min(p,q) = 0.8256 = 1-TV = 0.8256; measured = 0.8258
+sample-and-match acceptance = sum p*q = 0.2297</code></pre>
+<ol>
+<li><b>Exactness</b>: 200k speculative samples land on p within sampling noise, even though q is visibly different.</li>
+<li><b>α = Σ min(p,q) = 1 − TV</b>: measured acceptance matches theory to 3 decimals.</li>
+<li><b>Why the residual matters</b>: sample-and-match would accept 0.23 instead of 0.83, roughly 3.6× fewer accepted drafts with the same draft. That's the cost llama.cpp's default path pays under sampling.</li>
+<li><b>Temperature isn't monotone</b>: α = 1.00 at T = 0.01 (argmaxes agree), 0.71 at T = 0.5, then <i>rises</i> to 0.90 at T = 2 as both distributions flatten. Real models in T ∈ (0, 1] show the drop because their tails disagree.</li>
+<li><b>Speedup table</b>: Theorem 3.8 maximized over γ, reproducing §6.4.</li>
+</ol>
+<p><b>Things to try:</b></p>
+<ul>
+<li>Break the residual by resampling from <code>p</code> instead of <code>norm(max(0, p−q))</code> and watch the empirical distribution drift toward q.</li>
+<li>Make q uniform and confirm it's still exact, just slow (α = Σ min(p, 1/V)).</li>
+<li>Set q one-hot at argmax q (vLLM's default draft) and compare α to the sampled draft.</li>
+</ul>

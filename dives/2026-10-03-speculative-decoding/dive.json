@@ -1,0 +1,387 @@
+{
+ "meta": {
+  "title": "Speculative decoding: why rejection sampling keeps the output exact",
+  "short": "Speculative decoding",
+  "subject": "Computer science",
+  "domain": "LLM systems",
+  "topic": "Speculative decoding: draft, verify, modified rejection sampling",
+  "depth": "hard",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "A cheap drafter guesses γ tokens, and the target scores all of them in <b>one forward pass</b>. A modified rejection rule (accept with min(1, p/q), otherwise resample from the residual max(0, p − q)) keeps the output <b>exactly</b> target-distributed. You gain <b>1 to γ+1 tokens per target pass</b>, which pays only while the target is memory-bound.",
+ "why": "<b>Why it matters:</b> at low batch, decoding leaves compute idle. This spends that spare compute to cut latency, with no change to the output distribution.",
+ "stats": [
+  {
+   "v": "~3×",
+   "l": "T5-XXL 11B with a 60M drafter, same output distribution (Google)"
+  },
+  {
+   "v": "85–90%",
+   "l": "DeepSeek-V3 MTP second-token acceptance"
+  },
+  {
+   "v": "1 − TV",
+   "l": "acceptance rate: the overlap of draft and target"
+  },
+  {
+   "v": "1.4–1.8×",
+   "l": "slowdown at high QPS in vLLM 2024 measurements"
+  },
+  {
+   "v": "2.8×",
+   "l": "vLLM on summarization at low QPS (best case)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A quick guesser writes ahead, and one library trip checks it",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A slow author checks every word in a huge library. A quick assistant guesses the next few words, the author checks them in one trip, and keeps the ones they would have written. The rule keeps the letter exactly as the author would have written it.</p><p>Same words, fewer trips.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Three things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Autoregressive</b>: one forward pass per token, strictly serial.</li><li><b>Memory-bound decode</b>: time is bytes read ÷ bandwidth, so spare FLOPs sit idle.</li><li><b>Total variation</b>: the largest gap between two distributions on any event.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Every major engine ships it behind one config object",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Shipped in vLLM, SGLang, TensorRT-LLM, Hugging Face transformers, llama.cpp and Google AI Overviews. You rarely write code for it: you pick a method (draft model, EAGLE-3, MTP, n-gram) and a draft length.</p><p class=\"mini\">Config examples inside.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"A small model guesses, a big one checks\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>Checking is a specific accept rule plus a residual resample. Output matches in distribution, not bitwise. Speedup can fall below 1× at large batch. Modern drafters are heads on the target, not small models.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Decode reads every weight per token while compute sits idle",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>On Chinchilla 70B, plain sampling took <b>14.1 ms per token</b> at batch 1. Tokens depend on each other, so you cannot parallelize across positions. Scoring a known guess of k tokens is parallel, and costs about one decode step.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "An intern and an editor, and where the analogy breaks",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>The intern (draft) writes a few words, and the editor (target) reads them in one sitting. On rejection the editor samples from the residual <i>max(0, p − q)</i>, not their own favourite. The analogy breaks there, and when the editor is busy with a big batch.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "Draft three, verify in one pass, reject at the first mismatch",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>From \"The cat sat on the\", draft \"mat\", \"and\", \"purred\". One target pass scores all three. \"mat\" is accepted, \"and\" is rejected (0.25 &lt; 0.83), \"purred\" is dropped, and a residual sample emits \".\". Two tokens for one target pass.</p><p class=\"mini\">7-step interactive walkthrough inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Acceptance is exactly 1 − TV, and the speedup has a closed form",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Acceptance α = Σ min(p,q) = 1 − TV, the overlap of draft and target. Expected tokens per iteration are (1 − α<sup>γ+1</sup>)/(1 − α). At α = 0.8 and c = 0.05 the best γ is 8, for <b>3.1×</b>.</p><p class=\"mini\">Speedup explorer inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Exactness comes from the maximal coupling, not from the drafter",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Resample from p instead of the residual and mass is double-counted. Keep drafts after a reject and they were conditioned on tokens never emitted. Use <code>p ≥ q</code> instead of <code>min(1, p/q)</code> and the output is biased toward the draft.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs & alternatives",
+   "title": "Draft length, drafter type and verifier rule are the three knobs",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>The optimal draft length grows with acceptance and shrinks with cost. Heads on the target (EAGLE-3, MTP) beat separate models. Block verification is provably optimal. Lossy rules trade the exact distribution for speed. Chen et al. found K = 3 best on XSum.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Speedup dies at large batch, and \"lossless\" is not bitwise",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>The 2–3× claim is for batch 1. EAGLE-3 on an RTX 3090 falls from <b>1.75× at batch 2 to 1.01× at batch 56</b>. Lossless means the same distribution, not the same bits. Token timing also leaks information about the input.</p><p class=\"mini\">Timing side channel inside.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Engines share the exact-sampling idea but differ in the defaults",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>vLLM defaults to argmax drafts. llama.cpp defaults to sample-and-match, which is exact but accepts far less. HF assisted generation is batch size 1. DeepSeek-V3's MTP module gets <b>85–90%</b> second-token acceptance.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "From small drafters to heads, then to parallel block-diffusion drafters",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>EAGLE-3 and MTP put the drafter on the target. DFlash (2026) denoises a whole block in one pass, with &gt;6× over autoregressive. MagicDec shows speedup can grow with batch at long context. Verification takes <b>42–95%</b> of runtime in production.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Multi-draft optimality, tree shape and batched exactness are open",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>The optimal rule for n drafts has a closed form only for two identical drafts. Tree shape under real context-dependent acceptance is a heuristic. Batched exactness costs up to 40% overhead. Is lossless the right target for reasoning models?</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From greedy heads in 2018 to exact sampling in 2023",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>Blockwise parallel decoding (2018) was greedy-only, with custom heads. In late 2022 and early 2023, Leviathan et al. at Google and Chen et al. at DeepMind independently showed that modified rejection sampling makes the speedup exact for sampling, with any drafter.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Simulate 200k speculative samples in two seconds to see exactness",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p><code>python spec_sim.py</code> runs in about 2 seconds with numpy. Speculative samples match the target within sampling noise (max diff 0.0015), and measured acceptance 0.8258 matches 1 − TV = 0.8256.</p>"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "builtin": "quiz",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>23 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Maximal coupling and optimal-transport verification · batch-invariant kernels and LLM nondeterminism · block-diffusion language models, and why independent positions hurt acceptance.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and docs, plus the claims I could not verify",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>35 papers, 13 code and doc references, 7 articles, plus the flags for claims that could not be verified or come from abstracts only.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly does the target compute in its single verification pass, and why does it return γ+1 distributions rather than γ?",
+   "a": "It runs a teacher-forced forward over prefix + [x1..xγ]. The output at each position k is p(·|prefix, x1..x<sub>k−1</sub>), for k = 1..γ+1. The extra one is the distribution after the last draft token, used for the bonus token when all γ are accepted.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "On rejection at position i, why are drafts i+1..γ discarded instead of re-checked?",
+   "a": "They were drafted conditional on x<sub>i</sub>, which you just didn't emit. Their q and p were computed for a prefix that no longer exists, so accepting them would sample from the wrong conditional.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does vLLM do to the KV cache when 2 of 4 drafts are rejected?",
+   "a": "It decrements <code>num_computed_tokens</code> by the number rejected. The K/V for the rejected positions stay in the paged blocks and are overwritten by the next step. No copy, no free.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "With greedy decoding, what do the accept rule and the residual reduce to?",
+   "a": "p and q become one-hot. min(1, p/q) is 1 if argmax q = argmax p, else 0. The residual is the target's one-hot, so you emit the target's argmax. That is Stern et al.'s greedy match.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why <code>min(1, p/q)</code> and not <code>p/q</code> capped by some global constant M?",
+   "a": "Capping by M needs a global bound on p/q (hard to know, often huge), and accepts p/(Mq), far less often. min(1, p/q) is the largest per-token acceptance that still leaves a non-negative correction mass. It achieves the optimal 1 − TV.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why does the residual's normalizer equal exactly the rejection probability?",
+   "a": "Both equal \"the mass of p not covered by q\": P(reject) = 1 − Σmin(p,q) = Σ(p − min(p,q)) = Σmax(0, p − q).",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why did Chen et al. build a wide, shallow 4B drafter instead of using a Chinchilla-optimal 7B?",
+   "a": "Draft depth is serial latency, and the drafter had to serve on the same 16 TPUs as the target with low communication. A 7B was fastest on 4 TPUs and slower on 16. Low c matters more than raw draft quality (also Yan et al. 2025).",
+   "sec": "knobs"
+  },
+  {
+   "type": "Why",
+   "q": "Why do vLLM and SGLang default to <i>argmax</i> drafts, and why is that still exact?",
+   "a": "It saves storing full draft distributions and is simpler. If q is a point mass at x, accept with min(1, p(x)/1) = p(x). The residual max(0, p − δ<sub>x</sub>) is p with x removed, renormalized. The proof still goes through. The cost is acceptance p(x) instead of min(1, p(x)/q(x)).",
+   "sec": "knobs"
+  },
+  {
+   "type": "Why",
+   "q": "Why does the optimal γ grow with α?",
+   "a": "Each extra draft is worth α<sup>k</sup> expected tokens and costs c. Higher α means the geometric tail decays slower, so more drafts pay for their cost.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If you resample from p (not the residual) on rejection, which tokens become over-represented?",
+   "a": "Tokens with q &gt; p. They get min(p,q) = p via acceptance, plus more via resampling from p, so they are over-represented. Tokens with p &gt; q are under-represented.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What happens to speedup if c = 0 (an n-gram drafter)? Is the speedup then unbounded?",
+   "a": "Speedup → (1 − α<sup>γ+1</sup>)/(1 − α) ≤ 1/(1 − α). It is bounded by α, not by c. Leviathan's bigram draft for T5-XXL had α ≈ 0.2, giving 1.25×. In practice there is also the hidden cost that verifying γ+1 positions is not free.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if draft and target use different tokenizers but you run the standard algorithm anyway on the intersection vocab?",
+   "a": "p and q aren't over the same events: a token in one maps to several or a partial token in the other. The p/q ratio isn't meaningful and exactness breaks. You need string-level methods (SLEM) or the vocab intersection with care (TLI), or fall back to sample-and-match.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if decode were compute-bound at batch 1?",
+   "a": "Scoring γ+1 positions would cost about γ+1 target passes. Speedup ≈ E[tokens]/((γ+1) + γc), and since E[tokens] ≤ γ+1 that is below 1. Speculative decoding only helps when there is spare compute.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could an observer of an encrypted streaming response learn something about the prompt because of speculative decoding?",
+   "a": "Tokens per iteration (visible as packet sizes or timing in a stream) depend on how predictable the content is to the drafter, which depends on the prompt and response. Patterns can fingerprint queries or topics (Wei et al. 2024; Carlini &amp; Nasr 2024). Defenses: pad or bundle tokens to a fixed cadence.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Construct p, q such that α is near 0 but q is \"good\" in the sense of having the same argmax as p.",
+   "a": "Let p = [0.34, 0.33, 0.33] and q = [0.98, 0.01, 0.01]. The argmax matches, but Σmin = 0.34 + 0.01 + 0.01 = 0.36. Under sampling, an overconfident drafter is penalized even when its top token is right.",
+   "sec": "math"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could a batched implementation silently produce wrong outputs while every per-row unit test passes?",
+   "a": "Rows accept different counts, so per-row position IDs, attention masks and KV offsets diverge (ragged tensors). If padding or alignment is wrong, a row attends to another row's stale KV or a wrong position. Single-row tests cannot see it. \"Batch Speculative Decoding Done Right\" reports exactly this class of bug.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How does speculative decoding relate to branch prediction in CPUs: what's the analog of the misprediction penalty?",
+   "a": "Draft = predicted path. Verify = commit. Rejection = misprediction: you discard younger speculative work and resume from the correct state. The penalty is the wasted draft passes plus the wasted verify FLOPs on rejected positions. Unlike CPUs, the \"architectural state\" here is a distribution, so commit uses the residual, not the true value.",
+   "sec": "model"
+  },
+  {
+   "type": "Connection",
+   "q": "How does MagicDec's \"KV loading dominates\" argument connect to PagedAttention and long-context serving?",
+   "a": "At long context, KV bytes per sequence dominate weight bytes, so decode stays memory-bound per sequence even at large batch. A drafter with a small or sparse KV cache is cheap relative to the target, which restores the spare-compute condition.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Connection",
+   "q": "How is the accept/residual construction related to the maximal coupling of two distributions?",
+   "a": "A maximal coupling of p and q makes X ~ q and Y ~ p equal with probability 1 − TV, the best possible. Speculative sampling is exactly that coupling: emit X when the coupling says X = Y, otherwise sample Y from the leftover.",
+   "sec": "math"
+  },
+  {
+   "type": "Connection",
+   "q": "How does DeepSeek-V3's MTP training objective double as a drafter?",
+   "a": "MTP modules are trained during pretraining to predict tokens beyond next, conditioned on the main model's hidden state. At inference that is a built-in drafter with no separate model or cache. DeepSeek-V3 reports 85–90% acceptance of the second token.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "Is lossless verification the right objective for reasoning models, or should acceptance be semantic?",
+   "a": "Open. Lossless keeps guarantees, but Judge Decoding shows it rejects many good drafts. Semantic or step-level acceptance (SpecReason) is faster and sometimes more accurate, but quality loss grows on hard tasks for some lossy rules. No consensus.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Can a diffusion drafter's independence across positions be fixed without reintroducing serial cost?",
+   "a": "Open. xPress adds a small causal refiner with a few Jacobi passes, and DDTree adds trees over marginals. Both recover some joint structure at small serial cost. Whether that closes the gap without new serial depth is unsettled.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "What's the right per-row γ policy when compute is shared across a batch of 128?",
+   "a": "Open. Long drafts for one row spend shared verify compute. SPEED-Bench shows the optimal γ shifts with batch size. Batch-aware γ scheduling (dynamic speculative decoding in vLLM, SGLang auto-tuning) is heuristic today.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "lev1": {
+   "file": "img/fig/leviathan-fig1-autocomplete.png",
+   "caption": "Leviathan's trace of one decoding run: each line is one iteration. Green tokens were accepted from the small model, and struck-through red tokens were rejected and replaced.",
+   "source": {
+    "cite": "Leviathan, Kalman, Matias, \"Fast Inference from Transformers via Speculative Decoding\", ICML 2023",
+    "url": "https://arxiv.org/abs/2211.17192",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "lev4": {
+   "file": "img/fig/leviathan-fig4-alpha-tokens.png",
+   "caption": "Expected tokens per iteration against acceptance rate α, for several draft lengths γ. At moderate α the returns from longer drafts flatten.",
+   "source": {
+    "cite": "Leviathan, Kalman, Matias, \"Fast Inference from Transformers via Speculative Decoding\", ICML 2023",
+    "url": "https://arxiv.org/abs/2211.17192",
+    "figure": "Fig. 2"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "lev5": {
+   "file": "img/fig/leviathan-fig5-optimal-gamma.png",
+   "caption": "Best draft length as a function of α, for several cost ratios c. Cheaper drafts push the optimum to longer drafts.",
+   "source": {
+    "cite": "Leviathan, Kalman, Matias, \"Fast Inference from Transformers via Speculative Decoding\", ICML 2023",
+    "url": "https://arxiv.org/abs/2211.17192",
+    "figure": "Fig. 3"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "chen2": {
+   "file": "img/fig/chen-fig2-k-sweep.png",
+   "caption": "Chen et al.'s sweep over the number of draft tokens K on XSum and HumanEval: sampling time, acceptance rate and loop time. Sampling time bottoms out near K = 3 on XSum.",
+   "source": {
+    "cite": "Chen et al., \"Accelerating Large Language Model Decoding with Speculative Sampling\", arXiv:2302.01318, 2023",
+    "url": "https://arxiv.org/abs/2302.01318",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

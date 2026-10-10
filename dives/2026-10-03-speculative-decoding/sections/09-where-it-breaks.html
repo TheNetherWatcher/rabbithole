@@ -1,0 +1,31 @@
+<ul>
+<li><b>Large batch / compute-bound.</b>
+  <ul>
+  <li>EAGLE-3 in vLLM on an RTX 3090 (8B): <b>1.75× at bs=2 → 1.01× at bs=56</b> (EAGLE-3 paper).</li>
+  <li>Meta measured stock vLLM EAGLE going from 1.3× to <b>0.7×</b> from bs 2 → 48 (<a href="https://arxiv.org/abs/2508.08192" target="_blank" rel="noopener">2508.08192</a>).</li>
+  <li>vLLM's own 2024 blog showed 1.4–1.8× <i>slowdowns</i> at high QPS.</li>
+  <li>Liu et al. (MLSys 2026): verification is 42–95% of runtime; EAGLE-3 on GSM8K goes 1.73× → 1.21× from bs 1 → 128.</li>
+  </ul>
+</li>
+<li><b>Temperature.</b> In real models, acceptance length falls when sampling vs greedy (e.g. T5-XXL EnDe 3.4× at T=0 vs 2.6× at T=1). At T=0 both models' argmaxes often agree. At T=1 the long tails disagree. <i>Subtlety</i>: TV isn't monotone in T. At very high T both distributions flatten toward uniform and TV shrinks again (see §13). The practical drop is in the T ∈ (0, 1] range people use.</li>
+<li><b>Out-of-domain and multilingual.</b> Drafters distilled on English chat accept much less on other languages and under-represented tasks. Sandler et al. 2025 call this the "disparate impact" of speculative decoding: users of low-resource languages get less speedup.</li>
+<li><b>Tokenizer mismatch.</b> Breaks the shared-support assumption. Exact fixes exist (Intel's SLEM/TLI, ICML 2025, up to 2.8×), but HF's universal assisted generation falls back to sample-and-match, and vLLM's heterogeneous-vocab mode is greedy-only.</li>
+<li><b>"Lossless" ≠ bitwise.</b>
+  <ul>
+  <li>Verification runs the target on k+1 query tokens, a different kernel shape than plain decode. Reductions reorder, logits shift slightly, and near-tie argmaxes flip.</li>
+  <li>vLLM docs: lossless "up to the precision limits of hardware numerics" and "does not currently guarantee stable token log probabilities".</li>
+  <li>Thinking Machines (2025) traced most LLM nondeterminism to non-batch-invariant kernels; batch-invariant kernels fix it at a speed cost.</li>
+  </ul>
+</li>
+<li><b>Batched implementations getting it wrong.</b> "Batch Speculative Decoding Done Right" (2025) claims existing batched implementations break output equivalence through the ragged-acceptance problem (per-row position IDs, masks, KV offsets). Fixing alignment cost up to 40% overhead. (Claim from abstract; not independently reproduced here.)</li>
+<li><b>Lossy acceptance quietly changes the model.</b> A 2026 study of lossy verification found truncation-style rules (e.g. Medusa typical acceptance) fall below a real truncation-sampling baseline, with the gap growing on hard reasoning (+6.67 pp on AIME). (From abstract/HF page.)</li>
+<li><b>Timing side channel.</b> How many tokens arrive per iteration depends on the input, because acceptance depends on content. Wei et al. 2024 fingerprint queries from token-per-iteration and packet patterns; Carlini &amp; Nasr 2024 show topic inference over encrypted traffic from efficiency-induced timing. Mitigations (padding, fixed-size token bundling) give back latency.</li>
+<li><b>Drafter maintenance.</b> Hidden-state drafters are tied to one checkpoint. EAGLE-3 drafter training is reported at ~128 H200-hours for an 8B target, and more for larger ones. Every target fine-tune or quantization change means retraining, or acceptance decays.</li>
+</ul>
+<p><b>Misconceptions:</b></p>
+<ul>
+<li>"It's a free 2–3×." That's at batch 1.</li>
+<li>"It never helps throughput." MagicDec shows it does at long context.</li>
+<li>"A better draft model is always better." Latency dominates.</li>
+<li>"Lossless means same text." It means same distribution.</li>
+</ul>

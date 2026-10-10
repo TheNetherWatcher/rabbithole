@@ -1,0 +1,42 @@
+<svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.14">
+<rect x="60" y="78" width="26" height="20" rx="4" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="96" y="78" width="26" height="20" rx="4" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="132" y="78" width="26" height="20" rx="4" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="660" y="70" width="420" height="180" rx="18" class="f-panel s-line" stroke-width="2"/>
+<rect x="696" y="100" width="74" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="790" y="100" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="884" y="100" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="978" y="100" width="74" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="696" y="146" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="790" y="146" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="884" y="146" width="74" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="978" y="146" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="696" y="192" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="790" y="192" width="74" height="30" rx="6" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="884" y="192" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+<rect x="978" y="192" width="74" height="30" rx="6" class="f-line s-line" stroke-width="1.2"/>
+</g>
+<g class="layer" data-depth="0.22">
+<path d="M80 160 H150" class="s-line" stroke-width="2" fill="none"/>
+<rect x="150" y="134" width="84" height="52" rx="10" class="f-ok s-ok" stroke-width="2"/>
+<rect x="250" y="134" width="84" height="52" rx="10" class="f-none s-bad" stroke-width="2" stroke-dasharray="6 5"/>
+<rect x="350" y="134" width="84" height="52" rx="10" class="f-none s-mute" stroke-width="2" stroke-dasharray="6 5"/>
+<path d="M234 160 H250" class="s-line" stroke-width="2" fill="none"/>
+<path d="M334 160 H350" class="s-line" stroke-width="2" fill="none"/>
+<path d="M434 160 H660" class="f-none s-acc2 flow" stroke-width="2.5" fill="none"/>
+<circle cx="192" cy="186" r="5" class="f-ok"/>
+<circle cx="292" cy="186" r="5" class="f-line"/>
+<circle cx="392" cy="186" r="5" class="f-line"/>
+</g>
+<g class="layer" data-depth="0.32">
+<path d="M540 300 H650 M660 300 H1080" class="s-line" stroke-width="1.5" fill="none"/>
+<rect x="150" y="262" width="84" height="40" rx="9" class="f-ok s-ok" stroke-width="2"/>
+<rect x="250" y="262" width="62" height="40" rx="9" class="f-acc s-acc" stroke-width="2"/>
+<rect x="1000" y="230" width="60" height="44" rx="10" class="f-hl s-acc pulse" stroke-width="2.5"/>
+<rect x="960" y="36" width="60" height="22" rx="6" class="f-none s-acc blink" stroke-width="1.5"/>
+<circle cx="700" cy="62" r="6" class="f-acc2"/>
+</g>
+</svg>

@@ -1,0 +1,1 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 24 Q 70 30 146 84" class="s-acc" fill="none" stroke-width="2.5"/><path d="M14 58 H146" class="s-bad" fill="none" stroke-width="1.5" stroke-dasharray="5 4"/><circle cx="146" cy="84" r="4" class="f-bad"/><path d="M14 84 V14" class="s-line" fill="none" stroke-width="1.2"/></svg>
