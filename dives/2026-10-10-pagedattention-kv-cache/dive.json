@@ -9,6 +9,12 @@
   "date": "2026-10-10"
  },
  "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "How a 1962 operating-system trick fit 2–4× more conversations on a GPU"
+ },
  "tldr": "An LLM's KV cache grows one row per token and nobody knows the final length. Old servers reserved a max-length slab per request and used only <b>20–38%</b> of it. PagedAttention cuts the cache into fixed <b>16-token blocks</b> placed anywhere in GPU memory, tracked by a per-request <b>block table</b>, allocated on demand and shared copy-on-write.",
  "why": "<b>Why it matters:</b> decode is memory-bound, so throughput scales with how many sequences fit. Packing KV well gave vLLM <b>2–4×</b> throughput, and every major open serving engine now pages its KV cache.",
  "stats": [
@@ -76,7 +82,8 @@
    "title": "Contiguous reservation wastes 60–80% of KV memory",
    "visual": "img/problem.svg",
    "file": "sections/03-problem.html",
-   "brief": "<p>Output length is unknown, so old servers reserved <code>max_len</code> per request. Three kinds of waste: reservation, internal and external fragmentation. Even an oracle that knows every length loses to paging by <b>1.7–2.7×</b>.</p><p class=\"mini\">Includes an interactive pool visualizer.</p>"
+   "brief": "<p>Output length is unknown, so old servers reserved <code>max_len</code> per request. Three kinds of waste: reservation, internal and external fragmentation. Even an oracle that knows every length loses to paging by <b>1.7–2.7×</b>.</p><p class=\"mini\">Includes an interactive pool visualizer.</p>",
+   "guess": "oracle"
   },
   {
    "id": "model",
@@ -92,7 +99,8 @@
    "title": "One prompt, block by block",
    "visual": "img/mech.svg",
    "file": "sections/05-mechanism.html",
-   "brief": "<p>7-token prompt, B = 4 → blocks <code>[7, 1]</code>. Token 9 fills #1, so allocate #3 → table <code>[7, 1, 3]</code>. A second request shares #7 and #1 (refcount 2); the first write copies only the tail block.</p><p class=\"mini\">7-step interactive walkthrough inside.</p>"
+   "brief": "<p>7-token prompt, B = 4 → blocks <code>[7, 1]</code>. Token 9 fills #1, so allocate #3 → table <code>[7, 1, 3]</code>. A second request shares #7 and #1 (refcount 2); the first write copies only the tail block.</p><p class=\"mini\">7-step interactive walkthrough inside.</p>",
+   "guess": "cow"
   },
   {
    "id": "math",
@@ -100,7 +108,8 @@
    "title": "Waste is bounded by one block, and softmax merges exactly",
    "visual": "img/math.svg",
    "file": "sections/06-math.html",
-   "brief": "<p>Expected tail waste is <b>(B−1)/2</b> slots per sequence: about 1.25% at B = 16. Per-block softmax partials (max, sum, weighted value) merge with rescaling, so paged attention is <b>bit-for-bit the same math</b> as contiguous.</p><p class=\"mini\">Block-size explorer inside.</p>"
+   "brief": "<p>Expected tail waste is <b>(B−1)/2</b> slots per sequence: about 1.25% at B = 16. Per-block softmax partials (max, sum, weighted value) merge with rescaling, so paged attention is <b>bit-for-bit the same math</b> as contiguous.</p><p class=\"mini\">Block-size explorer inside.</p>",
+   "guess": "tail"
   },
   {
    "id": "why",
@@ -124,7 +133,8 @@
    "title": "Preemption thrash and timing side channels",
    "visual": "img/breaks.svg",
    "file": "sections/09-where-it-breaks.html",
-   "brief": "<p>Many sequences need a block at once → the newest is evicted, recomputed, evicted again. Shared prefix caches leak other users' prompts through time-to-first-token; 7 API providers shared caches globally (ICML'25).</p>"
+   "brief": "<p>Many sequences need a block at once → the newest is evicted, recomputed, evicted again. Shared prefix caches leak other users' prompts through time-to-first-token; 7 API providers shared caches globally (ICML'25).</p>",
+   "guess": "leak"
   },
   {
    "id": "wild",
@@ -194,6 +204,66 @@
    "brief": "<p>19 papers, 8 code/doc references, plus the list of claims I couldn't verify.</p>"
   }
  ],
+ "guesses": {
+  "cold": {
+   "q": "Before 2023, what share of that KV memory held actual tokens?",
+   "min": 0,
+   "max": 100,
+   "step": 1,
+   "unit": "%",
+   "answer": [
+    20,
+    38
+   ],
+   "start": 50,
+   "tol": 6,
+   "reveal": "<p>In pre-2023 serving systems, only <b>20–38%</b>. The rest was reserved for words that were never written, or stranded in gaps between requests. A 2023 paper got it to <b>96.3%</b>, and every major open serving engine now works the same way.</p>"
+  },
+  "oracle": {
+   "q": "Suppose the old server knew every answer's exact length in advance and reserved exactly that. How does paging compare?",
+   "options": [
+    "Old server wins",
+    "A tie",
+    "Paging 1.1× faster",
+    "Paging 1.7–2.7× faster"
+   ],
+   "answer": 3,
+   "reveal": "<p>Even the oracle version of Orca loses by <b>1.7–2.7×</b> on ShareGPT. Exact reservations still leave gaps between requests (external fragmentation), and nothing can be shared.</p>"
+  },
+  "cow": {
+   "q": "4 samples share a 30-token prompt, block size 16. On the first decode step, how many blocks get copied?",
+   "options": [
+    "0",
+    "1",
+    "3",
+    "4"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>3.</b> Block 0 is full and stays shared. Block 1 holds 14 tokens with refcount 4: the first three writers each copy it, and the last one writes in place.</p>"
+  },
+  "tail": {
+   "q": "Block size 16, sequences average 600 tokens. What share of KV memory is wasted in the half-empty last blocks?",
+   "min": 0,
+   "max": 30,
+   "step": 0.5,
+   "unit": "%",
+   "answer": 1.25,
+   "start": 10,
+   "tol": 1.5,
+   "reveal": "<p>About <b>1.25%</b>. Each sequence wastes (B−1)/2 = 7.5 slots on average, out of 600. With B = 512 it would be about 42%.</p>"
+  },
+  "leak": {
+   "q": "A 2025 audit timed LLM APIs to detect one user's prompt cache speeding up another user's request. How many providers shared a cache across all users?",
+   "options": [
+    "None",
+    "1",
+    "7",
+    "All of them"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>7</b>, including OpenAI (Gu et al., ICML'25). A cache hit returns faster, so an attacker can test whether someone else recently sent a given prompt.</p>"
+  }
+ },
  "questions": [
   {
    "type": "Mechanism",

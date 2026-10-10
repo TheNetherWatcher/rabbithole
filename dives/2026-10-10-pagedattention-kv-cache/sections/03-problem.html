@@ -7,6 +7,7 @@
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--mute)}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
 </style>
+<div class="pull"><b>20–38%</b><span>of KV memory held real tokens in pre-2023 serving systems. vLLM: 96.3%.</span></div>
 <div class="eq">bytes/token = 2 · L · H<sub>kv</sub> · d<sub>head</sub> · s<small>→ in plain terms: K and V, for every layer, every KV head and every head dimension, at s bytes each.</small></div>
 <ul>
 <li><b>OPT-13B</b> (paper example; MHA, hidden 5120, 40 layers, FP16): <b>800 KB/token</b>, so 2048 tokens ≈ 1.6 GB.</li>

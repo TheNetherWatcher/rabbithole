@@ -1,0 +1,253 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-a{fill:var(--accent)}#story-fig .sf-b{fill:var(--accent2)}#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-cell{fill:var(--ink);font:700 15px var(--mono)}
+#story-fig .sf-badge{fill:var(--bg);font:700 11px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A GPU KV pool of 16 blocks, filled first by contiguous reservation and then by paging">
+<defs><pattern id="sth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">GPU KV memory: 16 blocks × 4 token slots</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="4">Contiguous: one max-length slab per request</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="10">Paged: any free block, tracked by a table</text>
+<rect x="20" y="46" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="26" y="61" class="sf-id">#0</text>
+<rect x="26.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="50.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="75.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="99.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="132" y="46" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="138" y="61" class="sf-id">#1</text>
+<rect x="138.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="162.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="187.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="211.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="244" y="46" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="250" y="61" class="sf-id">#2</text>
+<rect x="250.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="274.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="299.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="323.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="356" y="46" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="5"/>
+<text x="362" y="61" class="sf-id">#3</text>
+<rect x="362.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="386.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="411.0" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="435.5" y="68" width="22" height="22" rx="3" class="f-code"/>
+<rect x="20" y="106" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="26" y="121" class="sf-id">#4</text>
+<rect x="26.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="50.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="75.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="99.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="132" y="106" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="138" y="121" class="sf-id">#5</text>
+<rect x="138.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="162.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="187.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="211.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="244" y="106" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="250" y="121" class="sf-id">#6</text>
+<rect x="250.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="274.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="299.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="323.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="356" y="106" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="6"/>
+<text x="362" y="121" class="sf-id">#7</text>
+<rect x="362.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="386.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="411.0" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="435.5" y="128" width="22" height="22" rx="3" class="f-code"/>
+<rect x="20" y="166" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="26" y="181" class="sf-id">#8</text>
+<rect x="26.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="50.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="75.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="99.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="132" y="166" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="138" y="181" class="sf-id">#9</text>
+<rect x="138.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="162.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="187.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="211.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="244" y="166" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="8"/>
+<text x="250" y="181" class="sf-id">#10</text>
+<rect x="250.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="274.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="299.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="323.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="356" y="166" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="362" y="181" class="sf-id">#11</text>
+<rect x="362.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="386.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="411.0" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="435.5" y="188" width="22" height="22" rx="3" class="f-code"/>
+<rect x="20" y="226" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="26" y="241" class="sf-id">#12</text>
+<rect x="26.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="50.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="75.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="99.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="132" y="226" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="138" y="241" class="sf-id">#13</text>
+<rect x="138.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="162.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="187.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="211.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="244" y="226" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5" data-hl="8"/>
+<text x="250" y="241" class="sf-id">#14</text>
+<rect x="250.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="274.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="299.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="323.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="356" y="226" width="104" height="50" rx="7" class="f-panel s-line sf-blk" stroke-width="1.5"/>
+<text x="362" y="241" class="sf-id">#15</text>
+<rect x="362.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="386.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="411.0" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="435.5" y="248" width="22" height="22" rx="3" class="f-code"/>
+<rect x="26.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="50.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="75.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="99.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="138.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="162.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="187.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="2" data-out="4"/>
+<rect x="211.5" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="250.0" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="274.5" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="299.0" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="323.5" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="362.0" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="386.5" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="411.0" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="435.5" y="68" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="26.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="50.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="75.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="99.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="138.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="162.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="187.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="211.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="250.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="274.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="299.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="323.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="362.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="386.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="411.0" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="435.5" y="128" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="2" data-out="4"/>
+<rect x="16" y="42" width="448" height="118" rx="10" class="f-none s-acc" stroke-width="2.5" data-in="2" data-out="4"/>
+<text x="20" y="318" class="sf-big sf-a" data-in="2" data-out="4">A’s slab: 7 tokens used, 25 slots reserved</text>
+<rect x="362.0" y="188" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="386.5" y="188" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="411.0" y="188" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="435.5" y="188" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="26.0" y="248" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="50.5" y="248" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="75.0" y="248" width="22" height="22" rx="3" class="f-mute" data-in="3" data-out="4"/>
+<rect x="99.5" y="248" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="138.0" y="248" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="162.5" y="248" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="187.0" y="248" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="211.5" y="248" width="22" height="22" rx="3" fill="url(#sth)" class="s-warn" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="352" y="162" width="112" height="58" rx="10" class="f-none s-mute" stroke-width="2" data-in="3" data-out="4"/>
+<rect x="16" y="222" width="224" height="58" rx="10" class="f-none s-mute" stroke-width="2" data-in="3" data-out="4"/>
+<rect x="17" y="163" width="334" height="56" rx="9" class="f-none s-ok" stroke-width="2" stroke-dasharray="6 4" data-in="3" data-out="4"/>
+<rect x="241" y="223" width="222" height="56" rx="9" class="f-none s-ok" stroke-width="2" stroke-dasharray="6 4" data-in="3" data-out="4"/>
+<text x="20" y="348" class="sf-lab" data-in="3" data-out="4">B needs 4 adjacent blocks. 5 are free,</text>
+<text x="20" y="372" class="sf-lab" data-in="3" data-out="4">but the largest gap is only 3.</text>
+<text x="20" y="400" class="sf-big sf-bad" data-in="3" data-out="4">B waits, though memory is free.</text>
+<rect x="362.0" y="128" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="386.5" y="128" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="411.0" y="128" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="435.5" y="128" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="138.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="162.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="187.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="4"/>
+<rect x="211.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="5"/>
+<rect x="362.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="5"/>
+<rect x="386.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="7"/>
+<rect x="411.0" y="68" width="22" height="22" rx="3" class="f-acc" data-in="7"/>
+<rect x="435.5" y="68" width="22" height="22" rx="3" class="f-acc" data-in="7"/>
+<rect x="250.0" y="188" width="22" height="22" rx="3" class="f-acc" data-in="8"/>
+<rect x="250.0" y="188" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8"/>
+<rect x="274.5" y="188" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8"/>
+<rect x="299.0" y="188" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8"/>
+<rect x="323.5" y="188" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8"/>
+<rect x="250.0" y="248" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8"/>
+<g data-in="6" data-out="8"><rect x="426" y="110" width="30" height="16" rx="8" class="f-acc2"/><text x="441" y="122" class="sf-badge" text-anchor="middle">×2</text></g>
+<rect x="26.0" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="50.5" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="75.0" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="99.5" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="250.0" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="274.5" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="299.0" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="323.5" y="68" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="26.0" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="50.5" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="75.0" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="99.5" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="138.0" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="162.5" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="187.0" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="211.5" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="250.0" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="274.5" y="128" width="22" height="22" rx="3" class="f-ok" data-in="7"/>
+<rect x="26.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="50.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="75.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="99.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="138.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="162.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="187.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="211.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="362.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="386.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="411.0" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="435.5" y="188" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="26.0" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="50.5" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="75.0" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="99.5" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="138.0" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="162.5" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="187.0" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="211.5" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="362.0" y="248" width="22" height="22" rx="3" class="f-warn" data-in="7"/>
+<rect x="246" y="228" width="100" height="46" rx="6" class="f-none s-bad" stroke-width="2" stroke-dasharray="5 4" data-in="8" data-out="10"/>
+<text x="342" y="241" class="sf-lab sf-bad" text-anchor="end" data-in="8" data-out="10">freed</text>
+<text x="20" y="321" class="sf-lab sf-a" data-in="4">A’s table</text>
+<g data-in="4"><rect x="104" y="300" width="44" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="126" y="320" class="sf-cell" text-anchor="middle">7</text></g>
+<g data-in="4"><rect x="154" y="300" width="44" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="176" y="320" class="sf-cell" text-anchor="middle">1</text></g>
+<g data-in="5"><rect x="204" y="300" width="44" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="226" y="320" class="sf-cell" text-anchor="middle">3</text></g>
+<g data-in="8"><rect x="254" y="300" width="44" height="30" rx="6" class="f-panel s-acc" stroke-width="2"/><text x="276" y="320" class="sf-cell" text-anchor="middle">10</text></g>
+<text x="20" y="363" class="sf-lab sf-b" data-in="6" data-out="8">B’s table</text>
+<g data-in="6" data-out="8"><rect x="104" y="342" width="44" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="126" y="362" class="sf-cell" text-anchor="middle">7</text></g>
+<g data-in="6" data-out="8"><rect x="154" y="342" width="44" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="176" y="362" class="sf-cell" text-anchor="middle">10</text></g>
+<g data-in="6" data-out="8"><rect x="204" y="342" width="44" height="30" rx="6" class="f-panel s-acc2" stroke-width="2"/><text x="226" y="362" class="sf-cell" text-anchor="middle">14</text></g>
+<text x="20" y="363" class="sf-lab sf-bad" data-in="8" data-out="9">B: preempted whole, recomputed later</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Waste: at most one part-filled block per request</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">Block #7 computed once, read by both</text>
+<text x="20" y="400" class="sf-lab sf-bad" data-in="7" data-out="8">Pool full. A has filled #3 and needs one more block.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">Newest request (B) evicted; A takes #10</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="110" class="sf-cap" text-anchor="middle">Share of KV memory holding real tokens</text><rect x="60" y="140" width="360" height="34" rx="8" class="f-code s-line"/><rect x="60" y="140" width="104" height="34" rx="8" class="f-warn"/><text x="60" y="198" class="sf-lab">contiguous (Orca)</text><text x="420" y="198" class="sf-num" text-anchor="end">20–38%</text><rect x="60" y="230" width="360" height="34" rx="8" class="f-code s-line"/><rect x="60" y="230" width="347" height="34" rx="8" class="f-ok"/><text x="60" y="288" class="sf-lab">paged (vLLM)</text><text x="420" y="288" class="sf-num" text-anchor="end">96.3%</text><text x="240" y="352" class="sf-big" text-anchor="middle">→ 2–4× more throughput, same GPU</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every word a model writes leaves behind a little memory: keys and values for each layer, stored on the GPU so the next word can look back. That's the <b>KV cache</b>. Here is the space for it, cut into 16 blocks of 4 token slots.</p></div>
+<div class="step"><p><b>The old way.</b> Request A arrives with a 7-token prompt. Nobody knows how long the answer will be, so the server reserves room for the longest possible one: a single slab of 8 blocks.</p><p>7 of its 32 slots hold anything. The striped ones are paid for and empty.</p></div>
+<div class="step"><p>Request C takes blocks 11–13. Now Request B needs 4 blocks in a row.</p><p>Five blocks are free, but they're split 3 + 2. <b>B waits</b>, with free memory sitting right there. This is how servers ended up using 20–38% of their KV memory.</p></div>
+<div class="step"><p><b>The paged way</b>, borrowed from how operating systems have managed RAM since 1962. Hand out memory one small block at a time, from anywhere.</p><p>A's 7 tokens land in block #7 and block #1. A tiny <b>block table</b> remembers the order: [7, 1].</p></div>
+<div class="step"><p>A keeps talking. Token 8 fills the last slot of #1. Token 9 needs room, so the allocator grabs <i>any</i> free block, #3. Table: [7, 1, 3].</p><p>The only waste left is the unfilled tail of the last block. Never more than one block per request.</p></div>
+<div class="step"><p>Request B shows up with the same opening 4 tokens (a shared system prompt). Its table just points at A's block #7: <b>computed once, read twice</b>, reference count 2.</p><p>If a shared block ever has to change, the writer copies only that block. That's copy-on-write.</p></div>
+<div class="step"><p>More requests pour in and the pool fills completely. That's the goal: every block busy.</p><p>But A has just filled #3 and needs one more block. <b>None is free.</b></p></div>
+<div class="step"><p>The scheduler <b>preempts</b> the newest request, B, as a whole: its private blocks go back to the pool (block #7 stays, A still uses it). A takes #10 and carries on. B is recomputed from its tokens later.</p><p>Paging turned wasted memory into a scheduling problem, which is far cheaper.</p></div>
+<div class="step"><p>Same GPU, same model. Contiguous servers kept real tokens in <b>20–38%</b> of KV memory; vLLM keeps them in <b>96.3%</b>. More conversations fit at once, so throughput rises <b>2–4×</b>.</p><p>The cards below take each step apart: the kernel, the math, the knobs, and where it breaks.</p></div>
+</div>
+</div>
