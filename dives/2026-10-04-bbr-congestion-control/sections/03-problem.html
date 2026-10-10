@@ -11,6 +11,7 @@
 #pr-klein .lbl{font:11px system-ui,sans-serif;fill:var(--mute)}
 #pr-klein .verdict{font:13px ui-monospace,monospace;color:var(--ink);margin-top:6px;min-height:1.4em}
 </style>
+<div class="pull"><b>221 ms</b><span>median round trip for Reno in the toy sim, against 40 ms on an empty link</span></div>
 <p>Any path has one slowest link, the bottleneck, with rate <b>BtlBw</b>, and a propagation RTT <b>RTprop</b>. There are three operating regions as inflight grows:</p>
 <pre><code>delivery rate                          RTT
    ^        ┌────────────── BtlBw        ^                    /  slope 1/BtlBw

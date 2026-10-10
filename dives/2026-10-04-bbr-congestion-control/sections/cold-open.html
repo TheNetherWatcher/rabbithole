@@ -1,0 +1,21 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cb-row{display:grid;grid-template-columns:7.5em 1fr 4.5em;align-items:center;gap:10px;margin:0 0 9px}
+.cb-row b{color:var(--ink);font-weight:600}
+.cb-bar{height:14px;border-radius:3px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cb-bar i{display:block;height:100%;width:0;background:var(--c);border-radius:2px}
+.js .guess.done ~ .cold-viz .cb-bar i{animation:cb-grow .9s var(--ease) forwards;animation-delay:var(--o,0s)}
+@keyframes cb-grow{to{width:var(--w)}}
+.cb-cap{margin:10px 0 0}
+</style>
+<p class="cold-line">A 12 Mbit/s upload link pings in 40 ms when empty.</p>
+<p class="cold-line sm">Send the usual way, filling the router buffer until packets drop, and the <em>queue</em> that builds is the delay your call pays for.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cb-row"><b>Empty link</b><div class="cb-bar"><i style="--c:var(--ok);--w:18%"></i></div><span>40 ms</span></div>
+  <div class="cb-row"><b>Reno</b><div class="cb-bar"><i style="--c:var(--bad);--w:100%;--o:.15s"></i></div><span>221 ms</span></div>
+  <div class="cb-row"><b>BBR</b><div class="cb-bar"><i style="--c:var(--accent);--w:25%;--o:.3s"></i></div><span>55.5 ms</span></div>
+  <p class="cb-cap"><b>Median round trip, toy sim: Reno 221 ms, BBR 55.5 ms.</b></p>
+</div>

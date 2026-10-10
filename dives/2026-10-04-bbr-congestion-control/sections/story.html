@@ -1,0 +1,218 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A router buffer grid of 80 cells. Loss-based senders fill every cell until packets drop. BBR keeps about 10 cells, one BDP, in flight and the queue stays near empty.">
+<defs><pattern id="sbh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">A 12 Mbit/s link, empty round trip 40 ms</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Loss-based: keep sending until a drop</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">BBR target: BtlBw × RTprop</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="7">BBR cruises: probe up, then drain</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="9">The cost: shallow buffers and fairness</text>
+<rect x="14" y="62" width="452" height="148" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="178" width="24" height="24" rx="3" class="f-code"/>
+<text x="20" y="232" class="sf-lab" data-out="9">Router buffer: 320 packets, 8 × BDP</text>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="16" y="66" width="275" height="32" rx="6" class="f-none s-ok" stroke-width="2" data-in="3" data-out="5"/>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-acc2" data-in="5" data-out="6" data-hl="5 6"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-acc2" data-in="5" data-out="6" data-hl="5 6"/>
+<rect x="20" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="47" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="74" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="101" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="128" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Each cell = 4 packets. The grid is the router buffer.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Median RTT 221 ms, against 40 ms with an empty queue.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">12 Mbit/s × 40 ms = 40 packets = 10 cells.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">Queue stays near empty. Median RTT 55.5 ms.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Probe: pacing gain 1.25 sends 25% more for a round.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">Back down: gain 0.75 drains what the probe added.</text>
+<text x="20" y="400" class="sf-lab sf-bad" data-in="7" data-out="8">Shallow buffer: BBRv1 drops 324 packets. Reno: 8.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">Against CUBIC, BBR takes a fixed ~40% share.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="96" class="sf-cap" text-anchor="middle">Same 12 Mbit/s link, same 40 ms path</text><text x="60" y="146" class="sf-lab">Loss-based (Reno)</text><text x="420" y="146" class="sf-num" text-anchor="end">221 ms</text><rect x="60" y="156" width="360" height="30" rx="8" class="f-code s-line"/><rect x="60" y="156" width="360" height="30" rx="8" class="f-warn"/><text x="60" y="236" class="sf-lab">BBR (BBRv1-like)</text><text x="420" y="236" class="sf-num" text-anchor="end">55.5 ms</text><rect x="60" y="246" width="360" height="30" rx="8" class="f-code s-line"/><rect x="60" y="246" width="90.4" height="30" rx="8" class="f-ok"/><text x="240" y="330" class="sf-big" text-anchor="middle">About 40 packets in flight, queue near empty</text><text x="240" y="356" class="sf-lab" text-anchor="middle">Its weak spots: shallow buffers and CUBIC</text><text x="240" y="392" class="sf-lab" text-anchor="middle">The cards below cover each piece.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap"><b>Picture the router buffer as a grid.</b> One cell is 4 packets. With no queue, the link carries 12 Mbit/s with a 40 ms round trip. The buffer holds 320 packets, 8 times the bandwidth-delay product.</p></div>
+<div class="step"><p><b>The old way: keep sending until something drops.</b> Reno and CUBIC grow their rate until the buffer overflows, so the buffer stays full. In the toy sim the median round trip is <b>221 ms</b>, more than five times the empty 40 ms.</p></div>
+<div class="step"><p><b>The key idea: measure the pipe.</b> BBR tracks the bottleneck rate (BtlBw) and the shortest round trip (RTprop). Their product is the BDP: 12 Mbit/s × 40 ms = <b>40 packets</b>, enough to fill the pipe with no queue.</p></div>
+<div class="step"><p><b>Send about one BDP and stop.</b> BBR paces packets at that size, so the queue stays near empty. In the same sim the median round trip drops to <b>55.5 ms</b>.</p></div>
+<div class="step"><p><b>Probe for more.</b> Every so often BBR sends 25% faster to check whether the link got faster. That is the 1.25 pacing gain.</p></div>
+<div class="step"><p><b>Then ease off.</b> The 0.75 phase drains what the probe added. Over a full cycle the average pacing gain is 1.0, so the queue does not keep growing.</p></div>
+<div class="step"><p><b>The cost: shallow buffers.</b> With a small buffer, BBRv1 ignores loss and keeps pushing. In the sim it drops <b>324 packets</b> where Reno drops 8.</p></div>
+<div class="step"><p><b>The cost: fairness.</b> Against CUBIC, BBR takes a roughly fixed <b>40%</b> share (Ware et al. 2019). The cards below cover the mechanism and these trade-offs.</p></div>
+<div class="step"><p><b>The numbers.</b> Same link, same path: 221 ms with the loss-based way, 55.5 ms with BBR, and about 40 packets in flight. Start with the mechanism card below.</p></div>
+</div>
+</div>

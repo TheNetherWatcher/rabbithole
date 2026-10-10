@@ -15,6 +15,7 @@
   --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
   --ease:cubic-bezier(.2,.7,.2,1);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ a{color:var(--accent2)}
 .hero-text{position:relative;margin-top:-48px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
-h1{font-size:clamp(28px,5.4vw,44px);line-height:1.1;letter-spacing:-.015em;margin:.1em 0 .4em}
-.tldr{font-size:18px;line-height:1.55;margin:0 0 10px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
 .why{color:var(--mute);margin:0 0 16px}
 .tldr b,.why b{color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
@@ -102,9 +103,9 @@ main.wrap{padding-bottom:96px}
 .card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
 .card-vis svg{width:100%;height:100%;display:block}
 .card.open .card-vis{transform:scale(.92);opacity:.75}
-.kicker{font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.04em}
-.card h2{font-size:21px;line-height:1.25;margin:2px 0 6px;letter-spacing:-.01em}
-.brief{font-size:15.5px}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
 .brief p{margin:0 0 6px}
 .brief ul{margin:4px 0 6px;padding-left:18px}
 .brief li{margin:2px 0}
@@ -170,9 +171,15 @@ main.wrap{padding-bottom:96px}
 .score{font-weight:700;color:var(--accent)}
 
 /* ---------- content kit (use inside sections/*.html) ---------- */
-.deep-content h3{font-size:18px;margin:1.4em 0 .3em}
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
 .deep-content h4{font-size:15px;margin:1.2em 0 .2em}
-.deep-content p,.deep-content li{max-width:72ch}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
 code,pre{font-family:var(--mono);font-size:13.5px}
 code{background:var(--code);padding:1px 5px;border-radius:5px}
 pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
@@ -257,6 +264,90 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 @keyframes rh-blink{50%{opacity:0}}
 .card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
 
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
 /* ---------- hub ---------- */
 .hub-head{padding:40px 0 8px}
 .hub-head p{color:var(--mute);margin:0}
@@ -280,6 +371,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .rv{opacity:1;transform:none}
   .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
 }
 
 </style>
@@ -298,7 +390,29 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
   </div>
 </header>
 
-<section class="hero">
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cb-row{display:grid;grid-template-columns:7.5em 1fr 4.5em;align-items:center;gap:10px;margin:0 0 9px}
+.cb-row b{color:var(--ink);font-weight:600}
+.cb-bar{height:14px;border-radius:3px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cb-bar i{display:block;height:100%;width:0;background:var(--c);border-radius:2px}
+.js .guess.done ~ .cold-viz .cb-bar i{animation:cb-grow .9s var(--ease) forwards;animation-delay:var(--o,0s)}
+@keyframes cb-grow{to{width:var(--w)}}
+.cb-cap{margin:10px 0 0}
+</style>
+<p class="cold-line">A 12 Mbit/s upload link pings in 40 ms when empty.</p>
+<p class="cold-line sm">Send the usual way, filling the router buffer until packets drop, and the <em>queue</em> that builds is the delay your call pays for.</p>
+<div class="guess" data-g="cold" data-kind="range" data-min="0" data-max="500" data-lo="221" data-hi="221" data-tol="25" data-unit="ms"><p class="g-q"><span class="g-tag">Guess first</span> Reno's median round trip in the toy sim, on a link whose empty round trip is 40 ms?</p><div class="g-ctl"><input type="range" min="0" max="500" step="5" value="450" aria-label="Your guess"><output>450ms</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0ms</span><span>500ms</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>221 ms.</b> Reno's median round trip in the toy sim, with an 8×BDP buffer. The same link with BBR gives <b>55.5 ms</b>, close to the empty 40 ms.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cb-row"><b>Empty link</b><div class="cb-bar"><i style="--c:var(--ok);--w:18%"></i></div><span>40 ms</span></div>
+  <div class="cb-row"><b>Reno</b><div class="cb-bar"><i style="--c:var(--bad);--w:100%;--o:.15s"></i></div><span>221 ms</span></div>
+  <div class="cb-row"><b>BBR</b><div class="cb-bar"><i style="--c:var(--accent);--w:25%;--o:.3s"></i></div><span>55.5 ms</span></div>
+  <p class="cb-cap"><b>Median round trip, toy sim: Reno 221 ms, BBR 55.5 ms.</b></p>
+</div>
+</div><a class="cold-cue" href="#top">BBR congestion control <span>↓</span></a></section>
+<section class="hero" id="top">
   <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><pattern id="bbr-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
 <g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#bbr-dots)"/></g>
@@ -313,9 +427,230 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     <p class="why rv" style="--i:3"><b>Why it matters:</b> loss-based CUBIC fills deep buffers and adds hundreds of ms of delay, while BBR keeps the queue near one BDP. Google runs v3 on public traffic and Linux mainline ships v1, so its fairness with CUBIC matters now.</p>
     <div class="stats"><div class="stat rv" style="--i:0"><div class="v">221 ms</div><div class="l">median RTT, Reno, 8×BDP buffer (sim)</div></div><div class="stat rv" style="--i:1"><div class="v">55.5 ms</div><div class="l">median RTT, BBRv1-like, same link (sim)</div></div><div class="stat rv" style="--i:2"><div class="v">2.77</div><div class="l">Startup pacing gain, 4 ln 2</div></div><div class="stat rv" style="--i:3"><div class="v">40%</div><div class="l">BBR's fixed share vs CUBIC (Ware et al. 2019)</div></div><div class="stat rv" style="--i:4"><div class="v">2%</div><div class="l">per-round loss bound in BBRv3</div></div></div>
     <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
-      <span>19 cards</span><span>· ~5 min skim</span><span>· ~52 min deep</span>
+      <span>19 cards</span><span>· ~8 min skim</span><span>· ~52 min deep</span>
+      <span class="g-score" hidden></span>
       <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
   </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>Send at the pipe&#x27;s size and the queue stays near empty</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A router buffer grid of 80 cells. Loss-based senders fill every cell until packets drop. BBR keeps about 10 cells, one BDP, in flight and the queue stays near empty.">
+<defs><pattern id="sbh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">A 12 Mbit/s link, empty round trip 40 ms</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Loss-based: keep sending until a drop</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">BBR target: BtlBw × RTprop</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="7">BBR cruises: probe up, then drain</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="9">The cost: shallow buffers and fairness</text>
+<rect x="14" y="62" width="452" height="148" rx="8" class="f-panel s-line" stroke-width="1.5"/>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="70" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="97" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="124" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="151" width="24" height="24" rx="3" class="f-code"/>
+<rect x="20" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="47" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="74" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="101" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="128" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="155" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="182" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="209" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="236" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="263" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="290" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="317" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="344" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="371" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="398" y="178" width="24" height="24" rx="3" class="f-code"/>
+<rect x="425" y="178" width="24" height="24" rx="3" class="f-code"/>
+<text x="20" y="232" class="sf-lab" data-out="9">Router buffer: 320 packets, 8 × BDP</text>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="70" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="97" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="124" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="151" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="20" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="47" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="74" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="101" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="128" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="155" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="182" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="209" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="236" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="263" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="290" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="317" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="344" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="371" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="398" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="425" y="178" width="24" height="24" rx="3" class="f-warn" data-in="2" data-out="3"/>
+<rect x="16" y="66" width="275" height="32" rx="6" class="f-none s-ok" stroke-width="2" data-in="3" data-out="5"/>
+<rect x="20" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="47" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="74" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="101" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="128" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="155" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="182" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="209" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="236" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="263" y="70" width="24" height="24" rx="3" class="f-ok" data-in="4"/>
+<rect x="290" y="70" width="24" height="24" rx="3" class="f-acc2" data-in="5" data-out="6" data-hl="5 6"/>
+<rect x="317" y="70" width="24" height="24" rx="3" class="f-acc2" data-in="5" data-out="6" data-hl="5 6"/>
+<rect x="20" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="47" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="74" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="101" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<rect x="128" y="178" width="24" height="24" rx="3" fill="url(#sbh)" class="s-warn" stroke-width="1" data-in="7" data-out="9"/>
+<text x="20" y="400" class="sf-lab" data-in="1" data-out="2">Each cell = 4 packets. The grid is the router buffer.</text>
+<text x="20" y="400" class="sf-lab" data-in="2" data-out="3">Median RTT 221 ms, against 40 ms with an empty queue.</text>
+<text x="20" y="400" class="sf-lab" data-in="3" data-out="4">12 Mbit/s × 40 ms = 40 packets = 10 cells.</text>
+<text x="20" y="400" class="sf-lab" data-in="4" data-out="5">Queue stays near empty. Median RTT 55.5 ms.</text>
+<text x="20" y="400" class="sf-lab" data-in="5" data-out="6">Probe: pacing gain 1.25 sends 25% more for a round.</text>
+<text x="20" y="400" class="sf-lab" data-in="6" data-out="7">Back down: gain 0.75 drains what the probe added.</text>
+<text x="20" y="400" class="sf-lab sf-bad" data-in="7" data-out="8">Shallow buffer: BBRv1 drops 324 packets. Reno: 8.</text>
+<text x="20" y="400" class="sf-lab" data-in="8" data-out="9">Against CUBIC, BBR takes a fixed ~40% share.</text>
+<g data-in="9"><rect x="12" y="38" width="456" height="384" rx="14" class="f-bg" opacity=".97"/><text x="240" y="96" class="sf-cap" text-anchor="middle">Same 12 Mbit/s link, same 40 ms path</text><text x="60" y="146" class="sf-lab">Loss-based (Reno)</text><text x="420" y="146" class="sf-num" text-anchor="end">221 ms</text><rect x="60" y="156" width="360" height="30" rx="8" class="f-code s-line"/><rect x="60" y="156" width="360" height="30" rx="8" class="f-warn"/><text x="60" y="236" class="sf-lab">BBR (BBRv1-like)</text><text x="420" y="236" class="sf-num" text-anchor="end">55.5 ms</text><rect x="60" y="246" width="360" height="30" rx="8" class="f-code s-line"/><rect x="60" y="246" width="90.4" height="30" rx="8" class="f-ok"/><text x="240" y="330" class="sf-big" text-anchor="middle">About 40 packets in flight, queue near empty</text><text x="240" y="356" class="sf-lab" text-anchor="middle">Its weak spots: shallow buffers and CUBIC</text><text x="240" y="392" class="sf-lab" text-anchor="middle">The cards below cover each piece.</text></g>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap"><b>Picture the router buffer as a grid.</b> One cell is 4 packets. With no queue, the link carries 12 Mbit/s with a 40 ms round trip. The buffer holds 320 packets, 8 times the bandwidth-delay product.</p></div>
+<div class="step"><p><b>The old way: keep sending until something drops.</b> Reno and CUBIC grow their rate until the buffer overflows, so the buffer stays full. In the toy sim the median round trip is <b>221 ms</b>, more than five times the empty 40 ms.</p></div>
+<div class="step"><p><b>The key idea: measure the pipe.</b> BBR tracks the bottleneck rate (BtlBw) and the shortest round trip (RTprop). Their product is the BDP: 12 Mbit/s × 40 ms = <b>40 packets</b>, enough to fill the pipe with no queue.</p></div>
+<div class="step"><p><b>Send about one BDP and stop.</b> BBR paces packets at that size, so the queue stays near empty. In the same sim the median round trip drops to <b>55.5 ms</b>.</p></div>
+<div class="step"><p><b>Probe for more.</b> Every so often BBR sends 25% faster to check whether the link got faster. That is the 1.25 pacing gain.</p></div>
+<div class="step"><p><b>Then ease off.</b> The 0.75 phase drains what the probe added. Over a full cycle the average pacing gain is 1.0, so the queue does not keep growing.</p></div>
+<div class="step"><p><b>The cost: shallow buffers.</b> With a small buffer, BBRv1 ignores loss and keeps pushing. In the sim it drops <b>324 packets</b> where Reno drops 8.</p></div>
+<div class="step"><p><b>The cost: fairness.</b> Against CUBIC, BBR takes a roughly fixed <b>40%</b> share (Ware et al. 2019). The cards below cover the mechanism and these trade-offs.</p></div>
+<div class="step"><p><b>The numbers.</b> Same link, same path: 221 ms with the loss-based way, 55.5 ms with BBR, and about 40 packets in flight. Start with the mechanism card below.</p></div>
+</div>
+</div>
 </section>
 
 <nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="Send at the booth&#x27;s speed and the parking lot stays nearly empty"><span>Send at the booth&#x27;s speed and the parking lot stays nearly empty</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six terms cover the whole algorithm"><span>Six terms cover the whole algorithm</span></a><a href="#c-world" data-id="world" aria-label="Google and YouTube run it, Linux ships it, one sysctl away"><span>Google and YouTube run it, Linux ships it, one sysctl away</span></a><a href="#c-onel" data-id="onel" aria-label="The one-liner hides five traps, starting with a measurement conflict"><span>The one-liner hides five traps, starting with a measurement conflict</span></a><a href="#c-problem" data-id="problem" aria-label="Loss-based CC fills the buffer, BBR aims for the knee"><span>Loss-based CC fills the buffer, BBR aims for the knee</span></a><a href="#c-model" data-id="model" aria-label="Two gauges on one hose: peak flow and fastest transit"><span>Two gauges on one hose: peak flow and fastest transit</span></a><a href="#c-mech" data-id="mech" aria-label="Startup overshoots, drain repairs, then probe and pay back"><span>Startup overshoots, drain repairs, then probe and pay back</span></a><a href="#c-math" data-id="math" aria-label="The filters converge from one side, and the gains average to 1"><span>The filters converge from one side, and the gains average to 1</span></a><a href="#c-why" data-id="why" aria-label="Two filters on two timescales, with pacing as the control"><span>Two filters on two timescales, with pacing as the control</span></a><a href="#c-knobs" data-id="knobs" aria-label="Probe timers and gains trade speed for fairness"><span>Probe timers and gains trade speed for fairness</span></a><a href="#c-breaks" data-id="breaks" aria-label="BBR is not delay-based, and its failures are fairness failures"><span>BBR is not delay-based, and its failures are fairness failures</span></a><a href="#c-wild" data-id="wild" aria-label="Shipped BBR is v3 at Google and v1 in mainline Linux"><span>Shipped BBR is v3 at Google and v1 in mainline Linux</span></a><a href="#c-frontier" data-id="frontier" aria-label="v3 kept the CUBIC unfairness, and the fixes are still open"><span>v3 kept the CUBIC unfairness, and the fixes are still open</span></a><a href="#c-open" data-id="open" aria-label="Fair share, jitter and a model of v3 remain unsolved"><span>Fair share, jitter and a model of v3 remain unsolved</span></a><a href="#c-lineage" data-id="lineage" aria-label="From Kleinrock&#x27;s 1979 power metric to the 2026 IETF draft"><span>From Kleinrock&#x27;s 1979 power metric to the 2026 IETF draft</span></a><a href="#c-hands" data-id="hands" aria-label="Drag the buffer: Reno&#x27;s delay follows it, BBR&#x27;s does not"><span>Drag the buffer: Reno&#x27;s delay follows it, BBR&#x27;s does not</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three threads to pull next"><span>Three threads to pull next</span></a><a href="#c-sources" data-id="sources" aria-label="Core papers, the IETF draft and the v3 measurement studies"><span>Core papers, the IETF draft and the v3 measurement studies</span></a></nav>
@@ -330,7 +665,7 @@ button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
 <h3>Explain it simply</h3>
-<p>Picture a highway with a toll booth that can let through exactly 100 cars per minute. Behind the booth is a parking lot where cars wait when they arrive too fast. The old way of driving onto this highway (Reno, CUBIC) is: keep sending more and more cars until the lot is so full that a car gets turned away, then cut back by about a third, and creep up again. It works, but the parking lot is almost always full, so every car waits a long time. With a huge lot, a trip that should take 40 ms can take half a second. That's "bufferbloat".</p>
+<p class="dropcap">Picture a highway with a toll booth that can let through exactly 100 cars per minute. Behind the booth is a parking lot where cars wait when they arrive too fast. The old way of driving onto this highway (Reno, CUBIC) is: keep sending more and more cars until the lot is so full that a car gets turned away, then cut back by about a third, and creep up again. It works, but the parking lot is almost always full, so every car waits a long time. With a huge lot, a trip that should take 40 ms can take half a second. That's "bufferbloat".</p>
 <p>BBR does something else. It watches two things: how fast cars actually come out the far side of the booth (the most it has ever seen recently is the booth's speed), and the shortest trip time it has ever seen (that's the trip with an empty lot). Multiply them and you know exactly how many cars should be on the road at once to keep the booth busy without anyone waiting. BBR sends cars at that pace. Now and then it sends a few extra to check whether the booth got faster, then a few fewer to clear out any line it caused. Every few seconds it nearly stops for a moment to re-measure the empty-lot trip time.</p>
 <h3>Everyday example</h3>
 <p>You upload a video from a café. The link out to the internet carries 12 megabits per second and the round trip to the server takes 40 ms when nothing is queued. The café router has a big buffer. With the old method your upload fills that buffer: your ping jumps to around 220 ms and your friend's video call at the next table starts to stutter. With BBR, your laptop ramps up for about half a second and sees the delivery rate stop growing at 12 Mbit/s. It notes that the best round trip was 40 ms, so "12 Mbit/s × 40 ms ≈ 40 packets" is the right amount to have in flight. It drains the short line it built while ramping up, then holds about 40 packets in flight. Upload speed is the same 12 Mbit/s, but your ping stays near 55 ms, and your friend's call is fine.</p>
@@ -442,6 +777,7 @@ ss -tin dst :443
 #pr-klein .lbl{font:11px system-ui,sans-serif;fill:var(--mute)}
 #pr-klein .verdict{font:13px ui-monospace,monospace;color:var(--ink);margin-top:6px;min-height:1.4em}
 </style>
+<div class="pull"><b>221 ms</b><span>median round trip for Reno in the toy sim, against 40 ms on an empty link</span></div>
 <p>Any path has one slowest link, the bottleneck, with rate <b>BtlBw</b>, and a propagation RTT <b>RTprop</b>. There are three operating regions as inflight grows:</p>
 <pre><code>delivery rate                          RTT
    ^        ┌────────────── BtlBw        ^                    /  slope 1/BtlBw
@@ -526,10 +862,10 @@ if(kx){kx.addEventListener('input',klein);klein();}
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-mech" data-id="mech">
+<article class="card rv gated" id="c-mech" data-id="mech">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="40" width="34" height="22" rx="5" class="f-panel s-line"/><rect x="58" y="40" width="34" height="22" rx="5" class="f-panel s-line"/><rect x="106" y="22" width="44" height="58" rx="5" class="f-panel s-line"/><rect x="112" y="30" width="32" height="10" rx="3" class="f-acc"/><rect x="112" y="46" width="32" height="10" rx="3" class="f-line"/><rect x="112" y="62" width="32" height="10" rx="3" class="f-line"/><path d="M44 51 H58 M92 51 H106" class="s-acc" stroke-width="1.6" fill="none"/></svg></div>
 <div class="card-body"><div class="kicker">§5 · Mechanism, traced</div><h2>Startup overshoots, drain repairs, then probe and pay back</h2>
-<div class="brief"><p>Startup grows the send rate by gain 2.77 per round and overshoots to ~72 packets of queue before the plateau near 12 Mbit/s. Drain empties it. ProbeBW then cruises at gain 1.0 and alternates 1.25 and 0.75, so the average gain is 1.0.</p><p class="mini">8-step walkthrough and state machine inside.</p></div>
+<div class="guess" data-g="gain" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> During Startup, BBR raises the sending rate by one fixed pacing gain each round. What is it?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1.25</button><button class="g-opt" type="button" data-k="1">2.0</button><button class="g-opt" type="button" data-k="2">2.77</button><button class="g-opt" type="button" data-k="3">4.0</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>2.77</b>, which is 4 ln 2. Older BBRv1 used 2/ln 2 = 2.885. The rate grows about 2.8× per round until the pipe looks full.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Startup grows the send rate by gain 2.77 per round and overshoots to ~72 packets of queue before the plateau near 12 Mbit/s. Drain empties it. ProbeBW then cruises at gain 1.0 and alternates 1.25 and 0.75, so the average gain is 1.0.</p><p class="mini">8-step walkthrough and state machine inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>5 min</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
@@ -681,10 +1017,10 @@ rs();
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-math" data-id="math">
+<article class="card rv gated" id="c-math" data-id="math">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="16" y1="84" x2="150" y2="84" class="s-line" stroke-width="1.2"/><line x1="16" y1="14" x2="16" y2="84" class="s-line" stroke-width="1.2"/><polyline points="16,80 72,30 150,30" fill="none" class="s-acc" stroke-width="2.2"/><line x1="72" y1="30" x2="72" y2="84" class="s-ok" stroke-dasharray="3 3"/><circle cx="72" cy="30" r="4" class="f-ok"/><path d="M24 68 Q48 40 72 30" class="s-mute" fill="none" stroke-dasharray="2 3"/></svg></div>
 <div class="card-body"><div class="kicker">§6 · The math</div><h2>The filters converge from one side, and the gains average to 1</h2>
-<div class="brief"><p>Min RTT converges to R from above and max bandwidth to B from below, so each filter is biased only toward the truth. Startup gain is 4 ln 2 ≈ 2.77. Against 1% loss, BBR must probe within about <b>137</b> rounds, which is why v3 picks 62–63.</p><p class="mini">Shares plot inside.</p></div>
+<div class="guess" data-g="rounds" data-kind="range" data-min="0" data-max="300" data-lo="137" data-hi="137" data-tol="12" data-unit="rounds"><p class="g-q"><span class="g-tag">Guess first</span> Against 1% random loss, how many rounds can BBR wait between probes and still hold its rate?</p><div class="g-ctl"><input type="range" min="0" max="300" step="1" value="20" aria-label="Your guess"><output>20rounds</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0rounds</span><span>300rounds</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>About 137 rounds</b>, from the math section: BBR can wait up to ~137 rounds between probes and still tolerate 1% random loss. That is why BBRv3 picks 62–63 rounds.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Min RTT converges to R from above and max bandwidth to B from below, so each filter is biased only toward the truth. Startup gain is 4 ln 2 ≈ 2.77. Against 1% loss, BBR must probe within about <b>137</b> rounds, which is why v3 picks 62–63.</p><p class="mini">Shares plot inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>7 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
@@ -780,10 +1116,10 @@ rs();
 
 </div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
 </article>
-<article class="card rv" id="c-breaks" data-id="breaks">
+<article class="card rv gated" id="c-breaks" data-id="breaks">
 <div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><polygon points="80,16 140,84 20,84" class="f-warn s-warn" stroke-width="1.6"/><line x1="80" y1="40" x2="80" y2="62" class="s-bad" stroke-width="3"/><circle cx="80" cy="72" r="2.5" class="f-bad"/></svg></div>
 <div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>BBR is not delay-based, and its failures are fairness failures</h2>
-<div class="brief"><p>Shallow buffers cost v1 <b>324 drops</b> against Reno's 8 in the sim. BBR takes a fixed ~40% against CUBIC. RTT unfairness persists in v3. With ECN on, one BBRv3 flow took ~99% against five CUBIC flows.</p><p class="mini">Queue-trace figure inside.</p></div>
+<div class="guess" data-g="drops" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> In the toy sim with a shallow buffer, which sender drops more packets, and by how much?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Reno, about 4× more</button><button class="g-opt" type="button" data-k="1">About the same</button><button class="g-opt" type="button" data-k="2">BBRv1, about 40× more</button><button class="g-opt" type="button" data-k="3">Neither drops packets</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>BBRv1, about 40×.</b> The sim shows 324 drops for BBRv1 against 8 for Reno. BBRv1 ignores loss, so it keeps pacing into a buffer that is too small.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Shallow buffers cost v1 <b>324 drops</b> against Reno's 8 in the sim. BBR takes a fixed ~40% against CUBIC. RTT unfairness persists in v3. With ECN on, one BBRv3 flow took ~99% against five CUBIC flows.</p><p class="mini">Queue-trace figure inside.</p></div>
 <div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min · 1 fig</small></button>
 <label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
 <div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
@@ -1234,13 +1570,45 @@ $('hands-buf').addEventListener('input',deb);$('hands-rtt').addEventListener('in
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
   }
 
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
   // ---- page data + progress ----
   var dataEl = $('#rh-data'); if (!dataEl) return;
   var D = JSON.parse(dataEl.textContent);
   var KEY = 'rh:p:' + D.slug;
-  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.seen = P.seen || Date.now();
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
   var cards = $$('article.card');
   var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
 
   function status(gotN, yesN) {
     var nc = cards.length, nq = qs.length;
@@ -1260,11 +1628,63 @@ $('hands-buf').addEventListener('input',deb);$('hands-rtt').addEventListener('in
     $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
     var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
     $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
   }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
 
   // ---- cards: expand / collapse / got-it ----
   function setOpen(card, open, scroll) {
     card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
     var btn = $('.deeper', card), deep = $('.deep', card);
     btn.setAttribute('aria-expanded', open);
     if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
