@@ -1,4 +1,6 @@
 <h3>Performance</h3>
+<p>The first failure is order. Two literals with the same keys in a different order end at different Maps, so one site sees two shapes and goes polymorphic.</p>
+<figure data-fig="own-order-maps"></figure>
 <ul>
 <li><b>Megamorphic cliff.</b> My measurement (Node v24.12, one machine): mono 0.99 ns, 4-shape 4.06 ns, 8-shape 4.90 ns, 64-shape 4.80 ns per call. The loop includes <code>i % len</code> and an array load. The cliff is mono to poly. Megamorphic adds little on top <i>here</i>, because the stub cache hits.</li>
 <li><b><code>delete</code></b> flips the object to dictionary mode, and <code>%HasFastProperties</code> returns false.</li>
@@ -13,6 +15,8 @@
 <li><b>CVE-2025-2135.</b> The <code>InferMapsUnsafe()</code> handling of <code>TransitionElementsKindOrCheckMap</code> lacked an aliasing check. It returned <code>kReliableMaps</code> when two IR nodes referred to the same runtime object, which gave object-array vs double-array confusion. It was exploited within the V8 sandbox. (<a href="https://www.zellic.io/blog/pwning-v8ctf/" target="_blank" rel="noopener">Zellic</a>)</li>
 <li><b>CVE-2022-1134 ("Super IC").</b> Confusion between <code>lookup_start_object</code> and <code>receiver</code> in the super-property IC. (<a href="https://github.blog/security/vulnerability-research/the-chromium-super-inline-cache-type-confusion/" target="_blank" rel="noopener">GitHub Blog</a>) I read this in the research agent's notes and did not re-fetch it.</li>
 </ul>
+<p>The security cases below follow one chain. Each step is a fact the optimizer has to get right, and one wrong fact removes a guard that the rest of the code depends on.</p>
+<figure data-fig="own-cve-chain"></figure>
 <p>The pattern: <i>an optimizer reasoning about Maps and elements kinds across an effect chain is a soundness proof written in C++.</i> The <b>V8 sandbox</b> (a pointer-compression cage plus indirection tables) limits what a corrupted heap can reach. It doesn't fix the logic bugs (<a href="https://v8.dev/blog/sandbox" target="_blank" rel="noopener">v8.dev/blog/sandbox</a>).</p>
 <h3>Misconceptions</h3>
 <ul>

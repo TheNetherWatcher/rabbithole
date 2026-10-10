@@ -18,6 +18,8 @@
 <pre><code>function getX(o) { return o.x; }
 getX({x: 1, y: 2});</code></pre>
 <p><b>Object creation.</b> The literal <code>{x:1,y:2}</code> starts from a root Map M0 (empty, with in-object slack) and follows transitions: <code>M0 --x--&gt; M1 --y--&gt; M2</code>. M2's DescriptorArray is shared with M1 and M0 through the ownership rules: <code>[x: field, in-object #0, Smi] [y: field, in-object #1, Smi]</code>.</p>
+<p>Trace the two literals through the tree. The Map records the sequence of property additions, not the set of names, so the same keys in another order take a different branch and end at a different Map.</p>
+<figure data-fig="own-map-tree"></figure>
 <p><b>Layout</b> (pointer compression, 4-byte tagged values):</p>
 <pre><code>offset  0   map        -&gt; M2
 offset  4   properties -&gt; empty_fixed_array   (out-of-object overflow)
@@ -33,11 +35,17 @@ jne  deopt_entry
 mov  r10d, [rax + 12]</code></pre>
 <p>(Illustrative sketch, not literal V8 output.) The compiler also <i>registers a dependency</i> of this code on M2 (the Map's <code>dependent_code</code> list). If M2 later becomes deprecated or its stability assumptions break, the code is invalidated.</p>
 <p><b>The bet loses.</b> Call <code>getX({y: 1, x: 2})</code>. That object has Map M3 (<code>M0 --y--&gt; --x--&gt;</code>). <code>CheckMaps</code> fails, which is an <b>eager deopt</b>. The deoptimizer uses the translation table to rebuild an Ignition frame from registers and stack, and execution resumes in the interpreter at the bytecode offset. The IC slot misses, sees a second Map, and becomes <b>polymorphic</b>: <code>[(M2,h1),(M3,h2)]</code>. The next optimization emits a 2-way <code>CheckMaps</code>.</p>
+<p>Follow the failed guard below. It exits to the interpreter, the IC records the second Map, and the next compile guards on both.</p>
+<figure data-fig="own-deopt-flow"></figure>
 <p><b>Elements path (in parallel).</b> <code>arr[i]</code> ICs key on the Map's <code>elements_kind</code> (part of bit_field2). Pushing <code>1.5</code> onto a <code>PACKED_SMI_ELEMENTS</code> array transitions its Map to <code>PACKED_DOUBLE_ELEMENTS</code> and rewrites the backing store. Code that assumed Smi elements guards on the Map and deopts.</p>
+<p>Elements kinds form a lattice with one-way arrows. Each arrow is a transition the text describes, and none of them point back.</p>
+<figure data-fig="own-elements-lattice"></figure>
 <h3>IC state machine</h3>
 <pre><code>UNINIT --first Map--&gt; MONO --2nd Map--&gt; POLY(2..4) --5th Map--&gt; MEGA
           (never goes back)                          \-&gt; global stub cache probe</code></pre>
 
+<p>The IC state only moves rightward. Each new Map pushes the site one state further and it never resets.</p>
+<figure data-fig="own-ic-states"></figure>
 <h3>Step-through: <code>getX({x:1,y:2})</code></h3>
 <div class="widget" role="group" aria-label="getX inline cache step-through">
 <svg id="mech-trace" viewBox="0 0 560 170" role="img" aria-label="Object layout and the IC feedback slot">

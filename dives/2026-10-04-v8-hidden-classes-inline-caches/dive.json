@@ -116,5 +116,14 @@
   {"type": "Connection", "q": "How does this relate to Spectre-style attacks?", "a": "Both are speculation: one in hardware, one in software. Software speculation's guards are architecturally visible bugs, while hardware's are microarchitectural leaks.", "sec": "wild"},
   {"type": "Open", "q": "Can speculative JIT optimizations be formally verified at production scale?", "a": "Unsettled. Translation validation finds bugs but does not yet gate production releases.", "sec": "open"},
   {"type": "Open", "q": "Can feedback be persisted safely across loads?", "a": "Unsettled. It trades warm-up for staleness and attacker-influenceable state.", "sec": "open"}
- ]
+ ],
+ "figures": {
+  "own-map-tree": {"original": true, "file": "img/fig/own-map-tree.svg", "caption": "Follow the two branches: the same fields added in a different order walk a different path and end at a different Map (M2 versus M3)."},
+  "own-object-slack": {"original": true, "file": "img/fig/own-object-slack.svg", "caption": "Look at the reserved slack: fields that fit stay at a fixed offset in the object, and the overflow field takes one extra pointer hop."},
+  "own-ic-states": {"original": true, "file": "img/fig/own-ic-states.svg", "caption": "The IC state only moves rightward: once a site is polymorphic or megamorphic, it never returns to monomorphic."},
+  "own-deopt-flow": {"original": true, "file": "img/fig/own-deopt-flow.svg", "caption": "Trace the failed guard from optimized code to the interpreter, then to a polymorphic IC and a recompile that guards on both Maps."},
+  "own-elements-lattice": {"original": true, "file": "img/fig/own-elements-lattice.svg", "caption": "Arrows only point right or down, so a packed array that gets a hole or a double never returns to its earlier kind."},
+  "own-order-maps": {"original": true, "file": "img/fig/own-order-maps.svg", "caption": "Same keys in a different order give two Maps at one site, so the site is polymorphic even though the code looks identical."},
+  "own-cve-chain": {"original": true, "file": "img/fig/own-cve-chain.svg", "caption": "Each step relies on a fact the optimizer must model; one wrong fact removes a guard, and the rest of the chain follows."}
+ }
 }

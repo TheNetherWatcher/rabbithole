@@ -1,2 +1,4 @@
 <p>A <b>Map</b> is a <b>struct definition discovered at runtime</b>. An object is a struct instance: a <code>map*</code>, a <code>properties*</code>, an <code>elements*</code>, then the in-object fields. An IC is a <b>JIT-style <code>switch (map)</code></b> at each site.</p>
+<p>The header is a few pointer-sized words. A field that fits in the object sits right after it, and the spare slots are slack reserved for fields added later. Anything past that goes through the <code>properties</code> pointer.</p>
+<figure data-fig="own-object-slack"></figure>
 <p>Where the analogy breaks: C structs are fixed at compile time. Maps are discovered as the program runs, can <b>mutate</b> (field generalization, deprecation), and can be <b>abandoned</b> for dictionary mode. And the "switch" can be baked into machine code, which makes invalidation a first-class problem.</p>
