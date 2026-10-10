@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="{{DESC}}">
+<title>{{SHORT}} · Rabbithole</title>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="tb-home" href="../index.html">← <span>All dives</span></a>
+  <span class="tb-title">{{SHORT}}</span>
+  <div class="tb-actions">
+    <button class="tb-btn" id="expand-all" type="button" aria-pressed="false" title="Open every card (deep mode)">⇕ <span class="lbl">Expand all</span></button>
+    <button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button>
+    <span class="ring" title="Progress: cards marked 'Got it' + questions you knew">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="r-bg" cx="18" cy="18" r="15"/><circle class="r-fg" cx="18" cy="18" r="15" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+      <b id="ring-pct">0%</b>
+    </span>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-art" aria-hidden="true">{{HERO}}</div>
+  <div class="hero-text wrap">
+    <div class="chips rv">{{CHIPS}}</div>
+    <h1 class="rv" style="--i:1">{{TITLE}}</h1>
+    <p class="tldr rv" style="--i:2">{{TLDR}}</p>
+    <p class="why rv" style="--i:3">{{WHY}}</p>
+    <div class="stats">{{STATS}}</div>
+    <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
+      <span>{{NCARDS}} cards</span><span>· ~{{SKIM}} min skim</span><span>· ~{{DEEP}} min deep</span>
+      <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
+  </div>
+</section>
+
+<nav class="dots" aria-label="Cards">{{DOTS}}</nav>
+
+<main class="wrap">
+{{CARDS}}
+</main>
+
+<script type="application/json" id="rh-data">{{DATA}}</script>
+<script>
+{{JS}}
+</script>
+</body>
+</html>

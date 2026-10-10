@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Index of rabbithole deep dives with reading progress.">
+<title>Rabbithole dives</title>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<header class="topbar scrolled">
+  <span class="tb-title" style="opacity:1;transform:none">Rabbithole</span>
+  <div class="tb-actions"><button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button></div>
+</header>
+<main class="wrap" style="max-width:1100px">
+  <div class="hub-head">
+    <h1>Rabbithole</h1>
+    <p>{{N}} dives. One topic each, all the way down. Badges show your progress in this browser.</p>
+  </div>
+  <div class="hub-tools">
+    <input id="q" type="search" placeholder="Search topics…" aria-label="Search dives">
+    <button class="tb-btn" type="button" data-f="" aria-pressed="true">All</button>
+    {{FILTERS}}
+  </div>
+  <div class="meta-row" id="totals" style="margin-bottom:8px"></div>
+  <div class="hub-grid">
+{{TILES}}
+  </div>
+</main>
+<script>
+(function () {
+  var root = document.documentElement; root.classList.add('js');
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var theme = load('rh:theme', null); if (theme) root.setAttribute('data-theme', theme);
+  document.getElementById('theme').onclick = function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    theme = dark ? 'light' : 'dark'; root.setAttribute('data-theme', theme); save('rh:theme', theme);
+  };
+  var tiles = [].slice.call(document.querySelectorAll('.tile')), counts = { new: 0, started: 0, skimmed: 0, understood: 0 };
+  tiles.forEach(function (t) {
+    var p = load('rh:p:' + t.dataset.slug, null), st = p && p.status ? p.status : 'new';
+    counts[st] = (counts[st] || 0) + 1;
+    var b = t.querySelector('.badge'); b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1);
+    t.querySelector('.bar i').style.width = (p && p.pct ? p.pct : 0) + '%';
+  });
+  document.getElementById('totals').textContent = counts.understood + ' understood · ' + counts.skimmed + ' skimmed · ' + counts.started + ' started · ' + counts.new + ' new';
+  var q = document.getElementById('q'), f = '', btns = [].slice.call(document.querySelectorAll('[data-f]'));
+  function apply() {
+    var s = q.value.trim().toLowerCase();
+    tiles.forEach(function (t) { t.hidden = (f && t.dataset.domain !== f) || (s && t.dataset.q.indexOf(s) < 0); });
+  }
+  q.oninput = apply;
+  btns.forEach(function (b) { b.onclick = function () { f = b.dataset.f; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); apply(); }; });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); });
+    tiles.forEach(function (t, i) { t.style.setProperty('--i', i % 8); io.observe(t); });
+  } else tiles.forEach(function (t) { t.classList.add('in'); });
+})();
+</script>
+</body>
+</html>
