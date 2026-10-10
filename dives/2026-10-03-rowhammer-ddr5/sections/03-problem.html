@@ -1,0 +1,13 @@
+<p>Software's bedrock assumption is that memory you cannot name, you cannot change. DRAM scaling broke it. By the 20-nm node, the charge separating "1" from "0" and the spacing between rows had both shrunk to where normal-rate activations of one row leak a neighbour past its margin inside a single 64 ms refresh window.</p>
+
+<p>The constraint that forces every design decision is the <strong>activation budget against HC_first</strong>. A single bank admits at most about <code>tREFW / tRC</code> ≈ 64 ms / 47 ns ≈ <strong>1.36M activations per refresh window</strong>. This is arithmetic, not a paper figure. If HC_first is 139K (DDR3, 2014), you need about 10% of that budget aimed at one victim. That is hard but doable. If HC_first is 4.8K (LPDDR4, 2020), it is trivial. Projected future chips sit near <strong>128</strong>. The defense problem is: <em>catch an over-activated row before a threshold that is shrinking out from under you, cheaply, across billions of rows.</em></p>
+
+<p>Concrete generation trend (<a href="https://arxiv.org/pdf/2005.13121" target="_blank" rel="noopener">Revisiting RowHammer, ISCA 2020</a>, 1580 chips):</p>
+
+<table><thead><tr><th>Generation</th><th>HC_first (old node → new node)</th></tr></thead><tbody>
+<tr><td>DDR3</td><td>69.2K → 22.4K</td></tr>
+<tr><td>DDR4</td><td>17.5K → 10K</td></tr>
+<tr><td>LPDDR4</td><td>16.8K → <b>4.8K</b></td></tr>
+</tbody></table>
+
+<p>The minimum observed overall was <strong>9.6K</strong> total activations (4.8K to each of two aggressors, double-sided). Bit flips per fixed activation count rose about 500× over the same span.</p>

@@ -1,0 +1,16 @@
+<p>You don't need to hammer anything. Observe the defenses and do the budget arithmetic instead.</p>
+
+<ol>
+<li><strong>Watch the ECC and RAS counters on a real box</strong> (safe, read-only):
+<pre><code>sudo systemctl enable --now rasdaemon
+sudo ras-mc-ctl --summary        # memory controller + CE/UE totals
+sudo ras-mc-ctl --error-count    # per-DIMM corrected errors
+edac-util -v</code></pre>
+A rising CE count on one DIMM is the observable fingerprint of marginal cells.</li>
+
+<li><strong>Compute your own activation budget.</strong> Pick your DIMM's <code>tRC</code> (for example 46 ns) and <code>tREFW</code> (32 ms on DDR5). The budget is about <code>tREFW / tRC</code>. Divide it by a plausible HC_first, say 4800. The quotient is how many <em>independent victims</em> one refresh window could, in principle, threaten. Watch it balloon as you plug in the projected HC_first of 128. The slider in the math section does this for you.</li>
+
+<li><strong>Reason through PARA.</strong> With <code>p = 0.002</code> and <code>N = 50,000</code> hammers, P<sub>miss</sub> = (1 − 0.001)<sup>50000</sup> ≈ e<sup>−50</sup> ≈ 2×10⁻²². Now set N, the hammers you must survive, to match HC_first = 128. Ask what p you would need for the same safety, and what that does to overhead.</li>
+
+<li>(Optional, your own hardware only) Memtest86 <strong>test 13</strong> runs a Rowhammer check from a bootable stick.</li>
+</ol>

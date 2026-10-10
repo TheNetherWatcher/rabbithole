@@ -1,0 +1,29 @@
+<p><strong>What it is, in one paragraph.</strong> Rowhammer is a read-disturbance phenomenon in DRAM. Repeatedly activating ("hammering") one row electrically disturbs physically adjacent rows, leaking their charge fast enough to flip bits before the next refresh. It was first shown by Kim et al. (ISCA 2014): disturbance errors appeared in <strong>110 of 129 DDR3 modules</strong>, with <strong>as few as 139K reads</strong> to a row, in <strong>every module made in 2012–2013</strong> (<a href="https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf" target="_blank" rel="noopener">paper</a>). It is a <em>scaling</em> defect. It gets worse as cells shrink, so no single vendor can fix it.</p>
+
+<p><strong>Why it exists, and why it is a problem.</strong> DRAM density doubles by shrinking cells and packing them tighter. Smaller cells hold less charge, which means a smaller noise margin. A tighter pitch means stronger capacitive and electromagnetic coupling between neighbours. So each generation needs <em>fewer</em> hammers to flip a bit. The defect breaks the most basic guarantee software assumes: that writing memory you don't own cannot change it. Before Rowhammer, memory integrity was taken for granted. Now it is an active, unsolved hardware-security problem.</p>
+
+<p><strong>Where it shows up in real systems:</strong></p>
+<div class="grid">
+ <div class="gc"><b>Cloud multi-tenant servers</b><span>The canonical threat model: your VM hammers to flip a neighbour tenant's page-table entry.</span></div>
+ <div class="gc"><b>Browsers</b><span>Rowhammer.js triggered flips from JavaScript. No native code needed.</span></div>
+ <div class="gc"><b>Android / mobile</b><span>Drammer flipped bits deterministically on phones via the contiguous ION allocator.</span></div>
+ <div class="gc"><b>AMD Zen</b><span>ZenHammer (USENIX Sec 2024) reached AMD and the first DDR5 flip.</span></div>
+ <div class="gc"><b>NVIDIA GPUs</b><span>GPUHammer (USENIX Sec 2025) flipped GDDR6 on an RTX A6000, dropping an ML model's accuracy from about 80% to 0.1%.</span></div>
+ <div class="gc"><b>SK Hynix DDR5</b><span>Phoenix (S&amp;P 2026, CVE-2025-6202) got root on a <em>default</em> DDR5 desktop in minutes.</span></div>
+</div>
+
+<p><strong>How a practitioner touches it (defensive side).</strong> You don't "call" Rowhammer. You <em>observe</em> it and <em>configure around</em> it:</p>
+<pre><code># Watch corrected/uncorrected ECC errors per DIMM (rising CE = marginal cells / pressure)
+sudo systemctl enable --now rasdaemon
+sudo ras-mc-ctl --error-count
+sudo ras-mc-ctl --summary
+edac-util -v</code></pre>
+
+<p>Server BIOS exposes a <strong>refresh-rate multiplier</strong> (1×, 2×, or 4× tREFI). The 2015 industry reflex was to force 2×. Memtest86 ships a Rowhammer test (test 13). JEDEC's modern answer is firmware and controller settings for RFM and, in future, PRAC.</p>
+
+<div class="two">
+ <div class="use"><h4>Care about it if</h4><ul><li>You run multi-tenant hardware, a browser engine, or a mobile platform</li><li>You serve an ML inference service on shared GPUs</li><li>You design DRAM or memory controllers, or you certify hardware</li></ul></div>
+ <div class="skip"><h4>You can mostly ignore it if</h4><ul><li>It is a single-user, physically secured, non-adversarial box</li><li>No untrusted code runs on the same DRAM as your secrets</li><li>The attacker needs to run code on the same DRAM as the victim</li></ul></div>
+</div>
+
+<p><strong>Who should care.</strong> Cloud and infrastructure security, DRAM and memory-controller designers, browser and OS sandbox authors, ML-serving infrastructure, and hardware-security researchers.</p>

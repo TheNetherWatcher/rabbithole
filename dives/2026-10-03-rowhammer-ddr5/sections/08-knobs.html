@@ -1,0 +1,12 @@
+<table><thead><tr><th>Defense</th><th>Knob</th><th>Trade-off</th></tr></thead><tbody>
+<tr><td><b>Increased refresh (2×/4×)</b></td><td>tREFI multiplier</td><td>Cheap reflex, but it costs power and bandwidth. Insufficient as HC_first drops (SAFARI: "not effective or desirable").</td></tr>
+<tr><td><b>ECC (SECDED)</b></td><td>code strength</td><td>Corrects 1 bit and detects 2 per word. Multi-flip words defeat it, and correction timing is itself a side channel (ECCploit).</td></tr>
+<tr><td><b>On-die ECC (DDR5)</b></td><td>mandatory, 8 bits per 128</td><td>Reliability only. It can <em>mask</em> flips, which hurts detection. It is not a Rowhammer guarantee.</td></tr>
+<tr><td><b>PARA</b></td><td>probability <code>p</code></td><td>Stateless, under 0.75% cost. Only statistical. Retune <code>p</code> as T_RH falls.</td></tr>
+<tr><td><b>TRR</b></td><td>#tracker entries, sample rate</td><td>Bounded state, so many-sided or synchronised patterns bypass it.</td></tr>
+<tr><td><b>Graphene / CoMeT</b></td><td>#counter entries</td><td>Provable no-false-negative guarantee. Storage scales as 1/T_RH.</td></tr>
+<tr><td><b>RFM (DDR5)</b></td><td>RAAIMT, RAAMMT</td><td>Forces a mitigation budget by ACT count. <em>Which</em> rows get mitigated is still TRR-blind.</td></tr>
+<tr><td><b>PRAC (DDR5)</b></td><td>N_BO, N_mit ∈ {1, 2, 4}, ABO window</td><td>Exact. But the read-modify-write per precharge adds latency (up to about 10–18%), plus new side and denial-of-service channels.</td></tr>
+</tbody></table>
+
+<p>Why did counting win the design argument? Sampling was repeatedly and structurally broken. Why hasn't it simply ended the problem? Exact per-row counting at DRAM scale is expensive in area, latency, and energy. The whole 2024–26 PRAC-optimisation literature exists to claw that cost back.</p>

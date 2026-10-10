@@ -1,0 +1,9 @@
+<ul>
+<li><strong>Is PRAC enough, and at what cost?</strong> Exact counting closes the sampling and undercount holes. But the precharge-time read-modify-write inflates timings (reported up to about 10–18% slowdown), the spec "leaves some questions unanswered", and flips have still been observed on PRAC-capable paths (NDSS 2026 analysis). Verdict: a major advance, not a closed case.</li>
+<li><strong>The threshold-setting problem.</strong> Every counter scheme needs a safe threshold <em>below</em> HC_first. But HC_first keeps falling (139K → 4.8K → about 128 projected). A margin that is safe today may be unsafe at the next node, and setting the threshold low raises false-refresh overhead. No stable safe margin exists.</li>
+<li><strong>Counting at scale.</strong> Exact per-row counters over billions of rows are expensive in area, latency, and energy. Where to store them (in the array, in in-DRAM SRAM, or in the controller) is unsettled.</li>
+<li><strong>Where should mitigation live?</strong> DRAM-only is deployable but has repeatedly failed. The memory controller is one option. OS-cooperative is another. SAFARI's self-managing DRAM and VUSec and MSR's "commodity systems still need software defenses" disagree. There is no consensus.</li>
+<li><strong>Verification.</strong> No accepted method exists to <em>prove</em> a DIMM Rowhammer-safe. TRR was proprietary and unauditable, and "RowHammer-free" labels have proved false. Aging effects are uncharacterised.</li>
+<li><strong>Supply-chain variation.</strong> Vulnerability varies by vendor, die revision, batch, and even within one chip. Patterns don't transfer, which defeats one-size thresholds and certification.</li>
+<li><strong>Economic misalignment.</strong> TRR was <em>optional</em> in JEDEC and shipped as an undocumented black box. VUSec argues that self-interested companies under-invest while end users bear the cost. Standardisation lagged the threat by years.</li>
+</ul>

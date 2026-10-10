@@ -1,0 +1,8 @@
+<ul>
+<li><strong>DRAM cell = 1 transistor + 1 capacitor (1T1C).</strong> The bit is the capacitor's charge. Charge leaks, so it must be <em>refreshed</em> periodically. (<a href="https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf" target="_blank" rel="noopener">Kim et al. 2014 §2</a>)</li>
+<li><strong>Rows and the row buffer.</strong> A <em>wordline</em> turns on a whole row of cells onto the <em>bitlines</em>. <em>Sense amplifiers</em> read and restore them into the <em>row buffer</em>. Reading a row is destructive and is immediately rewritten.</li>
+<li><strong>ACTIVATE / PRECHARGE / REFRESH.</strong> <code>ACT</code> opens a row, <code>PRE</code> closes it, <code>REF</code> tops cells back up. The fastest you can reopen the same bank is <code>tRC</code> (about 45–48 ns).</li>
+<li><strong>Refresh window <code>tREFW</code> = 64 ms</strong> (DDR3/4; 32 ms on DDR5), split into REFs every <code>tREFI</code> (about 7.8 µs on DDR3/4, about 3.9 µs on DDR5). A victim row survives only if it is refreshed before it leaks past its noise margin.</li>
+<li><strong>HC_first</strong> = the hammer count to the first bit flip. This is the single most important number here: it has fallen about 10× per generation.</li>
+<li><strong>TRR / RFM / PRAC</strong> are the three in-DRAM defenses, in historical order. This dive is mostly about why the first two failed and whether the third is enough.</li>
+</ul>

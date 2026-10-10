@@ -1,0 +1,6 @@
+<ul>
+<li><strong>Exploits:</strong> Google Project Zero (2015) flipped a page-table entry to gain kernel privilege from an unprivileged process. Drammer was deterministic on Android, Rowhammer.js ran in the browser, and Throwhammer worked over the network via RDMA.</li>
+<li><strong>GPUHammer</strong> (USENIX Sec 2025): targeted GDDR6 on an NVIDIA RTX A6000, which is non-ECC by default, with roughly 500K activations per window. A <strong>single</strong> weight-bit flip dropped model accuracy from <strong>about 80% to 0.1%</strong>. Across AlexNet, VGG16, ResNet50, DenseNet161, and InceptionV3, the drops ran from 56% to 80% (<a href="https://arxiv.org/abs/2507.08166" target="_blank" rel="noopener">arXiv</a>). ECC GPUs such as the H100 and RTX 5090 detect or correct these flips.</li>
+<li><strong>Deployed defenses today (2025–26):</strong> TRR, on-die ECC, and RFM are all shown bypassable on default DDR5 (Phoenix). Google states that PRAC is <strong>not yet in the DDR5 systems it evaluated</strong>. It is standardised for future revisions, not shipping.</li>
+<li><strong>2015 stopgap:</strong> Apple, HP, Cisco, Lenovo, and IBM shipped BIOS updates that forced 2× refresh (tREFI from 7.8 to 3.9 µs). It was a partial, costly fix.</li>
+</ul>

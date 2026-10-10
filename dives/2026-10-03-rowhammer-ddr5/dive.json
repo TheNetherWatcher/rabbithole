@@ -1,0 +1,405 @@
+{
+ "meta": {
+  "title": "Rowhammer on DDR5: why in-DRAM mitigations keep failing",
+  "short": "Rowhammer on DDR5",
+  "subject": "Computer science",
+  "domain": "Security / Hardware",
+  "topic": "Rowhammer read-disturbance and the TRR → RFM → PRAC mitigation arms race on DDR5",
+  "depth": "research",
+  "date": "2026-10-03"
+ },
+ "hero": "img/hero.svg",
+ "tldr": "Hammering one DRAM row electrically disturbs its neighbours and flips bits nobody touched. The defenses split into two camps. <b>Sampling</b> (TRR) keeps a bounded list of \"hot\" rows and refreshes their neighbours, and it is repeatedly broken because the list is bounded and its schedule can be learned. <b>Counting</b> (DDR5's PRAC) keeps an exact per-row counter, which is the structural fix, but 2024–26 work shows it is expensive and is itself a side channel.",
+ "why": "<b>Why it matters:</b> a single flipped bit, such as a page-table permission, a pointer, or an ML weight, can hand an attacker a machine they share with you. It is a software-triggered <i>hardware</i> bug, so you can't patch it away. Phoenix flipped bits on 15 of 15 DDR5 DIMMs and reached root on a default desktop (CVE-2025-6202).",
+ "stats": [
+  {
+   "v": "110/129",
+   "l": "DDR3 modules with flips, Kim et al. 2014"
+  },
+  {
+   "v": "4.8K",
+   "l": "lowest HC_first measured (LPDDR4); ~128 projected"
+  },
+  {
+   "v": "1.36M",
+   "l": "max activations per bank per 64 ms window"
+  },
+  {
+   "v": "15/15",
+   "l": "SK Hynix DDR5 DIMMs flipped by Phoenix"
+  },
+  {
+   "v": "80% → 0.1%",
+   "l": "ML accuracy after one GPUHammer weight flip"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A neighbour's bits can flip from your reads alone",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>Memory bits are packed so tightly that hammering one row leaks charge into its neighbours. Read a row fast enough and a bit you never touched flips before the refresh arrives. Like a librarian beaten by a shelf of books.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six DRAM facts the rest of the dive relies on",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>DRAM cell</b>: one transistor, one capacitor. The bit is charge that leaks.</li><li><b>Refresh</b>: every row topped up within <b>64 ms</b> (32 ms on DDR5).</li><li><b>HC_first</b>: hammers to the first flip. It falls about 10× per generation.</li><li><b>TRR, RFM, PRAC</b>: the three in-DRAM defenses, in order.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "It hits shared hardware: clouds, browsers, phones and GPUs",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Seen in multi-tenant clouds, browsers, Android, AMD Zen, and NVIDIA GPUs. One GPU flip dropped an ML model from <b>about 80% to 0.1%</b> accuracy. Practitioners watch ECC error counters and set refresh rates.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"Hammer a neighbour, add TRR\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>Three physical effects cause it, not vibration. TRR's bounded state is what every bypass exploits. The threshold falls from <b>139K to about 128</b>. RowPress and Half-Double break the neighbour rule. Counting fixes it, but counting is expensive and leaky.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "HC_first fell from 139K to 4.8K, and keeps falling",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>A bank admits at most about <b>1.36M</b> activations per 64 ms window. Each generation needs fewer hammers to flip a bit: <b>4.8K</b> on LPDDR4, and projected near <b>128</b>. The defense must catch a row before a threshold that keeps shrinking.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "Leaky buckets with a refresh truck, and where that misleads",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Each cell is a leaky bucket that a refresh truck tops up every 64 ms. TRR is a spotter who tops up shaken neighbours early. PRAC is a counter on every bucket. The picture fails because the effect is electrical, reaches two rows away, and works by holding a row open.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · Mechanism, traced",
+   "title": "Two rows that are only read leak a victim nobody opened",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>Aggressors A₁ and A₂ sit either side of victim V, and each activation bleeds a sliver of V's charge. After about <b>9.6K</b> total activations the next read returns the wrong bit, and V was never activated.</p><p class=\"mini\">6-step interactive walkthrough inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "PARA's miss chance decays exponentially, but p must rise",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Refresh arithmetic gives <b>tREFI = 7.8 µs</b> and a budget of about <b>1.36M</b> hammers per window. PARA's miss probability is (1 − p)<sup>N</sup>, but p must rise as HC_first falls. Counters need about <b>2·N_ACT/T_RH</b> entries.</p><p class=\"mini\">Slider inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Sampling overflows, counting does not, so the field moved to counting",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>TRR keeps a bounded list of candidate rows, so it breaks once an attacker uses more rows than it can hold. PRAC keeps an exact count per row, so nothing overflows. Removing exact counting, or the back-off bound, reopens the attack.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs",
+   "title": "Only the counting designs are exact, and they cost area and latency",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Refresh, ECC, PARA, TRR, Graphene, CoMeT, and PRAC each buy protection with a different cost. Only the counting designs are exact, and their storage scales as <b>1/T_RH</b>. PRAC's per-precharge update adds up to <b>10–18%</b> latency.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Bounded trackers break, and Phoenix took root on default DDR5",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>A tracker that remembers N rows falls to N+1 aggressors. TRRespass flipped <b>13 of 42</b> DDR4 DIMMs, and Blacksmith <b>40 of 40</b>. Phoenix flipped <b>15 of 15</b> SK Hynix DDR5 DIMMs and reached root in about 5 minutes.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Real attacks reached browsers, phones, clouds and GPU models",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>GPUHammer flipped one weight bit and cut a model from <b>about 80% to 0.1%</b> accuracy. The deployed stack of TRR, on-die ECC, and RFM is bypassable on default DDR5. PRAC is not yet in the DDR5 systems Google evaluated.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "The live fight: make exact counting cheap, and stop it leaking",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>QPRAC's priority queue stays secure down to <b>T_RH = 71</b>. PRACLeak shows that the mitigation's own latency can leak secrets. Phoenix's 15-of-15 result is the case for counting. Packing is no longer the question; exactness and leakage are.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Nobody can yet prove a DIMM is Rowhammer-safe",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Is PRAC's <b>10–18%</b> overhead worth it, and who decides? Where should mitigation live? Vulnerability varies by die and batch, so patterns don't transfer, and no accepted test proves a DIMM safe.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Twelve years from one bit-flip paper to a default-DDR5 root",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p><b>2014</b> Kim et al. flip bits in <b>110 of 129</b> DDR3 modules. <b>2015</b> Project Zero escalates privilege. <b>2022</b> Blacksmith hits 40 of 40. <b>2024</b> JEDEC publishes PRAC. <b>2026</b> Phoenix becomes the first full DDR5 exploit.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Read the error counters and do the budget math, no hammering",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p>Read ECC counters with <code>ras-mc-ctl</code>, where a rising CE count on one DIMM signals marginal cells. Compute your activation budget as <code>tREFW/tRC</code> and work PARA's miss probability by hand. Nothing here touches memory adversarially.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>24 questions across mechanism, why, counterfactual, adversarial, connection, and open. Reveal one at a time, or all at once.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this one",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>PRAC and RFM internals, side channels that defenses add, and memory integrity for ML accelerators. Each builds on the counting-versus-sampling split from this dive.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Fifteen papers, four code releases, and four vendor sources",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Fifteen papers, four code and docs references, and four articles or vendor pages. Five reference figures are reused under CC BY 4.0, and each has its own credit line.</p>"
+  }
+ ],
+ "questions": [
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "What are the three physical effects by which activating a row disturbs a neighbour?",
+   "a": "Capacitive and electromagnetic coupling between adjacent wordlines, which partially turns on neighbour transistors. Conductive bridges or shorts. Hot-carrier injection, which alters transistor leakiness over time."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "ctx",
+   "q": "Why is reading a DRAM row destructive, and what restores it?",
+   "a": "Sensing dumps the capacitor's charge onto the bitline to detect it, which drains the cell. The sense amplifier simultaneously rewrites the charge back. That rewrite is the restore."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "Why is double-sided hammering worse than single-sided?",
+   "a": "The coupling from both bracketing aggressors (V−1 and V+1) adds, so the victim loses charge from two sides. That means fewer total activations are needed to cross the margin."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "How does RowPress differ physically from classic hammering?",
+   "a": "RowPress keeps the aggressor row open for a long tAggON instead of rapidly toggling it. The cumulative leakage injected while the row is open replaces many ACTs. That takes one to two orders of magnitude fewer, and it is worse when hot."
+  },
+  {
+   "type": "Mechanism",
+   "sec": "breaks",
+   "q": "What makes Half-Double reach a distance-two row?",
+   "a": "Coupling is not strictly nearest-neighbour. Heavy access to a distance-two row plus a few accesses to the intermediate row propagates the disturbance. TRR's own refresh of the intermediate row acts as an extra access."
+  },
+  {
+   "type": "Why",
+   "sec": "problem",
+   "q": "Why does HC_first fall with each process node?",
+   "a": "Smaller cells hold less charge, which shrinks the noise margin. They also sit at a tighter pitch, which strengthens coupling. So less injected disturbance is enough to flip a bit."
+  },
+  {
+   "type": "Why",
+   "sec": "why",
+   "q": "Why did the field move from sampling (TRR) to counting (PRAC)?",
+   "a": "Sampling keeps bounded state, so it can be overflowed or dodged once the schedule is learned, as TRRespass and then Phoenix showed. Counting is ground truth, and it has nothing to overflow."
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why is PARA stateless, and why is that both its strength and its weakness?",
+   "a": "PARA stores nothing. It is just a coin flip on each row close. The strength is zero area and zero state. The weakness is that it gives only a statistical bound, and the required p rises as HC_first falls, which raises overhead."
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why does Graphene need only about 2·N_ACT/T_RH counters instead of one per row?",
+   "a": "You only need to catch rows that exceed about T_RH/2 activations within N_ACT total. Misra–Gries guarantees that with counters proportional to the stream divided by the threshold, far fewer than one per row."
+  },
+  {
+   "type": "Why",
+   "sec": "knobs",
+   "q": "Why doesn't on-die ECC stop Rowhammer, and why can it make detection harder?",
+   "a": "On-die ECC is a reliability code, not an adversarial defense. Multi-flip words defeat SECDED. By silently correcting isolated flips, it also hides the onset of corruption from monitoring."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "problem",
+   "q": "If HC_first stabilised at 50K forever, which defenses would suddenly be good enough?",
+   "a": "Increased refresh and PARA with a modest p would be cheap and sufficient. The crisis is driven by HC_first collapsing, so without that collapse the cheap defenses would hold."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "why",
+   "q": "Remove the ABO back-off window bound from PRAC. What attack reopens?",
+   "a": "The attacker races a burst of activations in after the alert and before mitigation lands. The bounded window of about 180 ns, roughly three ACTs, exists to cap exactly that."
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "why",
+   "q": "If trackers had unlimited entries, would TRR be secure, and what would it cost?",
+   "a": "Yes in principle, but one entry per row means billions of counters. The area, latency, and energy cost is precisely why counting was avoided until PRAC's optimised forms."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "How does Phoenix stay synchronised with a 128-tREFI sampling schedule?",
+   "a": "It reverse-engineered the period. It then uses self-correcting synchronisation to re-align its hammers into lightly sampled sub-intervals after any missed refresh."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "Why does many-sided hammering defeat a bounded tracker?",
+   "a": "The tracker holds N candidates. N+1 distinct aggressors guarantee that at least one real aggressor is never selected for neighbour refresh."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "How does ECCploit turn error correction into an oracle?",
+   "a": "A corrected single-bit read takes measurably longer. Timing it reveals which flips the code absorbed, and that guides the attacker toward an undetectable multi-flip word."
+  },
+  {
+   "type": "Adversarial",
+   "sec": "frontier",
+   "q": "How could a mitigation mechanism (PRAC) itself leak secrets?",
+   "a": "PRAC's mitigation actions, the ABO and RFM stalls, change memory latency in a way an attacker can observe. The attacker times their own accesses to infer a victim's activation or mitigation pattern. This is PRACLeak."
+  },
+  {
+   "type": "Connection",
+   "sec": "math",
+   "q": "How does the sampling-versus-counting split mirror heavy-hitter problems in streaming and databases?",
+   "a": "Both ask for the elements that exceed a frequency threshold in a stream using bounded memory. Misra–Gries and Count-Min Sketch are the shared tools."
+  },
+  {
+   "type": "Connection",
+   "sec": "wild",
+   "q": "How is GPUHammer's ML-weight attack related to the page-table-entry attack, conceptually?",
+   "a": "Both flip a single high-leverage bit, a permission bit in one case and a model weight in the other. A tiny, targeted corruption therefore yields outsized control or damage."
+  },
+  {
+   "type": "Connection",
+   "sec": "open",
+   "q": "How does the threshold-setting problem resemble a moving target in any rate limiter?",
+   "a": "A rate limiter tuned to a drifting threshold must either over-provision, which costs overhead, or risk misses. HC_first is that drifting threshold."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Should Rowhammer mitigation live in the DRAM, the controller, or the OS?",
+   "a": "Unsettled. DRAM-only is deployable but has repeatedly failed. OS cooperation is flexible but needs new controller primitives. The likely answer is defence in depth across all three."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "How would you prove a DIMM Rowhammer-safe?",
+   "a": "This is open. There are no accepted test vectors. You would need exhaustive characterisation across access patterns, temperature, aging, and per-chip variation, and that is currently infeasible."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Is PRAC's roughly 10–18% overhead acceptable, and who decides?",
+   "a": "It is contested. The answer depends on the workload and the threat model. Buyers ultimately pay in performance and power, and there is no neutral arbiter."
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Does per-chip variation make certification impossible in principle?",
+   "a": "Possibly. If patterns don't transfer across chips, per-die certification may be the only sound approach, and that is economically brutal."
+  }
+ ],
+ "figures": {
+  "rp9": {
+   "file": "img/fig/rowpress-fig9-tagg-min.png",
+   "caption": "Time an aggressor row must stay open to flip a bit, against how many times it is activated. Fewer activations need a longer open time. Dashed lines mark 7.8 µs, 70.2 µs, and 10 ms.",
+   "source": {
+    "cite": "Luo et al., \"RowPress: Amplifying Read Disturbance in Modern DRAM Chips\", ISCA 2023",
+    "url": "https://arxiv.org/abs/2306.17061",
+    "figure": "Fig. 9"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "gh12": {
+   "file": "img/fig/gpuhammer-fig12-nsided.png",
+   "caption": "Share of hammers that flip a bit as the number of aggressor rows grows in an n-sided pattern, on a GDDR6 GPU. Nothing flips below 17 sides, and the rate climbs to about 60% at 24.",
+   "source": {
+    "cite": "Lin et al., \"GPUHammer: Rowhammer Attacks on GPU Memories are Practical\", USENIX Security 2025",
+    "url": "https://arxiv.org/abs/2507.08166",
+    "figure": "Fig. 12"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "qp5": {
+   "file": "img/fig/qprac-fig5-psq.png",
+   "caption": "QPRAC's priority-based service queue. An activation either inserts a row by its count or increments the count in place, and the queue raises an alert once any count reaches the back-off threshold.",
+   "source": {
+    "cite": "Woo et al., \"QPRAC: Towards Secure and Practical PRAC-based Rowhammer Mitigation using Priority Queues\", HPCA 2025",
+    "url": "https://arxiv.org/abs/2501.18861",
+    "figure": "Fig. 5"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "cm2": {
+   "file": "img/fig/comet-fig2-cms.png",
+   "caption": "Count-min sketch. Each item hashes to one counter per row, and its estimate is the minimum of those counters. Collisions can inflate a count, but a hot row is never hidden.",
+   "source": {
+    "cite": "Bostanci et al., \"CoMeT: Count-Min-Sketch-based Row Tracking to Mitigate RowHammer at Low Cost\", DSN 2024",
+    "url": "https://arxiv.org/abs/2402.18769",
+    "figure": "Fig. 2"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  },
+  "pl1": {
+   "file": "img/fig/pracleak-fig1-timing.png",
+   "caption": "PRAC's back-off mitigations add latency that depends on the victim's activity, so an attacker can read the timing as a covert channel.",
+   "source": {
+    "cite": "Woo et al., \"When Mitigations Backfire: Timing Channel Attacks and Defense for PRAC-Based RowHammer Mitigations\" (PRACLeak), ISCA 2025",
+    "url": "https://arxiv.org/abs/2505.10111",
+    "figure": "Fig. 1"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "cropped and recompressed"
+  }
+ }
+}

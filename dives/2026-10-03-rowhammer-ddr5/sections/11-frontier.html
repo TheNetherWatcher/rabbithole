@@ -1,0 +1,26 @@
+<p>The field has two live fronts: <strong>(a) make PRAC practical and secure</strong>, and <strong>(b) attack PRAC itself.</strong> Three papers show each side.</p>
+
+<h3>Phoenix (ETH COMSEC and Google, IEEE S&amp;P 2026): CVE-2025-6202</h3>
+<p><em>Problem:</em> prior DDR5 work (ZenHammer) got only a lone flip, and DDR5 TRR was assumed sufficient. <em>Method:</em> the authors reverse-engineered SK Hynix's TRR and found that its sampling repeats over a <strong>128-tREFI</strong> window, about 8× longer than believed. That leaves lightly sampled sub-intervals. Patterns self-synchronise into those blind spots and re-align after missed refreshes. <em>Result:</em> flips on all 15 tested DIMMs. It was the first end-to-end DDR5 exploit on default settings, with root in about 5 minutes (first flip at about 109 s), and it bypassed on-die ECC. <em>Lesson:</em> sampling is structurally defeatable once its schedule is known. That is the capstone argument for moving to counting (<a href="https://comsec-files.ethz.ch/papers/phoenix_sp26.pdf" target="_blank" rel="noopener">PDF</a> · <a href="https://github.com/comsec-group/phoenix" target="_blank" rel="noopener">code</a>).</p>
+
+<h3>QPRAC (HPCA 2025): secure and practical PRAC</h3>
+<p><em>Problem:</em> naive PRAC mitigation queues are "tardy". MOAT (ASPLOS 2025) showed that counts can reach about 1150 against a threshold of 128 before mitigation lands. <em>Method:</em> an N-entry <strong>priority service queue</strong> per bank tracks the top-N most-activated rows, which gives provable security bounds even at ultra-low thresholds. <em>Result:</em> it claims JEDEC-compliant security down to <strong>T_RH = 71</strong>. <em>Limitation:</em> it still pays the per-activation counter cost. It is part of an unsettled design race with MOAT, Chronus, CnC-PRAC, CoMeT, and one-hot counting (<a href="https://arxiv.org/abs/2501.18861" target="_blank" rel="noopener">arXiv</a>).</p>
+
+<figure data-fig="qp5"></figure>
+
+<h3>PRACLeak (ISCA 2025): the defense is a new side channel</h3>
+<p><em>Problem:</em> does counting introduce its own leaks? <em>Method:</em> PRAC's ABO and RFM mitigation actions are observable through memory-access <strong>latency</strong>. A victim's mitigation events time-modulate an attacker's accesses. <em>Result:</em> a timing channel that leaks secrets, plus availability concerns, since an attacker can force ABOs and cause denial of service. In short, the mitigation machinery is itself exploitable. <em>Follow-ups:</em> AutoPRAC uses model checking to discover PRAC attacks automatically. A CCS 2025 generalisation shows that <em>both</em> sampling-based and counting-based defenses leak through mitigation activity (<a href="https://arxiv.org/abs/2505.10111" target="_blank" rel="noopener">arXiv</a>).</p>
+
+<figure data-fig="pl1"></figure>
+
+<p><strong>More, with links:</strong></p>
+<ul>
+<li><em>GPUHammer</em> (USENIX Sec 2025): Rowhammer on GPU GDDR6, with ML weight corruption (<a href="https://arxiv.org/abs/2507.08166" target="_blank" rel="noopener">arXiv</a>).</li>
+<li><em>MOAT</em> (ASPLOS 2025): secure per-row counting, which exposes queue tardiness (<a href="https://arxiv.org/abs/2407.09995" target="_blank" rel="noopener">arXiv</a>).</li>
+<li><em>RowPress</em>, IEEE Micro 2024 journal version (<a href="https://arxiv.org/abs/2406.16153" target="_blank" rel="noopener">arXiv</a>). A combined RowHammer and RowPress characterisation is also available (<a href="https://arxiv.org/abs/2406.13080" target="_blank" rel="noopener">arXiv</a>).</li>
+<li><em>CoMeT</em> (DSN 2024): Count-Min-Sketch low-cost row tracking (<a href="https://arxiv.org/abs/2402.18769" target="_blank" rel="noopener">arXiv</a>).</li>
+<li><em>SpyHammer</em>: Rowhammer as a temperature sensor, accurate to ±2.5 °C (<a href="https://arxiv.org/abs/2210.04084" target="_blank" rel="noopener">arXiv</a>). <em>FP-Rowhammer</em> uses the vulnerable-cell map for device fingerprinting.</li>
+<li><em>Fundamentally Understanding and Solving RowHammer</em> (Mutlu et al., ASP-DAC 2023): the best conceptual framing (<a href="https://arxiv.org/abs/2211.07613" target="_blank" rel="noopener">arXiv</a>).</li>
+</ul>
+
+<p class="mini">Venues and dates for GPUThor, DejaVu, ScaleDisturb, PVAC, Loaded Dice, ARTA, AutoPRAC, FP-Rowhammer, and SpyHammer are unverified. They were inferred from arXiv IDs.</p>

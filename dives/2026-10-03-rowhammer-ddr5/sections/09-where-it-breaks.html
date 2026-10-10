@@ -1,0 +1,27 @@
+<p><strong>TRR: bounded tracking.</strong> A tracker that remembers N rows is beaten by N+1 aggressors.</p>
+<ul>
+<li><em>TRRespass</em> (S&amp;P 2020): many-sided hammering, with up to about 19 aggressors, overflowed the trackers. It flipped bits on <strong>13 of 42</strong> DDR4 DIMMs across all three vendors (<a href="https://download.vusec.net/papers/trrespass_sp20.pdf" target="_blank" rel="noopener">paper</a>).</li>
+<li><em>U-TRR</em> (MICRO 2021): used retention failures as a side channel to <em>see</em> exactly when and how many rows TRR refreshes. It bypassed TRR on <strong>45 modules</strong>, with up to 99.9% of rows flippable (<a href="https://arxiv.org/abs/2110.10603" target="_blank" rel="noopener">arXiv</a>).</li>
+<li><em>Blacksmith</em> (S&amp;P 2022): non-uniform frequency and phase patterns flipped <strong>all 40 of 40</strong> DDR4 DIMMs.</li>
+</ul>
+
+<figure data-fig="gh12"></figure>
+
+<p><strong>DDR5 TRR: Phoenix (S&amp;P 2026, CVE-2025-6202).</strong> SK Hynix's DDR5 TRR samples over a long, complex schedule. The best bypass pattern spanned <strong>128 REF intervals</strong>, about 8× the roughly 16 assumed. "Self-correcting synchronisation" re-aligns the pattern after missed refreshes, so the hammers land in the sampler's blind spots. It flipped bits on <strong>15 of 15</strong> SK Hynix DDR5 DIMMs (made January 2021 to December 2024). In the ETH COMSEC results, the first flip came at about <strong>109 s</strong>, and root on a default DDR5 desktop followed in about <strong>5 minutes</strong>. On-die ECC did not help (<a href="https://comsec.ethz.ch/research/dram/phoenix/" target="_blank" rel="noopener">ETH COMSEC</a>).</p>
+
+<p><strong>The physics breaks the "refresh the neighbour" assumption too.</strong></p>
+<ul>
+<li><em>Half-Double</em> (Google, 2021): disturbance reaches <strong>distance two</strong>. Heavy access to row A plus a few accesses to the intermediate row B flips row C. TRR's own refresh of B acts as an access that propagates the disturbance. This is an intrinsic silicon property that widens as geometry shrinks (<a href="https://security.googleblog.com/2021/05/introducing-half-double-new-hammering.html" target="_blank" rel="noopener">Google</a>).</li>
+<li><em>RowPress</em> (ISCA 2023): pressing a row, not hammering it. This is orthogonal to activation-count defenses.</li>
+</ul>
+
+<div class="callout gotcha">
+<strong>Misconceptions practitioners hold (each one is wrong):</strong>
+<ul>
+<li>"ECC fixes it." ECCploit (S&amp;P 2019) crafts multi-flip words and uses correction timing.</li>
+<li>"DDR5 is immune." ZenHammer and Phoenix say otherwise.</li>
+<li>"Server or ECC memory is safe." ECCploit targeted server ECC, and ZenHammer hit AMD server and desktop parts.</li>
+<li>"It needs physical access." Project Zero did it in 2015 from a sandboxed userland program. Rowhammer.js did it from JavaScript.</li>
+<li>"TRR solved it." Every bypass above says otherwise.</li>
+</ul>
+</div>

@@ -1,0 +1,14 @@
+<p>The core insight that divides the whole field is <strong>sampling versus counting</strong>.</p>
+
+<ul>
+<li><strong>Sampling (TRR)</strong> keeps a small, fixed set of "hot candidate" rows. It works <em>only if</em> the real aggressors stay in that set. Remove the assumption that an attacker activates few distinct rows, and the tracker overflows, so an aggressor goes unrefreshed. That single property is what TRRespass, U-TRR, Blacksmith, ZenHammer, and Phoenix all exploit.</li>
+<li><strong>Counting (PRAC)</strong> keeps an <em>exact</em> per-row count. It works because there is nothing to overflow and nothing to under-sample. The count is ground truth. Remove exactness, for example with approximate or shared counters, and you reintroduce blind spots.</li>
+</ul>
+
+<h3>Ablation</h3>
+<ul>
+<li>Remove <strong>refresh</strong> entirely, and DRAM loses data in milliseconds regardless of attacks. Refresh is load-bearing.</li>
+<li>Remove <strong>neighbour refresh on detection</strong> from TRR, and it is just normal refresh. Flips then happen trivially.</li>
+<li>Remove <strong>exact counting</strong> from PRAC, and you are back to TRR's bounded-state failure.</li>
+<li>Remove the <strong>Alert Back-Off window bound</strong> from PRAC, and an attacker races activations in after the alert. The residual window of about 180 ns, roughly three ACTs, is the controlled remnant of that risk.</li>
+</ul>

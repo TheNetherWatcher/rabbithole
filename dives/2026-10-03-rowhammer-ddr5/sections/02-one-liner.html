@@ -1,0 +1,10 @@
+<blockquote>"Rowhammer flips bits in memory you can't access by hammering an adjacent row; vendors added TRR to fix it."</blockquote>
+
+<p>What that sentence hides:</p>
+<ol>
+<li><strong>Why</strong> hammering a row disturbs a neighbour at all. It is three distinct physical effects, not "vibration".</li>
+<li>TRR is a <strong>sampling heuristic with bounded state</strong>, and that bound is exactly what every bypass exploits.</li>
+<li>The threshold <strong>keeps collapsing</strong> (139K → 4.8K → projected 128), so a defense that is cheap today is ruinous tomorrow.</li>
+<li>Hammering isn't the only trigger. <strong>RowPress</strong> (holding a row open) and <strong>Half-Double</strong> (distance two) break the "refresh the immediate neighbour" assumption.</li>
+<li>DDR5's real fix is <strong>counting (PRAC), not sampling</strong>. The 2025–26 literature is busy showing that even counting is expensive and leaky.</li>
+</ol>

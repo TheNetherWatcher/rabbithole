@@ -1,0 +1,86 @@
+<style>
+#mech-rows rect{fill:var(--code);stroke:var(--line);transition:fill .25s,opacity .25s}
+#mech-rows text{fill:var(--mute);font:12px ui-monospace,monospace}
+.mech-key{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin:4px 0 8px}
+.mech-key span{display:inline-flex;gap:6px;align-items:center}
+.mech-key i{width:12px;height:12px;border-radius:3px;display:inline-block}
+@media (prefers-reduced-motion:reduce){#mech-rows rect{transition:none}}
+</style>
+<p>Trace one double-sided disturbance on a DDR4 bank. The victim row is <strong>V</strong>, and the aggressors are <strong>A₁ = V−1</strong> and <strong>A₂ = V+1</strong>.</p>
+
+<pre><code>Row V-1 (A1)  ──┐        wordline toggles raise/lower voltage
+Row V    (V)  ──┤ victim  ← coupling + leakage from BOTH sides
+Row V+1 (A2)  ──┘
+
+one hammer iteration:
+  ACT A1   → wordline A1 high: charge dumped to bitlines, sensed, RESTORED
+             (A1's toggle capacitively couples into V's cells, nudges leakage)
+  PRE A1   → close A1
+  ACT A2   → same from the other side of V
+  PRE A2
+  … repeat ~4,800× per aggressor before V's next REF …</code></pre>
+
+<div class="widget" role="group" aria-label="Double-sided disturbance step-through">
+ <div class="mech-key">
+  <span><i style="background:var(--accent2)"></i> aggressor (being activated)</span>
+  <span><i style="background:var(--accent)"></i> victim (leaking)</span>
+  <span><i style="background:var(--code);border:1px solid var(--line)"></i> idle row</span>
+ </div>
+ <svg id="mech-rows" viewBox="0 0 360 150" role="img" aria-label="DRAM rows: two aggressors bracketing a victim">
+  <rect id="mech-r0" x="20" y="10" width="320" height="30" rx="5"/><text x="30" y="29">Row V-2 (idle)</text>
+  <rect id="mech-r1" x="20" y="45" width="320" height="30" rx="5"/><text x="30" y="64">Row V-1 = A₁ (aggressor)</text>
+  <rect id="mech-r2" x="20" y="80" width="320" height="30" rx="5"/><text x="30" y="99">Row V (victim)</text>
+  <rect id="mech-r3" x="20" y="115" width="320" height="30" rx="5"/><text x="30" y="134">Row V+1 = A₂ (aggressor)</text>
+ </svg>
+ <div class="stepbar">
+  <button class="btn" id="mech-pv" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-nx" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-stepn" aria-live="polite"></span>
+  <div class="info" id="mech-stepd" aria-live="polite"></div>
+ </div>
+</div>
+
+<ol>
+<li><strong>ACT A₁</strong> raises A₁'s wordline. Its cells drive the bitlines, the sense amplifiers latch, and they immediately rewrite A₁ (a destructive read followed by a restore). That is fine so far, because A₁ is intact.</li>
+<li>The wordline voltage swing <strong>couples into V</strong>. Three effects are involved (<a href="https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf" target="_blank" rel="noopener">Kim et al. 2014 §3</a>): (a) capacitive and electromagnetic coupling briefly and partially turns on V's access transistors, bleeding charge; (b) bridges, which are process shorts, offer leakage paths; (c) hot-carrier injection from toggling changes transistor leakiness over time.</li>
+<li><strong>PRE A₁</strong>, then <strong>ACT/PRE A₂</strong>. V is now disturbed from the other side too. The disturbance is double-sided because both neighbours' coupling <em>adds</em>.</li>
+<li>Each iteration bleeds a sliver of V's charge. V is not being refreshed. Nobody has activated V, and its scheduled REF is up to 64 ms away.</li>
+<li>After about <strong>9.6K total activations</strong> (the worst DDR4-era chip), V's charge crosses the sense-amp decision point. The next time V is read, the sense amp latches the <strong>wrong</strong> value. The bit has flipped.</li>
+</ol>
+
+<p>The attacker never issued a single <code>ACT V</code>. Memory integrity was violated purely by activity on V's neighbours.</p>
+
+<h3>The RowPress variant (the physics knob)</h3>
+<p>Instead of fast ACT/PRE cycles, keep A₁ <em>open</em> for a long <code>tAggON</code>. A row held open keeps injecting disturbance without the recovery that a precharge gives. Measured against plain hammering, that is about <strong>17.6× fewer activations at tAggON = 7.8 µs</strong> and about <strong>159× fewer at 70.2 µs</strong>. A <strong>single activation</strong> suffices at tAggON ≈ 30 ms (<a href="https://arxiv.org/abs/2306.17061" target="_blank" rel="noopener">RowPress, ISCA 2023</a>). It is worse when the chip is hot.</p>
+
+<figure data-fig="rp9"></figure>
+
+<script>
+(function(){
+  var rows={r0:document.getElementById('mech-r0'),r1:document.getElementById('mech-r1'),r2:document.getElementById('mech-r2'),r3:document.getElementById('mech-r3')};
+  var IDLE='var(--code)',AGG='var(--accent2)',VIC='var(--accent)';
+  var steps=[
+   {d:'Start. All rows are idle. Victim V holds its charge. Aggressors A₁ = V−1 and A₂ = V+1 are ordinary rows the attacker is allowed to read.',f:{r0:IDLE,r1:IDLE,r2:IDLE,r3:IDLE},o:{r2:1}},
+   {d:'ACT A₁: the A₁ wordline goes high. Its cells drive the bitlines, and the sense amps latch and RESTORE A₁, which stays intact. But the wordline swing couples into V, and V bleeds a sliver of charge.',f:{r1:AGG,r2:VIC},o:{r2:.85}},
+   {d:'PRE A₁ closes A₁. Then ACT A₂ from the other side of V applies the same coupling, now from below. The disturbance is double-sided: both neighbours inject into V, and the effects add.',f:{r1:IDLE,r3:AGG,r2:VIC},o:{r2:.7}},
+   {d:'Repeat the A₁/A₂ cycle thousands of times. V is never activated, and its scheduled REF is up to 64 ms away, so its lost charge is not topped up.',f:{r1:AGG,r3:AGG,r2:VIC},o:{r2:.5}},
+   {d:'After about 9.6K total activations (worst DDR4 chip), V\'s charge crosses the sense-amp decision point. It is now below the "1" threshold and has had no refresh.',f:{r1:AGG,r3:AGG,r2:VIC},o:{r2:.28}},
+   {d:'The next read of V: the sense amp latches the WRONG value. The bit flipped in a row the attacker never activated, so memory integrity is violated.',f:{r1:IDLE,r3:IDLE,r2:VIC},o:{r2:.15}}
+  ];
+  var si=0,n=document.getElementById('mech-stepn'),d=document.getElementById('mech-stepd'),pv=document.getElementById('mech-pv'),nx=document.getElementById('mech-nx');
+  function render(){
+    var s=steps[si];
+    for(var k in rows){
+      rows[k].style.fill=(s.f&&s.f[k])?s.f[k]:IDLE;
+      rows[k].style.opacity=(s.o&&s.o[k]!=null)?s.o[k]:1;
+    }
+    n.textContent='Step '+(si+1)+' / '+steps.length;
+    d.textContent=s.d;
+    pv.disabled=si===0;
+    nx.disabled=si===steps.length-1;
+  }
+  nx.addEventListener('click',function(){if(si<steps.length-1){si++;render()}});
+  pv.addEventListener('click',function(){if(si>0){si--;render()}});
+  render();
+})();
+</script>

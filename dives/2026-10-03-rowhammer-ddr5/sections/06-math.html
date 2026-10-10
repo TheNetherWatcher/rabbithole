@@ -1,0 +1,50 @@
+<style>
+#math-w .ctl{margin:8px 0}
+#math-w label{display:block;margin:6px 0}
+</style>
+<h3>Refresh-window arithmetic</h3>
+<div class="eq">t<sub>REFI</sub> = t<sub>REFW</sub> / 8192 = 64 ms / 8192 = 7.8 µs<br>max ACT per window ≈ t<sub>REFW</sub> / t<sub>RC</sub> = 64 ms / 47 ns ≈ 1.36M (derived)<small>→ in plain terms: the attacker's whole budget is about 1.36M hammers. A defense only has to make "aim 4.8K of them at one victim, undetected" impossible.</small></div>
+<p>The 8192 REFs per window (<a href="https://users.ece.cmu.edu/~yoonguk/papers/kim-isca14.pdf" target="_blank" rel="noopener">Kim et al. 2014 §2.3</a>) give the refresh interval. The activation ceiling is derived from the timing parameters, not measured.</p>
+
+<h3>PARA: the stateless probabilistic defense</h3>
+<p>On every row close, with probability <code>p</code> the controller refreshes an adjacent row. It keeps no counters and no addresses. The chance that a specific victim is <em>never</em> rescued over <code>N</code> aggressor activations is:</p>
+<div class="eq">P<sub>miss</sub> = (1 − p)<sup>N</sup>      (or (1 − p/2)<sup>N</sup> if the coin picks one of two neighbours)<small>→ in plain terms: each hammer is an independent coin flip for "refresh your neighbour now." To dodge rescue for N hammers, every coin has to come up tails, and that probability decays geometrically. With p ≈ 0.001–0.005, P<sub>miss</sub> over a window falls below the hardware hard-error budget of roughly 10⁻¹⁵ at under 0.75% performance cost.</small></div>
+<p>Why this form and not a counter? It needs <strong>zero state</strong>, and that is the whole point. Its weakness is also in the equation. P<sub>miss</sub> depends on N, the number of hammers you must survive. As HC_first falls, you must raise p, and the overhead climbs.</p>
+
+<h3>Graphene: counting with Misra–Gries</h3>
+<p>To refresh <em>exactly</em> the hot rows, you must identify every row that exceeds a threshold within a window, and do it cheaply. Misra–Gries heavy hitters need only <code>k−1</code> counters to find every element that occurs more than <code>N/k</code> times in a stream of <code>N</code> items, and each stored estimate never exceeds the true count, so there are no false negatives. Applied to Rowhammer, to catch any row that reaches about T_RH/2 activations among N_ACT activations in a window:</p>
+<div class="eq">entries &gt; N_ACT / (T_RH / 2) = 2 · N_ACT / T_RH<small>→ in plain terms: you don't need a counter per row. You need one per "slot of hammering budget big enough to matter", which is about 2·N_ACT/T_RH. Storage drops from billions of rows to a few hundred entries per bank, but it still scales inversely with T_RH. As the threshold falls from 1000 to 125, storage balloons from about 207 KiB to about 1.5 MiB per the CoMeT analysis.</small></div>
+<p class="mini">The bound is restated in <a href="https://arxiv.org/html/2402.18769v1" target="_blank" rel="noopener">the CoMeT survey section</a>. Confirm the constant against the original MICRO 2020 paper before reusing it.</p>
+
+<figure data-fig="cm2"></figure>
+
+<h3>Interactive: budget and PARA safety as HC_first collapses</h3>
+<div class="widget" id="math-w" role="group" aria-label="HC_first and PARA safety">
+ <div class="ctl">
+  <label style="flex:1 1 320px">HC_first (hammers to first flip): <b id="math-hcv">4.8K</b><br><input id="math-hc" type="range" min="7" max="17" step="1" value="12"></label>
+ </div>
+ <div class="ctl">
+  <label style="flex:1 1 320px">PARA probability p: <b id="math-pv">0.002</b><br><input id="math-pp" type="range" min="1" max="20" step="1" value="2"></label>
+ </div>
+ <p class="mini" id="math-out" aria-live="polite"></p>
+</div>
+
+<script>
+(function(){
+  var hc=document.getElementById('math-hc'),pp=document.getElementById('math-pp');
+  var hcv=document.getElementById('math-hcv'),pv=document.getElementById('math-pv'),out=document.getElementById('math-out');
+  function fmt(n){return n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n))}
+  function upd(){
+    var HC=Math.round(Math.pow(2,+hc.value)/100)*100;
+    var p=(+pp.value)/1000;
+    hcv.textContent=fmt(HC);
+    pv.textContent=p.toFixed(3);
+    var budget=64e-3/47e-9;
+    var victims=Math.floor(budget/HC);
+    var Pmiss=Math.pow(1-p/2,HC);
+    out.innerHTML='Budget ≈ <b>'+fmt(budget)+'</b> activations per window. At HC_first = <b>'+fmt(HC)+'</b>, one window could threaten about <b>'+victims+'</b> independent victim(s). PARA miss probability over HC_first hammers = (1−p/2)^HC_first ≈ <b>'+Pmiss.toExponential(1)+'</b> '+
+      (Pmiss<1e-15?'(below the hardware hard-error budget, so safe).':'(above about 10⁻¹⁵, so this p is no longer safe at this threshold. Raise p and pay the overhead).');
+  }
+  hc.addEventListener('input',upd);pp.addEventListener('input',upd);upd();
+})();
+</script>
