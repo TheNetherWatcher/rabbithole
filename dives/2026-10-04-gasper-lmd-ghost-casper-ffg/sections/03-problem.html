@@ -1,2 +1,3 @@
+<div class="pull"><b>64–95</b><span>slots, about 13 to 19 minutes, before a block is final today</span></div>
 <p>Nakamoto longest-chain gives availability but only probabilistic finality; classical BFT gives deterministic finality but halts at 1/3 offline and costs O(n²) messages. Ethereum needed: ~10^5+ validators, open set, chain never halts, <em>and</em> a hard finality guarantee with slashing.</p>
 <p>Numbers: 12 s slots; one vote per validator per epoch (~900k votes / 32 slots ≈ 28k attestations per slot after committee split). At 2 epochs to justify + finalize, normal finality ≈ 2 epochs after the target epoch begins, ~12.8–19 min (64–95 slots per 3-Slot paper).</p>

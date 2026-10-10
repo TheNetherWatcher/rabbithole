@@ -1,0 +1,26 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-svg{display:block;width:100%;height:auto}
+.cv-svg text{font:14px system-ui,sans-serif;fill:var(--mute)}
+.cv-svg .cv-k{fill:var(--ink);font-weight:700}
+</style>
+<p class="cold-line">Ethereum has about 900,000 validators.</p>
+<p class="cold-line sm">Each one locks <em>32 ETH</em> as stake. Stay offline and an <em>inactivity leak</em> drains that stake, slowly at first and then faster.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <svg class="cv-svg" viewBox="0 0 480 180" role="img" aria-label="Stake of an offline validator over 40 days. It falls from 32 ETH to 16 ETH at about 21 days, then keeps falling faster.">
+    <line x1="20" y1="150" x2="460" y2="150" class="s-line" stroke-width="1.5"/>
+    <line x1="20" y1="90" x2="256.5" y2="90" class="s-mute" stroke-width="1" stroke-dasharray="4 4"/>
+    <line x1="256.5" y1="90" x2="256.5" y2="150" class="s-mute" stroke-width="1" stroke-dasharray="4 4"/>
+    <path d="M20.0 30.0 L31.0 30.2 L42.0 30.7 L53.0 31.6 L64.0 32.9 L75.0 34.4 L86.0 36.3 L97.0 38.6 L108.0 41.0 L119.0 43.8 L130.0 46.8 L141.0 50.0 L152.0 53.4 L163.0 57.0 L174.0 60.7 L185.0 64.5 L196.0 68.4 L207.0 72.4 L218.0 76.4 L229.0 80.4 L240.0 84.4 L251.0 88.3 L262.0 92.2 L273.0 96.0 L284.0 99.7 L295.0 103.3 L306.0 106.7 L317.0 110.1 L328.0 113.2 L339.0 116.3 L350.0 119.1 L361.0 121.8 L372.0 124.4 L383.0 126.8 L394.0 129.0 L405.0 131.1 L416.0 133.0 L427.0 134.8 L438.0 136.4 L449.0 137.9 L460.0 139.3" class="s-acc" fill="none" stroke-width="3"/>
+    <circle cx="256.5" cy="90" r="5" class="f-acc"/>
+    <text x="20" y="22">32 ETH</text>
+    <text x="20" y="84">16 ETH</text>
+    <text x="24" y="170">day 0</text>
+    <text x="456" y="170" text-anchor="end">day 40</text>
+    <text x="266" y="84" class="cv-k">about 21 days</text>
+  </svg>
+  <p><b>Half the stake is gone at about 21 days.</b> Toy model: every offline validator leaks at the same rate.</p>
+</div>

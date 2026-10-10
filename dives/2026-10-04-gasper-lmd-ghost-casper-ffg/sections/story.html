@@ -1,0 +1,68 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-a{fill:var(--accent)}#story-fig .sf-b{fill:var(--accent2)}#story-fig .sf-bad{fill:var(--bad)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two forks share a parent. Honest votes split 30 to 31. An attacker holds 39 votes back, releases them with no boost, then faces a 40-vote boost on the on-time block. At 39 the two forks tie, and the root name decides.">
+<defs><pattern id="gsth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Honest votes split 30 to 31.</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">An attacker holds 39 votes back.</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Released with no boost, B takes the head.</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">An on-time block gets a 40-vote boost.</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">Attacker releases 30: A still leads.</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">At 39 released: a 70 to 70 tie.</text>
+<text x="20" y="28" class="sf-cap" data-in="7">The numbers behind the head rule.</text>
+<text x="20" y="392" class="sf-lab" data-in="3" data-out="4">B leads by 40 votes, and nothing answers it.</text>
+<text x="20" y="392" class="sf-lab" data-in="4" data-out="5">The boost is 40% of one 100-vote committee.</text>
+<text x="20" y="392" class="sf-lab" data-in="5" data-out="6">Boost holds: A 70, B 61.</text>
+<text x="20" y="392" class="sf-lab" data-in="6" data-out="7">Root name breaks the tie. From 41, B wins outright.</text>
+<path d="M110 130 C150 130 150 80 190 80" class="s-line" fill="none" stroke-width="2" data-out="7"/>
+<path d="M110 130 C150 130 150 180 190 180" class="s-line" fill="none" stroke-width="2" data-out="7"/>
+<rect x="20" y="110" width="90" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="7"/>
+<text x="30" y="135" class="sf-lab" data-out="7">parent</text>
+<rect x="190" y="60" width="120" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="7" data-hl="4 5"/>
+<text x="200" y="85" class="sf-lab" data-out="7">fork A</text>
+<rect x="190" y="160" width="120" height="40" rx="7" class="f-panel s-line" stroke-width="1.5" data-out="7" data-hl="3 6"/>
+<text x="200" y="185" class="sf-lab" data-out="7">fork B</text>
+<text x="20" y="267" class="sf-lab" data-out="7">A</text>
+<text x="20" y="302" class="sf-lab" data-out="7">B</text>
+<rect x="50" y="250" width="400" height="22" rx="4" class="f-code" data-out="7"/>
+<rect x="50" y="285" width="400" height="22" rx="4" class="f-code" data-out="7"/>
+<rect x="50" y="250" width="120" height="22" rx="4" class="f-acc" data-out="7"/>
+<rect x="170" y="250" width="160" height="22" rx="4" class="f-ok" data-in="4" data-out="7"/>
+<rect x="50" y="285" width="124" height="22" rx="4" class="f-acc2" data-out="7"/>
+<rect x="174" y="285" width="156" height="22" rx="4" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="3" data-out="4"/>
+<rect x="174" y="285" width="120" height="22" rx="4" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="5" data-out="6"/>
+<rect x="174" y="285" width="156" height="22" rx="4" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="6" data-out="7"/>
+<rect x="270" y="322" width="190" height="26" rx="6" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="2" data-out="3"/>
+<text x="280" y="340" class="sf-lab" data-in="2" data-out="3">39 votes held back</text>
+<rect x="270" y="322" width="190" height="26" rx="6" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="4" data-out="5"/>
+<text x="280" y="340" class="sf-lab" data-in="4" data-out="5">39 votes held back</text>
+<rect x="270" y="322" width="190" height="26" rx="6" class="s-warn" fill="url(#gsth)" stroke-width="1" data-in="5" data-out="6"/>
+<text x="280" y="340" class="sf-lab" data-in="5" data-out="6">9 votes held back</text>
+<rect x="0" y="0" width="480" height="420" rx="0" class="f-bg" opacity=".97" data-in="7"/>
+<text x="30" y="86" class="sf-num sf-a" data-in="7">12 s</text>
+<text x="30" y="114" class="sf-lab" data-in="7">per slot, one proposer</text>
+<text x="260" y="86" class="sf-num sf-b" data-in="7">40%</text>
+<text x="260" y="114" class="sf-lab" data-in="7">boost, of one committee</text>
+<text x="30" y="186" class="sf-num" data-in="7">2/3</text>
+<text x="30" y="214" class="sf-lab" data-in="7">stake to justify a checkpoint</text>
+<text x="260" y="186" class="sf-num sf-bad" data-in="7">1/3</text>
+<text x="260" y="214" class="sf-lab" data-in="7">stake to reverse finality</text>
+<text x="30" y="286" class="sf-num" data-in="7">64–95</text>
+<text x="30" y="314" class="sf-lab" data-in="7">slots to finalize today</text>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every validator follows one head: the branch with the most <b>latest</b> votes beneath it. In a 100-vote committee, the honest votes split 30 to 31 between two forks, so the lead is one vote wide.</p></div>
+<div class="step"><p><b>The attack.</b> An adversary signs its votes but holds 39 back instead of sending them. Nothing on the chain shows the held votes until they are released.</p></div>
+<div class="step"><p><b>Without a boost, the naive rule fails.</b> Release all 39 to fork B and B leads by 40. Balancing attacks keep the two forks tied like this, so the head never settles.</p></div>
+<div class="step"><p><b>The fix: proposer boost.</b> If the slot's block arrives on time, its branch gets a boost worth 40% of one committee, here 40 votes, for that slot only. The attacker still holds its 39.</p></div>
+<div class="step"><p><b>It holds.</b> The attacker releases 30 votes. B reaches 61 and A keeps 70, so the on-time block stays head. The boost is what decides it.</p></div>
+<div class="step"><p><b>The limit.</b> Nine more votes make it a 70 to 70 tie, and the root name breaks the tie. From 41 released votes, B wins outright. The boost is a fixed 40%, not a guarantee.</p></div>
+<div class="step"><p><b>The numbers.</b> Slots are 12 s. Finality needs two-thirds of stake to justify a checkpoint and a third to reverse it. Today it takes 64–95 slots. The cards below cover where this breaks and how finality sits on top.</p></div>
+</div>
+</div>
