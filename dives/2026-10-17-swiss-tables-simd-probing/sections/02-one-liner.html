@@ -1,0 +1,9 @@
+<p><b>The one-liner:</b> "An open-addressing hash table with a 1-byte tag array, so one SIMD compare checks 16 slots at once."</p>
+<h3>What it hides</h3>
+<ol>
+<li>The tag is only <b>7 bits</b>, so false matches happen (about 1 per 128 occupied slots) and the full key is always compared before a hit is declared.</li>
+<li>The control byte has <b>three states</b> besides a tag: empty, deleted, sentinel. Whether a slot is empty or deleted decides if a probe stops, and getting it wrong breaks lookups.</li>
+<li>Probing is <b>per group, not per slot</b>, in triangular steps, and which groups get visited depends on how many are full: at 7/8 load, nearly half of 16-slot groups have no empty slot.</li>
+<li><b>Erase sometimes writes empty instead of a tombstone</b>, using a "was this slot ever in a full window" test. That one trick is what keeps churn workloads from filling the table with tombstones.</li>
+<li>The <b>7/8 load factor</b> is only affordable because a group probe is cheap. Go and hashbrown chose different group widths and added different growth machinery around the same core.</li>
+</ol>

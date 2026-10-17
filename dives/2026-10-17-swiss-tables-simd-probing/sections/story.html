@@ -1,0 +1,139 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 12px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-tag{fill:var(--ink);font:700 14px var(--mono)}
+#story-fig .sf-mask{fill:var(--accent);font:700 14px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-node{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four groups of eight hash-table slots with a tag byte per slot, probed by comparing a whole group at once">
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Chaining: every lookup chases pointers</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Open addressing: items live in the slots</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Add a 1-byte tag to every slot</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">Compare a whole group in one instruction</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">A full group sends the probe onward</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Erase: tombstone only if a probe passed here</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">Swiss table, in four numbers</text>
+<g data-in="1" data-out="2">
+<rect x="30" y="62" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="84" class="sf-id">b0</text>
+<rect x="30" y="124" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="146" class="sf-id">b1</text>
+<rect x="30" y="186" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="208" class="sf-id">b2</text>
+<rect x="30" y="248" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="270" class="sf-id">b3</text>
+<line x1="76" y1="79" x2="130" y2="79" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="62" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="84" class="sf-id">key+val</text>
+<line x1="188" y1="79" x2="240" y2="79" class="s-acc2" stroke-width="2"/>
+<rect x="240" y="62" width="70" height="34" rx="5" class="sf-node"/><text x="248" y="84" class="sf-id">key+val</text>
+<line x1="76" y1="141" x2="130" y2="141" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="124" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="146" class="sf-id">key+val</text>
+<line x1="76" y1="203" x2="130" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="208" class="sf-id">key+val</text>
+<line x1="188" y1="203" x2="240" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="240" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="248" y="208" class="sf-id">key+val</text>
+<line x1="298" y1="203" x2="350" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="350" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="358" y="208" class="sf-id">key+val</text>
+<line x1="76" y1="265" x2="130" y2="265" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="248" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="270" class="sf-id">key+val</text>
+<text x="30" y="330" class="sf-lab">Each hop is a pointer: a likely cache miss.</text>
+<text x="30" y="352" class="sf-lab">8 bytes of pointer per entry, plus a heap node.</text>
+</g>
+<text x="22" y="86" class="sf-id" data-in="2">G0</text>
+<rect x="64" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="62" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="62" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="152" class="sf-id" data-in="2">G1</text>
+<rect x="64" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="218" class="sf-id" data-in="2">G2</text>
+<rect x="64" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="284" class="sf-id" data-in="2">G3</text>
+<rect x="64" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<text x="85.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">3F</text>
+<text x="132.0" y="85" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="179.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">5A</text>
+<text x="226.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">B2</text>
+<text x="273.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">5A</text>
+<text x="320.0" y="85" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="367.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">91</text>
+<text x="414.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">C7</text>
+<text x="85.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">22</text>
+<text x="132.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">7D</text>
+<text x="179.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">E0</text>
+<text x="226.0" y="151" text-anchor="middle" class="sf-tag" data-out="6" data-in="3">14</text>
+<text x="273.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">8B</text>
+<text x="320.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">A6</text>
+<text x="367.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">3C</text>
+<text x="414.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">F1</text>
+<text x="85.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">0D</text>
+<text x="132.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="179.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">66</text>
+<text x="226.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="273.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">9E</text>
+<text x="320.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">41</text>
+<text x="367.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="414.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">D3</text>
+<text x="85.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">58</text>
+<text x="132.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">2A</text>
+<text x="179.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="226.0" y="283" text-anchor="middle" class="sf-tag" data-out="6" data-in="3">B7</text>
+<text x="273.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="320.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">6C</text>
+<text x="367.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">19</text>
+<text x="414.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<rect x="156" y="60" width="46" height="40" rx="7" fill="none" class="s-acc" stroke-width="3" data-hl="4" data-in="4" data-out="5"/>
+<rect x="250" y="60" width="46" height="40" rx="7" fill="none" class="s-acc" stroke-width="3" data-hl="4" data-in="4" data-out="5"/>
+<text x="64" y="54" class="sf-mask" data-in="4" data-out="5">tag 5A vs 8 bytes → mask 00101000</text>
+<text x="64" y="320" class="sf-lab" data-in="4" data-out="5">One true hit, one false match: the full key decides.</text>
+<rect x="61" y="125" width="377" height="42" rx="8" fill="none" class="s-warn" stroke-width="3" data-in="5" data-out="6"/>
+<path d="M 443 146 h 12 v 66 h -12" fill="none" class="s-acc2" stroke-width="2.5" data-in="5" data-out="6"/>
+<path d="M 437 206 l 7 6 l -7 6" fill="none" class="s-acc2" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="64" y="320" class="sf-lab" data-in="5" data-out="6">G1 has no empty slot: hop +1 group to G2.</text>
+<text x="64" y="342" class="sf-lab" data-in="5" data-out="6">G2 has an empty: the key is absent. Stop.</text>
+<text x="226.0" y="153" text-anchor="middle" class="sf-big" style="fill:var(--bad)" data-in="6" data-out="7">X</text>
+<text x="226.0" y="283" text-anchor="middle" class="sf-id" data-in="6" data-out="7">--</text>
+<rect x="203" y="126" width="46" height="40" rx="7" fill="none" class="s-bad" stroke-width="3" data-hl="6" data-in="6" data-out="7"/>
+<rect x="203" y="258" width="46" height="40" rx="7" fill="none" class="s-ok" stroke-width="3" data-hl="6" data-in="6" data-out="7"/>
+<text x="64" y="320" class="sf-lab" data-in="6" data-out="7">G1 was full: erasing writes a tombstone (X).</text>
+<text x="64" y="342" class="sf-lab" data-in="6" data-out="7">G3 had empties: erasing just writes empty.</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="7"/>
+<text x="30" y="116" class="sf-num" data-in="7">7/8</text><text x="170" y="114" class="sf-lab" data-in="7">max load factor</text>
+<text x="30" y="198" class="sf-num" data-in="7">1 byte</text><text x="170" y="196" class="sf-lab" data-in="7">metadata per slot</text>
+<text x="30" y="280" class="sf-num" data-in="7">16</text><text x="170" y="278" class="sf-lab" data-in="7">slots compared per SSE2 op</text>
+<text x="30" y="362" class="sf-num" data-in="7">~2.1</text><text x="170" y="360" class="sf-lab" data-in="7">groups probed per miss at 7/8 (my sim)</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A hash table has to answer "where is this key?" fast. The classic answer, chaining, hashes to a bucket and walks a linked list. It works, but every hop is a pointer to a separately allocated node, so a lookup is a string of likely cache misses and every entry pays for a pointer.</p></div>
+<div class="step"><p><b>Open addressing</b> drops the lists. Keys and values sit directly in one flat array of slots, grouped here in rows of 8 (Abseil uses 16). A key hashes to a home group and goes in the first free slot it finds. No pointers, no per-entry allocation. The price: a lookup now has to check slots, and a full key comparison per slot is expensive.</p></div>
+<div class="step"><p><b>The trick: a tag per slot.</b> Next to the slots, keep a separate array with one byte per slot. A full slot stores 7 bits of the key's hash. An empty slot stores a special "empty" value. The tag is a cheap fingerprint: slots whose tag differs cannot hold the key.</p></div>
+<div class="step"><p><b>One instruction checks a whole group.</b> Load the group's tag bytes into a SIMD register, compare all of them to the key's tag at once, and get back a bitmask of candidates. Here two slots match 5A. Only those get a real key comparison. A wrong tag matches roughly 1 slot in 128, so false matches are rare.</p></div>
+<div class="step"><p><b>Empty is the stop sign.</b> If the group holds no match and at least one empty slot, the key cannot be further along, because inserts always fill the earliest free slot on the probe path. If the group is completely full, the probe hops to another group, +1 then +2 then +3 groups (triangular steps), and repeats.</p></div>
+<div class="step"><p><b>Deleting needs care.</b> Emptying a slot in a full group could cut a probe path that once passed through it, so such a slot gets a tombstone marker that says "keep going". If the group already has an empty slot, no probe ever passed it, and plain empty is safe. That check keeps tombstones rare.</p></div>
+<div class="step"><p><b>The result.</b> Tables run at up to 7/8 full, spend one byte of metadata per slot and scan 16 slots per instruction. Rust's HashMap, Go's built-in map since 1.24 and Google's Abseil all use this layout. The cost: values move when the table grows, and tombstones can pile up until a rehash.</p></div>
+</div></div>

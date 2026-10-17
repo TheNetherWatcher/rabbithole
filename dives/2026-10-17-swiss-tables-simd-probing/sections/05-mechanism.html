@@ -1,0 +1,87 @@
+<style>
+#mech-svg .cell{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#mech-svg .cell.e{fill:var(--code)}
+#mech-svg .cell.hit{stroke:var(--accent);stroke-width:3}
+#mech-svg .cell.bad{stroke:var(--bad);stroke-width:3}
+#mech-svg .cell.ok{stroke:var(--ok);stroke-width:3}
+#mech-svg .cell.new{fill:var(--hl)}
+#mech-svg .row{fill:none;stroke:var(--warn);stroke-width:3}
+#mech-svg .tg{fill:var(--ink);font:700 13px ui-monospace,monospace}
+#mech-svg .gl{fill:var(--mute);font:600 12px ui-monospace,monospace}
+#mech-svg g{animation:mech-in .3s cubic-bezier(.2,.7,.2,1) both}
+@keyframes mech-in{from{opacity:.3}}
+</style>
+<p>Trace on a toy table: 4 groups of 8 slots (Go-style aligned groups, so it fits on screen). Keys K1 and K2 both carry tag <code>0x5A</code>.</p>
+<div class="widget" role="group" aria-label="Lookup, insert and erase step-through">
+<svg id="mech-svg" viewBox="0 0 470 300" role="img" aria-label="Four groups of eight slots with tags"></svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+  <div class="info" id="mech-info" aria-live="polite"></div>
+</div>
+</div>
+<h3>The data structure</h3>
+<p>One allocation holds a control-byte array and a slot array of the same length. A control byte is either a 7-bit tag (top bit 0) or one of three special values with the top bit set. That top bit is the whole trick behind the cheap masks: "full" is <code>byte &gt;= 0</code>, "empty or deleted" is a sign-bit test, and "empty" is one equality compare.</p>
+<figure data-fig="layout"></figure>
+<h3>Find, as code</h3>
+<pre><code>// Abseil-style find, simplified. W = 16 on SSE2, 8 on NEON/portable.
+probe = ProbeSeq(h1(hash) &amp; capacity_mask)
+loop:
+    g = Group(ctrl + probe.offset)           // W control bytes
+    for i in g.Match(h2(hash)):              // _mm_cmpeq_epi8 + _mm_movemask_epi8, then bit-scan
+        if key_eq(slots[(probe.offset + i) &amp; mask], key): return slot
+    if g.MaskEmpty(): return NOT_FOUND       // an empty slot ends the search
+    probe.next()                             // offset += index; index += W; offset &amp;= mask</code></pre>
+<p>Going by the Abseil source read for this dive: capacities are <code>2<sup>k</sup>−1</code> so <code>&amp; mask</code> wraps, <code>probe.next()</code> grows the step by W each time so offsets are triangular multiples of W, and when the group count is a power of two every group is visited once. Abseil and hashbrown start the window at <i>any</i> slot (<code>h1 &amp; mask</code>), Go uses aligned groups; the traces and the simulator use aligned groups for clarity.</p>
+<figure data-fig="probe"></figure>
+<h3>Insert</h3>
+<p>Insert first runs <code>find</code> to avoid duplicates, then probes again for the first group with an empty <i>or deleted</i> slot, writes the tag and the value there, and decrements <code>growth_left</code>. If <code>growth_left</code> is zero the table rehashes first (see math and breaks).</p>
+<h3>Erase</h3>
+<p>An erase cannot always write <code>empty</code>, because that could cut a probe path: a later lookup for a key that overflowed past this group would stop at the new empty and wrongly report "absent". Abseil writes <code>empty</code> only if the slot "was never full": there are empties in the window before and after it, and no 16-slot run of full slots spans it. Otherwise it writes <code>deleted</code>.</p>
+<figure data-fig="erase"></figure>
+<div class="callout flag"><b>Verify before quoting:</b> the exact window arithmetic of the "never full" test was read from <code>raw_hash_set.cc</code> in a research pass and flagged for double-checking. The behaviour (empty only when no probe could have passed) is certain; the precise bit-twiddle is not reproduced here.</div>
+<div class="callout flag"><b>From memory, not re-verified:</b> Abseil keeps <code>W−1</code> cloned control bytes after the end of the array so an unaligned group load near the end wraps correctly.</div>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('mech-svg');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  var BASE=[['3F','--','5A','B2','5A','--','91','C7'],['22','7D','E0','14','8B','A6','3C','F1'],['0D','--','66','--','9E','41','--','D3'],['58','2A','--','B7','--','6C','19','--']];
+  // each step: info, overrides on tags, marks {g,i,cls}, row outline
+  var S=[
+   {info:'<b>Lookup K1.</b> h1 picks home group G0, h2 = 0x5A. Load G0\'s 8 control bytes (one cache line is plenty).',row:0,marks:[]},
+   {info:'<b>One compare.</b> Broadcast 5A, compare against the 8 tags, pack the bits: mask = <code>00101000</code>. Two candidates, slots 2 and 4. Nothing else in the group is touched.',row:0,marks:[[0,2,'hit'],[0,4,'hit']]},
+   {info:'<b>Slot 2:</b> full key compare says the stored key is not K1. A <i>false match</i>, the 1-in-128 event. Discard it.',row:0,marks:[[0,2,'bad'],[0,4,'hit']]},
+   {info:'<b>Slot 4:</b> keys equal, <b>hit</b>. Cost: 1 group, 1 SIMD compare, 2 key compares.',row:0,marks:[[0,2,'bad'],[0,4,'ok']]},
+   {info:'<b>Lookup K2 (absent).</b> Home group G1, h2 = 5A. No tag in G1 equals 5A, and the empty mask is <code>00000000</code>: G1 is full, so the probe must continue.',row:1,marks:[]},
+   {info:'<b>Hop +1 group to G2.</b> Still no 5A, but the empty mask is <code>01010010</code>, non-zero: empty slots exist, so K2 cannot be further along. <b>Miss</b> after 2 groups.',row:2,marks:[[2,1,'hit'],[2,3,'hit'],[2,6,'hit']]},
+   {info:'<b>Insert K2.</b> Same probe path, first empty-or-deleted slot: G1 is full, so G2 slot 1. Write tag 5A, store key and value, <code>growth_left</code> −= 1.',row:2,marks:[[2,1,'ok']],over:{'2,1':'5A'},newc:'2,1'},
+   {info:'<b>Erase G1 slot 3</b> (tag 14): G1 has no empty, so a probe may have passed here, so write DELETED (X). <b>Erase G3 slot 3</b> (tag B7): G3 has empties, so write EMPTY and give the budget back.',row:1,marks:[[1,3,'bad'],[3,3,'ok']],over:{'2,1':'5A','1,3':'X','3,3':'--'},newc:'2,1'}
+  ];
+  var cur=0,W=47,H=36,X0=44;
+  function y(g){return 24+g*66}
+  function draw(){
+    var st=S[cur];svg.innerHTML='';
+    var g0=el('g',{});svg.appendChild(g0);
+    for(var g=0;g<4;g++){
+      g0.appendChild(el('text',{x:6,y:y(g)+23,class:'gl'},'G'+g));
+      for(var i=0;i<8;i++){
+        var t=(st.over&&st.over[g+','+i]!=null)?st.over[g+','+i]:BASE[g][i];
+        var cls='cell'+(t=='--'?' e':'');
+        if(st.newc==g+','+i)cls+=' new';
+        (st.marks||[]).forEach(function(m){if(m[0]==g&&m[1]==i)cls+=' '+m[2]});
+        g0.appendChild(el('rect',{x:X0+i*W,y:y(g),width:W-5,height:H,rx:5,class:cls}));
+        g0.appendChild(el('text',{x:X0+i*W+(W-5)/2,y:y(g)+23,'text-anchor':'middle',class:'tg'},t));
+      }
+    }
+    if(st.row!=null)g0.appendChild(el('rect',{x:X0-4,y:y(st.row)-4,width:8*W-1,height:H+8,rx:8,class:'row'}));
+    document.getElementById('mech-info').innerHTML=st.info;
+    document.getElementById('mech-n').textContent='step '+(cur+1)+' / '+S.length;
+    document.getElementById('mech-prev').disabled=cur==0;
+    document.getElementById('mech-next').disabled=cur==S.length-1;
+  }
+  document.getElementById('mech-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('mech-next').onclick=function(){if(cur<S.length-1){cur++;draw()}};
+  draw();
+})();
+</script>

@@ -1,0 +1,27 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-grid{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin:6px 0 4px}
+.cv-grid i{display:block;aspect-ratio:1.4;border-radius:3px;background:var(--code);border:1px solid var(--line)}
+.cv-grid i.m{background:var(--accent);border-color:var(--accent)}
+.cv-grid i.f{background:var(--panel)}
+.js .cv-grid i{opacity:0;transform:scale(.4);animation:cv-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*35ms)}
+@keyframes cv-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">A hash table lookup should cost about one memory access.</p>
+<p class="cold-line sm">Swiss tables check <em>16 slots at once</em> by keeping a 1-byte fingerprint per slot and comparing them all in a single CPU instruction. The fingerprint is only 7 bits, so it can be wrong.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>One group, 16 tags, one compare.</b> Filled = occupied slot, bright = tag matches.
+    <div class="cv-grid" id="cv-g"></div>
+    About 1 slot in 128 matches by chance, so at 7/8 load a group visit costs ≈0.11 wasted key compares (14 occupied ÷ 128).</div>
+</div>
+<script>
+(function(){
+  var g=document.getElementById('cv-g'),hit=[5,11];
+  for(var k=0;k<16;k++){var i=document.createElement('i');i.className=hit.indexOf(k)>=0?'m':(k==3||k==8||k==13?'':'f');i.style.setProperty('--d',k);g.appendChild(i);}
+})();
+</script>

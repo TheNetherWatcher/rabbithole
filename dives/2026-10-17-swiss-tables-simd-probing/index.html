@@ -1,0 +1,1740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A Swiss table is an open-addressing hash table with a 1-byte tag per slot. One SIMD instruction compares a lookup key&#x27;s 7-bit tag against 16 slots (8 in Go), so full key comparisons are rare. A probe stops at the first empty slot, deletes write a tombstone only when needed, and tables run up to 7/8 ">
+<title>Swiss tables · Rabbithole</title>
+<style>
+/* rabbithole dive template — shared by every dive page and the hub. Edit here, rebuild dives. */
+:root{
+  --bg:#fbfaf7;--bg2:#f4f1ea;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;
+  --accent:#b4411f;--accent2:#1f6f8b;--ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;
+  --code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.06);
+  --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+a{color:var(--accent2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.scrolled{border-bottom-color:var(--line)}
+.tb-home{font-size:14px;color:var(--mute);text-decoration:none;white-space:nowrap}
+.tb-home:hover{color:var(--ink)}
+.tb-title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.topbar.scrolled .tb-title{opacity:1;transform:none}
+.tb-actions{display:flex;align-items:center;gap:8px}
+.tb-btn{font:inherit;font-size:13px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap}
+.tb-btn:hover{border-color:var(--accent)}
+.tb-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ring{position:relative;width:34px;height:34px;flex:none}
+.ring svg{width:34px;height:34px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .r-bg{stroke:var(--line)}
+.ring .r-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s var(--ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:700}
+@media(max-width:560px){.tb-home span{display:none}.tb-btn .lbl{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;padding:0 0 8px}
+.hero-art{position:relative;height:clamp(180px,30vw,320px);overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.hero-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.hero-art::after{content:"";position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(transparent,var(--bg))}
+.hero-art .layer{will-change:transform}
+.ascii-hero{position:absolute;inset:0;margin:0;display:grid;place-items:center;font:clamp(9px,1.4vw,14px)/1.15 var(--mono);color:var(--accent);white-space:pre;opacity:.9}
+.hero-text{position:relative;margin-top:-48px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
+.why{color:var(--mute);margin:0 0 16px}
+.tldr b,.why b{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.stat .v{font-size:24px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .l{font-size:12px;color:var(--mute);line-height:1.35}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--mute);margin:8px 0 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.badge[data-s="started"]::before{background:var(--accent2)}
+.badge[data-s="skimmed"]::before{background:var(--warn)}
+.badge[data-s="understood"]::before{background:var(--ok)}
+
+/* ---------- groups + cards ---------- */
+main.wrap{padding-bottom:96px}
+.group{margin:40px 0 12px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:14px 0;box-shadow:var(--shadow);
+  transition:box-shadow .3s var(--ease),transform .3s var(--ease),border-color .3s;scroll-margin-top:64px}
+@media(hover:hover){.card:not(.open):hover{box-shadow:var(--shadow-lift);transform:translateY(-2px)}}
+.card.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.card.plain{background:var(--plain);border-color:var(--plainline)}
+.card-head{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;padding:16px 18px}
+@media(max-width:620px){.card-head{grid-template-columns:minmax(0,1fr);gap:8px}.card-vis{max-width:200px}}
+.card-vis{align-self:start;aspect-ratio:16/10;border-radius:10px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;
+  transition:transform .4s var(--ease),opacity .4s}
+.card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.card-vis svg{width:100%;height:100%;display:block}
+.card.open .card-vis{transform:scale(.92);opacity:.75}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
+.brief p{margin:0 0 6px}
+.brief ul{margin:4px 0 6px;padding-left:18px}
+.brief li{margin:2px 0}
+.card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:10px}
+.deeper{font:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;
+  border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:background .2s,color .2s}
+.deeper:hover{background:var(--accent);color:var(--bg)}
+.deeper .chev{display:inline-block;transition:transform .35s var(--ease)}
+.card.open .deeper .chev{transform:rotate(90deg)}
+.deeper small{font-weight:500;opacity:.75}
+.got{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);cursor:pointer;user-select:none}
+.got input{position:absolute;opacity:0;width:1px;height:1px}
+.got .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel);display:grid;place-items:center;transition:background .2s,border-color .2s}
+.got .box svg{width:14px;height:14px}
+.got .box path{fill:none;stroke:var(--bg);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .3s var(--ease) .05s}
+.got input:checked+.box{background:var(--ok);border-color:var(--ok)}
+.got input:checked+.box path{stroke-dashoffset:0}
+.got input:checked~span{color:var(--ok);font-weight:600}
+.got input:focus-visible+.box{outline:2px solid var(--accent);outline-offset:2px}
+
+.deep{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease)}
+.card.open .deep{grid-template-rows:1fr}
+.deep-inner{overflow:hidden;min-height:0}
+.deep-content{padding:4px 22px 8px;border-top:1px dashed var(--line);margin:0 18px;opacity:0;transform:translateY(-6px);transition:opacity .35s .1s,transform .45s var(--ease) .05s}
+.card.open .deep-content{opacity:1;transform:none}
+.deep-foot{display:flex;justify-content:flex-end;padding:0 18px 14px}
+.collapse{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;cursor:pointer;padding:4px 6px}
+.collapse:hover{color:var(--ink)}
+
+/* side dot nav */
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:9px;z-index:15}
+@media(min-width:1120px){.dots{display:flex}}
+.dots a{position:relative;display:block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--mute);opacity:.55;transition:transform .2s,opacity .2s,background .2s}
+.dots a.got{background:var(--ok);border-color:var(--ok)}
+.dots a.on{opacity:1;transform:scale(1.35);border-color:var(--accent)}
+.dots a span{position:absolute;right:18px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12px;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .15s}
+.dots a:hover span,.dots a:focus-visible span{opacity:1}
+
+/* scroll reveal (only when JS runs) */
+.js .rv{opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*40ms)}
+.js .rv.in{opacity:1;transform:none}
+
+/* hero intro */
+.js .hero-art .layer{animation:rh-in 1s var(--ease) both;animation-delay:calc(var(--i,0)*140ms)}
+@keyframes rh-in{from{opacity:0;transform:translateY(14px)}}
+
+/* ---------- quiz ---------- */
+.qgroup{margin:18px 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.q{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;background:var(--bg)}
+.q .qq{font-weight:600}
+.q .qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.q.show .qa{grid-template-rows:1fr}
+.q .qa>div{overflow:hidden}
+.q .qa p{margin:8px 0 4px}
+.q .qrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.q .qrow .sec{margin-left:auto;font-size:12px}
+.q[data-r="y"]{border-left:4px solid var(--ok)}
+.q[data-r="n"]{border-left:4px solid var(--bad)}
+.qbtn{font:inherit;font-size:13px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qbtn:hover{border-color:var(--accent)}
+.qbtn[aria-pressed="true"].y{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.qbtn[aria-pressed="true"].n{background:var(--bad);border-color:var(--bad);color:var(--bg)}
+.score{font-weight:700;color:var(--accent)}
+
+/* ---------- content kit (use inside sections/*.html) ---------- */
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
+.deep-content h4{font-size:15px;margin:1.2em 0 .2em}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
+code,pre{font-family:var(--mono);font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer;opacity:0;transition:opacity .2s}
+pre:hover .copy,.copy:focus-visible{opacity:1}
+@media(hover:none){.copy{opacity:1}}
+blockquote{margin:12px 0;padding:8px 16px;border-left:4px solid var(--accent);background:var(--bg2);border-radius:0 10px 10px 0;font-style:italic}
+.eq{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--bg);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}.callout.tip{border-left:5px solid var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto;margin:10px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.btn:disabled{opacity:.4;cursor:default}
+button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.widget{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px;accent-color:var(--accent)}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s var(--ease)}
+.mini{font-size:13px;color:var(--mute)}
+.deep-content,.brief{overflow-wrap:anywhere}
+
+/* ---------- reference figures (from papers/docs, cited) ---------- */
+.fig{margin:18px 0}
+.fig-zoom{display:block;width:100%;padding:10px;margin:0;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:zoom-in;
+  transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.fig-zoom:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+:root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
+.fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
+.fig figcaption b{color:var(--ink)}
+.fig-cite{display:block;font-size:12px;margin-top:2px}
+.fig-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.fig-pair{grid-template-columns:1fr}}
+.credits{font-size:13.5px}
+.lightbox{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;
+  background:rgba(10,9,7,.86);opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox img{max-width:min(1400px,100%);max-height:80vh;background:#fff;border-radius:10px;padding:12px;transform:scale(.96);transition:transform .3s var(--ease)}
+.lightbox.on img{transform:none}
+.lightbox p{max-width:900px;color:#ddd;font-size:14px;margin:0;text-align:center}
+.lightbox p a{color:#9fd3e6}
+.lightbox button{position:absolute;top:14px;right:16px;font:inherit;font-size:14px;padding:4px 12px;border-radius:99px;border:1px solid #666;background:#222;color:#eee;cursor:pointer}
+
+/* ---------- SVG palette helpers (hero, card visuals, diagrams) ---------- */
+.f-bg{fill:var(--bg)}.f-bg2{fill:var(--bg2)}.f-panel{fill:var(--panel)}.f-code{fill:var(--code)}.f-line{fill:var(--line)}
+.f-ink{fill:var(--ink)}.f-mute{fill:var(--mute)}.f-acc{fill:var(--accent)}.f-acc2{fill:var(--accent2)}
+.f-ok{fill:var(--ok)}.f-warn{fill:var(--warn)}.f-bad{fill:var(--bad)}.f-hl{fill:var(--hl)}.f-none{fill:none}
+.s-ink{stroke:var(--ink)}.s-mute{stroke:var(--mute)}.s-line{stroke:var(--line)}.s-acc{stroke:var(--accent)}.s-acc2{stroke:var(--accent2)}
+.s-ok{stroke:var(--ok)}.s-warn{stroke:var(--warn)}.s-bad{stroke:var(--bad)}
+.t-ink{fill:var(--ink);font:600 11px var(--mono)}.t-mute{fill:var(--mute);font:10px system-ui,sans-serif}
+/* motion helpers: .draw (stroke draws in when visible), .flow (dashes travel), .pulse, .float, .blink */
+.js .draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s var(--ease);transition-delay:calc(var(--d,0)*120ms)}
+.js .in-view .draw{stroke-dashoffset:0}
+.flow{stroke-dasharray:4 6;animation:rh-flow 1.6s linear infinite}
+@keyframes rh-flow{to{stroke-dashoffset:-20}}
+.pulse{transform-box:fill-box;transform-origin:center;animation:rh-pulse 2.6s var(--ease) infinite}
+@keyframes rh-pulse{50%{transform:scale(1.08);opacity:.75}}
+.float{transform-box:fill-box;animation:rh-float 6s ease-in-out infinite}
+@keyframes rh-float{50%{transform:translateY(-4px)}}
+.blink{animation:rh-blink 1.4s steps(1) infinite}
+@keyframes rh-blink{50%{opacity:0}}
+.card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
+
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
+/* ---------- hub ---------- */
+.hub-head{padding:40px 0 8px}
+.hub-head p{color:var(--mute);margin:0}
+.hub-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0}
+.hub-tools input{font:inherit;font-size:14px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);flex:1 1 200px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:8px 0 80px}
+.tile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:var(--shadow);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
+@media(hover:hover){.tile:hover{box-shadow:var(--shadow-lift);transform:translateY(-3px)}}
+.tile-art{position:relative;aspect-ratio:3/1;background:var(--bg2);border-bottom:1px solid var(--line);overflow:hidden}
+.tile-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.tile-art .ascii-hero{font-size:6px}
+.tile-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.tile-body h3{font-size:15px;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mute);margin-top:auto}
+.tile .bar{height:5px;border:0;border-radius:3px}
+.tile[hidden]{display:none}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js .rv{opacity:1;transform:none}
+  .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
+}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="tb-home" href="../index.html">← <span>All dives</span></a>
+  <span class="tb-title">Swiss tables</span>
+  <div class="tb-actions">
+    <button class="tb-btn" id="expand-all" type="button" aria-pressed="false" title="Open every card (deep mode)">⇕ <span class="lbl">Expand all</span></button>
+    <button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button>
+    <span class="ring" title="Progress: cards marked 'Got it' + questions you knew">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="r-bg" cx="18" cy="18" r="15"/><circle class="r-fg" cx="18" cy="18" r="15" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+      <b id="ring-pct">0%</b>
+    </span>
+  </div>
+</header>
+
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-grid{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin:6px 0 4px}
+.cv-grid i{display:block;aspect-ratio:1.4;border-radius:3px;background:var(--code);border:1px solid var(--line)}
+.cv-grid i.m{background:var(--accent);border-color:var(--accent)}
+.cv-grid i.f{background:var(--panel)}
+.js .cv-grid i{opacity:0;transform:scale(.4);animation:cv-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*35ms)}
+@keyframes cv-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">A hash table lookup should cost about one memory access.</p>
+<p class="cold-line sm">Swiss tables check <em>16 slots at once</em> by keeping a 1-byte fingerprint per slot and comparing them all in a single CPU instruction. The fingerprint is only 7 bits, so it can be wrong.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> A Swiss table tags each slot with 7 bits of the key's hash. How often does a wrong occupied slot match your key's tag by chance?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1 in 8</button><button class="g-opt" type="button" data-k="1">1 in 32</button><button class="g-opt" type="button" data-k="2">1 in 128</button><button class="g-opt" type="button" data-k="3">1 in 1024</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>1 in 128</b>: 7 independent bits give 2<sup>7</sup> = 128 values. At 7/8 load a 16-wide group has ~14 occupied slots, so about 0.11 wasted key compares per group visit.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>One group, 16 tags, one compare.</b> Filled = occupied slot, bright = tag matches.
+    <div class="cv-grid" id="cv-g"></div>
+    About 1 slot in 128 matches by chance, so at 7/8 load a group visit costs ≈0.11 wasted key compares (14 occupied ÷ 128).</div>
+</div>
+<script>
+(function(){
+  var g=document.getElementById('cv-g'),hit=[5,11];
+  for(var k=0;k<16;k++){var i=document.createElement('i');i.className=hit.indexOf(k)>=0?'m':(k==3||k==8||k==13?'':'f');i.style.setProperty('--d',k);g.appendChild(i);}
+})();
+</script>
+</div><a class="cold-cue" href="#top">Swiss tables <span>↓</span></a></section>
+<section class="hero" id="top">
+  <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.12">
+<rect x="200" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="238" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="276" y="70" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="314" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="352" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="390" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="428" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="466" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="504" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="542" y="70" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="580" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="618" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="656" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="694" y="70" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="732" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="770" y="70" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="200" y="108" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="238" y="108" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="276" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="314" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="352" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="390" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="428" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="466" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="504" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="542" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="580" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="618" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="656" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="694" y="108" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="732" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="770" y="108" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="200" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="238" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="276" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="314" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="352" y="146" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="390" y="146" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="428" y="146" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="466" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="504" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="542" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="580" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="618" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="656" y="146" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="694" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="732" y="146" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="770" y="146" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="200" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="238" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="276" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="314" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="352" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="390" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="428" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="466" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="504" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="542" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="580" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="618" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="656" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="694" y="184" width="34" height="26" rx="5" class="f-panel s-line" stroke-width="1.2"/>
+<rect x="732" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+<rect x="770" y="184" width="34" height="26" rx="5" class="f-line s-line" stroke-width="1.2"/>
+</g>
+<g class="layer" data-depth="0.2">
+<rect x="194" y="65" width="616" height="36" rx="9" fill="none" class="s-mute" stroke-width="1" opacity=".5"/>
+<rect x="194" y="103" width="616" height="36" rx="9" fill="none" class="s-mute" stroke-width="1" opacity=".5"/>
+<rect x="194" y="141" width="616" height="36" rx="9" fill="none" class="s-mute" stroke-width="1" opacity=".5"/>
+<rect x="194" y="179" width="616" height="36" rx="9" fill="none" class="s-mute" stroke-width="1" opacity=".5"/>
+<path d="M 814 121.0 h 40 V 159.0 H 778" fill="none" class="s-acc2 flow" stroke-width="2.5" stroke-dasharray="6 6"/>
+</g>
+<g class="layer" data-depth="0.32">
+<rect x="192" y="65" width="620" height="36" rx="9" fill="none" class="s-acc pulse" stroke-width="3"/>
+<rect x="312" y="68" width="38" height="30" rx="6" class="f-acc" opacity=".55"/>
+<rect x="540" y="68" width="38" height="30" rx="6" class="f-acc" opacity=".55"/>
+<path d="M 438.0 152.0 L 452.0 166.0 M 452.0 152.0 L 438.0 166.0" class="s-bad" stroke-width="3" fill="none"/>
+<rect x="656" y="184" width="34" height="26" rx="5" class="f-ok blink" opacity=".8"/>
+</g>
+</svg></div>
+  <div class="hero-text wrap">
+    <div class="chips rv"><span class="chip">Computer science</span><span class="chip">Algorithms/data structures</span><span class="chip">Depth: hard</span><span class="chip">2026-10-17</span></div>
+    <h1 class="rv" style="--i:1">Swiss tables: control bytes, SIMD group probing, tombstones and 7/8 load</h1>
+    <p class="tldr rv" style="--i:2">A Swiss table is an open-addressing hash table with a <b>1-byte tag per slot</b>. One SIMD instruction compares a lookup key's 7-bit tag against <b>16 slots</b> (8 in Go), so full key comparisons are rare. A probe stops at the first <b>empty</b> slot, deletes write a tombstone only when needed, and tables run up to <b>7/8 full</b>.</p>
+    <p class="why rv" style="--i:3"><b>Why it matters:</b> hash maps sit on the hot path of most programs, and Rust's std map, Go's built-in map since 1.24 and Google's Abseil all use this layout.</p>
+    <div class="stats"><div class="stat rv" style="--i:0"><div class="v">1 byte</div><div class="l">metadata per slot</div></div><div class="stat rv" style="--i:1"><div class="v">7/8</div><div class="l">max load factor</div></div><div class="stat rv" style="--i:2"><div class="v">16</div><div class="l">slots per SSE2 compare (8 in Go)</div></div><div class="stat rv" style="--i:3"><div class="v">47.6%</div><div class="l">16-slot groups full at 7/8 load (my sim)</div></div><div class="stat rv" style="--i:4"><div class="v">2025</div><div class="l">Go 1.24 ships the Swiss map</div></div></div>
+    <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
+      <span>19 cards</span><span>· ~7 min skim</span><span>· ~34 min deep</span>
+      <span class="g-score" hidden></span>
+      <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
+  </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 7 scrolls</div><h2>How a byte per slot lets a hash table check 16 slots with one instruction</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 12px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-tag{fill:var(--ink);font:700 14px var(--mono)}
+#story-fig .sf-mask{fill:var(--accent);font:700 14px var(--mono)}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+#story-fig .sf-node{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four groups of eight hash-table slots with a tag byte per slot, probed by comparing a whole group at once">
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Chaining: every lookup chases pointers</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Open addressing: items live in the slots</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Add a 1-byte tag to every slot</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">Compare a whole group in one instruction</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">A full group sends the probe onward</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Erase: tombstone only if a probe passed here</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">Swiss table, in four numbers</text>
+<g data-in="1" data-out="2">
+<rect x="30" y="62" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="84" class="sf-id">b0</text>
+<rect x="30" y="124" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="146" class="sf-id">b1</text>
+<rect x="30" y="186" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="208" class="sf-id">b2</text>
+<rect x="30" y="248" width="46" height="34" rx="5" class="sf-node"/><text x="40" y="270" class="sf-id">b3</text>
+<line x1="76" y1="79" x2="130" y2="79" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="62" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="84" class="sf-id">key+val</text>
+<line x1="188" y1="79" x2="240" y2="79" class="s-acc2" stroke-width="2"/>
+<rect x="240" y="62" width="70" height="34" rx="5" class="sf-node"/><text x="248" y="84" class="sf-id">key+val</text>
+<line x1="76" y1="141" x2="130" y2="141" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="124" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="146" class="sf-id">key+val</text>
+<line x1="76" y1="203" x2="130" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="208" class="sf-id">key+val</text>
+<line x1="188" y1="203" x2="240" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="240" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="248" y="208" class="sf-id">key+val</text>
+<line x1="298" y1="203" x2="350" y2="203" class="s-acc2" stroke-width="2"/>
+<rect x="350" y="186" width="70" height="34" rx="5" class="sf-node"/><text x="358" y="208" class="sf-id">key+val</text>
+<line x1="76" y1="265" x2="130" y2="265" class="s-acc2" stroke-width="2"/>
+<rect x="130" y="248" width="70" height="34" rx="5" class="sf-node"/><text x="138" y="270" class="sf-id">key+val</text>
+<text x="30" y="330" class="sf-lab">Each hop is a pointer: a likely cache miss.</text>
+<text x="30" y="352" class="sf-lab">8 bytes of pointer per entry, plus a heap node.</text>
+</g>
+<text x="22" y="86" class="sf-id" data-in="2">G0</text>
+<rect x="64" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="62" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="62" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="62" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="152" class="sf-id" data-in="2">G1</text>
+<rect x="64" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="128" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="218" class="sf-id" data-in="2">G2</text>
+<rect x="64" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="194" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="194" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<text x="22" y="284" class="sf-id" data-in="2">G3</text>
+<rect x="64" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="111" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="158" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="205" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="252" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<rect x="299" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="346" y="260" width="42" height="36" rx="5" class="f-panel s-line" stroke-width="1.5" data-in="2"/>
+<rect x="393" y="260" width="42" height="36" rx="5" class="f-code s-line" stroke-width="1.5" data-in="2"/>
+<text x="85.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">3F</text>
+<text x="132.0" y="85" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="179.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">5A</text>
+<text x="226.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">B2</text>
+<text x="273.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">5A</text>
+<text x="320.0" y="85" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="367.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">91</text>
+<text x="414.0" y="85" text-anchor="middle" class="sf-tag" data-in="3">C7</text>
+<text x="85.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">22</text>
+<text x="132.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">7D</text>
+<text x="179.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">E0</text>
+<text x="226.0" y="151" text-anchor="middle" class="sf-tag" data-out="6" data-in="3">14</text>
+<text x="273.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">8B</text>
+<text x="320.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">A6</text>
+<text x="367.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">3C</text>
+<text x="414.0" y="151" text-anchor="middle" class="sf-tag" data-in="3">F1</text>
+<text x="85.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">0D</text>
+<text x="132.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="179.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">66</text>
+<text x="226.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="273.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">9E</text>
+<text x="320.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">41</text>
+<text x="367.0" y="217" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="414.0" y="217" text-anchor="middle" class="sf-tag" data-in="3">D3</text>
+<text x="85.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">58</text>
+<text x="132.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">2A</text>
+<text x="179.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="226.0" y="283" text-anchor="middle" class="sf-tag" data-out="6" data-in="3">B7</text>
+<text x="273.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<text x="320.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">6C</text>
+<text x="367.0" y="283" text-anchor="middle" class="sf-tag" data-in="3">19</text>
+<text x="414.0" y="283" text-anchor="middle" class="sf-id" data-in="3">--</text>
+<rect x="156" y="60" width="46" height="40" rx="7" fill="none" class="s-acc" stroke-width="3" data-hl="4" data-in="4" data-out="5"/>
+<rect x="250" y="60" width="46" height="40" rx="7" fill="none" class="s-acc" stroke-width="3" data-hl="4" data-in="4" data-out="5"/>
+<text x="64" y="54" class="sf-mask" data-in="4" data-out="5">tag 5A vs 8 bytes → mask 00101000</text>
+<text x="64" y="320" class="sf-lab" data-in="4" data-out="5">One true hit, one false match: the full key decides.</text>
+<rect x="61" y="125" width="377" height="42" rx="8" fill="none" class="s-warn" stroke-width="3" data-in="5" data-out="6"/>
+<path d="M 443 146 h 12 v 66 h -12" fill="none" class="s-acc2" stroke-width="2.5" data-in="5" data-out="6"/>
+<path d="M 437 206 l 7 6 l -7 6" fill="none" class="s-acc2" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="64" y="320" class="sf-lab" data-in="5" data-out="6">G1 has no empty slot: hop +1 group to G2.</text>
+<text x="64" y="342" class="sf-lab" data-in="5" data-out="6">G2 has an empty: the key is absent. Stop.</text>
+<text x="226.0" y="153" text-anchor="middle" class="sf-big" style="fill:var(--bad)" data-in="6" data-out="7">X</text>
+<text x="226.0" y="283" text-anchor="middle" class="sf-id" data-in="6" data-out="7">--</text>
+<rect x="203" y="126" width="46" height="40" rx="7" fill="none" class="s-bad" stroke-width="3" data-hl="6" data-in="6" data-out="7"/>
+<rect x="203" y="258" width="46" height="40" rx="7" fill="none" class="s-ok" stroke-width="3" data-hl="6" data-in="6" data-out="7"/>
+<text x="64" y="320" class="sf-lab" data-in="6" data-out="7">G1 was full: erasing writes a tombstone (X).</text>
+<text x="64" y="342" class="sf-lab" data-in="6" data-out="7">G3 had empties: erasing just writes empty.</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="7"/>
+<text x="30" y="116" class="sf-num" data-in="7">7/8</text><text x="170" y="114" class="sf-lab" data-in="7">max load factor</text>
+<text x="30" y="198" class="sf-num" data-in="7">1 byte</text><text x="170" y="196" class="sf-lab" data-in="7">metadata per slot</text>
+<text x="30" y="280" class="sf-num" data-in="7">16</text><text x="170" y="278" class="sf-lab" data-in="7">slots compared per SSE2 op</text>
+<text x="30" y="362" class="sf-num" data-in="7">~2.1</text><text x="170" y="360" class="sf-lab" data-in="7">groups probed per miss at 7/8 (my sim)</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A hash table has to answer "where is this key?" fast. The classic answer, chaining, hashes to a bucket and walks a linked list. It works, but every hop is a pointer to a separately allocated node, so a lookup is a string of likely cache misses and every entry pays for a pointer.</p></div>
+<div class="step"><p><b>Open addressing</b> drops the lists. Keys and values sit directly in one flat array of slots, grouped here in rows of 8 (Abseil uses 16). A key hashes to a home group and goes in the first free slot it finds. No pointers, no per-entry allocation. The price: a lookup now has to check slots, and a full key comparison per slot is expensive.</p></div>
+<div class="step"><p><b>The trick: a tag per slot.</b> Next to the slots, keep a separate array with one byte per slot. A full slot stores 7 bits of the key's hash. An empty slot stores a special "empty" value. The tag is a cheap fingerprint: slots whose tag differs cannot hold the key.</p></div>
+<div class="step"><p><b>One instruction checks a whole group.</b> Load the group's tag bytes into a SIMD register, compare all of them to the key's tag at once, and get back a bitmask of candidates. Here two slots match 5A. Only those get a real key comparison. A wrong tag matches roughly 1 slot in 128, so false matches are rare.</p></div>
+<div class="step"><p><b>Empty is the stop sign.</b> If the group holds no match and at least one empty slot, the key cannot be further along, because inserts always fill the earliest free slot on the probe path. If the group is completely full, the probe hops to another group, +1 then +2 then +3 groups (triangular steps), and repeats.</p></div>
+<div class="step"><p><b>Deleting needs care.</b> Emptying a slot in a full group could cut a probe path that once passed through it, so such a slot gets a tombstone marker that says "keep going". If the group already has an empty slot, no probe ever passed it, and plain empty is safe. That check keeps tombstones rare.</p></div>
+<div class="step"><p><b>The result.</b> Tables run at up to 7/8 full, spend one byte of metadata per slot and scan 16 slots per instruction. Rust's HashMap, Go's built-in map since 1.24 and Google's Abseil all use this layout. The cost: values move when the table grows, and tombstones can pile up until a rehash.</p></div>
+</div></div></section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A strip of sticky notes lets the clerk check a whole row at a glance"><span>A strip of sticky notes lets the clerk check a whole row at a glance</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six ideas you need first"><span>Six ideas you need first</span></a><a href="#c-world" data-id="world" aria-label="Rust, Go and Google C++ all store maps this way"><span>Rust, Go and Google C++ all store maps this way</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;A flat hash table with a 1-byte tag array&quot; hides five things"><span>&quot;A flat hash table with a 1-byte tag array&quot; hides five things</span></a><a href="#c-problem" data-id="problem" aria-label="Chaining chases pointers; linear probing compares every key"><span>Chaining chases pointers; linear probing compares every key</span></a><a href="#c-model" data-id="model" aria-label="A strip of tags above each row of slots"><span>A strip of tags above each row of slots</span></a><a href="#c-mech" data-id="mech" aria-label="Find: one compare, then hop only while the group is full"><span>Find: one compare, then hop only while the group is full</span></a><a href="#c-math" data-id="math" aria-label="Almost half of 16-slot groups are full at 7/8 load"><span>Almost half of 16-slot groups are full at 7/8 load</span></a><a href="#c-why" data-id="why" aria-label="Filter cheaply for 16 slots, verify expensively for one"><span>Filter cheaply for 16 slots, verify expensively for one</span></a><a href="#c-knobs" data-id="knobs" aria-label="Same core, three different group widths and growth schemes"><span>Same core, three different group widths and growth schemes</span></a><a href="#c-breaks" data-id="breaks" aria-label="Tombstones, resize spikes and hash flooding"><span>Tombstones, resize spikes and hash flooding</span></a><a href="#c-wild" data-id="wild" aria-label="Go added a directory of tables; hashbrown added a scalar fallback"><span>Go added a directory of tables; hashbrown added a scalar fallback</span></a><a href="#c-frontier" data-id="frontier" aria-label="CPU design settled; work moved to GPUs, deletes and theory"><span>CPU design settled; work moved to GPUs, deletes and theory</span></a><a href="#c-open" data-id="open" aria-label="Tombstone-free deletes at SIMD speed are unsolved"><span>Tombstone-free deletes at SIMD speed are unsolved</span></a><a href="#c-lineage" data-id="lineage" aria-label="From open addressing to Go 1.24 in 70 years"><span>From open addressing to Go 1.24 in 70 years</span></a><a href="#c-hands" data-id="hands" aria-label="Run a 1-second simulator and break the erase rule"><span>Run a 1-second simulator and break the erase rule</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three adjacent topics"><span>Three adjacent topics</span></a><a href="#c-sources" data-id="sources" aria-label="Papers, code and docs"><span>Papers, code and docs</span></a></nav>
+
+<main class="wrap">
+<div class="group rv">Plain English</div>
+<article class="card rv plain" id="c-plain" data-id="plain">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="132" height="10" rx="3" class="f-line"/><rect x="14" y="32" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="32" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="32" width="14" height="14" rx="3" class="f-acc s-line" stroke-width="1"/><rect x="65" y="32" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="32" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="32" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="14" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="31" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="48" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="65" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="82" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="99" y="54" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><text x="14" y="90" class="t-mute">mailroom rows</text></svg></div>
+<div class="card-body"><div class="kicker">In everyday words</div><h2>A strip of sticky notes lets the clerk check a whole row at a glance</h2>
+<div class="brief"><p>A mailroom row has a strip of tiny fingerprints, one per pigeonhole. One glance shows which holes could hold your parcel, and a blank spot proves the parcel was never pushed to another row.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
+<p class="dropcap">Picture a mailroom with a wall of pigeonholes, arranged in rows of 16. Parcels are filed by a number worked out from the recipient's name, so the clerk goes straight to the right row. The slow part used to be what happens next: in a normal mailroom the clerk peeks into every pigeonhole in the row, one by one, reading each label in full.</p>
+<p>The Swiss-table trick is a thin strip above each row with one tiny sticky note per pigeonhole, holding a short fingerprint of the name (not the whole name). The clerk glances at the strip and sees at once which pigeonholes <em>might</em> hold the parcel. Only those get opened. If the strip shows a blank spot in the row, the clerk knows the parcel was never pushed on to another row, so a "not here" answer comes quickly. If the row is totally full, the clerk follows a fixed hop pattern to another row and glances at its strip.</p>
+<h3 id="example">Everyday example</h3>
+<p>Maya's parcel is filed in row 0. The fingerprint "5A" appears on two sticky notes in that row. The clerk opens both: the first holds somebody else's parcel (the fingerprint was a coincidence), the second is Maya's. Done after one glance and two peeks.</p>
+<p>Now Noor asks for a parcel that was never filed. Her name points at row 1, which is completely full, so the clerk hops to row 2. Row 2 has blank notes and nothing matches "5A", so the clerk answers "not here" without visiting any other row. Later someone collects a parcel from full row 1. The clerk can't just blank that note, because Noor-style searches may have relied on the row being full to keep moving, so they stick on a "was here, keep looking" flag instead. Collecting a parcel from a row that still has blanks needs no flag at all.</p>
+<p>Now the same thing, technically.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Context</div>
+<article class="card rv" id="c-ctx" data-id="ctx">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="14" y="26" class="t-mute">hash → index</text><rect x="14" y="34" width="132" height="12" rx="3" class="f-line"/><rect x="14" y="34" width="84" height="12" rx="3" class="f-ok"/><text x="14" y="66" class="t-mute">load 7/8</text><path d="M14 90 q30 -30 60 -6 t70 -10" class="s-acc2" fill="none" stroke-width="2"/></svg></div>
+<div class="card-body"><div class="kicker">§1 · Bare-minimum context</div><h2>Six ideas you need first</h2>
+<div class="brief"><p>Hashing to an index, chaining vs open addressing, load factor, SIMD compare + movemask, tombstones, cache lines.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-ctx">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-ctx"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Hash table</b>: a hash function maps a key to a number; the table turns that number into a slot index (here, <code>hash &amp; mask</code> with a power-of-two size).</li>
+<li><b>Chaining vs open addressing</b>: chaining hangs a linked list off each bucket; open addressing stores entries in the array itself and probes neighbouring slots on collision.</li>
+<li><b>Load factor</b>: entries ÷ slots. Open addressing gets slower as it rises; the table resizes at a chosen ceiling.</li>
+<li><b>SIMD compare + movemask</b>: one instruction compares 16 bytes to a value and another packs the 16 results into a 16-bit integer you can bit-scan.</li>
+<li><b>Tombstone</b>: a marker left by a delete so probe sequences that passed through the slot keep going.</li>
+<li><b>Cache line</b>: the CPU fetches 64 bytes at a time, so a 16-byte tag group is one cheap load.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-world" data-id="world">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="50" r="14" class="f-panel s-line"/><circle cx="82" cy="30" r="14" class="f-panel s-line"/><circle cx="120" cy="62" r="14" class="f-panel s-line"/><path d="M52 44 L70 36 M94 36 L110 54" class="s-acc2" stroke-width="2"/><text x="30" y="92" class="t-mute">Rust · Go · C++</text></svg></div>
+<div class="card-body"><div class="kicker">§1b · Real-world context</div><h2>Rust, Go and Google C++ all store maps this way</h2>
+<div class="brief"><p>Abseil (2017) → Rust std via hashbrown (1.36, 2019) → Go built-in map (1.24, 2025). One byte of metadata per slot, 7/8 max load. Rust's README claims ~2× the old map (vendor figure).</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-world">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-world"><div class="deep-inner"><div class="deep-content">
+<h3>What it is</h3>
+<p>A Swiss table is an open-addressing hash table with a separate array of one-byte control tags, one per slot. A full slot's byte holds 7 bits of the key's hash; special values mean "empty" and "deleted". Lookups compare a whole group of tags to the key's 7-bit tag with one SIMD instruction and only run the real key comparison on the few matches. Google's Abseil library introduced it (Matt Kulukundis, CppCon 2017, "Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step").</p>
+<h3>Why it exists</h3>
+<p>The standard C++ <code>std::unordered_map</code> chains through heap-allocated nodes: a pointer per entry and a likely cache miss per hop. Plain linear probing avoids pointers but compares full keys slot by slot and clusters badly near full. Swiss tables keep the flat layout and make each probe step cheap enough to run at 7/8 load. Rust's hashbrown README reports about 2× the speed of the previous std map and 1 byte of overhead per entry instead of 8 (the maintainers' own figures, no methodology given).</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="gc"><b>Abseil</b><br>flat_hash_map / flat_hash_set, the original. Apache-2.0.</div>
+<div class="gc"><b>Rust std</b><br><code>HashMap</code> is hashbrown since Rust 1.36 (July 2019). Apache-2.0 OR MIT.</div>
+<div class="gc"><b>Go 1.24</b><br>The built-in <code>map</code> became a Swiss table in Go 1.24 (Feb 2025). Opt out with <code>GOEXPERIMENT=noswissmap</code>.</div>
+<div class="gc"><b>CockroachDB</b><br>A standalone Go Swiss map library (<code>cockroachdb/swiss</code>).</div>
+<div class="gc"><b>Proposals</b><br>An LLVM <code>FoldingSet</code> RFC and a Ruby <code>st_table</code> layer (Feature #22011) explored it; Ruby's benchmarks regressed (see "Where it breaks").</div>
+</div>
+<h3>How it's used</h3>
+<pre><code>// Rust: nothing to tune except capacity and hasher
+use std::collections::HashMap;
+let mut m: HashMap&lt;u64, String&gt; = HashMap::with_capacity(1_000_000);
+m.insert(42, "a".into());
+let v = m.get(&amp;42);
+
+// C++ (Abseil)
+absl::flat_hash_map&lt;std::string, int&gt; m;
+m.reserve(1'000'000);   // avoids rehashes while filling
+m["x"] = 1;
+
+// Go: no knobs at all
+m := make(map[string]int, 1_000_000)   // hint only</code></pre>
+<p>Rust's std default hasher is <code>RandomState</code> (SipHash 1-3, "subject to change"). The standalone <code>hashbrown</code> crate defaults to foldhash, which is faster but does not claim HashDoS resistance against an interactive attacker.</p>
+<h3>When to use it, when not</h3>
+<div class="two">
+<div class="use"><b>Use</b> for general-purpose maps and sets, small-to-medium keys and values, lookup-heavy loads, anywhere you do not need stable pointers to elements.</div>
+<div class="skip"><b>Skip</b> when you need pointer or reference stability across inserts (values move on rehash), when values are huge (move cost on growth), or when you hold untrusted keys under a weak hasher.</div>
+</div>
+<h3>Who should care</h3>
+<p>Backend and infra engineers (map-heavy services), systems and database authors, performance engineers reading flame graphs full of hash lookups, and security engineers reasoning about hash flooding.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Technical deep dive</div>
+<article class="card rv" id="c-onel" data-id="onel">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="20" width="14" height="14" rx="3" class="f-acc s-line" stroke-width="1"/><rect x="65" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="20" width="14" height="14" rx="3" class="f-acc s-line" stroke-width="1"/><rect x="116" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="20" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="14" y="44" width="132" height="8" rx="2" class="f-acc" opacity=".6"/><text x="14" y="72" class="t-mute">1 byte tag/slot</text><text x="14" y="88" class="t-ink">1 SIMD compare</text></svg></div>
+<div class="card-body"><div class="kicker">§2 · The one-liner</div><h2>&quot;A flat hash table with a 1-byte tag array&quot; hides five things</h2>
+<div class="brief"><p>7-bit tags can lie; empty vs deleted decides when a probe stops; probing is per group; erase sometimes writes empty; and 7/8 load is affordable only because probes are cheap.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-onel">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-onel"><div class="deep-inner"><div class="deep-content">
+<p><b>The one-liner:</b> "An open-addressing hash table with a 1-byte tag array, so one SIMD compare checks 16 slots at once."</p>
+<h3>What it hides</h3>
+<ol>
+<li>The tag is only <b>7 bits</b>, so false matches happen (about 1 per 128 occupied slots) and the full key is always compared before a hit is declared.</li>
+<li>The control byte has <b>three states</b> besides a tag: empty, deleted, sentinel. Whether a slot is empty or deleted decides if a probe stops, and getting it wrong breaks lookups.</li>
+<li>Probing is <b>per group, not per slot</b>, in triangular steps, and which groups get visited depends on how many are full: at 7/8 load, nearly half of 16-slot groups have no empty slot.</li>
+<li><b>Erase sometimes writes empty instead of a tombstone</b>, using a "was this slot ever in a full window" test. That one trick is what keeps churn workloads from filling the table with tombstones.</li>
+<li>The <b>7/8 load factor</b> is only affordable because a group probe is cheap. Go and hashbrown chose different group widths and added different growth machinery around the same core.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-problem" data-id="problem">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="16" width="30" height="14" rx="3" class="f-panel s-line"/><path d="M44 23 h14" class="s-acc2" stroke-width="2"/><rect x="58" y="16" width="30" height="14" rx="3" class="f-panel s-line"/><path d="M88 23 h14" class="s-acc2" stroke-width="2"/><rect x="102" y="16" width="30" height="14" rx="3" class="f-panel s-line"/><text x="14" y="52" class="t-mute">pointer per hop</text><rect x="14" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="65" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="116" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="66" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><text x="14" y="94" class="t-mute">flat, no pointers</text></svg></div>
+<div class="card-body"><div class="kicker">§3 · The problem</div><h2>Chaining chases pointers; linear probing compares every key</h2>
+<div class="brief"><p>Chained tables pay a pointer and a likely cache miss per entry. Plain linear probing clusters and compares full keys. Swiss tables keep it flat and filter with a byte per slot: <b>1 byte</b> instead of 8.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>1 byte</b><span>of metadata per slot in a Swiss table, versus a pointer (8 bytes) per entry in a chained table (hashbrown README, vendor claim)</span></div>
+<h3>What was broken</h3>
+<p><b>Chaining</b> (<code>std::unordered_map</code> in libstdc++/libc++) allocates a node per entry. Each lookup follows at least one pointer to a separate heap object, typically a cache miss costing on the order of 100 ns versus about 1 ns for an L1 hit. The standard also forces pointer stability, which rules out the flat layout.</p>
+<p><b>Linear probing</b> stores entries inline and walks slots one after another. It is cache-friendly, but a probe step runs a full key comparison on each occupied slot, and runs of occupied slots (primary clustering) lengthen sharply as load grows, so it has to resize early (often at ≤50-70% load) and waste memory.</p>
+<p><b>The constraint that forced the design:</b> compare as little as possible per slot, stay inside one cache line per probe step, and keep the load factor high. A byte-sized fingerprint array turns "check up to 16 keys" into "one compare, then usually zero or one key checks".</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-model" data-id="model">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="65" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="116" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="14" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="31" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="48" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="65" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="82" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="99" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="116" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><rect x="133" y="34" width="14" height="14" rx="3" class="f-code s-line" stroke-width="1"/><path d="M14 62 h132" class="s-acc" stroke-width="3"/><text x="14" y="82" class="t-mute">strip of tags</text><text x="14" y="94" class="t-mute">above the slots</text></svg></div>
+<div class="card-body"><div class="kicker">§4 · Mental model</div><h2>A strip of tags above each row of slots</h2>
+<div class="brief"><p>Glance at the strip, open only the maybes. It breaks where tags collide (1 in 128), hops are triangular, and the strip lives in separate memory.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-model">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-model"><div class="deep-inner"><div class="deep-content">
+<p>The mailroom: a strip of sticky notes above each row of pigeonholes. One glance at the strip tells you which pigeonholes could hold your parcel and whether the row has any blank spot.</p>
+<h3>Where the analogy breaks</h3>
+<ul>
+<li>Fingerprints really can collide (about 1 in 128), so "might hold" means "might", and the clerk always checks the full name before handing over a parcel.</li>
+<li>Hops between rows are not to the neighbouring row: the probe moves +1, then +2, then +3 groups, wrapping around a power-of-two number of groups.</li>
+<li>The strip is a separate array in memory from the pigeonholes. That is why one 16-byte load covers a group; the slots themselves are loaded only for matches.</li>
+<li>The "was here, keep looking" flag has a hidden cost in the real table: it uses up growth budget until the next rehash.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-mech" data-id="mech">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="14" width="14" height="14" rx="3" class="f-acc s-line" stroke-width="1"/><rect x="65" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="14" width="14" height="14" rx="3" class="f-acc s-line" stroke-width="1"/><rect x="99" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="116" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="14" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="14" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="65" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="116" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="38" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><path d="M146 21 h8 v32 h-8" class="s-acc2" fill="none" stroke-width="2"/><text x="14" y="74" class="t-mute">match → hop → stop</text></svg></div>
+<div class="card-body"><div class="kicker">§5 · The mechanism, traced</div><h2>Find: one compare, then hop only while the group is full</h2>
+<div class="guess" data-g="erase" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> Abseil erases a key from the table. Which marker does it write in the control byte?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Always a tombstone (deleted)</button><button class="g-opt" type="button" data-k="1">Always empty</button><button class="g-opt" type="button" data-k="2">Empty if the slot was never inside a full probe window, else a tombstone</button><button class="g-opt" type="button" data-k="3">It rehashes the whole table</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>Empty only when no probe could have passed through, otherwise a tombstone. Always-empty would make present keys look absent; always-tombstone fills the table with dead slots (19 rehashes versus 7 in my churn test).</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Compare the key's 7-bit tag to 8 or 16 control bytes at once, check the few candidates, stop at the first empty slot, otherwise hop +1, +2, +3 groups. Erase writes either empty or a tombstone.</p><p class="mini">Step-through of lookup, miss, insert and erase inside.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>6 min · 3 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
+<style>
+#mech-svg .cell{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#mech-svg .cell.e{fill:var(--code)}
+#mech-svg .cell.hit{stroke:var(--accent);stroke-width:3}
+#mech-svg .cell.bad{stroke:var(--bad);stroke-width:3}
+#mech-svg .cell.ok{stroke:var(--ok);stroke-width:3}
+#mech-svg .cell.new{fill:var(--hl)}
+#mech-svg .row{fill:none;stroke:var(--warn);stroke-width:3}
+#mech-svg .tg{fill:var(--ink);font:700 13px ui-monospace,monospace}
+#mech-svg .gl{fill:var(--mute);font:600 12px ui-monospace,monospace}
+#mech-svg g{animation:mech-in .3s cubic-bezier(.2,.7,.2,1) both}
+@keyframes mech-in{from{opacity:.3}}
+</style>
+<p>Trace on a toy table: 4 groups of 8 slots (Go-style aligned groups, so it fits on screen). Keys K1 and K2 both carry tag <code>0x5A</code>.</p>
+<div class="widget" role="group" aria-label="Lookup, insert and erase step-through">
+<svg id="mech-svg" viewBox="0 0 470 300" role="img" aria-label="Four groups of eight slots with tags"></svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+  <div class="info" id="mech-info" aria-live="polite"></div>
+</div>
+</div>
+<h3>The data structure</h3>
+<p>One allocation holds a control-byte array and a slot array of the same length. A control byte is either a 7-bit tag (top bit 0) or one of three special values with the top bit set. That top bit is the whole trick behind the cheap masks: "full" is <code>byte &gt;= 0</code>, "empty or deleted" is a sign-bit test, and "empty" is one equality compare.</p>
+<figure class="fig fig-own" id="fig-layout"><div class="fig-svg" role="img" aria-label="A control-byte group above its slots: a SIMD compare against tag 5A marks slots 0, 3 and 10; empty, deleted and sentinel use the top bit."><svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Control byte array above the slot array with one SIMD compare">
+<text x="20" y="24" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">control bytes (1 per slot)</text>
+<rect x="20" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="39.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="62" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="81.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">3F</text>
+<rect x="104" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="123.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="146" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="165.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="188" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="207.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">B2</text>
+<rect x="230" y="36" width="38" height="34" rx="5" class="f-warn s-line" stroke-width="1.5"/>
+<text x="249.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">X</text>
+<rect x="272" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="291.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">91</text>
+<rect x="314" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="333.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">C7</text>
+<rect x="356" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="375.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="398" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="417.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">0D</text>
+<rect x="440" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="459.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="482" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="501.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">66</text>
+<rect x="524" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="543.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">E0</text>
+<rect x="566" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="585.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="608" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="627.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">14</text>
+<rect x="650" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="669.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">A6</text>
+<text x="20" y="92" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">one group = 16 bytes: load, broadcast 5A, compare, pack bits</text>
+<text x="20" y="112" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">mask = 1001000000100000 → candidate slots 0, 3, 10</text>
+<path d="M20 126 H688" class="s-acc" stroke-width="3"/>
+<text x="20" y="154" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">slots (key + value), same index as the control byte</text>
+<rect x="20" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M39.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="39.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="62" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="81.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="104" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="123.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="146" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M165.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="165.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="188" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="207.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="230" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="249.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="272" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="291.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="314" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="333.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="356" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="375.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="398" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="417.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="440" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M459.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="459.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="482" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="501.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="524" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="543.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="566" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="585.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="608" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="627.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="650" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="669.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<text x="20" y="244" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">byte encodings</text>
+<text x="20" y="266" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">full slot</text>
+<text x="120" y="266" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">0hhhhhhh</text>
+<text x="230" y="266" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">7 hash bits, top bit 0</text>
+<text x="20" y="286" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">empty</text>
+<text x="120" y="286" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">10000000</text>
+<text x="230" y="286" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-128: stops a probe</text>
+<text x="20" y="306" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">deleted</text>
+<text x="120" y="306" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">11111110</text>
+<text x="230" y="306" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-2: tombstone, never stops a probe</text>
+<text x="20" y="326" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">sentinel</text>
+<text x="120" y="326" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">11111111</text>
+<text x="230" y="326" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-1: end marker for iteration</text>
+</svg></div><figcaption><b>Figure 1.</b> A control-byte group above its slots: a SIMD compare against tag 5A marks slots 0, 3 and 10; empty, deleted and sentinel use the top bit.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h" target="_blank" rel="noopener">Adapted from the design notes in Abseil raw_hash_set.h (Apache-2.0)</a> · design comment</span></figcaption></figure>
+<h3>Find, as code</h3>
+<pre><code>// Abseil-style find, simplified. W = 16 on SSE2, 8 on NEON/portable.
+probe = ProbeSeq(h1(hash) &amp; capacity_mask)
+loop:
+    g = Group(ctrl + probe.offset)           // W control bytes
+    for i in g.Match(h2(hash)):              // _mm_cmpeq_epi8 + _mm_movemask_epi8, then bit-scan
+        if key_eq(slots[(probe.offset + i) &amp; mask], key): return slot
+    if g.MaskEmpty(): return NOT_FOUND       // an empty slot ends the search
+    probe.next()                             // offset += index; index += W; offset &amp;= mask</code></pre>
+<p>Going by the Abseil source read for this dive: capacities are <code>2<sup>k</sup>−1</code> so <code>&amp; mask</code> wraps, <code>probe.next()</code> grows the step by W each time so offsets are triangular multiples of W, and when the group count is a power of two every group is visited once. Abseil and hashbrown start the window at <i>any</i> slot (<code>h1 &amp; mask</code>), Go uses aligned groups; the traces and the simulator use aligned groups for clarity.</p>
+<figure class="fig fig-own" id="fig-probe"><div class="fig-svg" role="img" aria-label="Triangular probe: the offsets from the home group are 0, +1, +3, +6, so a full group sends the lookup further each time."><svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Triangular probe over 8 groups of 8 slots">
+<text x="20" y="24" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">probe order over 8 groups (64 slots, group width 8, aligned start for clarity)</text>
+<rect x="20" y="44" width="78" height="56" rx="5" class="f-panel s-acc" stroke-width="2.5"/>
+<text x="59.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G0</text>
+<rect x="104" y="44" width="78" height="56" rx="5" class="f-panel s-acc" stroke-width="2.5"/>
+<text x="143.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G1</text>
+<rect x="188" y="44" width="78" height="56" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="227.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G2</text>
+<rect x="272" y="44" width="78" height="56" rx="5" class="f-panel s-acc" stroke-width="2.5"/>
+<text x="311.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G3</text>
+<rect x="356" y="44" width="78" height="56" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="395.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G4</text>
+<rect x="440" y="44" width="78" height="56" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="479.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G5</text>
+<rect x="524" y="44" width="78" height="56" rx="5" class="f-panel s-acc" stroke-width="2.5"/>
+<text x="563.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G6</text>
+<rect x="608" y="44" width="78" height="56" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="647.0" y="78" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="middle">G7</text>
+<text x="59.0" y="122" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">1st</text>
+<text x="143.0" y="122" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">2nd</text>
+<text x="311.0" y="122" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">3rd</text>
+<text x="563.0" y="122" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">4th</text>
+<path d="M59.0 104 V156 H143.0 V104" fill="none" class="s-acc2" stroke-width="2.5"/>
+<text x="101.0" y="150" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">+1</text>
+<path d="M143.0 104 V162 H311.0 V104" fill="none" class="s-acc2" stroke-width="2.5"/>
+<text x="227.0" y="156" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">+2</text>
+<path d="M311.0 104 V168 H563.0 V104" fill="none" class="s-acc2" stroke-width="2.5"/>
+<text x="437.0" y="162" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">+3</text>
+<text x="20" y="214" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">offsets from home: 0, 1, 3, 6, 10, 15, … (triangular numbers). When the number of groups is a power of two this visits every group once.</text>
+<text x="20" y="234" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">Abseil and hashbrown slide a W-byte window from any slot instead of aligned groups; the step pattern is the same.</text>
+</svg></div><figcaption><b>Figure 2.</b> Triangular probe: the offsets from the home group are 0, +1, +3, +6, so a full group sends the lookup further each time.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h" target="_blank" rel="noopener">Abseil raw_hash_set.h probe_seq</a> · probe_seq</span></figcaption></figure>
+<h3>Insert</h3>
+<p>Insert first runs <code>find</code> to avoid duplicates, then probes again for the first group with an empty <i>or deleted</i> slot, writes the tag and the value there, and decrements <code>growth_left</code>. If <code>growth_left</code> is zero the table rehashes first (see math and breaks).</p>
+<h3>Erase</h3>
+<p>An erase cannot always write <code>empty</code>, because that could cut a probe path: a later lookup for a key that overflowed past this group would stop at the new empty and wrongly report "absent". Abseil writes <code>empty</code> only if the slot "was never full": there are empties in the window before and after it, and no 16-slot run of full slots spans it. Otherwise it writes <code>deleted</code>.</p>
+<figure class="fig fig-own" id="fig-erase"><div class="fig-svg" role="img" aria-label="Erase rule: in a window with no empty slot the erased slot becomes a tombstone; where empties exist it becomes empty."><svg viewBox="0 0 760 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Erase writes a tombstone in a full window and empty otherwise">
+<text x="20" y="36" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">A. window has no empty slot: erase slot 3</text>
+<rect x="20" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="38" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">22</text>
+<rect x="60" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="78" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">7D</text>
+<rect x="100" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="118" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">E0</text>
+<rect x="140" y="48" width="36" height="34" rx="5" class="f-panel s-bad" stroke-width="3"/>
+<text x="158" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">14</text>
+<rect x="180" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="198" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">8B</text>
+<rect x="220" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="238" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">A6</text>
+<rect x="260" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="278" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">3C</text>
+<rect x="300" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="318" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">F1</text>
+<text x="360" y="70" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">→ write DELETED (tombstone)</text>
+<text x="360" y="90" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">a probe may have passed through this slot</text>
+<text x="360" y="108" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">growth budget is NOT given back</text>
+<text x="20" y="156" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">B. window has empties: erase slot 3</text>
+<rect x="20" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="38" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">58</text>
+<rect x="60" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="78" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">2A</text>
+<rect x="100" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="118" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="140" y="168" width="36" height="34" rx="5" class="f-panel s-bad" stroke-width="3"/>
+<text x="158" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">B7</text>
+<rect x="180" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="198" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="220" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="238" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">6C</text>
+<rect x="260" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="278" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">19</text>
+<rect x="300" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="318" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<text x="360" y="190" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">→ write EMPTY</text>
+<text x="360" y="210" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">probes always stopped at an empty here, never passed</text>
+<text x="360" y="228" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">growth budget IS given back</text>
+<text x="20" y="262" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">Abseil adds a check that the slot was not inside any full 16-slot run that spans it (exact arithmetic in raw_hash_set.cc).</text>
+</svg></div><figcaption><b>Figure 3.</b> Erase rule: in a window with no empty slot the erased slot becomes a tombstone; where empties exist it becomes empty.<span class="fig-cite">Original diagram</span></figcaption></figure>
+<div class="callout flag"><b>Verify before quoting:</b> the exact window arithmetic of the "never full" test was read from <code>raw_hash_set.cc</code> in a research pass and flagged for double-checking. The behaviour (empty only when no probe could have passed) is certain; the precise bit-twiddle is not reproduced here.</div>
+<div class="callout flag"><b>From memory, not re-verified:</b> Abseil keeps <code>W−1</code> cloned control bytes after the end of the array so an unaligned group load near the end wraps correctly.</div>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('mech-svg');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  var BASE=[['3F','--','5A','B2','5A','--','91','C7'],['22','7D','E0','14','8B','A6','3C','F1'],['0D','--','66','--','9E','41','--','D3'],['58','2A','--','B7','--','6C','19','--']];
+  // each step: info, overrides on tags, marks {g,i,cls}, row outline
+  var S=[
+   {info:'<b>Lookup K1.</b> h1 picks home group G0, h2 = 0x5A. Load G0\'s 8 control bytes (one cache line is plenty).',row:0,marks:[]},
+   {info:'<b>One compare.</b> Broadcast 5A, compare against the 8 tags, pack the bits: mask = <code>00101000</code>. Two candidates, slots 2 and 4. Nothing else in the group is touched.',row:0,marks:[[0,2,'hit'],[0,4,'hit']]},
+   {info:'<b>Slot 2:</b> full key compare says the stored key is not K1. A <i>false match</i>, the 1-in-128 event. Discard it.',row:0,marks:[[0,2,'bad'],[0,4,'hit']]},
+   {info:'<b>Slot 4:</b> keys equal, <b>hit</b>. Cost: 1 group, 1 SIMD compare, 2 key compares.',row:0,marks:[[0,2,'bad'],[0,4,'ok']]},
+   {info:'<b>Lookup K2 (absent).</b> Home group G1, h2 = 5A. No tag in G1 equals 5A, and the empty mask is <code>00000000</code>: G1 is full, so the probe must continue.',row:1,marks:[]},
+   {info:'<b>Hop +1 group to G2.</b> Still no 5A, but the empty mask is <code>01010010</code>, non-zero: empty slots exist, so K2 cannot be further along. <b>Miss</b> after 2 groups.',row:2,marks:[[2,1,'hit'],[2,3,'hit'],[2,6,'hit']]},
+   {info:'<b>Insert K2.</b> Same probe path, first empty-or-deleted slot: G1 is full, so G2 slot 1. Write tag 5A, store key and value, <code>growth_left</code> −= 1.',row:2,marks:[[2,1,'ok']],over:{'2,1':'5A'},newc:'2,1'},
+   {info:'<b>Erase G1 slot 3</b> (tag 14): G1 has no empty, so a probe may have passed here, so write DELETED (X). <b>Erase G3 slot 3</b> (tag B7): G3 has empties, so write EMPTY and give the budget back.',row:1,marks:[[1,3,'bad'],[3,3,'ok']],over:{'2,1':'5A','1,3':'X','3,3':'--'},newc:'2,1'}
+  ];
+  var cur=0,W=47,H=36,X0=44;
+  function y(g){return 24+g*66}
+  function draw(){
+    var st=S[cur];svg.innerHTML='';
+    var g0=el('g',{});svg.appendChild(g0);
+    for(var g=0;g<4;g++){
+      g0.appendChild(el('text',{x:6,y:y(g)+23,class:'gl'},'G'+g));
+      for(var i=0;i<8;i++){
+        var t=(st.over&&st.over[g+','+i]!=null)?st.over[g+','+i]:BASE[g][i];
+        var cls='cell'+(t=='--'?' e':'');
+        if(st.newc==g+','+i)cls+=' new';
+        (st.marks||[]).forEach(function(m){if(m[0]==g&&m[1]==i)cls+=' '+m[2]});
+        g0.appendChild(el('rect',{x:X0+i*W,y:y(g),width:W-5,height:H,rx:5,class:cls}));
+        g0.appendChild(el('text',{x:X0+i*W+(W-5)/2,y:y(g)+23,'text-anchor':'middle',class:'tg'},t));
+      }
+    }
+    if(st.row!=null)g0.appendChild(el('rect',{x:X0-4,y:y(st.row)-4,width:8*W-1,height:H+8,rx:8,class:'row'}));
+    document.getElementById('mech-info').innerHTML=st.info;
+    document.getElementById('mech-n').textContent='step '+(cur+1)+' / '+S.length;
+    document.getElementById('mech-prev').disabled=cur==0;
+    document.getElementById('mech-next').disabled=cur==S.length-1;
+  }
+  document.getElementById('mech-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('mech-next').onclick=function(){if(cur<S.length-1){cur++;draw()}};
+  draw();
+})();
+</script>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-math" data-id="math">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 84 C50 82 90 76 110 56 S140 20 148 12" class="s-acc" fill="none" stroke-width="2.5"/><path d="M14 90 H148 M14 90 V10" class="s-line" fill="none"/><text x="20" y="22" class="t-mute">probes</text><text x="100" y="97" class="t-mute">load →</text></svg></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>Almost half of 16-slot groups are full at 7/8 load</h2>
+<div class="guess" data-g="miss" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> Load 7/8, 16-slot groups. Naive math (each slot full with probability 7/8) says a missing key visits 1.13 groups. What does a simulator measure?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1.0 to 1.2</button><button class="g-opt" type="button" data-k="1">About 1.5</button><button class="g-opt" type="button" data-k="2">About 2.1</button><button class="g-opt" type="button" data-k="3">About 5</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>About <b>2.09</b> groups (my simulator, aligned groups, deterministic seed). 47.6% of groups have no empty slot, not 11.8%, because keys land unevenly and overflow spills into neighbours.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>False tag matches cost occupied/128 per group. The naive α<sup>W</sup> model predicts 1.13 groups per miss at 7/8; my simulator measures <b>2.09</b>, because 47.6% of groups hold no empty slot.</p><p class="mini">Load-factor explorer inside.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>4 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
+<h3>1. False matches from a 7-bit tag</h3>
+<p>A wrong occupied slot has an independent 7-bit tag, so it equals the key's tag with probability 1/2<sup>7</sup> = 1/128.</p>
+<div class="eq">E[false key compares per group visited] = occupied · 1/128<small>→ in plain terms: a group with 14 of 16 slots full wastes about 0.11 key comparisons per visit. With more tag bits the filter would be sharper, but the control byte also needs the top bit for "empty/deleted", leaving 7.</small></div>
+<p>Measured in the simulator (aligned groups, W = 16, 7/8 load): 0.231 false matches per <i>missing</i> lookup, about 2.1 groups × 0.11.</p>
+<h3>2. How many groups does a lookup touch?</h3>
+<p>A miss ends at the first group with an empty slot, so its cost is the expected number of groups until one has room. If a fraction <i>p</i> of groups are completely full and the probe sees them independently, this is a geometric distribution:</p>
+<div class="eq">E[groups probed, miss] ≈ 1 / (1 − p)<small>→ in plain terms: the fuller your groups, the more hops a "not here" answer needs.</small></div>
+<p>The naive guess sets <i>p</i> = α<sup>W</sup> (every slot full with probability α). That is wrong because keys land in groups unevenly. Before any overflow, group occupancy is roughly Poisson with mean αW; with α = 7/8 and W = 16, P(X ≥ 16) ≈ 0.33. Overflow then pushes the excess into neighbouring probe targets, which raises the measured full-group share further:</p>
+<table>
+<tr><th>load α</th><th>W</th><th>α<sup>W</sup> guess</th><th>Poisson before overflow</th><th>measured full groups</th><th>measured miss groups</th></tr>
+<tr><td>0.75</td><td>16</td><td>0.010</td><td>0.156</td><td>0.189</td><td>1.25</td></tr>
+<tr><td>0.875</td><td>16</td><td>0.118</td><td>0.331</td><td>0.476</td><td>2.09</td></tr>
+<tr><td>0.875</td><td>8</td><td>0.344</td><td>0.401</td><td>0.603</td><td>2.93</td></tr>
+<tr><td>0.95</td><td>16</td><td>0.440</td><td>n/a</td><td>n/a</td><td>4.80</td></tr>
+</table>
+<div class="callout flag">All "measured" figures come from <code>swiss_sim.py</code> in this folder: aligned groups, a splitmix64 hash, 16K–32K slots, 20,000 lookups per row, one seed. They are a model of the design, not benchmarks of Abseil, hashbrown or Go. Treat the shape (nearly half of 16-wide groups full at 7/8) as the finding.</div>
+<h3>Interactive: load factor vs. probes</h3>
+<div class="widget" role="group" aria-label="Load factor explorer">
+<div class="ctl"><label for="math-load">Load factor <b id="math-lv">0.875</b></label><input type="range" id="math-load" min="0" max="3" step="1" value="2" aria-label="Load factor"></div>
+<div class="ctl"><label>Group width</label><button class="btn" id="math-w8">8 slots</button> <button class="btn" id="math-w16">16 slots</button></div>
+<div class="bar" aria-hidden="true"><div id="math-bar" style="height:14px;border-radius:6px;background:var(--accent);width:20%"></div></div>
+<div class="info" id="math-out" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+  var L=[0.5,0.75,0.875,0.95];
+  // from swiss_sim.py (sim_output.txt): [hit, miss, falseMatches]
+  var D={8:[[1.009,1.061,0.032],[1.088,1.576,0.071],[1.231,2.925,0.160],[1.477,6.834,0.409]],16:[[1.001,1.008,0.062],[1.027,1.254,0.118],[1.105,2.089,0.231],[1.269,4.803,0.572]]};
+  var w=16,sl=document.getElementById('math-load');
+  function up(){var i=+sl.value,d=D[w][i];
+    document.getElementById('math-lv').textContent=L[i].toFixed(3).replace(/0$/,'');
+    document.getElementById('math-bar').style.width=Math.min(100,d[1]/7*100)+'%';
+    document.getElementById('math-out').innerHTML='Width <b>'+w+'</b>, load <b>'+L[i]+'</b>: a hit visits <b>'+d[0].toFixed(2)+'</b> groups, a miss <b>'+d[1].toFixed(2)+'</b> groups with <b>'+d[2].toFixed(2)+'</b> wasted key compares. <span class="mini">(simulator output, aligned groups)</span>';}
+  sl.oninput=up;
+  document.getElementById('math-w8').onclick=function(){w=8;up()};
+  document.getElementById('math-w16').onclick=function(){w=16;up()};
+  up();
+})();
+</script>
+<h3>3. Load factor and growth budget</h3>
+<p>Abseil keeps <code>growth_left</code>: the number of insertions allowed before a rehash. For capacity above 63 it starts at <code>capacity − capacity/8</code>, i.e. 7/8. Tombstones are not freed by erase; they stay counted against the budget. A table with live entries <i>n</i> and tombstones <i>d</i> must rehash when <i>n + d</i> reaches 7/8·capacity, even if <i>n</i> is small.</p>
+<div class="eq">rehash when  n + d ≥ ⌊7/8 · capacity⌋<small>→ in plain terms: deleted slots keep taking up room until a rehash clears them. A same-size rehash when the table is mostly tombstones; a doubling when it is mostly live.</small></div>
+<p>Capacities are 2<sup>k</sup>−1 and growth goes to 2·capacity+1. Small tables (capacity ≤ 63) are allowed to fill to capacity−1 (a table within a single group may fill completely).</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-why" data-id="why">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="20" width="132" height="12" rx="3" class="f-line"/><rect x="14" y="20" width="12" height="12" rx="3" class="f-ok"/><text x="14" y="52" class="t-mute">tag filters 127/128</text><text x="14" y="72" class="t-mute">empty stops probe</text></svg></div>
+<div class="card-body"><div class="kicker">§7 · Why it works</div><h2>Filter cheaply for 16 slots, verify expensively for one</h2>
+<div class="brief"><p>Separate "which slots could match" (two SIMD instructions on one cache line) from "does this slot match" (full compare, about once per lookup). Each piece, removed, breaks correctness or speed.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
+<p><b>The core insight:</b> separate the question "which slots could hold this key?" from "does this slot hold this key?". The first is answered for 16 slots in two instructions from one dense 16-byte line; the second, expensive, runs about once per lookup.</p>
+<h3>Ablation: remove each piece</h3>
+<ul>
+<li><b>Drop the tag array</b> (compare keys directly): every probe step compares up to 16 full keys, which are bigger, scattered and slower, so you are back to linear probing's cost.</li>
+<li><b>Make the tag 8 bits and drop the special values into a side bitmap</b>: sharper filter, but "empty" becomes a second memory read per group.</li>
+<li><b>Treat deleted like empty</b>: a probe stops early at a slot where an overflowed key once passed, so a present key is reported absent. Correctness bug.</li>
+<li><b>Never write empty on erase</b> (always tombstone): correct, but tombstones accumulate under churn and force rehashes (the simulator showed 19 rehashes versus 7 in the same run).</li>
+<li><b>Probe slot-by-slot instead of group-wise</b>: more steps to reach an empty at high load; with W = 8 instead of 16 the simulator needs 2.93 groups per miss instead of 2.09 at 7/8.</li>
+<li><b>Linear group stepping (+1, +1, +1) instead of triangular</b>: full groups clump, so one overloaded neighbourhood stretches every probe through it.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-knobs" data-id="knobs">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 30 h132 M14 60 h132" class="s-line" stroke-width="2"/><circle cx="110" cy="30" r="7" class="f-acc"/><circle cx="52" cy="60" r="7" class="f-acc2"/><text x="14" y="88" class="t-mute">width · load · hash</text></svg></div>
+<div class="card-body"><div class="kicker">§8 · Design knobs &amp; alternatives</div><h2>Same core, three different group widths and growth schemes</h2>
+<div class="guess" data-g="w8" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Halve the group width from 16 to 8 slots at 7/8 load. How many more groups does a missing-key lookup visit?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Same number</button><button class="g-opt" type="button" data-k="1">About 1.4× as many</button><button class="g-opt" type="button" data-k="2">About 2× as many</button><button class="g-opt" type="button" data-k="3">About 4× as many</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>About <b>1.4×</b>: 2.93 versus 2.09 groups in the simulator. Narrower groups fill more often (60% versus 48%), but each hop is also cheaper, so width is a tradeoff, not a free win.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Abseil uses 16-wide groups, Go 8, hashbrown 16 on SIMD. All run at 7/8. Go splits growth into ≤1024-slot tables; Abseil and hashbrown rehash everything.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
+<table>
+<tr><th>Knob</th><th>Abseil</th><th>hashbrown</th><th>Go 1.24</th></tr>
+<tr><td>Group width</td><td>16 (SSE2); 8 on NEON/portable</td><td>16 on SSE2/NEON, one <code>usize</code> in the generic fallback (from memory, unverified)</td><td>8 slots</td></tr>
+<tr><td>Max load</td><td>7/8 above 63 slots</td><td>7/8 (same family)</td><td>7/8 (<code>maxAvgGroupLoad = 7</code>)</td></tr>
+<tr><td>Growth</td><td>whole table, ×2+1</td><td>whole table</td><td>per table, split at 1024 slots; directory doubles as needed</td></tr>
+<tr><td>Hasher</td><td>pluggable, default Abseil hash</td><td>foldhash default (crate); std uses SipHash 1-3</td><td>runtime AES/wyhash-style, per-map seed</td></tr>
+<tr><td>Small maps</td><td>inline slots for tiny capacity</td><td>no allocation until first insert</td><td>≤ 8 entries: one group, no directory, no tombstones</td></tr>
+<tr><td>User knobs</td><td>reserve, hasher</td><td>with_capacity, with_hasher</td><td>size hint only</td></tr>
+</table>
+<h3>Alternatives and why Swiss won</h3>
+<ul>
+<li><b>Chaining</b>: stable pointers, simple, but pointer-chasing and 8 B/entry.</li>
+<li><b>Robin Hood / linear probing</b>: great cache behaviour and low variance, lacks the SIMD filter. Swiss tables won the standard-library slots, but I found no primary-source head-to-head, so call this "unverified debate".</li>
+<li><b>Cuckoo / bucketised cuckoo</b>: worst-case O(1) lookups but costlier inserts and tighter load balance.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-breaks" data-id="breaks">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="31" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="48" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="65" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="82" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="99" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="116" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><rect x="133" y="22" width="14" height="14" rx="3" class="f-panel s-line" stroke-width="1"/><path d="M32 22 l14 14 M46 22 l-14 14" class="s-bad" stroke-width="3"/><path d="M80 22 l14 14 M94 22 l-14 14" class="s-bad" stroke-width="3"/><text x="14" y="62" class="t-mute">tombstones · floods</text><text x="14" y="78" class="t-mute">resize spike</text></svg></div>
+<div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Tombstones, resize spikes and hash flooding</h2>
+<div class="guess" data-g="churn" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Churn test: 80% load, 60,000 delete+insert rounds. Compared with always writing tombstones, how many rehashes does the "never full" erase rule need?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">The same</button><button class="g-opt" type="button" data-k="1">About 2.7× fewer</button><button class="g-opt" type="button" data-k="2">About 2.7× more</button><button class="g-opt" type="button" data-k="3">None at all</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>About <b>2.7× fewer</b> (7 versus 19). Fewer tombstones means the growth budget lasts longer. Single seed, simplified erase test.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Tombstones eat growth budget until a rehash; whole-table rehash is O(n); predictable hashes allow flooding. Ruby's Swiss-style layer regressed real benchmarks (+1.77% geomean).</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
+<h3>Tombstone buildup</h3>
+<p>Under delete-heavy churn, tombstones occupy growth budget until a rehash. The "never full" erase rule avoids most of them. In the simulator (80% load, 60,000 delete+insert rounds, W = 16) disabling the rule triggered 19 rehashes; enabling it triggered 7. The rule has a cost too: with fewer rehashes the table spent more time near its ceiling and the average miss touched 2.04 groups instead of 1.67. Single seed, coarse sampling, simplified erase test.</p>
+<h3>Resize spikes</h3>
+<p>Abseil and hashbrown rehash the whole table at once, so one insert can cost O(n). Go bounds this by splitting only the table that fills (≤ 1024 slots), at the price of a directory indirection. (A claim that Abseil resizes incrementally was checked and found unsupported.)</p>
+<h3>HashDoS</h3>
+<p>If an attacker controls keys and the hash is predictable, they can force every key into the same groups and degrade lookups to O(n). History: Crosby and Wallach (USENIX Security 2003) showed it; the 2011 28C3 talk by Klink and Wälde hit PHP, ASP.NET, Ruby, Java and Python; Aumasson, Bernstein and Boßlet (2012) showed random seeds on MurmurHash/CityHash were not enough, which led to SipHash. Rust's std default is SipHash 1-3; hashbrown's default foldhash says it does not resist an interactive attacker.</p>
+<h3>Where it loses on speed</h3>
+<p>Ruby's Feature #22011 (a Swiss-style layer under <code>st_table</code>) saw microbenchmark wins but ruby-bench showed +1.77% geomean interpreter time and up to +12.5% on single benchmarks, with up to +20% memory on one benchmark; still under investigation, and a hash-function bug may have skewed it. Go issue #70700 notes the swiss benchmarks use predictable key order and no cold-map cases; the linked CLs made small-map lookups about 1.7× faster for unpredictable keys.</p>
+<div class="callout mis"><b>Misconception:</b> "7-bit tags make false positives a correctness risk." They never do: a tag match only nominates a slot, and the stored key is always compared in full.</div>
+<div class="callout gotcha"><b>Gotcha:</b> iteration order is not stable across inserts (rehash moves everything) and Go deliberately randomises it. Pointers and references to values are invalidated by a rehash.</div>
+<div class="callout flag">Not found in the research pass: any CVE specific to hashbrown, Go's swiss map or Abseil, and any hashbrown issue about tombstone accumulation. Absence of search results is not proof of absence.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-wild" data-id="wild">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="40" height="22" rx="4" class="f-panel s-line"/><rect x="60" y="14" width="40" height="22" rx="4" class="f-panel s-line"/><rect x="106" y="14" width="40" height="22" rx="4" class="f-panel s-line"/><text x="20" y="29" class="t-ink">C++</text><text x="68" y="29" class="t-ink">Rust</text><text x="118" y="29" class="t-ink">Go</text><rect x="14" y="50" width="132" height="30" rx="4" class="f-code s-line"/><text x="20" y="69" class="t-mute">dir → tables ≤1024</text></svg></div>
+<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>Go added a directory of tables; hashbrown added a scalar fallback</h2>
+<div class="brief"><p>Abseil is the reference. Go 1.24 maps use a directory of ≤1024-slot tables and randomise iteration; Rust's std uses SipHash while the hashbrown crate defaults to foldhash.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Abseil</b> <code>flat_hash_map</code>: the reference, 16-byte groups, 7/8 load, <code>reserve</code> to avoid rehashes.</li>
+<li><b>Rust std</b>: hashbrown since 1.36 (July 2019); SIMD on SSE2/NEON with a portable fallback; SipHash by default in std, foldhash in the standalone crate.</li>
+<li><b>Go 1.24</b> (Feb 2025): groups of 8, a directory of tables capped at 1024 slots (extendible-hashing style), small maps that skip the directory, iteration starting at random offsets, and an opt-out flag. The release notes credit a "2-3% average" CPU reduction across a benchmark suite, but that figure covers several runtime changes together, not the map alone.</li>
+<li><b>CockroachDB</b> <code>swiss</code>: a library variant; reportedly slightly better at large sizes and worse on tiny maps (secondary report).</li>
+</ul>
+<figure class="fig fig-own" id="fig-dir"><div class="fig-svg" role="img" aria-label="Go 1.24 map layout: a directory indexed by hash bits, tables of up to 1024 slots, groups of 8."><svg viewBox="0 0 760 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Go swiss map: directory of tables, each table up to 1024 slots">
+<text x="20" y="24" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">Go 1.24 map: directory → tables → groups of 8</text>
+<text x="20" y="52" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">directory (indexed by top hash bits)</text>
+<rect x="20" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="48" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">00</text>
+<rect x="80" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="108" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">01</text>
+<rect x="140" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="168" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">10</text>
+<rect x="200" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="228" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">11</text>
+<rect x="330" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="390" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table A</text>
+<text x="390" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 1</text>
+<text x="390" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<rect x="490" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="550" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table B</text>
+<text x="550" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 2</text>
+<text x="550" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<rect x="630" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="690" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table C</text>
+<text x="690" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 2</text>
+<text x="690" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<path d="M48 98 V150 H390 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M108 98 V158 H390 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M168 98 V166 H550 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M228 98 V174 H690 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<text x="20" y="182" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">a table = array of groups, each group = 8 control bytes + 8 slots</text>
+<rect x="20" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="24" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="37" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="50" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="63" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="76" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="89" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="102" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="115" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="76" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 0</text>
+<rect x="140" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="144" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="157" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="170" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="183" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="196" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="209" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="222" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="235" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="196" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 1</text>
+<rect x="260" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="264" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="277" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="290" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="303" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="316" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="329" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="342" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="355" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="316" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 2</text>
+<rect x="380" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="384" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="397" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="410" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="423" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="436" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="449" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="462" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="475" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="436" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 3</text>
+<text x="20" y="268" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">a full table splits in two (directory doubles if localDepth = globalDepth): growth cost stays bounded by 1024 slots.</text>
+</svg></div><figcaption><b>Figure 4.</b> Go 1.24 map layout: a directory indexed by hash bits, tables of up to 1024 slots, groups of 8.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/golang/go/tree/master/src/internal/runtime/maps" target="_blank" rel="noopener">Go source, internal/runtime/maps (table.go, map.go)</a> · table.go / map.go</span></figcaption></figure>
+<h3>Deviations from the CppCon talk</h3>
+<p>Go adds the directory and per-table growth; hashbrown adds a generic scalar fallback and a Rust-friendly API; Go randomises iteration offsets; Go's 8-slot groups hold one empty slot at 7/8 where Abseil's 16 hold two, which the Go source comments on explicitly.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Research edge</div>
+<article class="card rv" id="c-frontier" data-id="frontier">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M14 80 H146" class="s-line" stroke-width="2"/><circle cx="34" cy="80" r="5" class="f-acc"/><circle cx="76" cy="80" r="5" class="f-acc"/><circle cx="118" cy="80" r="5" class="f-acc2"/><text x="14" y="30" class="t-mute">GPU · DLHT · SIMD</text><text x="14" y="50" class="t-mute">theory</text></svg></div>
+<div class="card-body"><div class="kicker">§11 · Frontier</div><h2>CPU design settled; work moved to GPUs, deletes and theory</h2>
+<div class="brief"><p>DLHT (HPDC 2024), WarpSpeed (ALENEX 2026), a SIMD hash-table analysis (arXiv, Oct 2026), GPU tables. No peer-reviewed Swiss-table critique found.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
+<p>On the CPU side the design is settled: Abseil, Rust and Go all adopted group probing. Active work moved to GPUs, concurrent designs with cheap deletes, and theory.</p>
+<ul>
+<li><b>Go 1.24 Swiss map</b>, 2025, <a href="https://go.dev/blog/swisstable" target="_blank" rel="noopener">go.dev blog</a>: production-scale adoption with a directory-of-tables twist. (Performance figures in secondary posts are unverified.)</li>
+<li><b>DLHT</b>, Katsarakis, Gavrielatos, Ntarmos, HPDC 2024, <a href="https://arxiv.org/abs/2406.09986" target="_blank" rel="noopener">arXiv 2406.09986</a>: a concurrent, non-blocking, resizable table using closed addressing with cache-line chaining and immediate reuse of deleted slots; reports over 1.6 billion requests/s. The most direct answer to the tombstone critique.</li>
+<li><b>WarpSpeed</b>, McCoy and Pandey, ALENEX 2026, <a href="https://arxiv.org/abs/2509.16407" target="_blank" rel="noopener">arXiv 2509.16407</a>: a library and benchmark over eight GPU hash table designs with fingerprint metadata and lock-free queries.</li>
+<li><b>A Fine-Grained Analysis of SIMD-Based Hash Table Implementations</b>, Nicaud and Rotondo, arXiv preprint (Oct 2026), <a href="https://arxiv.org/html/2610.02385" target="_blank" rel="noopener">2610.02385</a>: analyses SIMD open addressing with Wormald's differential-equation method. Its experiments simulate its own model; it does not benchmark Abseil, hashbrown or Go.</li>
+<li><b>Hive Hash Table</b> (<a href="https://arxiv.org/pdf/2510.15095" target="_blank" rel="noopener">arXiv 2510.15095</a>, 2025) and <b>HierarchicalKV</b> (<a href="https://arxiv.org/pdf/2603.17168" target="_blank" rel="noopener">arXiv 2603.17168</a>, 2026): GPU tables reporting 1.5–2× and 1.4× over WarpCore on their own setups; venues unverified.</li>
+</ul>
+<div class="callout flag">Not verified: the LLVM FoldingSet Swiss-table RFC (reported ~1.4% clang speedup) comes from a forum snippet only. I found no peer-reviewed 2024–26 critique of Swiss tables, and no VLDB/SIGMOD paper on learned hash functions in the window. Iceberg hashing (Bender et al., 2023) falls just outside it.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-open" data-id="open">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="64" y="68" class="t-ink" style="font-size:54px">?</text></svg></div>
+<div class="card-body"><div class="kicker">§11b · Open problems</div><h2>Tombstone-free deletes at SIMD speed are unsolved</h2>
+<div class="brief"><p>Deletes without tombstones, bounded insert tails, hash speed versus attack resistance, and a rigorous probe model for real implementations.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-open">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-open"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Deletes without tombstones, at SIMD speed.</b> The "never full" trick helps but is probabilistic in effect. Closed-addressing designs like DLHT avoid tombstones at the cost of chaining; nobody has shown a clear winner for general-purpose maps.</li>
+<li><b>Bounded insert tail latency.</b> Whole-table rehash is O(n). Go's table splitting bounds it; whether that is worth a directory lookup on every access across workloads is not settled (see Go #70700 on benchmark methodology).</li>
+<li><b>Hash quality versus speed versus attack resistance.</b> foldhash and ahash are fast and not interactive-attacker-proof; SipHash is. Choosing per deployment is still manual.</li>
+<li><b>Proving what the model predicts.</b> The simple α<sup>W</sup> model fails; the SIMD-analysis preprint above is a first rigorous attempt, still unreplicated on real implementations.</li>
+<li><b>Robin Hood versus Swiss, and incremental resizing.</b> I found no primary-source comparison; mark as an open, partly folkloric debate.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-lineage" data-id="lineage">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="50" r="7" class="f-panel s-line"/><circle cx="64" cy="50" r="7" class="f-panel s-line"/><circle cx="104" cy="50" r="7" class="f-acc"/><circle cx="142" cy="50" r="7" class="f-panel s-line"/><path d="M31 50 H57 M71 50 H97 M111 50 H135" class="s-acc2" stroke-width="2"/><text x="14" y="82" class="t-mute">chain → probe → SIMD</text></svg></div>
+<div class="card-body"><div class="kicker">§12 · Lineage</div><h2>From open addressing to Go 1.24 in 70 years</h2>
+<div class="brief"><p>Linear probing → hash-flooding attacks (2003) → SipHash (2012) → Swiss tables (2017) → Rust std (2019) → Go 1.24 (2025).</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-lineage">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-lineage"><div class="deep-inner"><div class="deep-content">
+<p><b>1950s–70s</b> open addressing and linear probing, analysed by Knuth → <b>2003</b> Crosby and Wallach on hash flooding → <b>2012</b> SipHash (Aumasson, Bernstein) → <b>2017</b> Swiss tables, Kulukundis, CppCon → <b>2019</b> hashbrown into Rust std (1.36) → <b>2025</b> Go 1.24 builtin map → <b>2024–26</b> GPU and concurrent successors (DLHT, WarpSpeed).</p>
+<div class="callout flag">The 1950s–70s entry is from general knowledge, not this research pass; the 2003, 2012, 2017, 2019 and 2025 dates are sourced above.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Practice &amp; self-test</div>
+<article class="card rv" id="c-hands" data-id="hands">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="14" width="136" height="72" rx="6" class="f-code s-line"/><text x="20" y="38" class="t-ink">$ python3 swiss_sim.py</text><text x="20" y="58" class="t-mute">hit 1.10  miss 2.09</text><rect x="20" y="66" width="7" height="12" class="f-acc blink"/></svg></div>
+<div class="card-body"><div class="kicker">§13 · Hands-on</div><h2>Run a 1-second simulator and break the erase rule</h2>
+<div class="brief"><p><code>swiss_sim.py</code> reproduces every measured number in this dive. Make the tag 3 bits, or make erase always write empty, and watch what breaks.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-hands">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-hands"><div class="deep-inner"><div class="deep-content">
+<p>Run the simulator in this folder (about a second, no dependencies):</p>
+<pre><code>python3 swiss_sim.py</code></pre>
+<p>It prints (1) groups probed per hit and miss and false tag matches at four load factors and two group widths, (2) the share of groups with no empty slot, and (3) a churn test with and without the "never full" erase rule and a 7/8 rehash. Try these:</p>
+<ol>
+<li>Change the tag from 7 bits to 3 (<code>h &gt;&gt; 61</code>) and watch the false matches per miss multiply by 16.</li>
+<li>Set <code>never_full_rule=True</code> but make <code>_was_never_full</code> always return <code>True</code>. Run the lookup test after churn: some present keys now report absent. That is the correctness bug the rule exists to avoid.</li>
+<li>Raise <code>load</code> to 0.95 and see why tables resize at 7/8.</li>
+</ol>
+<div class="callout tip">The real-code experiment: in Rust, time <code>HashMap&lt;u64,u64&gt;</code> lookups for present vs absent keys at 50% and 87% load with <code>with_capacity</code> chosen to land exactly there.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-quiz" data-id="quiz">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="16" width="132" height="22" rx="5" class="f-panel s-line"/><rect x="14" y="46" width="132" height="22" rx="5" class="f-panel s-line"/><path d="M24 27 l6 6 l10 -12" class="s-ok" fill="none" stroke-width="3"/><text x="52" y="31" class="t-mute">reveal</text></svg></div>
+<div class="card-body"><div class="kicker">§14 · Question ladder</div><h2>Test yourself</h2>
+<div class="brief"><p>18 questions from mechanism to open research. Reveal, then mark ✓ or ✗.</p><p class="score" id="quiz-score"></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-quiz">Go deeper <span class="chev">▸</span> <small>5 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-quiz"><div class="deep-inner"><div class="deep-content">
+<p class="mini">Answer in your head first, then reveal and mark yourself honestly. Marks are saved in this browser and feed the progress ring.</p><p><button class="btn" id="reveal-all" type="button" aria-pressed="false">Reveal all answers</button> <button class="btn" id="quiz-reset" type="button">Reset marks</button></p><div class="qgroup">Mechanism</div>
+<div class="q" data-i="0"><div class="qq">1. What exactly is compared in one SIMD step, and what comes out?</div><div class="qa"><div><p>The key's 7-bit tag is broadcast to every byte of a register and compared to the group's 16 (or 8) control bytes; the result is packed into a bitmask with one bit per slot. Set bits are candidate slots.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="1"><div class="qq">2. Why does a probe stop at an empty slot but not at a deleted one?</div><div class="qa"><div><p>Inserts fill the earliest free slot on the probe path, so a key absent from every group up to the first empty cannot be further along. A deleted slot may have been full when some other key overflowed past it, so stopping there could hide that key.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="2"><div class="qq">3. Walk the miss lookup of K2 in the trace.</div><div class="qa"><div><p>G1 has no matching tag and no empty slot, so hop +1 to G2; G2 has no match and an empty slot, so stop with "absent" after 2 groups.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="3"><div class="qq">4. What happens on insert when growth_left is zero?</div><div class="qa"><div><p>The table rehashes first: a same-size rehash that clears tombstones if enough are present, otherwise growth to 2·capacity+1, then the insert proceeds.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="qgroup">Why</div>
+<div class="q" data-i="4"><div class="qq">5. Why a 7-bit tag rather than 8?</div><div class="qa"><div><p>The top bit of the control byte marks empty/deleted/sentinel, which makes "full", "empty or deleted" and "empty" single cheap tests. That leaves 7 bits for the fingerprint.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="5"><div class="qq">6. Why is the load factor 7/8 and not 1/2?</div><div class="qa"><div><p>Because a probe step is one cheap group compare, not a slot-by-slot walk with full key compares. Memory per entry drops and the simulator shows hits still cost about 1.1 groups at 7/8.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="q" data-i="6"><div class="qq">7. Why triangular steps over groups instead of +1 each time?</div><div class="qa"><div><p>Linear steps make full groups clump, so one overloaded neighbourhood lengthens every probe crossing it. Triangular offsets scatter retries, and with a power-of-two group count still visit every group exactly once.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="7"><div class="qq">8. Why does the naive α^W model underestimate probes?</div><div class="qa"><div><p>Keys do not land in groups evenly: occupancy is roughly Poisson with mean αW, so many groups overflow and spill into later ones. At 7/8 with W=16 about 47.6% of groups are full, not 11.8%.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="qgroup">Counterfactual</div>
+<div class="q" data-i="8"><div class="qq">9. What if erase always wrote empty?</div><div class="qa"><div><p>Present keys that once overflowed past the erased slot would be reported absent. The simulator's test 2 in the hands-on shows it.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="9"><div class="qq">10. What if the table never rehashed in place and only doubled?</div><div class="qa"><div><p>Tombstone-heavy tables would double needlessly, wasting memory. Same-size rehash exists to reclaim tombstone budget.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="10"><div class="qq">11. What if group width were 32?</div><div class="qa"><div><p>Fewer hops at high load but a larger window (still ~one cache line with AVX2, not on SSE2), more occupied slots per group means more false matches per visit, and portability suffers.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="qgroup">Adversarial</div>
+<div class="q" data-i="11"><div class="qq">12. How would you degrade a Swiss table you can feed keys to?</div><div class="qa"><div><p>Find keys whose hashes land in the same groups: with a known or leaked seed, every key probes the same long path (HashDoS). Use a keyed hash like SipHash.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="12"><div class="qq">13. Why is a random seed alone not enough?</div><div class="qa"><div><p>Aumasson, Bernstein and Boßlet (2012) showed weak hash functions can leak the seed (e.g. via collision behaviour or iteration order), so the hash must be a keyed PRF-like function such as SipHash.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="13"><div class="qq">14. How would you stress the "never full" erase rule?</div><div class="qa"><div><p>Churn near the load ceiling so windows alternate between full and non-full: erases flip between tombstone and empty and rehashes get timed near the boundary.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="qgroup">Connection</div>
+<div class="q" data-i="14"><div class="qq">15. How does Go's directory of tables relate to extendible hashing?</div><div class="qa"><div><p>The directory is indexed by the high hash bits, each table has a local depth, entries can point to the same table, and a full table splits and doubles the directory only when its local depth equals the global depth.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-wild">→ related card</a></div></div>
+<div class="q" data-i="15"><div class="qq">16. How does DLHT answer the tombstone problem?</div><div class="qa"><div><p>It uses closed addressing with cache-line chaining so a deleted slot is reusable immediately, at the price of chaining instead of open addressing.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-frontier">→ related card</a></div></div>
+<div class="qgroup">Open</div>
+<div class="q" data-i="16"><div class="qq">17. Is there a tombstone-free delete for SIMD open addressing that is as fast as erase-to-tombstone?</div><div class="qa"><div><p>Unsettled; the never-full trick avoids most but not all, and chained or concurrent designs trade lookup shape for it.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+<div class="q" data-i="17"><div class="qq">18. When is a Swiss table slower than the structure it replaced?</div><div class="qa"><div><p>Ruby's st_table experiment lost on real benchmarks; tiny maps and unpredictable-key small maps (Go #70700) were weak spots until fixed. The answer depends on workload and hash.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Further</div>
+<article class="card rv" id="c-next" data-id="next">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M20 50 H130 M116 36 L132 50 L116 64" class="s-acc2" fill="none" stroke-width="3"/></svg></div>
+<div class="card-body"><div class="kicker">§15 · Go deeper next</div><h2>Three adjacent topics</h2>
+<div class="brief"><p>Extendible hashing, SipHash and hash-flooding defences, concurrent and GPU hash tables.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-next">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-next"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Extendible hashing</b>: the directory-and-split scheme Go borrowed.</li>
+<li><b>SipHash and hash-flooding defences</b>: why a seed alone is not enough.</li>
+<li><b>Lock-free and concurrent hash tables (DLHT, GPU tables)</b>: what changes when deletes and resizes must not block.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-sources" data-id="sources">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="22" y="14" width="44" height="70" rx="4" class="f-panel s-line"/><rect x="72" y="22" width="44" height="62" rx="4" class="f-panel s-line"/><path d="M30 28 h28 M30 38 h28 M80 36 h28 M80 46 h28" class="s-line" stroke-width="2"/></svg></div>
+<div class="card-body"><div class="kicker">Sources</div><h2>Papers, code and docs</h2>
+<div class="brief"><p>Primary sources, plus the claims I could not verify.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-sources">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-sources"><div class="deep-inner"><div class="deep-content">
+<h3>Papers and talks</h3>
+<ul>
+<li><a href="https://arxiv.org/abs/2406.09986" target="_blank" rel="noopener">DLHT, HPDC 2024</a></li>
+<li><a href="https://arxiv.org/abs/2509.16407" target="_blank" rel="noopener">WarpSpeed, ALENEX 2026</a></li>
+<li><a href="https://arxiv.org/html/2610.02385" target="_blank" rel="noopener">Nicaud and Rotondo, SIMD hash tables, arXiv 2610.02385</a></li>
+<li><a href="https://arxiv.org/pdf/2510.15095" target="_blank" rel="noopener">Hive Hash Table</a> · <a href="https://arxiv.org/pdf/2603.17168" target="_blank" rel="noopener">HierarchicalKV</a></li>
+<li><a href="https://arxiv.org/pdf/2109.04548" target="_blank" rel="noopener">Iceberg hashing (2021 preprint)</a></li>
+<li><a href="https://www.usenix.org/legacy/events/sec03/tech/full_papers/crosby/crosby.pdf" target="_blank" rel="noopener">Crosby and Wallach 2003</a> (URL not verified)</li>
+<li><a href="https://www.aumasson.jp/siphash/siphashdos_appsec12_slides.pdf" target="_blank" rel="noopener">Aumasson, Bernstein, Boßlet 2012 slides</a></li>
+<li>Kulukundis, "Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step", CppCon 2017 (slides URL not confirmed)</li>
+</ul>
+<h3>Code and docs</h3>
+<ul>
+<li><a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h" target="_blank" rel="noopener">Abseil raw_hash_set.h</a> · <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/hashtable_control_bytes.h" target="_blank" rel="noopener">hashtable_control_bytes.h</a> · <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.cc" target="_blank" rel="noopener">raw_hash_set.cc</a></li>
+<li><a href="https://abseil.io/about/design/swisstables" target="_blank" rel="noopener">Abseil Swiss tables design</a></li>
+<li><a href="https://go.dev/doc/go1.24" target="_blank" rel="noopener">Go 1.24 release notes</a> · <a href="https://go.dev/blog/swisstable" target="_blank" rel="noopener">Go swiss map blog</a> · <a href="https://github.com/golang/go/tree/master/src/internal/runtime/maps" target="_blank" rel="noopener">internal/runtime/maps</a></li>
+<li><a href="https://github.com/golang/go/issues/70700" target="_blank" rel="noopener">golang/go #70700</a></li>
+<li><a href="https://github.com/rust-lang/hashbrown" target="_blank" rel="noopener">hashbrown</a> · <a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html" target="_blank" rel="noopener">std HashMap docs</a> · <a href="https://github.com/orlp/foldhash" target="_blank" rel="noopener">foldhash</a></li>
+<li><a href="https://bugs.ruby-lang.org/issues/22011" target="_blank" rel="noopener">Ruby Feature #22011</a> · <a href="https://github.com/cockroachdb/swiss" target="_blank" rel="noopener">cockroachdb/swiss</a></li>
+</ul>
+<h3>Could not verify</h3>
+<ul>
+<li>hashbrown SSE2/NEON/generic group widths (source files returned 404 for the research agent).</li>
+<li>Exact "was never full" window arithmetic; cloned control bytes in Abseil; Chromium usage of Abseil maps.</li>
+<li>Third-party Go map benchmark claims; the LLVM FoldingSet 1.4% figure; any CVEs.</li>
+<li>The pre-2003 lineage entry.</li>
+</ul>
+<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced figures are used under their open licenses, with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits"><li><a href="#fig-layout">Figure 1</a>: original diagram, adapted from <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h" target="_blank" rel="noopener">Adapted from the design notes in Abseil raw_hash_set.h (Apache-2.0)</a>, design comment.</li><li><a href="#fig-probe">Figure 2</a>: original diagram, adapted from <a href="https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h" target="_blank" rel="noopener">Abseil raw_hash_set.h probe_seq</a>, probe_seq.</li><li><a href="#fig-dir">Figure 4</a>: original diagram, adapted from <a href="https://github.com/golang/go/tree/master/src/internal/runtime/maps" target="_blank" rel="noopener">Go source, internal/runtime/maps (table.go, map.go)</a>, table.go / map.go.</li></ol>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+</main>
+
+<script type="application/json" id="rh-data">{"slug": "2026-10-17-swiss-tables-simd-probing", "cards": ["plain", "ctx", "world", "onel", "problem", "model", "mech", "math", "why", "knobs", "breaks", "wild", "frontier", "open", "lineage", "hands", "quiz", "next", "sources"], "questions": 18}</script>
+<script>
+/* rabbithole dive template runtime — cards, progress, quiz, motion. Shared by every dive page. */
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return [].slice.call((el || document).querySelectorAll(s)); };
+
+  // ---- storage (never required: page works without it) ----
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  // ---- theme ----
+  var theme = load('rh:theme', null);
+  if (theme) root.setAttribute('data-theme', theme);
+  var tb = $('#theme');
+  if (tb) tb.onclick = function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    theme = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', theme); save('rh:theme', theme);
+  };
+
+  // ---- copy buttons ----
+  $$('pre').forEach(function (p) {
+    var c = p.querySelector('code'); if (!c) return;
+    var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(c.innerText) : Promise.reject())
+        .then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select + copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1400);
+    };
+    p.appendChild(b);
+  });
+
+  // ---- SVG stroke draw-in: normalise path length ----
+  $$('.draw').forEach(function (e) { e.setAttribute('pathLength', '1'); });
+
+  // ---- hero layers: stagger intro, parallax ----
+  var layers = $$('.hero-art .layer');
+  layers.forEach(function (g, i) { g.style.setProperty('--i', i); });
+  var bar = $('.topbar');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      if (bar) bar.classList.toggle('scrolled', y > 40);
+      // parallax measured from the hero's own position (a cold open may sit above it)
+      var art = layers.length && layers[0].closest('.hero-art');
+      var rel = art ? Math.min(700, Math.max(0, -art.getBoundingClientRect().top)) : 0;
+      if (!reduce) layers.forEach(function (g) {
+        g.style.translate = '0 ' + (rel * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
+      });
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  var heroArt = $('.hero-art');
+  if (heroArt) requestAnimationFrame(function () { requestAnimationFrame(function () { heroArt.classList.add('in-view'); }); });
+
+  // ---- ASCII hero: scramble then resolve ----
+  var ascii = $('.hero-art .ascii-hero');
+  if (ascii && !reduce) {
+    var target = ascii.textContent, glyphs = '01#*+=-:.<>/\\|[]{}', t0 = performance.now();
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / 1400), out = '';
+      for (var i = 0; i < target.length; i++) {
+        var ch = target[i];
+        out += (ch === '\n' || ch === ' ' || Math.random() < k * 1.15) ? ch : glyphs[(Math.random() * glyphs.length) | 0];
+      }
+      ascii.textContent = out;
+      if (k < 1) requestAnimationFrame(frame); else ascii.textContent = target;
+    })(t0);
+  }
+
+  // ---- stat count-up ----
+  function countUp(el) {
+    var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(el.textContent.trim());
+    if (!m || reduce) return;
+    if (el.dataset.counted) return; el.dataset.counted = 1;
+    var final = el.textContent, end = parseFloat(m[1]), dec = (m[1].split('.')[1] || '').length, rest = m[2], t0 = performance.now();
+    (function f() {
+      var k = Math.min(1, Math.max(0, (performance.now() - t0) / 900)), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k < 1 ? (end * e).toFixed(dec) + rest : final;
+      if (k < 1) requestAnimationFrame(f);
+    })();
+    setTimeout(function () { el.textContent = final; }, 1200); // rAF can stall in background tabs
+  }
+
+  // ---- reveal on scroll ----
+  var cardsSeen = {};
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        var t = e.target;
+        if (t.classList.contains('card')) t.classList.toggle('in-view', e.isIntersecting);
+        if (!e.isIntersecting) return;
+        if (t.classList.contains('rv') && !t.classList.contains('in')) {
+          t.classList.add('in');
+          if (t.classList.contains('stat')) countUp($('.v', t));
+        }
+        if (t.matches && t.matches('svg') ) t.classList.add('in-view');
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    $$('.rv, .card, .deep-content svg, .card-vis svg').forEach(function (e) { io.observe(e); });
+  } else {
+    $$('.rv').forEach(function (e) { e.classList.add('in'); });
+    $$('.card, svg').forEach(function (e) { e.classList.add('in-view'); });
+  }
+
+  // ---- figure lightbox ----
+  var figs = $$('.fig-zoom');
+  if (figs.length) {
+    var lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true');
+    lb.innerHTML = '<button type="button">Close ✕</button><img alt=""><p></p>';
+    document.body.appendChild(lb);
+    var lastFocus = null;
+    var close = function () { lb.classList.remove('on'); if (lastFocus) lastFocus.focus(); };
+    figs.forEach(function (b) {
+      b.onclick = function () {
+        var img = $('img', b), cap = b.parentNode.querySelector('figcaption');
+        $('img', lb).src = img.src; $('img', lb).alt = img.alt; $('p', lb).innerHTML = cap ? cap.innerHTML : '';
+        lastFocus = b; lb.classList.add('on'); $('button', lb).focus();
+      };
+    });
+    lb.onclick = function (e) { if (e.target === lb || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') close(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
+  }
+
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
+  // ---- page data + progress ----
+  var dataEl = $('#rh-data'); if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var KEY = 'rh:p:' + D.slug;
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
+  var cards = $$('article.card');
+  var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
+
+  function status(gotN, yesN) {
+    var nc = cards.length, nq = qs.length;
+    if (gotN === nc && (nq === 0 || yesN / nq >= 0.8)) return 'understood';
+    if (gotN >= Math.ceil(nc / 2)) return 'skimmed';
+    return 'started';
+  }
+  function refresh() {
+    var gotN = cards.filter(function (c) { return P.got[c.dataset.id]; }).length;
+    var yesN = qs.filter(function (q) { return P.q[q.dataset.i] === 'y'; }).length;
+    var ansN = qs.filter(function (q) { return P.q[q.dataset.i]; }).length;
+    var pct = Math.round(100 * (gotN + yesN) / Math.max(1, cards.length + qs.length));
+    var st = status(gotN, yesN);
+    P.pct = pct; P.status = st; save(KEY, P);
+    var fg = $('.ring .r-fg'); if (fg) fg.style.strokeDashoffset = (1 - pct / 100).toFixed(3);
+    var rp = $('#ring-pct'); if (rp) rp.textContent = pct + '%';
+    $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
+    var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
+    $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
+  }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
+
+  // ---- cards: expand / collapse / got-it ----
+  function setOpen(card, open, scroll) {
+    card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
+    var btn = $('.deeper', card), deep = $('.deep', card);
+    btn.setAttribute('aria-expanded', open);
+    if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
+    if (!open && scroll) {
+      var top = card.getBoundingClientRect().top;
+      if (top < 0) card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  cards.forEach(function (card) {
+    var id = card.dataset.id;
+    $('.deeper', card).onclick = function () { setOpen(card, !card.classList.contains('open'), true); };
+    var col = $('.collapse', card); if (col) col.onclick = function () { setOpen(card, false, true); };
+    var cb = $('.got input', card);
+    cb.checked = !!P.got[id];
+    cb.onchange = function () { if (cb.checked) P.got[id] = 1; else delete P.got[id]; refresh(); };
+    setOpen(card, card.hasAttribute('data-open'), false);
+  });
+
+  // expand-all ("deep mode")
+  var ea = $('#expand-all');
+  if (ea) {
+    var setAll = function (on) {
+      ea.setAttribute('aria-pressed', on); $('.lbl', ea).textContent = on ? 'Collapse all' : 'Expand all';
+      cards.forEach(function (c) { setOpen(c, on, false); }); save('rh:deep', on);
+    };
+    ea.onclick = function () { setAll(ea.getAttribute('aria-pressed') !== 'true'); };
+    if (load('rh:deep', false)) setAll(true);
+  }
+
+  // deep links: #c-<id> or #<anchor inside a card> opens it
+  function openFromHash() {
+    var h = decodeURIComponent(location.hash.slice(1)); if (!h) return;
+    var el = document.getElementById(h); if (!el) return;
+    var card = el.closest('article.card');
+    if (card && !card.classList.contains('open')) { setOpen(card, true, false); setTimeout(function () { el.scrollIntoView(); }, 480); }
+  }
+  window.addEventListener('hashchange', openFromHash); openFromHash();
+
+  // ---- quiz ----
+  qs.forEach(function (q) {
+    var i = q.dataset.i;
+    var show = $('.qshow', q), y = $('.qbtn.y', q), n = $('.qbtn.n', q);
+    function paint() {
+      var r = P.q[i] || '';
+      q.dataset.r = r; y.setAttribute('aria-pressed', r === 'y'); n.setAttribute('aria-pressed', r === 'n');
+    }
+    show.onclick = function () { var s = q.classList.toggle('show'); show.textContent = s ? 'Hide answer' : 'Show answer'; show.setAttribute('aria-expanded', s); };
+    y.onclick = function () { P.q[i] = P.q[i] === 'y' ? '' : 'y'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    n.onclick = function () { P.q[i] = P.q[i] === 'n' ? '' : 'n'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    paint();
+  });
+  var ra = $('#reveal-all');
+  if (ra) ra.onclick = function () {
+    var on = ra.getAttribute('aria-pressed') !== 'true'; ra.setAttribute('aria-pressed', on);
+    ra.textContent = on ? 'Hide all answers' : 'Reveal all answers';
+    qs.forEach(function (q) { q.classList.toggle('show', on); var s = $('.qshow', q); s.textContent = on ? 'Hide answer' : 'Show answer'; });
+  };
+  var rs = $('#quiz-reset');
+  if (rs) rs.onclick = function () { P.q = {}; qs.forEach(function (q) { q.dataset.r = ''; $$('.qbtn', q).forEach(function (b) { b.setAttribute('aria-pressed', false); }); }); refresh(); };
+
+  // ---- side dots: current card ----
+  var dots = $$('.dots a');
+  if (dots.length && 'IntersectionObserver' in window) {
+    var map = {}; dots.forEach(function (a) { map[a.dataset.id] = a; });
+    var dio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        dots.forEach(function (a) { a.classList.remove('on'); });
+        var a = map[e.target.dataset.id]; if (a) a.classList.add('on');
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    cards.forEach(function (c) { dio.observe(c); });
+  }
+
+  refresh();
+})();
+
+</script>
+</body>
+</html>

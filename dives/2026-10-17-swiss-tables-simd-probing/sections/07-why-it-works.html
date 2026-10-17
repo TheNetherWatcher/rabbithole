@@ -1,0 +1,10 @@
+<p><b>The core insight:</b> separate the question "which slots could hold this key?" from "does this slot hold this key?". The first is answered for 16 slots in two instructions from one dense 16-byte line; the second, expensive, runs about once per lookup.</p>
+<h3>Ablation: remove each piece</h3>
+<ul>
+<li><b>Drop the tag array</b> (compare keys directly): every probe step compares up to 16 full keys, which are bigger, scattered and slower, so you are back to linear probing's cost.</li>
+<li><b>Make the tag 8 bits and drop the special values into a side bitmap</b>: sharper filter, but "empty" becomes a second memory read per group.</li>
+<li><b>Treat deleted like empty</b>: a probe stops early at a slot where an overflowed key once passed, so a present key is reported absent. Correctness bug.</li>
+<li><b>Never write empty on erase</b> (always tombstone): correct, but tombstones accumulate under churn and force rehashes (the simulator showed 19 rehashes versus 7 in the same run).</li>
+<li><b>Probe slot-by-slot instead of group-wise</b>: more steps to reach an empty at high load; with W = 8 instead of 16 the simulator needs 2.93 groups per miss instead of 2.09 at 7/8.</li>
+<li><b>Linear group stepping (+1, +1, +1) instead of triangular</b>: full groups clump, so one overloaded neighbourhood stretches every probe through it.</li>
+</ul>

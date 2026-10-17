@@ -1,0 +1,9 @@
+<ul>
+<li><b>Abseil</b> <code>flat_hash_map</code>: the reference, 16-byte groups, 7/8 load, <code>reserve</code> to avoid rehashes.</li>
+<li><b>Rust std</b>: hashbrown since 1.36 (July 2019); SIMD on SSE2/NEON with a portable fallback; SipHash by default in std, foldhash in the standalone crate.</li>
+<li><b>Go 1.24</b> (Feb 2025): groups of 8, a directory of tables capped at 1024 slots (extendible-hashing style), small maps that skip the directory, iteration starting at random offsets, and an opt-out flag. The release notes credit a "2-3% average" CPU reduction across a benchmark suite, but that figure covers several runtime changes together, not the map alone.</li>
+<li><b>CockroachDB</b> <code>swiss</code>: a library variant; reportedly slightly better at large sizes and worse on tiny maps (secondary report).</li>
+</ul>
+<figure data-fig="dir"></figure>
+<h3>Deviations from the CppCon talk</h3>
+<p>Go adds the directory and per-table growth; hashbrown adds a generic scalar fallback and a Rust-friendly API; Go randomises iteration offsets; Go's 8-slot groups hold one empty slot at 7/8 where Abseil's 16 hold two, which the Go source comments on explicitly.</p>

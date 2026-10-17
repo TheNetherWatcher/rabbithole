@@ -1,0 +1,8 @@
+<p>The mailroom: a strip of sticky notes above each row of pigeonholes. One glance at the strip tells you which pigeonholes could hold your parcel and whether the row has any blank spot.</p>
+<h3>Where the analogy breaks</h3>
+<ul>
+<li>Fingerprints really can collide (about 1 in 128), so "might hold" means "might", and the clerk always checks the full name before handing over a parcel.</li>
+<li>Hops between rows are not to the neighbouring row: the probe moves +1, then +2, then +3 groups, wrapping around a power-of-two number of groups.</li>
+<li>The strip is a separate array in memory from the pigeonholes. That is why one 16-byte load covers a group; the slots themselves are loaded only for matches.</li>
+<li>The "was here, keep looking" flag has a hidden cost in the real table: it uses up growth budget until the next rehash.</li>
+</ul>

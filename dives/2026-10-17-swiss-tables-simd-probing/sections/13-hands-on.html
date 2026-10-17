@@ -1,0 +1,9 @@
+<p>Run the simulator in this folder (about a second, no dependencies):</p>
+<pre><code>python3 swiss_sim.py</code></pre>
+<p>It prints (1) groups probed per hit and miss and false tag matches at four load factors and two group widths, (2) the share of groups with no empty slot, and (3) a churn test with and without the "never full" erase rule and a 7/8 rehash. Try these:</p>
+<ol>
+<li>Change the tag from 7 bits to 3 (<code>h &gt;&gt; 61</code>) and watch the false matches per miss multiply by 16.</li>
+<li>Set <code>never_full_rule=True</code> but make <code>_was_never_full</code> always return <code>True</code>. Run the lookup test after churn: some present keys now report absent. That is the correctness bug the rule exists to avoid.</li>
+<li>Raise <code>load</code> to 0.95 and see why tables resize at 7/8.</li>
+</ol>
+<div class="callout tip">The real-code experiment: in Rust, time <code>HashMap&lt;u64,u64&gt;</code> lookups for present vs absent keys at 50% and 87% load with <code>with_capacity</code> chosen to land exactly there.</div>

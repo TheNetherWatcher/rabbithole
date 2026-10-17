@@ -1,0 +1,34 @@
+<h3>What it is</h3>
+<p>A Swiss table is an open-addressing hash table with a separate array of one-byte control tags, one per slot. A full slot's byte holds 7 bits of the key's hash; special values mean "empty" and "deleted". Lookups compare a whole group of tags to the key's 7-bit tag with one SIMD instruction and only run the real key comparison on the few matches. Google's Abseil library introduced it (Matt Kulukundis, CppCon 2017, "Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step").</p>
+<h3>Why it exists</h3>
+<p>The standard C++ <code>std::unordered_map</code> chains through heap-allocated nodes: a pointer per entry and a likely cache miss per hop. Plain linear probing avoids pointers but compares full keys slot by slot and clusters badly near full. Swiss tables keep the flat layout and make each probe step cheap enough to run at 7/8 load. Rust's hashbrown README reports about 2× the speed of the previous std map and 1 byte of overhead per entry instead of 8 (the maintainers' own figures, no methodology given).</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="gc"><b>Abseil</b><br>flat_hash_map / flat_hash_set, the original. Apache-2.0.</div>
+<div class="gc"><b>Rust std</b><br><code>HashMap</code> is hashbrown since Rust 1.36 (July 2019). Apache-2.0 OR MIT.</div>
+<div class="gc"><b>Go 1.24</b><br>The built-in <code>map</code> became a Swiss table in Go 1.24 (Feb 2025). Opt out with <code>GOEXPERIMENT=noswissmap</code>.</div>
+<div class="gc"><b>CockroachDB</b><br>A standalone Go Swiss map library (<code>cockroachdb/swiss</code>).</div>
+<div class="gc"><b>Proposals</b><br>An LLVM <code>FoldingSet</code> RFC and a Ruby <code>st_table</code> layer (Feature #22011) explored it; Ruby's benchmarks regressed (see "Where it breaks").</div>
+</div>
+<h3>How it's used</h3>
+<pre><code>// Rust: nothing to tune except capacity and hasher
+use std::collections::HashMap;
+let mut m: HashMap&lt;u64, String&gt; = HashMap::with_capacity(1_000_000);
+m.insert(42, "a".into());
+let v = m.get(&amp;42);
+
+// C++ (Abseil)
+absl::flat_hash_map&lt;std::string, int&gt; m;
+m.reserve(1'000'000);   // avoids rehashes while filling
+m["x"] = 1;
+
+// Go: no knobs at all
+m := make(map[string]int, 1_000_000)   // hint only</code></pre>
+<p>Rust's std default hasher is <code>RandomState</code> (SipHash 1-3, "subject to change"). The standalone <code>hashbrown</code> crate defaults to foldhash, which is faster but does not claim HashDoS resistance against an interactive attacker.</p>
+<h3>When to use it, when not</h3>
+<div class="two">
+<div class="use"><b>Use</b> for general-purpose maps and sets, small-to-medium keys and values, lookup-heavy loads, anywhere you do not need stable pointers to elements.</div>
+<div class="skip"><b>Skip</b> when you need pointer or reference stability across inserts (values move on rehash), when values are huge (move cost on growth), or when you hold untrusted keys under a weak hasher.</div>
+</div>
+<h3>Who should care</h3>
+<p>Backend and infra engineers (map-heavy services), systems and database authors, performance engineers reading flame graphs full of hash lookups, and security engineers reasoning about hash flooding.</p>

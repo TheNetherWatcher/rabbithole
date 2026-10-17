@@ -1,0 +1,7 @@
+<ul>
+<li><b>Deletes without tombstones, at SIMD speed.</b> The "never full" trick helps but is probabilistic in effect. Closed-addressing designs like DLHT avoid tombstones at the cost of chaining; nobody has shown a clear winner for general-purpose maps.</li>
+<li><b>Bounded insert tail latency.</b> Whole-table rehash is O(n). Go's table splitting bounds it; whether that is worth a directory lookup on every access across workloads is not settled (see Go #70700 on benchmark methodology).</li>
+<li><b>Hash quality versus speed versus attack resistance.</b> foldhash and ahash are fast and not interactive-attacker-proof; SipHash is. Choosing per deployment is still manual.</li>
+<li><b>Proving what the model predicts.</b> The simple α<sup>W</sup> model fails; the SIMD-analysis preprint above is a first rigorous attempt, still unreplicated on real implementations.</li>
+<li><b>Robin Hood versus Swiss, and incremental resizing.</b> I found no primary-source comparison; mark as an open, partly folkloric debate.</li>
+</ul>

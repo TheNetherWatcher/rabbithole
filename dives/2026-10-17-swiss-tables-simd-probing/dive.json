@@ -1,0 +1,412 @@
+{
+ "meta": {
+  "title": "Swiss tables: control bytes, SIMD group probing, tombstones and 7/8 load",
+  "short": "Swiss tables",
+  "subject": "Computer science",
+  "domain": "Algorithms/data structures",
+  "topic": "Swiss tables (Abseil, hashbrown, Go 1.24)",
+  "depth": "hard",
+  "date": "2026-10-17"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 7 scrolls",
+  "title": "How a byte per slot lets a hash table check 16 slots with one instruction"
+ },
+ "tldr": "A Swiss table is an open-addressing hash table with a <b>1-byte tag per slot</b>. One SIMD instruction compares a lookup key's 7-bit tag against <b>16 slots</b> (8 in Go), so full key comparisons are rare. A probe stops at the first <b>empty</b> slot, deletes write a tombstone only when needed, and tables run up to <b>7/8 full</b>.",
+ "why": "<b>Why it matters:</b> hash maps sit on the hot path of most programs, and Rust's std map, Go's built-in map since 1.24 and Google's Abseil all use this layout.",
+ "stats": [
+  {
+   "v": "1 byte",
+   "l": "metadata per slot"
+  },
+  {
+   "v": "7/8",
+   "l": "max load factor"
+  },
+  {
+   "v": "16",
+   "l": "slots per SSE2 compare (8 in Go)"
+  },
+  {
+   "v": "47.6%",
+   "l": "16-slot groups full at 7/8 load (my sim)"
+  },
+  {
+   "v": "2025",
+   "l": "Go 1.24 ships the Swiss map"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "A strip of sticky notes lets the clerk check a whole row at a glance",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A mailroom row has a strip of tiny fingerprints, one per pigeonhole. One glance shows which holes could hold your parcel, and a blank spot proves the parcel was never pushed to another row.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Bare-minimum context",
+   "title": "Six ideas you need first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<p>Hashing to an index, chaining vs open addressing, load factor, SIMD compare + movemask, tombstones, cache lines.</p>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Rust, Go and Google C++ all store maps this way",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Abseil (2017) → Rust std via hashbrown (1.36, 2019) → Go built-in map (1.24, 2025). One byte of metadata per slot, 7/8 max load. Rust's README claims ~2× the old map (vendor figure).</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "\"A flat hash table with a 1-byte tag array\" hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>7-bit tags can lie; empty vs deleted decides when a probe stops; probing is per group; erase sometimes writes empty; and 7/8 load is affordable only because probes are cheap.</p>"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Chaining chases pointers; linear probing compares every key",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>Chained tables pay a pointer and a likely cache miss per entry. Plain linear probing clusters and compares full keys. Swiss tables keep it flat and filter with a byte per slot: <b>1 byte</b> instead of 8.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A strip of tags above each row of slots",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Glance at the strip, open only the maybes. It breaks where tags collide (1 in 128), hops are triangular, and the strip lives in separate memory.</p>"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · The mechanism, traced",
+   "title": "Find: one compare, then hop only while the group is full",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "guess": "erase",
+   "brief": "<p>Compare the key's 7-bit tag to 8 or 16 control bytes at once, check the few candidates, stop at the first empty slot, otherwise hop +1, +2, +3 groups. Erase writes either empty or a tombstone.</p><p class=\"mini\">Step-through of lookup, miss, insert and erase inside.</p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Almost half of 16-slot groups are full at 7/8 load",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "guess": "miss",
+   "brief": "<p>False tag matches cost occupied/128 per group. The naive α<sup>W</sup> model predicts 1.13 groups per miss at 7/8; my simulator measures <b>2.09</b>, because 47.6% of groups hold no empty slot.</p><p class=\"mini\">Load-factor explorer inside.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "Filter cheaply for 16 slots, verify expensively for one",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Separate \"which slots could match\" (two SIMD instructions on one cache line) from \"does this slot match\" (full compare, about once per lookup). Each piece, removed, breaks correctness or speed.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs & alternatives",
+   "title": "Same core, three different group widths and growth schemes",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "guess": "w8",
+   "brief": "<p>Abseil uses 16-wide groups, Go 8, hashbrown 16 on SIMD. All run at 7/8. Go splits growth into ≤1024-slot tables; Abseil and hashbrown rehash everything.</p>"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Tombstones, resize spikes and hash flooding",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "churn",
+   "brief": "<p>Tombstones eat growth budget until a rehash; whole-table rehash is O(n); predictable hashes allow flooding. Ruby's Swiss-style layer regressed real benchmarks (+1.77% geomean).</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Go added a directory of tables; hashbrown added a scalar fallback",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>Abseil is the reference. Go 1.24 maps use a directory of ≤1024-slot tables and randomise iteration; Rust's std uses SipHash while the hashbrown crate defaults to foldhash.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "CPU design settled; work moved to GPUs, deletes and theory",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>DLHT (HPDC 2024), WarpSpeed (ALENEX 2026), a SIMD hash-table analysis (arXiv, Oct 2026), GPU tables. No peer-reviewed Swiss-table critique found.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Tombstone-free deletes at SIMD speed are unsolved",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Deletes without tombstones, bounded insert tails, hash speed versus attack resistance, and a rigorous probe model for real implementations.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From open addressing to Go 1.24 in 70 years",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>Linear probing → hash-flooding attacks (2003) → SipHash (2012) → Swiss tables (2017) → Rust std (2019) → Go 1.24 (2025).</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Run a 1-second simulator and break the erase rule",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p><code>swiss_sim.py</code> reproduces every measured number in this dive. Make the tag 3 bits, or make erase always write empty, and watch what breaks.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>18 questions from mechanism to open research. Reveal, then mark ✓ or ✗.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three adjacent topics",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Extendible hashing, SipHash and hash-flooding defences, concurrent and GPU hash tables.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and docs",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "credits": true,
+   "brief": "<p>Primary sources, plus the claims I could not verify.</p>"
+  }
+ ],
+ "guesses": {
+  "cold": {
+   "q": "A Swiss table tags each slot with 7 bits of the key's hash. How often does a wrong occupied slot match your key's tag by chance?",
+   "options": [
+    "1 in 8",
+    "1 in 32",
+    "1 in 128",
+    "1 in 1024"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>1 in 128</b>: 7 independent bits give 2<sup>7</sup> = 128 values. At 7/8 load a 16-wide group has ~14 occupied slots, so about 0.11 wasted key compares per group visit.</p>"
+  },
+  "erase": {
+   "q": "Abseil erases a key from the table. Which marker does it write in the control byte?",
+   "options": [
+    "Always a tombstone (deleted)",
+    "Always empty",
+    "Empty if the slot was never inside a full probe window, else a tombstone",
+    "It rehashes the whole table"
+   ],
+   "answer": 2,
+   "reveal": "<p>Empty only when no probe could have passed through, otherwise a tombstone. Always-empty would make present keys look absent; always-tombstone fills the table with dead slots (19 rehashes versus 7 in my churn test).</p>"
+  },
+  "miss": {
+   "q": "Load 7/8, 16-slot groups. Naive math (each slot full with probability 7/8) says a missing key visits 1.13 groups. What does a simulator measure?",
+   "options": [
+    "1.0 to 1.2",
+    "About 1.5",
+    "About 2.1",
+    "About 5"
+   ],
+   "answer": 2,
+   "reveal": "<p>About <b>2.09</b> groups (my simulator, aligned groups, deterministic seed). 47.6% of groups have no empty slot, not 11.8%, because keys land unevenly and overflow spills into neighbours.</p>"
+  },
+  "w8": {
+   "q": "Halve the group width from 16 to 8 slots at 7/8 load. How many more groups does a missing-key lookup visit?",
+   "options": [
+    "Same number",
+    "About 1.4× as many",
+    "About 2× as many",
+    "About 4× as many"
+   ],
+   "answer": 1,
+   "reveal": "<p>About <b>1.4×</b>: 2.93 versus 2.09 groups in the simulator. Narrower groups fill more often (60% versus 48%), but each hop is also cheaper, so width is a tradeoff, not a free win.</p>"
+  },
+  "churn": {
+   "q": "Churn test: 80% load, 60,000 delete+insert rounds. Compared with always writing tombstones, how many rehashes does the \"never full\" erase rule need?",
+   "options": [
+    "The same",
+    "About 2.7× fewer",
+    "About 2.7× more",
+    "None at all"
+   ],
+   "answer": 1,
+   "reveal": "<p>About <b>2.7× fewer</b> (7 versus 19). Fewer tombstones means the growth budget lasts longer. Single seed, simplified erase test.</p>"
+  }
+ },
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly is compared in one SIMD step, and what comes out?",
+   "a": "The key's 7-bit tag is broadcast to every byte of a register and compared to the group's 16 (or 8) control bytes; the result is packed into a bitmask with one bit per slot. Set bits are candidate slots.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Why does a probe stop at an empty slot but not at a deleted one?",
+   "a": "Inserts fill the earliest free slot on the probe path, so a key absent from every group up to the first empty cannot be further along. A deleted slot may have been full when some other key overflowed past it, so stopping there could hide that key.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Walk the miss lookup of K2 in the trace.",
+   "a": "G1 has no matching tag and no empty slot, so hop +1 to G2; G2 has no match and an empty slot, so stop with \"absent\" after 2 groups.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What happens on insert when growth_left is zero?",
+   "a": "The table rehashes first: a same-size rehash that clears tombstones if enough are present, otherwise growth to 2·capacity+1, then the insert proceeds.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why a 7-bit tag rather than 8?",
+   "a": "The top bit of the control byte marks empty/deleted/sentinel, which makes \"full\", \"empty or deleted\" and \"empty\" single cheap tests. That leaves 7 bits for the fingerprint.",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why is the load factor 7/8 and not 1/2?",
+   "a": "Because a probe step is one cheap group compare, not a slot-by-slot walk with full key compares. Memory per entry drops and the simulator shows hits still cost about 1.1 groups at 7/8.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why triangular steps over groups instead of +1 each time?",
+   "a": "Linear steps make full groups clump, so one overloaded neighbourhood lengthens every probe crossing it. Triangular offsets scatter retries, and with a power-of-two group count still visit every group exactly once.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why does the naive α^W model underestimate probes?",
+   "a": "Keys do not land in groups evenly: occupancy is roughly Poisson with mean αW, so many groups overflow and spill into later ones. At 7/8 with W=16 about 47.6% of groups are full, not 11.8%.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if erase always wrote empty?",
+   "a": "Present keys that once overflowed past the erased slot would be reported absent. The simulator's test 2 in the hands-on shows it.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if the table never rehashed in place and only doubled?",
+   "a": "Tombstone-heavy tables would double needlessly, wasting memory. Same-size rehash exists to reclaim tombstone budget.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if group width were 32?",
+   "a": "Fewer hops at high load but a larger window (still ~one cache line with AVX2, not on SSE2), more occupied slots per group means more false matches per visit, and portability suffers.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you degrade a Swiss table you can feed keys to?",
+   "a": "Find keys whose hashes land in the same groups: with a known or leaked seed, every key probes the same long path (HashDoS). Use a keyed hash like SipHash.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "Why is a random seed alone not enough?",
+   "a": "Aumasson, Bernstein and Boßlet (2012) showed weak hash functions can leak the seed (e.g. via collision behaviour or iteration order), so the hash must be a keyed PRF-like function such as SipHash.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you stress the \"never full\" erase rule?",
+   "a": "Churn near the load ceiling so windows alternate between full and non-full: erases flip between tombstone and empty and rehashes get timed near the boundary.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How does Go's directory of tables relate to extendible hashing?",
+   "a": "The directory is indexed by the high hash bits, each table has a local depth, entries can point to the same table, and a full table splits and doubles the directory only when its local depth equals the global depth.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How does DLHT answer the tombstone problem?",
+   "a": "It uses closed addressing with cache-line chaining so a deleted slot is reusable immediately, at the price of chaining instead of open addressing.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "Is there a tombstone-free delete for SIMD open addressing that is as fast as erase-to-tombstone?",
+   "a": "Unsettled; the never-full trick avoids most but not all, and chained or concurrent designs trade lookup shape for it.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "When is a Swiss table slower than the structure it replaced?",
+   "a": "Ruby's st_table experiment lost on real benchmarks; tiny maps and unpredictable-key small maps (Go #70700) were weak spots until fixed. The answer depends on workload and hash.",
+   "sec": "breaks"
+  }
+ ],
+ "figures": {
+  "layout": {
+   "original": true,
+   "file": "img/fig/own-layout.svg",
+   "caption": "A control-byte group above its slots: a SIMD compare against tag 5A marks slots 0, 3 and 10; empty, deleted and sentinel use the top bit.",
+   "source": {
+    "cite": "Adapted from the design notes in Abseil raw_hash_set.h (Apache-2.0)",
+    "url": "https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h",
+    "figure": "design comment"
+   }
+  },
+  "probe": {
+   "original": true,
+   "file": "img/fig/own-probe.svg",
+   "caption": "Triangular probe: the offsets from the home group are 0, +1, +3, +6, so a full group sends the lookup further each time.",
+   "source": {
+    "cite": "Abseil raw_hash_set.h probe_seq",
+    "url": "https://github.com/abseil/abseil-cpp/blob/master/absl/container/internal/raw_hash_set.h",
+    "figure": "probe_seq"
+   }
+  },
+  "erase": {
+   "original": true,
+   "file": "img/fig/own-erase.svg",
+   "caption": "Erase rule: in a window with no empty slot the erased slot becomes a tombstone; where empties exist it becomes empty."
+  },
+  "dir": {
+   "original": true,
+   "file": "img/fig/own-dir.svg",
+   "caption": "Go 1.24 map layout: a directory indexed by hash bits, tables of up to 1024 slots, groups of 8.",
+   "source": {
+    "cite": "Go source, internal/runtime/maps (table.go, map.go)",
+    "url": "https://github.com/golang/go/tree/master/src/internal/runtime/maps",
+    "figure": "table.go / map.go"
+   }
+  }
+ }
+}

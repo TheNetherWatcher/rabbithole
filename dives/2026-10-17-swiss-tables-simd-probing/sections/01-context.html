@@ -1,0 +1,8 @@
+<ul>
+<li><b>Hash table</b>: a hash function maps a key to a number; the table turns that number into a slot index (here, <code>hash &amp; mask</code> with a power-of-two size).</li>
+<li><b>Chaining vs open addressing</b>: chaining hangs a linked list off each bucket; open addressing stores entries in the array itself and probes neighbouring slots on collision.</li>
+<li><b>Load factor</b>: entries ÷ slots. Open addressing gets slower as it rises; the table resizes at a chosen ceiling.</li>
+<li><b>SIMD compare + movemask</b>: one instruction compares 16 bytes to a value and another packs the 16 results into a 16-bit integer you can bit-scan.</li>
+<li><b>Tombstone</b>: a marker left by a delete so probe sequences that passed through the slot keep going.</li>
+<li><b>Cache line</b>: the CPU fetches 64 bytes at a time, so a 16-byte tag group is one cheap load.</li>
+</ul>

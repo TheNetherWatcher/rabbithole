@@ -1,0 +1,70 @@
+<svg viewBox="0 0 760 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Go swiss map: directory of tables, each table up to 1024 slots">
+<text x="20" y="24" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">Go 1.24 map: directory → tables → groups of 8</text>
+<text x="20" y="52" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">directory (indexed by top hash bits)</text>
+<rect x="20" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="48" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">00</text>
+<rect x="80" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="108" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">01</text>
+<rect x="140" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="168" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">10</text>
+<rect x="200" y="64" width="56" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="228" y="86" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">11</text>
+<rect x="330" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="390" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table A</text>
+<text x="390" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 1</text>
+<text x="390" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<rect x="490" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="550" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table B</text>
+<text x="550" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 2</text>
+<text x="550" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<rect x="630" y="52" width="120" height="72" rx="5" class="f-panel s-acc" stroke-width="2"/>
+<text x="690" y="76" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">table C</text>
+<text x="690" y="96" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">localDepth 2</text>
+<text x="690" y="114" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">≤ 1024 slots</text>
+<path d="M48 98 V150 H390 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M108 98 V158 H390 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M168 98 V166 H550 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<path d="M228 98 V174 H690 V124" fill="none" class="s-acc2" stroke-width="2"/>
+<text x="20" y="182" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">a table = array of groups, each group = 8 control bytes + 8 slots</text>
+<rect x="20" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="24" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="37" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="50" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="63" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="76" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="89" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="102" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="115" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="76" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 0</text>
+<rect x="140" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="144" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="157" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="170" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="183" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="196" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="209" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="222" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="235" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="196" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 1</text>
+<rect x="260" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="264" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="277" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="290" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="303" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="316" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="329" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="342" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="355" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="316" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 2</text>
+<rect x="380" y="196" width="112" height="44" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<rect x="384" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="397" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="410" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="423" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="436" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="449" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="462" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<rect x="475" y="200" width="11" height="12" rx="2" class="f-panel s-line" stroke-width="1"/>
+<text x="436" y="232" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">group 3</text>
+<text x="20" y="268" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">a full table splits in two (directory doubles if localDepth = globalDepth): growth cost stays bounded by 1024 slots.</text>
+</svg>

@@ -1,0 +1,87 @@
+<svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Control byte array above the slot array with one SIMD compare">
+<text x="20" y="24" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">control bytes (1 per slot)</text>
+<rect x="20" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="39.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="62" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="81.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">3F</text>
+<rect x="104" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="123.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="146" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="165.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="188" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="207.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">B2</text>
+<rect x="230" y="36" width="38" height="34" rx="5" class="f-warn s-line" stroke-width="1.5"/>
+<text x="249.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">X</text>
+<rect x="272" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="291.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">91</text>
+<rect x="314" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="333.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">C7</text>
+<rect x="356" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="375.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="398" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="417.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">0D</text>
+<rect x="440" y="36" width="38" height="34" rx="5" class="f-acc s-line" stroke-width="1.5"/>
+<text x="459.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">5A</text>
+<rect x="482" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="501.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">66</text>
+<rect x="524" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="543.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">E0</text>
+<rect x="566" y="36" width="38" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="585.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="608" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="627.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">14</text>
+<rect x="650" y="36" width="38" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="669.0" y="58" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="middle">A6</text>
+<text x="20" y="92" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">one group = 16 bytes: load, broadcast 5A, compare, pack bits</text>
+<text x="20" y="112" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">mask = 1001000000100000 → candidate slots 0, 3, 10</text>
+<path d="M20 126 H688" class="s-acc" stroke-width="3"/>
+<text x="20" y="154" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">slots (key + value), same index as the control byte</text>
+<rect x="20" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M39.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="39.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="62" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="81.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="104" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="123.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="146" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M165.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="165.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="188" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="207.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="230" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="249.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="272" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="291.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="314" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="333.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="356" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="375.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="398" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="417.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="440" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<path d="M459.0 70 V166" class="s-acc2" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="459.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="482" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="501.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="524" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="543.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="566" y="166" width="38" height="46" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="585.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle"></text>
+<rect x="608" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="627.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<rect x="650" y="166" width="38" height="46" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="669.0" y="194" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="middle">k,v</text>
+<text x="20" y="244" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">byte encodings</text>
+<text x="20" y="266" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">full slot</text>
+<text x="120" y="266" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">0hhhhhhh</text>
+<text x="230" y="266" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">7 hash bits, top bit 0</text>
+<text x="20" y="286" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">empty</text>
+<text x="120" y="286" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">10000000</text>
+<text x="230" y="286" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-128: stops a probe</text>
+<text x="20" y="306" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">deleted</text>
+<text x="120" y="306" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">11111110</text>
+<text x="230" y="306" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-2: tombstone, never stops a probe</text>
+<text x="20" y="326" class="t-ink" style="font:700 13px ui-monospace,monospace" text-anchor="start">sentinel</text>
+<text x="120" y="326" class="t-ink" style="font:400 13px ui-monospace,monospace" text-anchor="start">11111111</text>
+<text x="230" y="326" class="t-mute" style="font:400 13px ui-monospace,monospace" text-anchor="start">-1: end marker for iteration</text>
+</svg>

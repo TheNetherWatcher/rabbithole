@@ -1,0 +1,21 @@
+load  W   hit_groups  miss_groups  miss_h2_false  | theory miss_groups 1/(1-a^W)
+0.500  8      1.009       1.061         0.032  | 1.004
+0.500 16      1.001       1.008         0.062  | 1.000
+0.750  8      1.088       1.576         0.071  | 1.111
+0.750 16      1.027       1.254         0.118  | 1.010
+0.875  8      1.231       2.925         0.160  | 1.523
+0.875 16      1.105       2.089         0.231  | 1.134
+0.950  8      1.477       6.834         0.409  | 2.971
+0.950 16      1.269       4.803         0.572  | 1.786
+
+share of groups with no EMPTY slot (a miss must hop past them)
+load 0.500 W= 8  measured 0.054  poisson-before-overflow 0.051
+load 0.500 W=16  measured 0.007  poisson-before-overflow 0.008
+load 0.750 W= 8  measured 0.329  poisson-before-overflow 0.256
+load 0.750 W=16  measured 0.189  poisson-before-overflow 0.156
+load 0.875 W= 8  measured 0.603  poisson-before-overflow 0.401
+load 0.875 W=16  measured 0.476  poisson-before-overflow 0.331
+
+churn at 80% load, 60k delete+insert rounds, W=16
+never_full_rule=False  final_tombstones=7.8%  rehashes=19  avg_miss_groups=1.67
+never_full_rule=True   final_tombstones=6.8%  rehashes=7  avg_miss_groups=2.04

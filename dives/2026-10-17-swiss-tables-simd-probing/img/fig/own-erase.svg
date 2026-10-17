@@ -1,0 +1,43 @@
+<svg viewBox="0 0 760 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Erase writes a tombstone in a full window and empty otherwise">
+<text x="20" y="36" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">A. window has no empty slot: erase slot 3</text>
+<rect x="20" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="38" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">22</text>
+<rect x="60" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="78" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">7D</text>
+<rect x="100" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="118" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">E0</text>
+<rect x="140" y="48" width="36" height="34" rx="5" class="f-panel s-bad" stroke-width="3"/>
+<text x="158" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">14</text>
+<rect x="180" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="198" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">8B</text>
+<rect x="220" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="238" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">A6</text>
+<rect x="260" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="278" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">3C</text>
+<rect x="300" y="48" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="318" y="70" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">F1</text>
+<text x="360" y="70" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">→ write DELETED (tombstone)</text>
+<text x="360" y="90" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">a probe may have passed through this slot</text>
+<text x="360" y="108" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">growth budget is NOT given back</text>
+<text x="20" y="156" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">B. window has empties: erase slot 3</text>
+<rect x="20" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="38" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">58</text>
+<rect x="60" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="78" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">2A</text>
+<rect x="100" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="118" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="140" y="168" width="36" height="34" rx="5" class="f-panel s-bad" stroke-width="3"/>
+<text x="158" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">B7</text>
+<rect x="180" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="198" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<rect x="220" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="238" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">6C</text>
+<rect x="260" y="168" width="36" height="34" rx="5" class="f-panel s-line" stroke-width="1.5"/>
+<text x="278" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">19</text>
+<rect x="300" y="168" width="36" height="34" rx="5" class="f-code s-line" stroke-width="1.5"/>
+<text x="318" y="190" class="t-ink" style="font:700 12px ui-monospace,monospace" text-anchor="middle">--</text>
+<text x="360" y="190" class="t-ink" style="font:700 14px ui-monospace,monospace" text-anchor="start">→ write EMPTY</text>
+<text x="360" y="210" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">probes always stopped at an empty here, never passed</text>
+<text x="360" y="228" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">growth budget IS given back</text>
+<text x="20" y="262" class="t-mute" style="font:400 12px ui-monospace,monospace" text-anchor="start">Abseil adds a check that the slot was not inside any full 16-slot run that spans it (exact arithmetic in raw_hash_set.cc).</text>
+</svg>

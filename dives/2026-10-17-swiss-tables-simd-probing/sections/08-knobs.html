@@ -1,0 +1,15 @@
+<table>
+<tr><th>Knob</th><th>Abseil</th><th>hashbrown</th><th>Go 1.24</th></tr>
+<tr><td>Group width</td><td>16 (SSE2); 8 on NEON/portable</td><td>16 on SSE2/NEON, one <code>usize</code> in the generic fallback (from memory, unverified)</td><td>8 slots</td></tr>
+<tr><td>Max load</td><td>7/8 above 63 slots</td><td>7/8 (same family)</td><td>7/8 (<code>maxAvgGroupLoad = 7</code>)</td></tr>
+<tr><td>Growth</td><td>whole table, ×2+1</td><td>whole table</td><td>per table, split at 1024 slots; directory doubles as needed</td></tr>
+<tr><td>Hasher</td><td>pluggable, default Abseil hash</td><td>foldhash default (crate); std uses SipHash 1-3</td><td>runtime AES/wyhash-style, per-map seed</td></tr>
+<tr><td>Small maps</td><td>inline slots for tiny capacity</td><td>no allocation until first insert</td><td>≤ 8 entries: one group, no directory, no tombstones</td></tr>
+<tr><td>User knobs</td><td>reserve, hasher</td><td>with_capacity, with_hasher</td><td>size hint only</td></tr>
+</table>
+<h3>Alternatives and why Swiss won</h3>
+<ul>
+<li><b>Chaining</b>: stable pointers, simple, but pointer-chasing and 8 B/entry.</li>
+<li><b>Robin Hood / linear probing</b>: great cache behaviour and low variance, lacks the SIMD filter. Swiss tables won the standard-library slots, but I found no primary-source head-to-head, so call this "unverified debate".</li>
+<li><b>Cuckoo / bucketised cuckoo</b>: worst-case O(1) lookups but costlier inserts and tighter load balance.</li>
+</ul>

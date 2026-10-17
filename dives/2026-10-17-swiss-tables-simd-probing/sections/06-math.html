@@ -1,0 +1,43 @@
+<h3>1. False matches from a 7-bit tag</h3>
+<p>A wrong occupied slot has an independent 7-bit tag, so it equals the key's tag with probability 1/2<sup>7</sup> = 1/128.</p>
+<div class="eq">E[false key compares per group visited] = occupied · 1/128<small>→ in plain terms: a group with 14 of 16 slots full wastes about 0.11 key comparisons per visit. With more tag bits the filter would be sharper, but the control byte also needs the top bit for "empty/deleted", leaving 7.</small></div>
+<p>Measured in the simulator (aligned groups, W = 16, 7/8 load): 0.231 false matches per <i>missing</i> lookup, about 2.1 groups × 0.11.</p>
+<h3>2. How many groups does a lookup touch?</h3>
+<p>A miss ends at the first group with an empty slot, so its cost is the expected number of groups until one has room. If a fraction <i>p</i> of groups are completely full and the probe sees them independently, this is a geometric distribution:</p>
+<div class="eq">E[groups probed, miss] ≈ 1 / (1 − p)<small>→ in plain terms: the fuller your groups, the more hops a "not here" answer needs.</small></div>
+<p>The naive guess sets <i>p</i> = α<sup>W</sup> (every slot full with probability α). That is wrong because keys land in groups unevenly. Before any overflow, group occupancy is roughly Poisson with mean αW; with α = 7/8 and W = 16, P(X ≥ 16) ≈ 0.33. Overflow then pushes the excess into neighbouring probe targets, which raises the measured full-group share further:</p>
+<table>
+<tr><th>load α</th><th>W</th><th>α<sup>W</sup> guess</th><th>Poisson before overflow</th><th>measured full groups</th><th>measured miss groups</th></tr>
+<tr><td>0.75</td><td>16</td><td>0.010</td><td>0.156</td><td>0.189</td><td>1.25</td></tr>
+<tr><td>0.875</td><td>16</td><td>0.118</td><td>0.331</td><td>0.476</td><td>2.09</td></tr>
+<tr><td>0.875</td><td>8</td><td>0.344</td><td>0.401</td><td>0.603</td><td>2.93</td></tr>
+<tr><td>0.95</td><td>16</td><td>0.440</td><td>n/a</td><td>n/a</td><td>4.80</td></tr>
+</table>
+<div class="callout flag">All "measured" figures come from <code>swiss_sim.py</code> in this folder: aligned groups, a splitmix64 hash, 16K–32K slots, 20,000 lookups per row, one seed. They are a model of the design, not benchmarks of Abseil, hashbrown or Go. Treat the shape (nearly half of 16-wide groups full at 7/8) as the finding.</div>
+<h3>Interactive: load factor vs. probes</h3>
+<div class="widget" role="group" aria-label="Load factor explorer">
+<div class="ctl"><label for="math-load">Load factor <b id="math-lv">0.875</b></label><input type="range" id="math-load" min="0" max="3" step="1" value="2" aria-label="Load factor"></div>
+<div class="ctl"><label>Group width</label><button class="btn" id="math-w8">8 slots</button> <button class="btn" id="math-w16">16 slots</button></div>
+<div class="bar" aria-hidden="true"><div id="math-bar" style="height:14px;border-radius:6px;background:var(--accent);width:20%"></div></div>
+<div class="info" id="math-out" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+  var L=[0.5,0.75,0.875,0.95];
+  // from swiss_sim.py (sim_output.txt): [hit, miss, falseMatches]
+  var D={8:[[1.009,1.061,0.032],[1.088,1.576,0.071],[1.231,2.925,0.160],[1.477,6.834,0.409]],16:[[1.001,1.008,0.062],[1.027,1.254,0.118],[1.105,2.089,0.231],[1.269,4.803,0.572]]};
+  var w=16,sl=document.getElementById('math-load');
+  function up(){var i=+sl.value,d=D[w][i];
+    document.getElementById('math-lv').textContent=L[i].toFixed(3).replace(/0$/,'');
+    document.getElementById('math-bar').style.width=Math.min(100,d[1]/7*100)+'%';
+    document.getElementById('math-out').innerHTML='Width <b>'+w+'</b>, load <b>'+L[i]+'</b>: a hit visits <b>'+d[0].toFixed(2)+'</b> groups, a miss <b>'+d[1].toFixed(2)+'</b> groups with <b>'+d[2].toFixed(2)+'</b> wasted key compares. <span class="mini">(simulator output, aligned groups)</span>';}
+  sl.oninput=up;
+  document.getElementById('math-w8').onclick=function(){w=8;up()};
+  document.getElementById('math-w16').onclick=function(){w=16;up()};
+  up();
+})();
+</script>
+<h3>3. Load factor and growth budget</h3>
+<p>Abseil keeps <code>growth_left</code>: the number of insertions allowed before a rehash. For capacity above 63 it starts at <code>capacity − capacity/8</code>, i.e. 7/8. Tombstones are not freed by erase; they stay counted against the budget. A table with live entries <i>n</i> and tombstones <i>d</i> must rehash when <i>n + d</i> reaches 7/8·capacity, even if <i>n</i> is small.</p>
+<div class="eq">rehash when  n + d ≥ ⌊7/8 · capacity⌋<small>→ in plain terms: deleted slots keep taking up room until a rehash clears them. A same-size rehash when the table is mostly tombstones; a doubling when it is mostly live.</small></div>
+<p>Capacities are 2<sup>k</sup>−1 and growth goes to 2·capacity+1. Small tables (capacity ≤ 63) are allowed to fill to capacity−1 (a table within a single group may fill completely).</p>

@@ -1,0 +1,5 @@
+<div class="pull"><b>1 byte</b><span>of metadata per slot in a Swiss table, versus a pointer (8 bytes) per entry in a chained table (hashbrown README, vendor claim)</span></div>
+<h3>What was broken</h3>
+<p><b>Chaining</b> (<code>std::unordered_map</code> in libstdc++/libc++) allocates a node per entry. Each lookup follows at least one pointer to a separate heap object, typically a cache miss costing on the order of 100 ns versus about 1 ns for an L1 hit. The standard also forces pointer stability, which rules out the flat layout.</p>
+<p><b>Linear probing</b> stores entries inline and walks slots one after another. It is cache-friendly, but a probe step runs a full key comparison on each occupied slot, and runs of occupied slots (primary clustering) lengthen sharply as load grows, so it has to resize early (often at ≤50-70% load) and waste memory.</p>
+<p><b>The constraint that forced the design:</b> compare as little as possible per slot, stay inside one cache line per probe step, and keep the load factor high. A byte-sized fingerprint array turns "check up to 16 keys" into "one compare, then usually zero or one key checks".</p>
