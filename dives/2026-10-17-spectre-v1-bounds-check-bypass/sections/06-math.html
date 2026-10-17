@@ -1,0 +1,16 @@
+<h3>Why 256-entry probing, not a direct read</h3>
+<p>The attacker can't read <code>array2[secret]</code> directly — that access never architecturally completes. Instead the <em>index</em> into a 256-wide array is forced to equal the secret byte, so the only thing left to measure is which of 256 possible cache lines is warm.</p>
+<div class="eq">stride ≥ cache_line_size, and gcd(stride, line_size) keeps each index on a distinct line
+<small>→ in plain terms: space the targets out far enough that reading one line never accidentally warms its neighbor.</small></div>
+<p>The <code>*512</code> stride (or <code>*256</code> in the paper's other listing) exists so each candidate index lands on a distinct 64-byte cache line with comfortable separation from prefetch bleed-through.</p>
+<h3>The confidence margin</h3>
+<div class="eq">accept j  ⇔  results[j] ≥ 2·results[k] + 5   (k = runner-up)
+<small>→ in plain terms: don't trust a single timing; trust a landslide.</small></div>
+<p>With noise (OS scheduling jitter, other cores' cache traffic, DVFS), a single round's "fast" measurement isn't reliable — a false hit can land on the wrong index by chance. Each of the 999 rounds is treated as a noisy vote; a value is accepted once its vote count is more than double the nearest rival's plus a small margin, a simple two-sample separation test rather than a fixed statistical model.</p>
+<div data-guess="ratio"></div>
+<h3>The mistrain ratio</h3>
+<div class="eq">5 training calls : 1 attack call, per round of 30
+<small>→ in plain terms: the predictor has short memory and a bias toward its most recent consistent pattern, so you only need to out-vote the outlier, not eliminate it.</small></div>
+<p>Branch predictors use saturating counters (commonly 2-bit) that need a handful of consistent outcomes to flip state and a comparably small number of inconsistent ones to flip back. 5:1 keeps the counter saturated toward "predict taken" even though 1-in-6 calls disagrees.</p>
+<h3>Leak rate</h3>
+<p>~10 KB/s empirically (paper, i7 Surface Pro 3) — bounded by cache-probe time (256 timed reads) × rounds-to-confidence (up to 999) per byte, serialized per byte. No closed-form "bits per cycle" is given in the paper; it's an empirically measured end-to-end rate, not a derived bound.</p>

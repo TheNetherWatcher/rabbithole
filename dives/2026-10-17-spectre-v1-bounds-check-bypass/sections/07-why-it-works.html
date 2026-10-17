@@ -1,0 +1,9 @@
+<p><b>Core insight:</b> speculative execution's rollback is architectural-only by design — registers, flags, memory are restored — but caches, TLBs, and branch-predictor tables were never part of that contract, because nobody designed them to be. Any instruction that executes on a mispredicted path and touches memory leaves a trace in microarchitectural state that survives the squash, and that trace is readable by anyone who can measure timing.</p>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td>Branch mistraining</td><td>CPU predicts correctly most of the time; no reliable speculative window on the attacker's chosen input</td></tr>
+<tr><td>Flushing array1_size before the check</td><td>Check resolves from cache almost instantly; too narrow a window to do the OOB read + second load</td></tr>
+<tr><td>The second array indexed by the secret</td><td>No way to turn an unreadable register value into an observable cache-line signal</td></tr>
+<tr><td>Flush+Reload (cache timing)</td><td>No channel to read back which line is warm</td></tr>
+<tr><td>Shuffled probe order</td><td>Hardware prefetcher corrupts adjacent-line timings, inflating false positives</td></tr>
+<tr><td>Vote-over-999-rounds</td><td>A single noisy sample is unreliable; accuracy collapses</td></tr>
+</tbody></table>

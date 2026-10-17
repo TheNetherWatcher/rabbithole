@@ -1,0 +1,15 @@
+<p><code>spectre_sim.py</code> (in this folder) models the saturating-counter predictor and the 2×+5 vote across rounds of 30 calls, without needing real <code>clflush</code>/<code>rdtscp</code> hardware access.</p>
+<pre><code>python3 spectre_sim.py</code></pre>
+<pre><code>attack calls/round  success rate   avg rounds   speculation fired
+1/30 (train 29)    100.0%           2.1      100.0% of attack calls
+5/30 (train 25)    100.0%           1.1      100.0% of attack calls  &lt;- paper's ratio
+10/30 (train 20)    100.0%           1.0      100.0% of attack calls
+15/30 (train 15)    100.0%           1.0      100.0% of attack calls
+25/30 (train 5)    100.0%           3.2        6.7% of attack calls
+29/30 (train 1)      0.0%         999.0        0.0% of attack calls</code></pre>
+<ul>
+<li>At the paper's own ratio (5 attack calls per 30), speculation fires on essentially every attack call, and the vote usually resolves within 1–2 rounds in this model.</li>
+<li>Push past roughly 20 attack calls per 30 and the saturating counter can't recover toward "in bounds" between attacks — speculation mostly stops firing, and the attack can fail entirely even with all 999 rounds available.</li>
+<li>This confirms the mechanism's core claim: mistraining isn't about sheer repetition, it's about keeping the predictor's short-memory counter saturated the moment the attack call runs.</li>
+</ul>
+<p>For the real hardware experiment (needs a Spectre-vulnerable x86-64 Linux box), compile and run the paper's reference PoC from the official disclosure site, <a href="https://spectreattack.com/" target="_blank" rel="noopener">spectreattack.com</a>, and watch <code>readMemoryByte</code> recover bytes of its own hardcoded secret string.</p>

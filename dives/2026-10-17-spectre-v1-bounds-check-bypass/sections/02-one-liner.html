@@ -1,0 +1,8 @@
+<p><b>"Spectre v1 tricks the CPU into executing code it shouldn't, and reads the result through the cache."</b> That hides:</p>
+<ol>
+<li>The CPU does nothing abnormal — it's doing exactly what branch prediction and speculative execution are supposed to do. The bug is that rollback is architectural-only.</li>
+<li>Mistraining is deliberate and cheap: ~25 "good" calls per "bad" one, no code injection needed — just control over an input that reaches a checked index.</li>
+<li>The leak isn't a single read — it's a probe over 256 possible values, repeated up to 999 times per byte, decided by majority vote.</li>
+<li>The "secret" doesn't need to be adjacent to the first array — it's whatever lands at an attacker-chosen out-of-bounds offset, including across a security boundary.</li>
+<li>There is no clean fix — mitigations are a tax on checked branches, chosen case by case, none proven to catch every gadget shape.</li>
+</ol>

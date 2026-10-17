@@ -1,0 +1,4 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M80 14 L140 32 V58 C140 80 112 92 80 96 C48 92 20 80 20 58 V32 Z" class="f-panel s-warn" stroke-width="2"/>
+<path d="M70 36 L80 52 L66 52 L90 76" class="s-bad" stroke-width="3" fill="none"/>
+</svg>

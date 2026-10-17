@@ -1,0 +1,8 @@
+<ul>
+<li><b>Speculative execution</b>: CPUs execute ahead of resolved branches/dependencies using predictions, and discard the results if the guess was wrong — a decades-old perf trick assumed to be "architecturally invisible."</li>
+<li><b>Branch prediction</b>: the CPU remembers past outcomes of a conditional branch and predicts the next one; it can be <em>trained</em> by an attacker who controls the inputs to that branch.</li>
+<li><b>Cache timing side channel (Flush+Reload style)</b>: a recently-loaded shared cache line answers in tens of cycles; one that must come from RAM takes hundreds — timing a read reveals whether a specific address was touched.</li>
+<li><b>"Architecturally invisible, microarchitecturally visible"</b>: registers and memory from a squashed speculative path are rolled back; caches, TLBs, and branch-predictor state are not. That gap is the covert channel.</li>
+<li><b>Bounds check</b>: <code>if (x &lt; size) array[x]</code> — the exact pattern an optimizing compiler leaves un-fenced by default, because fencing every branch is expensive (§8).</li>
+</ul>
+<p>Source: <a href="https://arxiv.org/abs/1801.01203" target="_blank" rel="noopener">Kocher et al., "Spectre Attacks," arXiv:1801.01203 / IEEE S&amp;P 2019</a>; <a href="https://projectzero.google/2018/01/reading-privileged-memory-with-side.html" target="_blank" rel="noopener">Project Zero, "Reading privileged memory with a side-channel"</a>.</p>

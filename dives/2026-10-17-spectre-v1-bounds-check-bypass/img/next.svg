@@ -1,0 +1,7 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<rect x="14" y="20" width="36" height="24" rx="4" class="f-panel s-line"/>
+<rect x="62" y="20" width="36" height="24" rx="4" class="f-panel s-line"/>
+<rect x="110" y="20" width="36" height="24" rx="4" class="f-hl s-acc" stroke-width="1.5"/>
+<path d="M14 60 H146" class="s-line" stroke-dasharray="3 3"/>
+<path d="M130 70 L146 76 L130 82" class="s-acc" stroke-width="2" fill="none"/>
+</svg>

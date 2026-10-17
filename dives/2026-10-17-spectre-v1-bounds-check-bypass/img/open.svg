@@ -1,0 +1,6 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<circle cx="50" cy="50" r="28" class="f-panel s-line" stroke-width="1.5"/>
+<text x="40" y="60" class="t-mute" font-size="28">?</text>
+<circle cx="112" cy="50" r="22" class="f-none s-warn" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="104" y="57" class="t-mute" font-size="20">?</text>
+</svg>

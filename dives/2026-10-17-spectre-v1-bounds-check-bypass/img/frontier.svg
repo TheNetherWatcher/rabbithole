@@ -1,0 +1,7 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<line x1="16" y1="60" x2="144" y2="60" class="s-line" stroke-width="2"/>
+<circle cx="30" cy="60" r="6" class="f-acc"/><text x="20" y="80" class="t-mute" font-size="7">2025</text>
+<circle cx="70" cy="60" r="6" class="f-acc2"/><text x="60" y="80" class="t-mute" font-size="7">2025</text>
+<circle cx="110" cy="60" r="6" class="f-ok"/><text x="98" y="80" class="t-mute" font-size="7">2026</text>
+<circle cx="140" cy="60" r="7" class="f-warn blink"/><text x="125" y="40" class="t-ink" font-size="7">now</text>
+</svg>

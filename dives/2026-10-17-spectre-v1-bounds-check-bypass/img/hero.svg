@@ -1,0 +1,45 @@
+<svg viewBox="0 0 1200 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+<defs>
+  <pattern id="hero-dots" width="26" height="26" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="1.3" class="f-line" opacity=".5"/>
+  </pattern>
+</defs>
+<g class="layer" data-depth="0.05">
+  <rect x="0" y="0" width="1200" height="320" fill="url(#hero-dots)"/>
+</g>
+<g class="layer" data-depth="0.12">
+  <!-- row of cache lines -->
+  <g>
+    <rect x="140" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="200" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="260" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="320" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="380" y="220" width="52" height="34" rx="5" class="f-hl s-warn pulse" stroke-width="2"/>
+    <rect x="440" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="500" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="560" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="620" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="680" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="740" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="800" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="860" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="920" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="980" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+    <rect x="1040" y="220" width="52" height="34" rx="5" class="f-code s-line"/>
+  </g>
+</g>
+<g class="layer" data-depth="0.22">
+  <!-- branch fork: a solid node splitting into a real (dashed, squashed) path and the speculative path that leaves the warm line -->
+  <circle cx="420" cy="90" r="10" class="f-acc"/>
+  <path d="M420 100 L420 140" class="s-ink" stroke-width="2.5" fill="none"/>
+  <path d="M420 140 L560 190" class="s-line" stroke-width="2.5" stroke-dasharray="5 5" fill="none" opacity=".55"/>
+  <path d="M420 140 L406 222" class="s-acc2 flow" stroke-width="2.5" fill="none"/>
+  <text x="565" y="185" class="t-mute" font-size="13">squashed</text>
+  <circle cx="406" cy="222" r="5" class="f-acc2 blink"/>
+</g>
+<g class="layer" data-depth="0.3">
+  <path d="M760 90 C790 130, 760 170, 866 222" class="s-acc" stroke-width="2" fill="none" opacity=".75" marker-end="url(#hero-ah)"/>
+  <defs><marker id="hero-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-acc"/></marker></defs>
+  <text x="700" y="80" class="t-mute" font-size="13">timed probe</text>
+</g>
+</svg>

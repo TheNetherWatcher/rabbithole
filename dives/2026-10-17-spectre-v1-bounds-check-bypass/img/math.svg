@@ -1,0 +1,10 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<rect x="12" y="60" width="12" height="20" class="f-code"/>
+<rect x="28" y="50" width="12" height="30" class="f-code"/>
+<rect x="44" y="65" width="12" height="15" class="f-code"/>
+<rect x="60" y="20" width="12" height="60" class="f-acc"/>
+<rect x="76" y="58" width="12" height="22" class="f-code"/>
+<rect x="92" y="68" width="12" height="12" class="f-code"/>
+<text x="56" y="16" class="t-ink" font-size="8">j</text>
+<text x="70" y="92" class="t-mute" font-size="8">≥ 2·k + 5</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<rect x="12" y="20" width="18" height="18" rx="3" class="f-code"/>
+<rect x="32" y="20" width="18" height="18" rx="3" class="f-code"/>
+<rect x="52" y="20" width="18" height="18" rx="3" class="f-hl s-bad" stroke-width="1.5" stroke-dasharray="2 2"/>
+<text x="54" y="33" class="t-ink" font-size="9">81</text>
+<path d="M61 38 L110 60" class="s-acc2" stroke-width="2" marker-end="url(#mc-ah)"/>
+<defs><marker id="mc-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-acc2"/></marker></defs>
+<rect x="12" y="62" width="130" height="18" rx="3" class="f-code"/>
+<rect x="106" y="62" width="20" height="18" rx="3" class="f-warn"/>
+<text x="108" y="75" class="t-ink" font-size="8">i=81</text>
+</svg>

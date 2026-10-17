@@ -1,0 +1,7 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<text x="12" y="24" class="t-mute" font-size="9">remove piece →</text>
+<path d="M12 30 H148" class="s-line" stroke-width="1"/>
+<text x="12" y="44" class="t-ink" font-size="9">predictor</text><text x="110" y="44" class="t-bad" font-size="9">breaks</text>
+<text x="12" y="60" class="t-ink" font-size="9">2nd array</text><text x="110" y="60" class="t-bad" font-size="9">breaks</text>
+<text x="12" y="76" class="t-ink" font-size="9">timing</text><text x="110" y="76" class="t-bad" font-size="9">breaks</text>
+</svg>

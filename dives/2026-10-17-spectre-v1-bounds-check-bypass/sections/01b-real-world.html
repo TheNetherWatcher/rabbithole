@@ -1,0 +1,18 @@
+<p>Spectre v1 (CVE-2017-5753, "bounds check bypass," later called Spectre-PHT) is a class of attacks where an attacker mistrains a CPU's conditional-branch predictor so the processor speculatively executes the "in-bounds" path of a bounds check that will actually fail, reads out-of-bounds data, and uses that data as an index into a second array — pulling one specific cache line into the cache. Timing a read of that second array afterward reveals which line was touched, leaking the out-of-bounds byte. Disclosed January 3, 2018, alongside Meltdown, by researchers at Graz TU, Google Project Zero, Cyberus Technology and others.</p>
+<h3>Why it exists</h3>
+<p>Out-of-order, speculative CPUs have chased single-thread performance for 25+ years by guessing branch outcomes ahead of time; undoing a wrong guess architecturally (registers, memory) was assumed to make it "as if it never happened." Nobody budgeted for microarchitectural state — caches — as a side channel until Spectre showed it was a generic, reliable, cross-privilege-boundary leak, not a one-off bug in one CPU.</p>
+<h3>Where it's used</h3>
+<div class="grid">
+<div class="gc"><b>Browsers (Chrome/V8, Firefox, Safari)</b><br>The most exploited surface — JavaScript gives attackers a timer, a sandbox to mistrain branches in, and shared process memory with other sites' secrets.</div>
+<div class="gc"><b>Linux kernel</b><br>Every syscall boundary where a user-controlled index reaches a kernel array is a candidate gadget, patched incrementally.</div>
+<div class="gc"><b>Compilers</b><br>LLVM's Speculative Load Hardening, MSVC's <code>/Qspectre</code> auto-insert mitigations at detected or suspected gadgets.</div>
+<div class="gc"><b>Crypto libraries</b><br>OpenSSL, libsodium, NaCl, PQClean — secret-dependent branches/indices are exactly the gadget shape, a standing hardening target.</div>
+<div class="gc"><b>Multi-tenant / cloud</b><br>Anywhere an untrusted guest shares a core or cache with a victim process.</div>
+</div>
+<h3>How it's used</h3>
+<p>You don't "use" Spectre v1 — you harden against it. A kernel dev wraps a user-controlled index with <code>array_index_nospec(index, size)</code>; a compiler flag (<code>-mspeculative-load-hardening</code>, <code>/Qspectre</code>) auto-inserts barriers; a crypto library author runs a gadget scanner against secret-dependent branches. Typical pattern: compile hot, sensitive code (syscall entry, interpreter dispatch, crypto) with SLH or targeted fences; leave cold code unmitigated for speed.</p>
+<div class="two">
+<div class="use"><b>Mitigate when:</b> untrusted input controls an array index that's checked before use, and the checked-but-unconfirmed value can reach a second, secret-dependent access — interpreters, JIT dispatch, syscall entry, crypto.</div>
+<div class="skip"><b>Skip blanket hardening when:</b> no attacker-controlled index or no adjacent secret exists — fence-every-branch is severe overhead and still provably incomplete.</div>
+</div>
+<p class="callout tip"><b>Who should care:</b> browser/JS-engine engineers, OS kernel maintainers, compiler engineers, cryptographic-library authors, and anyone running multi-tenant infrastructure where attacker and victim share a core.</p>

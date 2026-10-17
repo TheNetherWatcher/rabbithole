@@ -1,0 +1,11 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<line x1="16" y1="30" x2="144" y2="30" class="s-line" stroke-width="3"/>
+<circle cx="110" cy="30" r="7" class="f-acc"/>
+<line x1="16" y1="55" x2="144" y2="55" class="s-line" stroke-width="3"/>
+<circle cx="60" cy="55" r="7" class="f-acc2"/>
+<line x1="16" y1="80" x2="144" y2="80" class="s-line" stroke-width="3"/>
+<circle cx="30" cy="80" r="7" class="f-ok"/>
+<text x="118" y="22" class="t-mute" font-size="7">LFENCE</text>
+<text x="40" y="47" class="t-mute" font-size="7">SLH</text>
+<text x="18" y="72" class="t-mute" font-size="7">targeted</text>
+</svg>

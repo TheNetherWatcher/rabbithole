@@ -1,0 +1,6 @@
+<ul>
+<li><b>Linux kernel</b>: case-by-case <code>array_index_nospec()</code>/<code>array_index_mask_nospec()</code> at syscall boundaries found by manual audit and later static/dynamic scanning; <code>barrier_nospec()</code> (an LFENCE) specifically on <code>copy_from_user</code> paths and the <code>swapgs</code> entry sequence.</li>
+<li><b>V8/Chrome</b>: "poisoning" — a per-branch poison register that becomes zero on a mispredicted path and is multiplied into every subsequent load's result, applied to user bounds checks <em>and</em> V8's own bytecode dispatch and function-entry checks; under 20% cost on Octane vs 2–3× for fencing every branch. WebAssembly gets index masking only on 32-bit (power-of-two-padded memories); 64-bit relies on guard pages. Site Isolation (default since Chrome 67, 2018) is the backstop that matters more than any in-process trick.</li>
+<li><b>LLVM SLH</b>: ships opt-in, not default — reflecting that teams choose it only for genuinely sensitive code given its cost; needs retpolines for indirect calls/returns and BMI2 for efficient x86 codegen of the masking sequence.</li>
+<li><b>Compiler-generated mitigations miss near-variant gadgets</b>: Silberstein et al. (2018) reported Microsoft's compiler-inserted LFENCEs missing some gadget shapes close to, but not identical to, the canonical pattern.</li>
+</ul>

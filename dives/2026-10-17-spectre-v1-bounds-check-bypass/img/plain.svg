@@ -1,0 +1,8 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<rect x="14" y="30" width="132" height="14" rx="3" class="f-code"/>
+<rect x="14" y="48" width="132" height="14" rx="3" class="f-code"/>
+<rect x="14" y="66" width="60" height="14" rx="3" class="f-hl s-warn" stroke-width="1.5"/>
+<text x="20" y="40" class="t-mute" font-size="9">shelf A</text>
+<text x="20" y="58" class="t-mute" font-size="9">shelf B</text>
+<text x="20" y="76" class="t-ink" font-size="9">shelf C — warm</text>
+</svg>

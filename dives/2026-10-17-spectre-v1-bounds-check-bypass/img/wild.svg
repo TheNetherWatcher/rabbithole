@@ -1,0 +1,10 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<rect x="12" y="18" width="60" height="30" rx="5" class="f-panel s-line"/>
+<text x="18" y="37" class="t-mute" font-size="8">V8: poison</text>
+<rect x="80" y="18" width="68" height="30" rx="5" class="f-panel s-line"/>
+<text x="86" y="37" class="t-mute" font-size="8">Linux: nospec</text>
+<rect x="12" y="56" width="68" height="30" rx="5" class="f-panel s-line"/>
+<text x="18" y="75" class="t-mute" font-size="8">LLVM: SLH (opt-in)</text>
+<rect x="88" y="56" width="60" height="30" rx="5" class="f-hl s-warn" stroke-width="1.5"/>
+<text x="94" y="75" class="t-ink" font-size="8">Site Isolation</text>
+</svg>

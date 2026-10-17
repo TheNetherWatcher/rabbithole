@@ -1,0 +1,9 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<text x="12" y="30" class="t-mute">assumed</text>
+<rect x="12" y="35" width="136" height="14" rx="3" class="f-ok"/>
+<text x="60" y="46" class="t-ink" style="fill:var(--panel)">0 leak</text>
+<text x="12" y="70" class="t-mute">actual</text>
+<rect x="12" y="75" width="136" height="14" rx="3" class="f-line"/>
+<rect x="12" y="75" width="18" height="14" rx="3" class="f-bad"/>
+<text x="36" y="86" class="t-ink">~10 KB/s leaked</text>
+</svg>

@@ -1,0 +1,114 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 11px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:13px system-ui,sans-serif}
+#story-fig .sf-small{fill:var(--mute);font:11px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 15px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 28px var(--serif)}
+#story-fig .sf-cell{fill:var(--ink);font:700 12px var(--mono)}
+#story-fig .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+#story-fig .cell{fill:var(--code);stroke:var(--line);stroke-width:1.2}
+#story-fig .cell.warm{fill:var(--hl);stroke:var(--warn);stroke-width:2}
+#story-fig .cell.oob{fill:var(--hl);stroke:var(--bad);stroke-dasharray:3 2}
+#story-fig .arrow{stroke:var(--accent2);stroke-width:1.8;fill:none;marker-end:url(#sf-ah)}
+#story-fig .arrow.ok{stroke:var(--ok)}
+#story-fig .arrow.bad{stroke:var(--bad)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A branch predictor mistrained to leak a secret byte through the cache">
+<defs><marker id="sf-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-acc2"/></marker></defs>
+
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">The CPU guesses before it knows the answer</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Mistrain the guess: 25 legal calls, on purpose</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="5">Attack: the CPU reads a secret it shouldn't</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">The CPU "undoes" everything — except one thing</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Time all 256 possibilities; one answers fast</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">A byte leaks, with no exploit beyond a stopwatch</text>
+<text x="20" y="28" class="sf-cap" data-in="8">Ten years of patching later, still no clean fix</text>
+
+<!-- bounds check box -->
+<rect x="20" y="50" width="190" height="54" rx="8" class="box" data-in="1"/>
+<text x="32" y="72" class="sf-lab" data-in="1">if (x &lt; array1_size)</text>
+<text x="32" y="92" class="sf-small" data-in="1">the real check — resolves slowly</text>
+<rect x="20" y="50" width="190" height="54" rx="8" class="f-none s-ok" stroke-width="2.5" data-in="1" data-out="3" data-hl="1"/>
+<rect x="20" y="50" width="190" height="54" rx="8" class="f-none s-bad" stroke-width="2.5" data-in="5" data-out="6"/>
+
+<!-- predictor box -->
+<rect x="250" y="50" width="210" height="54" rx="8" class="box" data-in="1"/>
+<text x="262" y="72" class="sf-lab" data-in="1" data-out="2">branch predictor: ?</text>
+<text x="262" y="72" class="sf-lab" data-in="2">branch predictor: "in bounds"</text>
+<text x="262" y="92" class="sf-small" data-in="1">guesses which way the if will go</text>
+<rect x="250" y="50" width="210" height="54" rx="8" class="f-none s-ok" stroke-width="2.5" data-in="2" data-hl="2 3 4"/>
+
+<!-- training loop arrow -->
+<path d="M460 77 C475 110, 475 150, 250 150 C180 150, 180 110, 210 90" class="arrow ok" data-in="2" data-out="3"/>
+<text x="230" y="168" class="sf-small" data-in="2" data-out="3">25 legal calls train it</text>
+
+<!-- array1 -->
+<text x="20" y="190" class="sf-id" data-in="3">array1 (indices 0–15 legal)</text>
+<g data-in="3">
+<rect x="20" y="196" width="18" height="20" rx="3" class="cell"/>
+<rect x="40" y="196" width="18" height="20" rx="3" class="cell"/>
+<rect x="60" y="196" width="18" height="20" rx="3" class="cell"/>
+<rect x="80" y="196" width="18" height="20" rx="3" class="cell"/>
+<rect x="100" y="196" width="18" height="20" rx="3" class="cell"/>
+<rect x="120" y="196" width="18" height="20" rx="3" class="cell"/>
+</g>
+<text x="150" y="211" class="sf-small" data-in="3">…</text>
+<rect x="170" y="196" width="30" height="20" rx="3" class="cell oob" data-in="3"/>
+<text x="176" y="211" class="sf-cell" data-in="4">81</text>
+<text x="205" y="211" class="sf-small" data-in="3">← secret, out of bounds</text>
+
+<path d="M250 104 L120 196" class="arrow bad" data-in="3" data-out="6"/>
+<text x="245" y="130" class="sf-small" data-in="3" data-out="6">predicted "in bounds," so it reads anyway</text>
+
+<!-- array2 grid -->
+<text x="20" y="250" class="sf-id" data-in="4">array2 cache lines (256 total, 12 shown)</text>
+<g id="sf-a2" data-in="4"></g>
+
+<path d="M200 206 C230 230, 230 240, 280 266" class="arrow" data-in="4" data-out="6" data-hl="4"/>
+<text x="20" y="300" class="sf-small" data-in="4" data-out="6">array2[81×512] — one line warms up</text>
+
+<text x="20" y="320" class="sf-big" data-in="6">timed probe (rdtscp), shuffled order</text>
+<g id="sf-bars" data-in="6" data-out="7"></g>
+<text x="300" y="320" class="sf-big t-acc" data-in="7">i = 81 answers in ~44 cycles — everything else, 190+</text>
+
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="8"/>
+<text x="40" y="150" class="sf-num" data-in="8">~10 KB/s</text>
+<text x="40" y="175" class="sf-small" data-in="8">leaked, with zero memory corruption</text>
+<text x="40" y="230" class="sf-num" data-in="8">999 rounds</text>
+<text x="40" y="255" class="sf-small" data-in="8">max probes per byte — usually far fewer</text>
+<text x="40" y="310" class="sf-num" data-in="8">no clean fix</text>
+<text x="40" y="335" class="sf-small" data-in="8">every mitigation since 2018 is a partial, costly patch</text>
+
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Every modern CPU runs ahead of itself. Before it knows whether an <code>if</code> will be true, it guesses — using the branch predictor, a small table that remembers how that branch went last time — and starts executing the path it thinks is right.</p></div>
+<div class="step"><p><b>The trick starts with training.</b> Call the checked function 25 times with a legal index. The predictor's short-memory counter locks toward "in bounds" — it has no way to know you're about to lie to it.</p></div>
+<div class="step"><p>Now call it once with an index that points <em>past the end</em> of the array — straight at a secret byte. The real check hasn't resolved yet. The predictor, freshly trained, says "go ahead" anyway, and the CPU speculatively reads the out-of-bounds byte.</p></div>
+<div class="step"><p>That secret byte (say, 81) is immediately used as an index into a second array. The CPU doesn't read the secret's <em>value</em> out loud — it reads <em>one specific cache line</em> of 256 possible ones, chosen by the secret.</p></div>
+<div class="step"><p><b>Then the real check catches up:</b> out of bounds, access denied. The CPU rolls back every register, every memory write, every flag — exactly as the architecture promises. Officially, nothing happened.</p></div>
+<div class="step"><p>But caches were never part of that promise. One of the 256 lines is still warm. Time a read to all 256, in a shuffled order (so the hardware prefetcher can't give the game away) — 255 come back slow, one comes back fast.</p></div>
+<div class="step"><p>Repeat the whole dance — flush, train, attack, probe — up to 999 times, voting on the winner each round. A clean signal usually wins in far fewer rounds than that.</p></div>
+<div class="step"><p>The result: a byte of memory the program never let you read, recovered through nothing but timing. Disclosed in 2018 alongside Meltdown, Spectre v1 forced every compiler, kernel, and browser to pay a permanent tax on security-sensitive branches — and as of 2026, nobody has shipped a complete fix.</p></div>
+</div>
+</div>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  var a2=document.getElementById('sf-a2');
+  for(var i=0;i<12;i++){
+    var warm=(i===7);
+    var r=el('rect',{x:20+i*35,y:256,width:28,height:24,rx:4,class:'cell'+(warm?' warm':''),'data-in': warm?'4':'4'});
+    a2.appendChild(r);
+    a2.appendChild(el('text',{x:26+i*35,y:273,class:'sf-cell'},i===7?'81':'i='+i));
+  }
+  var bars=document.getElementById('sf-bars');
+  for(i=0;i<12;i++){
+    var tall = (i===7)?10:40;
+    var b=el('rect',{x:20+i*35,y:296-tall,width:22,height:tall,rx:2,class: i===7?'cell warm':'cell'});
+    bars.appendChild(b);
+  }
+})();
+</script>

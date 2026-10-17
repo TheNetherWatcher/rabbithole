@@ -1,0 +1,7 @@
+<ul>
+<li><b>No formal, agreed definition of "speculative-execution security."</b> Multiple competing security notions exist (speculative constant-time, non-interference variants); SPS only closes the gap for one such notion against one gadget class.</li>
+<li><b>No tool proves a large real binary is gadget-free at scale.</b> Static analyses (LightSLH, Spectector-family tools) find known shapes; none claims completeness against unknown or compiler-introduced gadget shapes.</li>
+<li><b>Whether PHT can be fixed in hardware at all remains unresolved in public documentation.</b> Every vendor statement found in this research treats v1 as software-mitigated-only, unlike v2 and Meltdown, which got microcode/hardware responses. dfence is a research proposal, not shipped silicon.</li>
+<li><b>Coverage on non-Intel/AMD cores is thin in the literature.</b> Comparatively little systematic characterization of Spectre-v1 on modern ARM client cores exists relative to x86 — an open measurement gap.</li>
+<li><b>No public head-to-head benchmark</b> of the newest targeted-hardening tools (LightSLH, dfence, SPS) against each other on the same codebase — each paper reports its own numbers against its own baseline.</li>
+</ul>

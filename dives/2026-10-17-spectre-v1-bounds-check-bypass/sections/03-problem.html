@@ -1,0 +1,5 @@
+<p>Before Spectre, "architecturally invisible" meant invisible, full stop — a wrong speculative guess rolled back registers and memory and that was assumed to be the end of the story. Compilers and OS/kernel code freely wrote bounds checks like <code>if (x &lt; size) use(array[x])</code>, trusting that even if the CPU peeked ahead on a bad guess, nothing observable happened.</p>
+<p>The constraint Spectre forces: any microarchitectural state that a wrong-path instruction touches and that isn't rolled back (L1/L2/L3 cache lines, TLB entries, branch-predictor tables) is a covert channel if an attacker can control what gets touched and measure the state afterward with a timer.</p>
+<div class="pull"><b>~10 KB/s</b><span>measured leak rate on an i7 Surface Pro 3, original 2018 PoC</span></div>
+<div data-guess="rate"></div>
+<p>Far below bulk-copy speed, but fast enough to exfiltrate specific secrets (keys, passwords, pointers) in seconds to minutes — and a 2018 follow-up measured ~1 bit/s reliably defeating deployed <em>browser</em> mitigations (timer coarsening, SharedArrayBuffer removal) from pure JavaScript.</p>

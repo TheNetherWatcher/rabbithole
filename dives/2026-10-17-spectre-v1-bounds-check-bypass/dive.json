@@ -1,0 +1,154 @@
+{
+ "meta": {
+  "title": "Spectre v1: branch predictor mistraining, bounds-check bypass, cache timing reads",
+  "short": "Spectre v1 (bounds-check bypass)",
+  "subject": "Computer science",
+  "domain": "Security/offense",
+  "topic": "Spectre v1 (Spectre-PHT): branch predictor mistraining, bounds-check bypass, cache timing reads, speculative load hardening",
+  "depth": "hard",
+  "date": "2026-10-17"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 8 scrolls",
+  "title": "How a mistrained guess and a stopwatch read memory nobody was allowed to see"
+ },
+ "tldr": "A CPU guesses which way an <code>if</code> will go before it knows, and runs ahead on that guess. Spectre v1 trains the guess to say \"in bounds\" on purpose, lets the CPU speculatively read <b>out-of-bounds secret memory</b>, and uses that secret as an index into a second array — pulling one cache line into the cache. The CPU later undoes every register change, but the <b>warm cache line survives</b>, and timing which of 256 lines is warm reveals the secret byte.",
+ "why": "<b>Why it matters:</b> this broke the assumption that a mispredicted branch leaves \"no trace,\" forcing every compiler, kernel, and browser to pay a permanent tax on security-sensitive bounds checks — with no complete fix, software or hardware, as of 2026.",
+ "stats": [
+  {"v": "10 KB/s", "l": "measured leak rate, original PoC (i7 Surface Pro 3)"},
+  {"v": "999", "l": "max probe rounds per secret byte"},
+  {"v": "5:1", "l": "training calls per attack call, per round"},
+  {"v": "80", "l": "cache-hit threshold, cycles (CACHE_HIT_THRESHOLD)"},
+  {"v": "2–3×", "l": "slowdown of fencing every branch (V8 Octane)"}
+ ],
+ "cards": [
+  {"id": "plain", "group": "Plain English", "tone": "plain", "kicker": "In everyday words",
+   "title": "A librarian who guesses ahead, and leaves a warm shelf behind", "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>A fast librarian starts fetching a book before your badge is checked, because you usually get a yes. If the badge check fails, she puts the book back and says nothing happened — but the shelf she visited to find it stays warm, and you can feel which shelf that was.</p><p>That warmth is a secret byte, read without ever being allowed to read it.</p>"},
+
+  {"id": "ctx", "group": "Context", "kicker": "§1 · Prerequisites", "title": "Five things to know first",
+   "visual": "img/ctx.svg", "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Speculative execution</b>: CPUs run ahead of unresolved branches and roll back if wrong.</li><li><b>Branch prediction</b> is trainable by an attacker who controls the branch's inputs.</li><li><b>Caches are not rolled back</b> — that's the whole bug.</li></ul>"},
+
+  {"id": "world", "kicker": "§1b · Real-world context", "title": "Where it lives: browsers, kernels, crypto libraries",
+   "visual": "img/world.svg", "file": "sections/01b-real-world.html",
+   "brief": "<p>Disclosed Jan 2018 (CVE-2017-5753) alongside Meltdown. Mitigated piecemeal in the <b>Linux kernel</b> (<code>array_index_nospec</code>), <b>V8/Chrome</b> (poisoning, Site Isolation), <b>LLVM</b> (Speculative Load Hardening), and compilers (MSVC <code>/Qspectre</code>). Crypto libraries (OpenSSL, libsodium) are still a live hardening target.</p>"},
+
+  {"id": "onel", "group": "Technical deep dive", "kicker": "§2 · The one-liner",
+   "title": "\"Tricks the CPU into running code it shouldn't\" hides five things", "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The CPU does nothing abnormal — the bug is that rollback is architectural-only. Mistraining is just 5 good calls per 1 bad one. The leak is a 256-way vote, not a direct read. And there's no clean fix.</p>"},
+
+  {"id": "problem", "kicker": "§3 · The problem", "title": "\"Invisible\" meant invisible — until caches proved otherwise",
+   "visual": "img/problem.svg", "file": "sections/03-problem.html",
+   "brief": "<p>A wrong speculative guess was assumed to leave zero trace. It leaves a warm cache line. That one gap leaked memory at about <b>10 KB/s</b> on the original 2018 hardware — slow, but enough to steal a key in seconds.</p>",
+   "guess": "rate"},
+
+  {"id": "model", "kicker": "§4 · Mental model", "title": "The librarian analogy, and where it breaks",
+   "visual": "img/model.svg", "file": "sections/04-mental-model.html",
+   "brief": "<p>Guess-ahead, fetch, undo, but the shelf stays warm. Breaks down because the CPU's undo really is bit-exact architecturally, and one trip isn't enough signal — it takes hundreds of repeats to beat noise.</p>"},
+
+  {"id": "mech", "kicker": "§5 · Mechanism, traced", "title": "30 calls a round, 256 shelves timed, repeat up to 999×",
+   "visual": "img/mech.svg", "file": "sections/05-mechanism.html",
+   "brief": "<p>Flush the check, call the victim 25 times legally and 5 times maliciously, then time all 256 candidate cache lines in shuffled order. The fastest one is the secret byte.</p><p class=\"mini\">Interactive step-through inside.</p>",
+   "guess": "calls"},
+
+  {"id": "math", "kicker": "§6 · The math", "title": "256-way voting turns an unreadable byte into a timeable signal",
+   "visual": "img/math.svg", "file": "sections/06-math.html",
+   "brief": "<p>The secret becomes an array index, not a value — so there's something to measure. Accept a guess only when its vote count beats the runner-up by <b>2× + 5</b>, because single timings are noisy.</p>",
+   "guess": "ratio"},
+
+  {"id": "why", "kicker": "§7 · Why it works", "title": "Rollback restores registers, never caches",
+   "visual": "img/why.svg", "file": "sections/07-why-it-works.html",
+   "brief": "<p>Remove mistraining, the flush, the second array, or the timing probe, and the attack dies at that step. The one thing nobody designed to be rolled back is exactly the thing that's exploitable.</p>"},
+
+  {"id": "knobs", "kicker": "§8 · Knobs & alternatives", "title": "Fence everything, mask values, or harden only what's reachable",
+   "visual": "img/knobs.svg", "file": "sections/08-knobs.html",
+   "brief": "<p>LFENCE-everywhere is complete-ish but 2–3× slower. Speculative Load Hardening masks values instead of halting the pipeline, keeping far more throughput. Targeted hardening (2025) narrows the tax further, at the cost of needing a correct static analysis.</p>",
+   "guess": "slh"},
+
+  {"id": "breaks", "kicker": "§9 · Where it breaks", "title": "Every shipped mitigation admits it isn't complete",
+   "visual": "img/breaks.svg", "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Linux's own docs say annotated sites \"may not cover all attack vectors.\" Browser timer-coarsening was defeated within months by repeating the measurement. No microcode patch ever fixed v1.</p>",
+   "guess": "bypass"},
+
+  {"id": "wild", "kicker": "§10 · In the wild", "title": "How browsers, kernels, and compilers actually ship it",
+   "visual": "img/wild.svg", "file": "sections/10-in-the-wild.html",
+   "brief": "<p>V8 \"poisons\" loaded values instead of fencing; Linux hand-annotates syscall boundaries; LLVM's SLH is opt-in because of its cost; Site Isolation matters more than any in-process trick.</p>"},
+
+  {"id": "frontier", "group": "Research edge", "kicker": "§11 · Frontier", "title": "From finding gadgets to proving their absence",
+   "visual": "img/frontier.svg", "file": "sections/11-frontier.html",
+   "brief": "<p>LightSLH (USENIX Sec'25) hardens only exploitable load sites, 0% overhead in half its test cases. SPS (2025–26) makes Spectre-safety a provable property. dfence (2026) proposes new silicon at under 1% overhead. SpecRL (2025) hunts leaks in black-box CPUs with reinforcement learning.</p>"},
+
+  {"id": "open", "kicker": "§11b · Open problems", "title": "No proof of absence, no hardware fix, no agreed definition",
+   "visual": "img/open.svg", "file": "sections/11b-open-problems.html",
+   "brief": "<p>No tool proves a real binary is gadget-free. No shipped CPU fixes PHT in silicon. ARM client cores are thin in the literature. Nobody has benchmarked the newest hardening tools against each other.</p>"},
+
+  {"id": "lineage", "kicker": "§12 · Lineage", "title": "1990s speculation → 2018 disclosure → still-active hardening research",
+   "visual": "img/lineage.svg", "file": "sections/12-lineage.html",
+   "brief": "<p>Out-of-order CPUs → Spectre/Meltdown (2018) → kernel/compiler/browser mitigations → sibling variants (store bypass) → formal verification tools → targeted hardening and black-box gadget hunting (2025–26).</p>"},
+
+  {"id": "hands", "group": "Practice & self-test", "kicker": "§13 · Hands-on", "title": "Simulate the mistraining vote in 30 seconds",
+   "visual": "img/hands.svg", "file": "sections/13-hands-on.html",
+   "brief": "<p><code>python3 spectre_sim.py</code> models the saturating-counter predictor and the 2×+5 vote, sweeping the training ratio to show why 5:1 was chosen and what happens at 1:1 or 20:1.</p>"},
+
+  {"id": "quiz", "builtin": "quiz", "kicker": "§14 · Question ladder", "title": "Test yourself",
+   "visual": "img/quiz.svg", "brief": "<p>22 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"},
+
+  {"id": "next", "group": "Further", "kicker": "§15 · Go deeper next", "title": "Three dives that build on this",
+   "visual": "img/next.svg", "file": "sections/15-go-deeper.html",
+   "brief": "<p>Spectre v2 (branch target injection) · Meltdown (breaking the privilege check itself) · speculative constant-time verification.</p>"},
+
+  {"id": "sources", "kicker": "Sources", "title": "Papers, code and docs", "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>11 papers and primary docs, plus the claims I couldn't fully verify.</p>"}
+ ],
+ "guesses": {
+  "cold": {"q": "A branch predictor guesses correctly ~95% of the time. How fast can an attacker read secret memory using only mistrained guesses and a stopwatch — no exploit code, no memory corruption?",
+   "min": 0, "max": 50, "step": 1, "unit": " KB/s", "answer": [8, 12], "start": 25, "tol": 6,
+   "reveal": "<p>About <b>10 KB/s</b>, measured on an i7 Surface Pro 3 in the original 2018 paper. Slow compared to a memory copy, but fast enough to steal a cryptographic key in well under a minute.</p>"},
+  "rate": {"q": "How many bytes per second did the original Spectre v1 proof-of-concept leak, end to end?",
+   "options": ["About 1 byte/hour", "About 10 KB/second", "About 10 MB/second", "About 1 GB/second"], "answer": 1,
+   "reveal": "<p><b>About 10 KB/s.</b> Each byte needs up to 999 rounds of 30 victim calls plus a 256-line timing probe, so the rate is bottlenecked by that per-byte voting process, not by memory bandwidth.</p>"},
+  "calls": {"q": "In the worst case (full 999 rounds), how many total calls to the victim function does recovering ONE secret byte take?",
+   "min": 0, "max": 40000, "step": 500, "unit": " calls", "answer": 29970, "start": 10000, "tol": 4000,
+   "reveal": "<p><b>29,970</b> = 999 rounds × 30 calls/round. In practice the vote usually wins its 2×+5 margin far earlier, so real runs are much shorter — 999 is only the cutoff.</p>"},
+  "ratio": {"q": "Each round makes 30 calls to the victim function. How many use the malicious (out-of-bounds) index versus the legal training index?",
+   "options": ["15 malicious / 15 training", "10 malicious / 20 training", "5 malicious / 25 training", "1 malicious / 29 training"], "answer": 2,
+   "reveal": "<p><b>5 malicious, 25 training</b> (triggered when <code>j % 6 == 0</code>). That 5:1 ratio is enough to keep the branch predictor's saturating counter locked toward \"in bounds\" without needing every call to be legal.</p>"},
+  "slh": {"q": "On Google's own Haswell server-QPS benchmark, LFENCE-everywhere cost about 62% throughput. Speculative Load Hardening (masking values instead of fencing) cost roughly what, on the same benchmark?",
+   "min": 0, "max": 70, "step": 1, "unit": "%", "answer": 29, "start": 40, "tol": 8,
+   "reveal": "<p>About <b>29%</b> — roughly half of LFENCE's 62% cost, so SLH keeps close to twice the throughput while still masking every flagged load.</p>"},
+  "bypass": {"q": "Within months of browsers shipping timer-coarsening as a Spectre mitigation (2018), how fast could a researcher still read secret memory from pure JavaScript?",
+   "options": ["Not at all — fully blocked", "About 1 byte per hour", "About 1 bit per second", "About 1 KB per second"], "answer": 2,
+   "reveal": "<p><b>About 1 bit/second</b> (Aleph Security, 2018) — recovered by repeating the measurement many times and statistically filtering the added timer jitter. Coarsening raised the cost; it didn't close the channel.</p>"}
+ },
+ "questions": [
+  {"type": "Mechanism", "q": "What exactly happens to the CPU's registers and memory when the real bounds check resolves \"false\" after speculative execution already ran?", "a": "Every architectural register, memory write, and flag that the speculative path touched is rolled back exactly as if the mispredicted branch had never been taken — the CPU's ISA-visible state ends up bit-identical to the \"correct\" execution. What is not rolled back is anything in caches, TLBs, or the branch predictor's own tables, because those were never part of the architectural contract.", "sec": "why"},
+  {"type": "Mechanism", "q": "Why does the attack flush array1_size before every training/attack call, specifically?", "a": "Flushing forces the size check's load to go to RAM (hundreds of cycles) instead of resolving from cache in a handful of cycles, widening the window during which the branch predictor's guess — not the real answer — is driving execution.", "sec": "mech"},
+  {"type": "Mechanism", "q": "Why does the probe read array2[i*stride] in shuffled order instead of i = 0..255?", "a": "A hardware stride prefetcher seeing sequential accesses would start speculatively loading ahead, warming lines the attack never touched and producing false \"hit\" timings. Shuffling the order breaks that pattern.", "sec": "mech"},
+  {"type": "Mechanism", "q": "What does \"results[j] >= 2*results[k] + 5\" actually test, in plain statistical terms?", "a": "A margin-of-victory test over noisy repeated samples: accept the leading candidate once its vote count beats the runner-up's by more than double plus a small constant, rather than trusting any single round's timing.", "sec": "math"},
+  {"type": "Mechanism", "q": "Why is the leak serialized per byte rather than parallel across bytes within one victim call?", "a": "Each call's speculative detour reads exactly one array1[x] and touches exactly one line of array2 — there's no way to get two bytes of signal out of one call sequence.", "sec": "mech"},
+  {"type": "Why", "q": "Why can't the attacker just read array1[1000] directly and skip the second array?", "a": "The architectural read never \"completes\" from the program's point of view — once the real check resolves false, every result of that speculative read is discarded. The second array exists purely to convert that unreadable value into an observable cache-state change before rollback.", "sec": "math"},
+  {"type": "Why", "q": "Why does the mistraining loop use 5 good calls per 1 bad call instead of 1:1 or 10:1?", "a": "Branch predictors use short-memory saturating counters that need a consistent run of outcomes to lock a prediction and a comparably short run of opposite outcomes to flip it back; 5:1 keeps the counter saturated toward \"in bounds\" and was empirically sufficient.", "sec": "math"},
+  {"type": "Why", "q": "Why do browsers coarsen performance.now() instead of removing high-resolution timing entirely?", "a": "Removing it would break legitimate uses (animation, profiling, video sync); coarsening raises the attacker's required sample count without breaking those use cases — though raising cost isn't the same as closing the channel.", "sec": "breaks"},
+  {"type": "Why", "q": "Why did V8 choose \"poisoning\" over inserting a barrier on every branch?", "a": "Barriers on every branch cost 2–3× on V8's own Octane benchmark; poisoning (masking a misspeculated load's result instead of halting the pipeline) achieved under 20% cost.", "sec": "wild"},
+  {"type": "Counterfactual", "q": "What happens to the attack if speculative loads never affect the cache hierarchy?", "a": "The timing channel disappears entirely — there's no warm/cold distinction to measure. This is close to what hardware proposals like dfence aim for, though none is shipped silicon yet.", "sec": "open"},
+  {"type": "Counterfactual", "q": "What happens if array1_size were a compile-time constant instead of a runtime value?", "a": "The compiler can prove the bounds check always succeeds or statically bound x, eliminating the runtime branch the attack needs to mistrain — gadgets require a runtime-resolved check.", "sec": "model"},
+  {"type": "Counterfactual", "q": "If the attacker couldn't control the timing of training calls, only their values, would mistraining still work?", "a": "Yes — mistraining depends on the values passed across repeated calls, not fine-grained call timing; precise timing is needed for the later cache-probe step, not the training step.", "sec": "mech"},
+  {"type": "Counterfactual", "q": "What would change if the second array's stride were 64 bytes (one cache line) instead of 512?", "a": "Every candidate index would still land on a distinct line, but with far less spatial margin — any prefetcher or alignment quirk affecting a neighboring line becomes more likely to raise false positives.", "sec": "knobs"},
+  {"type": "Adversarial", "q": "How would you construct a Spectre v1 gadget in a language with no raw pointers, like JavaScript?", "a": "Shape a typed-array access so a JIT-emitted runtime bounds check and a dependent, secret-influenced load both exist in the compiled machine code — e.g. if (i < arr.length) leak(arr2[arr[i]]), mirroring the C gadget once JIT-compiled.", "sec": "wild"},
+  {"type": "Adversarial", "q": "Given SLH masks loaded values via an or-with-predicate, how might an attacker find a load SLH forgot to mask?", "a": "By auditing which loads SLH's analysis classifies as \"safe to skip\" (e.g. constant-stack-offset loads, which LLVM's SLH explicitly excludes as an optimization) and checking whether a secret-dependent value can reach one of those excluded sites.", "sec": "knobs"},
+  {"type": "Adversarial", "q": "How did the 2018 Aleph Security bypass defeat SharedArrayBuffer removal and timer coarsening at once?", "a": "By repeating the timing measurement many times and statistically filtering the added jitter rather than relying on one precise sample, recovering a reliable ~1 bit/s signal without needing either removed feature.", "sec": "breaks"},
+  {"type": "Adversarial", "q": "Why does targeted hardening (LightSLH-style) trade completeness for speed, and what's the attacker's best counter-move?", "a": "It only protects load sites its static analysis actually flags as reachable gadgets; the attacker's best move is finding a load the analysis under-approximates — an indirect call, a dynamically computed address, or a path its alias analysis misses.", "sec": "frontier"},
+  {"type": "Connection", "q": "How does Spectre v1's cache-line leak relate to the 2025 finding of shared LLM-API prompt caches leaking prompts via timing?", "a": "Both are the same attack shape — timing a shared resource to infer whether someone else recently touched specific data — applied at different layers: CPU cache lines for Spectre, server-side KV-cache hits for the LLM-API case. Neither needs a CPU vulnerability, just a shared, timeable resource.", "sec": "breaks"},
+  {"type": "Connection", "q": "How does speculative store bypass (the v1.1 sibling) differ mechanically from bounds-check bypass?", "a": "It mistrains the memory disambiguator rather than a branch predictor, exploiting a guess that a load doesn't depend on an earlier, not-yet-completed store to the same address, letting the load speculatively return a stale value.", "sec": "breaks"},
+  {"type": "Connection", "q": "How does Flush+Reload relate to Prime+Probe, and when would an attacker need the latter?", "a": "Flush+Reload needs the ability to evict a specific shared line (clflush) and time a reload of it; Prime+Probe fills an entire cache set with attacker data and times a re-read instead, useful where clflush-equivalent instructions are restricted or unavailable.", "sec": "math"},
+  {"type": "Open", "q": "Is there a hardware fix for Spectre-PHT that doesn't just move the cost to silicon, or is this permanently a software-patched problem?", "a": "Open. Every current vendor/compiler response treats v1 as software-mitigated-only; a 2026 hardware proposal (dfence) exists only as a research CPU, not shipped silicon.", "sec": "open"},
+  {"type": "Open", "q": "Can a static analysis ever be complete against all gadget shapes, including ones compilers introduce by accident?", "a": "Open. Targeted-hardening tools (LightSLH, SPS) are sound and complete relative to a defined gadget model, but that completeness is bounded by the model's assumptions about CPU behavior, not proven against future undocumented speculation.", "sec": "open"}
+ ]
+}

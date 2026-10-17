@@ -1,0 +1,29 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-grid{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;margin:6px 0 4px}
+.cv-grid i{display:block;aspect-ratio:1;border-radius:3px;background:var(--code);border:1px solid var(--line)}
+.cv-grid i.w{border:0;background:var(--warn)}
+.js .cv-grid i{opacity:0;transform:scale(.4);animation:cv-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*35ms + var(--o,0s))}
+@keyframes cv-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">A branch predictor guesses which way an <em>if</em> will go, before it knows the answer.</p>
+<p class="cold-line sm">It's right about 95% of the time, which is exactly why it's dangerous: an attacker who controls what you feed it can make it <em>wrong on purpose</em>, on command, and the CPU will run ahead anyway — reading memory it was never allowed to touch.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>256 possible cache lines, all cold.</b> The CPU speculatively reads a secret byte and uses it as an index into one of them.
+    <div class="cv-grid" id="cv-before"></div></div>
+  <div class="cv-row"><b>One line is warm.</b> The CPU "undoes" the whole detour — registers, memory, flags — but the warm line stays. Timing all 256 finds it instantly.
+    <div class="cv-grid" id="cv-after" style="--o:.6s"></div></div>
+</div>
+<script>
+(function(){
+  function cell(g,cls,d){var i=document.createElement('i');i.className=cls;i.style.setProperty('--d',d);g.appendChild(i);}
+  var b=document.getElementById('cv-before'),a=document.getElementById('cv-after');
+  for(var k=0;k<32;k++)cell(b,'',k);
+  for(k=0;k<32;k++)cell(a,k===21?'w':'',k);
+})();
+</script>

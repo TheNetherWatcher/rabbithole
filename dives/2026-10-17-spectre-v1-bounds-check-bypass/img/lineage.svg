@@ -1,0 +1,8 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M14 50 H146" class="s-acc2" stroke-width="2" marker-end="url(#l-ah)"/>
+<defs><marker id="l-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="f-acc2"/></marker></defs>
+<circle cx="22" cy="50" r="5" class="f-mute"/><text x="12" y="70" class="t-mute" font-size="7">1990s</text>
+<circle cx="65" cy="50" r="5" class="f-bad"/><text x="52" y="70" class="t-mute" font-size="7">2018</text>
+<circle cx="108" cy="50" r="5" class="f-ok"/><text x="92" y="70" class="t-mute" font-size="7">2023</text>
+<circle cx="140" cy="50" r="6" class="f-acc"/><text x="120" y="30" class="t-ink" font-size="7">2025–26</text>
+</svg>

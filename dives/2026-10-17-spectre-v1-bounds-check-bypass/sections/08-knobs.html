@@ -1,0 +1,14 @@
+<ul>
+<li><b>Probe technique</b>: Flush+Reload (needs a shared, flushable cache and a <code>clflush</code>-equivalent) vs Prime+Probe (fills a whole cache set instead, noisier, needed where flush instructions are restricted).</li>
+<li><b>Stride size</b> (256 vs 512 across the paper's two listings): bigger strides reduce false sharing/prefetch bleed-through at the cost of touching more memory per probe.</li>
+<li><b>Timer resolution</b>: <code>rdtscp</code> gives cycle-accurate timing; browsers deliberately coarsen <code>performance.now()</code> (5µs → 100µs in Chrome, plus jitter) — reduces but, per the 2018 Aleph bypass, doesn't eliminate the channel.</li>
+</ul>
+<h3>Mitigation alternatives, and why none won outright</h3>
+<table><thead><tr><th>Approach</th><th>Coverage</th><th>Cost</th></tr></thead><tbody>
+<tr><td>Index masking (<code>array_index_nospec</code>)</td><td>Only closes <em>known</em>, annotated gadget shapes</td><td>Cheap</td></tr>
+<tr><td>LFENCE on every branch</td><td>Complete-ish</td><td>2–3× (V8 Octane) up to ~10× in adversarial microbenchmarks</td></tr>
+<tr><td>Speculative Load Hardening</td><td>Masks loaded values instead of halting the pipeline</td><td>~1.8–2.5× less costly than full fencing (Google Haswell numbers)</td></tr>
+<tr><td>Targeted/selective hardening (2025)</td><td>Only flagged branches, per static analysis</td><td>Lowest cost, but depends on the analysis finding every real gadget</td></tr>
+</tbody></table>
+<div data-guess="slh"></div>
+<p>On Google's Haswell numbers: a microbenchmark showed LFENCE costing −74.8% vs SLH's −36.4% (SLH keeps roughly 2.5× more throughput); a large server QPS benchmark showed LFENCE −62% vs SLH −29% (about 1.8× more throughput kept).</p>

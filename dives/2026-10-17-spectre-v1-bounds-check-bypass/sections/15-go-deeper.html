@@ -1,0 +1,5 @@
+<ol>
+<li><b>Spectre v2 (branch target injection)</b>: mistraining the indirect branch predictor (BTB) instead of a conditional-branch predictor — the variant that did get hardware mitigations (IBRS/IBPB).</li>
+<li><b>Meltdown</b>: the sibling 2018 disclosure that breaks the privilege check itself, letting speculative execution read kernel memory directly; got a different mitigation path (KPTI) than Spectre.</li>
+<li><b>Speculative constant-time verification tooling</b> (Spectector-family, SPS): the formal-methods line of work trying to make "is this code Spectre-safe" a decidable, checkable property instead of a case-by-case audit.</li>
+</ol>

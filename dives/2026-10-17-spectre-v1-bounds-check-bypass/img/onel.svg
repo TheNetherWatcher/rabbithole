@@ -1,0 +1,7 @@
+<svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+<text x="14" y="26" class="t-mute" font-size="9">"tricks the CPU"</text>
+<path d="M14 34 H146" class="s-line" stroke-width="1" stroke-dasharray="2 3"/>
+<circle cx="22" cy="48" r="4" class="f-warn"/><text x="32" y="52" class="t-ink" font-size="8">rollback is partial</text>
+<circle cx="22" cy="62" r="4" class="f-warn"/><text x="32" y="66" class="t-ink" font-size="8">it's a 256-way vote</text>
+<circle cx="22" cy="76" r="4" class="f-warn blink"/><text x="32" y="80" class="t-ink" font-size="8">no clean fix exists</text>
+</svg>
