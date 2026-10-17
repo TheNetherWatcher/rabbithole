@@ -1,0 +1,11 @@
+<ol>
+<li><b>OT</b> (Ellis &amp; Gibbs, 1989; from memory): transform index operations against concurrent ones; the basis of Google Docs.</li>
+<li><b>Early sequence CRDTs:</b> WOOT (2006) and Logoot (2009), both from memory; Logoot-style dense identifiers interleave in forward, backward and multi-replica cases (Fugue Table I).</li>
+<li><b>RGA</b> (Roh et al., &ldquo;Replicated Abstract Data Types&rdquo;, J. Parallel Distrib. Comput. 71(3), 2011): insert after an anchor, ties by timestamp, tombstones.</li>
+<li><b>YATA / Yjs</b> (Nicolaescu et al., 2016; from memory): left and right origins; the base of today's most-used library, whose pseudocode a formal verification project later found to contain errors.</li>
+<li><b>Interleaving anomalies</b> (Kleppmann et al., PaPoC 2019): names the bug, later corrected by errata.</li>
+<li><b>Peritext</b> (Litt et al., CSCW 2022): rich-text CRDT.</li>
+<li><b>Fugue</b> (arXiv 2023, IEEE TPDS 2025): defines and achieves maximal non-interleaving.</li>
+<li><b>Eg-walker</b> (arXiv 2024, EuroSys 2025): replay an event graph; a CRDT only where needed.</li>
+</ol>
+<p>Pattern: first make replicas agree (2000s), then make agreement <i>readable</i> (2019&ndash;2023), then make it <i>cheap</i> (2024&ndash;). The cost problem is what Eg-walker attacks by unbundling history from live state.</p>

@@ -1,0 +1,10 @@
+<div class="pull"><b>61.1 min → 23.5 ms</b><span>merging one real offline-heavy trace (A2): textbook OT vs Eg-walker, same machine (Eg-walker paper, Fig. 8).</span></div>
+<h3>Three things were broken</h3>
+<table><thead><tr><th>Problem</th><th>Why</th><th>Concrete</th></tr></thead><tbody>
+<tr><td><b>Positions shift</b></td><td>Index-based operations were written against a document that other edits have since changed.</td><td>&ldquo;Helo&rdquo;: User 1 inserts <i>l</i> at 3, User 2 inserts <i>!</i> at 4. Applying 4 as-is gives <i>Hell!o</i>; it must become 5.</td></tr>
+<tr><td><b>OT is quadratic on divergence</b></td><td>Every pair of concurrent operations must be transformed against each other.</td><td>Trace A1 (two authors' offline work): 6.3 s. Trace A2: 61.1 min.</td></tr>
+<tr><td><b>CRDTs are heavy</b></td><td>Every character carries an ID, and the whole structure lives in memory and on disk.</td><td>Same traces: Automerge used 241&ndash;848 MiB; Yjs 19&ndash;30 MiB; Eg-walker's steady state was about 1 MiB or less.</td></tr>
+</tbody></table>
+<figure data-fig="fig8"></figure>
+<p>Read the figure on a log axis: the colors are trace types (green sequential, orange concurrent, purple asynchronous offline). OT is competitive until real divergence shows up, then falls off a cliff.</p>
+<p><b>Forcing constraint:</b> with no server to order operations, every replica must independently compute the <i>same</i> order for concurrent inserts. That order is decided by a deterministic rule, and the rule's shape decides both correctness and readability. A second constraint pulls the other way: to keep resolving future references, deleted elements cannot simply be forgotten.</p>

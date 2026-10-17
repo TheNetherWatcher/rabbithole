@@ -1,0 +1,185 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-id{fill:var(--mute);font:600 12px var(--mono)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 16px system-ui,sans-serif}
+#story-fig .sf-doc{fill:var(--ink);font:700 26px var(--mono)}
+#story-fig .sf-op{fill:var(--ink);font:600 14px var(--mono)}
+#story-fig .sf-cell{fill:var(--ink);font:700 18px var(--mono)}
+#story-fig .sf-inv{fill:var(--bg)}
+#story-fig .sf-a{fill:var(--accent)}#story-fig .sf-b{fill:var(--accent2)}#story-fig .sf-bad{fill:var(--bad)}#story-fig .sf-ok{fill:var(--ok)}
+#story-fig .sf-num{fill:var(--ink);font:700 28px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two copies of a note edited offline: positions break, IDs fix it, tie-breaks can weave words, Fugue keeps runs whole, tombstones cost space, and Eg-walker replays only the concurrent stretch">
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Two people, one note, no server</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Edits by position break when they cross</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Fix: give every character a name</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">New problem: two words, one spot</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">A bad tie-break weaves the words</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">Fugue keeps each run whole</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">The price: nothing is ever forgotten</text>
+<text x="20" y="28" class="sf-cap" data-in="8" data-out="9">Eg-walker: keep a log, not a CRDT</text>
+<text x="20" y="28" class="sf-cap" data-in="9">Same trace, same result, far cheaper</text>
+<rect x="20" y="50" width="210" height="300" rx="6" class="f-panel s-line" data-in="1" data-out="4" stroke-width="1.5"/>
+<text x="34" y="76" class="sf-id" data-in="1" data-out="4">User 1</text>
+<rect x="250" y="50" width="210" height="300" rx="6" class="f-panel s-line" data-in="1" data-out="4" stroke-width="1.5"/>
+<text x="264" y="76" class="sf-id" data-in="1" data-out="4">User 2</text>
+<text x="125" y="130" class="sf-doc" text-anchor="middle" data-in="1" data-out="2">Helo</text>
+<text x="355" y="130" class="sf-doc" text-anchor="middle" data-in="1" data-out="2">Helo</text>
+<text x="125" y="130" class="sf-doc" text-anchor="middle" data-in="2" data-out="3">Hello</text>
+<text x="355" y="130" class="sf-doc" text-anchor="middle" data-in="2" data-out="3">Helo!</text>
+<text x="125" y="160" class="sf-op sf-a" text-anchor="middle" data-in="2" data-out="3">Insert(3,'l')</text>
+<text x="355" y="160" class="sf-op sf-b" text-anchor="middle" data-in="2" data-out="3">Insert(4,'!')</text>
+<text x="125" y="230" class="sf-doc sf-bad" text-anchor="middle" data-in="2" data-out="3">Hell!o</text>
+<text x="355" y="230" class="sf-doc" text-anchor="middle" data-in="2" data-out="3">Hello!</text>
+<text x="240" y="382" class="sf-lab sf-bad" text-anchor="middle" data-in="2" data-out="3">same edits, different text</text>
+<text x="240" y="364" class="sf-id" text-anchor="middle" data-in="2" data-out="3">after swapping edits as-is:</text>
+<rect x="60" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="73" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">H</text>
+<text x="73" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">h1</text>
+<rect x="290" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="303" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">H</text>
+<text x="303" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">h1</text>
+<rect x="90" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="103" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">e</text>
+<text x="103" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">e2</text>
+<rect x="320" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="333" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">e</text>
+<text x="333" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">e2</text>
+<rect x="120" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="133" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">l</text>
+<text x="133" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">l3</text>
+<rect x="350" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="363" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">l</text>
+<text x="363" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">l3</text>
+<rect x="150" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="163" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">o</text>
+<text x="163" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">o4</text>
+<rect x="380" y="100" width="26" height="34" rx="4" class="f-code s-line" data-in="3" data-out="4" stroke-width="1.5"/>
+<text x="393" y="123" class="sf-cell" text-anchor="middle" data-in="3" data-out="4">o</text>
+<text x="393" y="150" class="sf-id" text-anchor="middle" data-in="3" data-out="4">o4</text>
+<text x="125" y="200" class="sf-op sf-b" text-anchor="middle" data-in="3" data-out="4">insert '!' after o4</text>
+<text x="355" y="200" class="sf-op sf-a" text-anchor="middle" data-in="3" data-out="4">insert 'l' after l3</text>
+<text x="125" y="262" class="sf-doc sf-ok" text-anchor="middle" data-in="3" data-out="4">Hello!</text>
+<text x="355" y="262" class="sf-doc sf-ok" text-anchor="middle" data-in="3" data-out="4">Hello!</text>
+<text x="240" y="382" class="sf-lab" text-anchor="middle" data-in="3" data-out="4">an ID means the same on every copy</text>
+<text x="240" y="78" class="sf-doc" text-anchor="middle" data-in="4" data-out="7">milk¶</text>
+<rect x="30" y="130" width="32" height="36" rx="5" class="f-acc" data-in="4" data-out="5"/>
+<text x="46" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">e</text>
+<rect x="66" y="130" width="32" height="36" rx="5" class="f-acc" data-in="4" data-out="5"/>
+<text x="82" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">g</text>
+<rect x="102" y="130" width="32" height="36" rx="5" class="f-acc" data-in="4" data-out="5"/>
+<text x="118" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">g</text>
+<rect x="138" y="130" width="32" height="36" rx="5" class="f-acc" data-in="4" data-out="5"/>
+<text x="154" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">s</text>
+<rect x="250" y="130" width="32" height="36" rx="5" class="f-acc2" data-in="4" data-out="5"/>
+<text x="266" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">b</text>
+<rect x="286" y="130" width="32" height="36" rx="5" class="f-acc2" data-in="4" data-out="5"/>
+<text x="302" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">r</text>
+<rect x="322" y="130" width="32" height="36" rx="5" class="f-acc2" data-in="4" data-out="5"/>
+<text x="338" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">e</text>
+<rect x="358" y="130" width="32" height="36" rx="5" class="f-acc2" data-in="4" data-out="5"/>
+<text x="374" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">a</text>
+<rect x="394" y="130" width="32" height="36" rx="5" class="f-acc2" data-in="4" data-out="5"/>
+<text x="410" y="155" class="sf-cell sf-inv" text-anchor="middle" data-in="4" data-out="5">d</text>
+<text x="100" y="195" class="sf-op" text-anchor="middle" data-in="4" data-out="5">User A types</text>
+<text x="340" y="195" class="sf-op" text-anchor="middle" data-in="4" data-out="5">User B types</text>
+<line x1="240" y1="90" x2="100" y2="124" class="s-mute" stroke-width="2" data-in="4" data-out="5"/>
+<line x1="240" y1="90" x2="340" y2="124" class="s-mute" stroke-width="2" data-in="4" data-out="5"/>
+<text x="240" y="260" class="sf-lab" text-anchor="middle" data-in="4" data-out="5">both insert right after the same character</text>
+<rect x="24" y="130" width="42" height="44" rx="5" class="f-acc" data-in="5" data-out="6"/>
+<text x="45" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">e</text>
+<rect x="72" y="130" width="42" height="44" rx="5" class="f-acc2" data-in="5" data-out="6"/>
+<text x="93" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">b</text>
+<rect x="120" y="130" width="42" height="44" rx="5" class="f-acc" data-in="5" data-out="6"/>
+<text x="141" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">g</text>
+<rect x="168" y="130" width="42" height="44" rx="5" class="f-acc2" data-in="5" data-out="6"/>
+<text x="189" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">r</text>
+<rect x="216" y="130" width="42" height="44" rx="5" class="f-acc" data-in="5" data-out="6"/>
+<text x="237" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">g</text>
+<rect x="264" y="130" width="42" height="44" rx="5" class="f-acc2" data-in="5" data-out="6"/>
+<text x="285" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">e</text>
+<rect x="312" y="130" width="42" height="44" rx="5" class="f-acc" data-in="5" data-out="6"/>
+<text x="333" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">s</text>
+<rect x="360" y="130" width="42" height="44" rx="5" class="f-acc2" data-in="5" data-out="6"/>
+<text x="381" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">a</text>
+<rect x="408" y="130" width="42" height="44" rx="5" class="f-acc2" data-in="5" data-out="6"/>
+<text x="429" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="5" data-out="6">d</text>
+<text x="240" y="230" class="sf-doc sf-bad" text-anchor="middle" data-in="5" data-out="6">ebgrgesad</text>
+<text x="240" y="262" class="sf-lab" text-anchor="middle" data-in="5" data-out="6">every copy agrees, nobody can read it</text>
+<rect x="24" y="130" width="40" height="44" rx="5" class="f-acc" data-in="6" data-out="7"/>
+<text x="44" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">e</text>
+<rect x="68" y="130" width="40" height="44" rx="5" class="f-acc" data-in="6" data-out="7"/>
+<text x="88" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">g</text>
+<rect x="112" y="130" width="40" height="44" rx="5" class="f-acc" data-in="6" data-out="7"/>
+<text x="132" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">g</text>
+<rect x="156" y="130" width="40" height="44" rx="5" class="f-acc" data-in="6" data-out="7"/>
+<text x="176" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">s</text>
+<rect x="220" y="130" width="40" height="44" rx="5" class="f-acc2" data-in="6" data-out="7"/>
+<text x="240" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">b</text>
+<rect x="264" y="130" width="40" height="44" rx="5" class="f-acc2" data-in="6" data-out="7"/>
+<text x="284" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">r</text>
+<rect x="308" y="130" width="40" height="44" rx="5" class="f-acc2" data-in="6" data-out="7"/>
+<text x="328" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">e</text>
+<rect x="352" y="130" width="40" height="44" rx="5" class="f-acc2" data-in="6" data-out="7"/>
+<text x="372" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">a</text>
+<rect x="396" y="130" width="40" height="44" rx="5" class="f-acc2" data-in="6" data-out="7"/>
+<text x="416" y="160" class="sf-cell sf-inv" text-anchor="middle" data-in="6" data-out="7">d</text>
+<path d="M24 188 q86 18 172 0" class="s-acc" fill="none" stroke-width="2"  data-in="6" data-out="7"/>
+<path d="M220 188 q108 18 216 0" class="s-acc2" fill="none" stroke-width="2"  data-in="6" data-out="7"/>
+<text x="240" y="250" class="sf-lab" text-anchor="middle" data-in="6" data-out="7">each run stays whole (either order)</text>
+<text x="240" y="280" class="sf-id" text-anchor="middle" data-in="6" data-out="7">a tree of characters: a run is a subtree</text>
+<text x="20" y="100" class="sf-lab" data-in="7" data-out="8">plain text</text>
+<rect x="20" y="110" width="199.5" height="36" rx="5" class="f-mute" data-in="7" data-out="8"/>
+<text x="225.5" y="134" class="sf-big" data-in="7" data-out="8">105 kB</text>
+<text x="20" y="170" class="sf-lab" data-in="7" data-out="8">Yjs file</text>
+<rect x="20" y="180" width="304.0" height="36" rx="5" class="f-acc2" data-in="7" data-out="8"/>
+<text x="330.0" y="204" class="sf-big" data-in="7" data-out="8">160 kB</text>
+<text x="20" y="240" class="sf-lab" data-in="7" data-out="8">Fugue file</text>
+<rect x="20" y="250" width="319.2" height="36" rx="5" class="f-acc" data-in="7" data-out="8"/>
+<text x="345.2" y="274" class="sf-big" data-in="7" data-out="8">168 kB</text>
+<text x="20" y="330" class="sf-lab" data-in="7" data-out="8">metadata ≈ 60% of the text</text>
+<text x="20" y="352" class="sf-id" data-in="7" data-out="8">saved doc, 105 kB of typed text</text>
+<rect x="100" y="160" width="280" height="190" rx="10" class="f-none s-acc" data-in="8" data-out="9" stroke-dasharray="6 5" stroke-width="2"/>
+<line x1="240" y1="70" x2="240" y2="120" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="240" y1="120" x2="170" y2="205" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="170" y1="205" x2="170" y2="255" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="240" y1="120" x2="310" y2="205" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="310" y1="205" x2="310" y2="255" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="310" y1="255" x2="310" y2="305" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="170" y1="255" x2="240" y2="375" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<line x1="310" y1="305" x2="240" y2="375" class="s-mute" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="240" cy="70" r="11" class="f-ok s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="240" cy="120" r="11" class="f-ok s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="170" cy="205" r="11" class="f-panel s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="170" cy="255" r="11" class="f-panel s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="310" cy="205" r="11" class="f-panel s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="310" cy="255" r="11" class="f-panel s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="310" cy="305" r="11" class="f-panel s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<circle cx="240" cy="375" r="11" class="f-ok s-ink" stroke-width="2" data-in="8" data-out="9"/>
+<text x="266" y="76" class="sf-id" data-in="8" data-out="9">straight line: no CRDT needed</text>
+<text x="266" y="126" class="sf-id" data-in="8" data-out="9">critical version</text>
+<text x="110" y="185" class="sf-id sf-a" data-in="8" data-out="9">only this part is replayed</text>
+<text x="266" y="380" class="sf-id" data-in="8" data-out="9">merge</text>
+<rect x="0" y="40" width="480" height="380" rx="0" class="f-bg" data-in="9" opacity=".97"/>
+<text x="240" y="100" class="sf-lab" text-anchor="middle" data-in="9">merge a long offline branch</text>
+<text x="240" y="150" class="sf-num" text-anchor="middle" data-in="9">61.1 min → 23.5 ms</text>
+<text x="240" y="176" class="sf-id" text-anchor="middle" data-in="9">textbook OT vs Eg-walker, same real trace</text>
+<text x="240" y="240" class="sf-lab" text-anchor="middle" data-in="9">while merging, RAM</text>
+<text x="240" y="290" class="sf-num" text-anchor="middle" data-in="9">271 MiB → 8 MiB</text>
+<text x="240" y="316" class="sf-id" text-anchor="middle" data-in="9">Automerge vs Eg-walker peak (432 KiB steady)</text>
+<text x="240" y="376" class="sf-id" text-anchor="middle" data-in="9">all numbers: Eg-walker paper, Figs 8 and 10</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">Two people hold the same note, <b>Helo</b>, and edit it offline. No server decides who goes first. When they reconnect, both copies must end up identical.</p></div>
+<div class="step"><p><b>The obvious way: positions.</b> User 1 inserts an <i>l</i> at index 3. User 2 adds <i>!</i> at index 4. Swap the edits as-is and User 1 gets <b>Hell!o</b> while User 2 gets Hello!. Same edits, different documents.</p></div>
+<div class="step"><p><b>The CRDT fix: names, not numbers.</b> Give every character a permanent ID and say &ldquo;insert after <i>o4</i>&rdquo;. That sentence means the same on every copy, so both land on Hello!.</p></div>
+<div class="step"><p><b>A new problem.</b> Now two people each type a whole word right after the same character. &ldquo;After <i>milk</i>&rdquo; no longer names a unique spot, so the algorithm needs a tie-break rule.</p></div>
+<div class="step"><p><b>A tie-break can wreck the text.</b> If ties are broken character by character, the two words weave into <b>ebgrgesad</b> (the example from the Fugue paper). Every copy agrees. Nobody can read it.</p></div>
+<div class="step"><p><b>Fugue's rule.</b> Hang characters in a tree so that a typed run becomes a subtree, and runs stay whole. In a simulation I ran for this dive, plain RGA wove two backward-typed words into <i>xaybzc</i>; Fugue kept them whole.</p></div>
+<div class="step"><p><b>The price: nothing is forgotten.</b> A deleted character must stay as a tombstone, because a concurrent edit may still point at it. In the Fugue paper's benchmark a 105 kB document saves to 168 kB (Yjs: 160 kB).</p></div>
+<div class="step"><p><b>Eg-walker's trick.</b> Keep only the log of edits (an <i>event graph</i>). Most history is a straight line, where no CRDT is needed. Build one temporarily for the stretch where people really overlapped, then throw it away.</p></div>
+<div class="step"><p><b>The payoff.</b> On a real trace of two weeks of offline editing, merging took 61.1 minutes with textbook OT and 23.5 ms with Eg-walker. Peak merge memory was 8 MiB against Automerge's 271 MiB.</p></div>
+</div>
+</div>

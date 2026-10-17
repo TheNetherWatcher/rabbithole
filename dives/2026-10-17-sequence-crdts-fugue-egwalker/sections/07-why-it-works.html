@@ -1,0 +1,12 @@
+<p><b>The core insight:</b> concurrent edits only conflict about <i>where</i>. Give every character an identity, and location becomes a relationship between identities that every replica can resolve identically. The remaining design freedom is the tie-break, and that single rule decides both convergence and readability.</p>
+<h3>Remove each piece and see what breaks</h3>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td><b>Unique IDs</b> (use indexes)</td><td>Concurrent edits shift each other: <i>Hell!o</i> vs <i>Hello!</i>. This is why OT must transform indexes pairwise.</td></tr>
+<tr><td><b>The ID tie-break</b></td><td>Two replicas can order concurrent siblings differently, so they diverge permanently.</td></tr>
+<tr><td><b>Tombstones</b></td><td>An operation naming a deleted anchor has nothing to attach to. The Fugue paper notes tombstones can't be dropped because they may be ancestors of live or concurrent nodes.</td></tr>
+<tr><td><b>Subtree structure</b> (per-character tie-break, as in RGA)</td><td>Backward-typed runs interleave: <i>xaybzc</i> in my simulation. Convergence is intact; readability is not.</td></tr>
+<tr><td><b>Prepare/effect split</b> (Eg-walker)</td><td>An event can't be interpreted in the version its author saw while being applied to the current one; you are back to pairwise transformation.</td></tr>
+<tr><td><b>Clearing at critical versions</b> (Eg-walker)</td><td>The temporary state lives for the whole history. The paper's Fig. 9 shows merge time on S1 rising from 1.8 ms to 9.8 ms and on S3 from 3.6 ms to 24.4 ms.</td></tr>
+</tbody></table>
+<figure data-fig="figclear"></figure>
+<p>Read the bars as &ldquo;with the optimisation / without&rdquo;. A2 (no critical versions at all) barely changes: 23.5 ms vs 23.7 ms. That is the paper's own explanation for where clearing matters: long stretches of sequential editing.</p>

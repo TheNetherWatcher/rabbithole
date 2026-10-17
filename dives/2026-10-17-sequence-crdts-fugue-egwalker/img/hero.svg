@@ -1,0 +1,65 @@
+<svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.14">
+<line x1="330" y1="92" x2="250" y2="150" class="s-line" stroke-width="2"/>
+<line x1="330" y1="92" x2="410" y2="150" class="s-line" stroke-width="2"/>
+<line x1="250" y1="150" x2="200" y2="208" class="s-line" stroke-width="2"/>
+<line x1="250" y1="150" x2="290" y2="208" class="s-line" stroke-width="2"/>
+<line x1="410" y1="150" x2="370" y2="208" class="s-line" stroke-width="2"/>
+<line x1="410" y1="150" x2="450" y2="208" class="s-line" stroke-width="2"/>
+<line x1="200" y1="208" x2="170" y2="266" class="s-line" stroke-width="2"/>
+<line x1="200" y1="208" x2="230" y2="266" class="s-line" stroke-width="2"/>
+<line x1="450" y1="208" x2="480" y2="266" class="s-line" stroke-width="2"/>
+<circle cx="330" cy="92" r="13" class="f-acc s-line" stroke-width="2"/>
+<circle cx="250" cy="150" r="13" class="f-panel s-line" stroke-width="2"/>
+<circle cx="410" cy="150" r="13" class="f-acc2 s-line" stroke-width="2"/>
+<circle cx="200" cy="208" r="13" class="f-acc s-line" stroke-width="2"/>
+<circle cx="290" cy="208" r="13" class="f-acc s-line" stroke-width="2"/>
+<circle cx="370" cy="208" r="13" class="f-acc2 s-line" stroke-width="2"/>
+<circle cx="450" cy="208" r="13" class="f-acc2 s-line" stroke-width="2"/>
+<circle cx="170" cy="266" r="13" class="f-panel s-line" stroke-width="2"/>
+<circle cx="230" cy="266" r="13" class="f-panel s-line" stroke-width="2"/>
+<circle cx="480" cy="266" r="13" class="f-acc s-line" stroke-width="2"/>
+</g>
+<g class="layer" data-depth="0.22">
+<rect x="610" y="84" width="22" height="22" rx="4" class="f-acc" opacity=".9"/>
+<rect x="636" y="84" width="22" height="22" rx="4" class="f-acc2" opacity=".9"/>
+<rect x="662" y="84" width="22" height="22" rx="4" class="f-acc" opacity=".9"/>
+<rect x="688" y="84" width="22" height="22" rx="4" class="f-acc2" opacity=".9"/>
+<rect x="714" y="84" width="22" height="22" rx="4" class="f-acc" opacity=".9"/>
+<rect x="740" y="84" width="22" height="22" rx="4" class="f-acc2" opacity=".9"/>
+<rect x="766" y="84" width="22" height="22" rx="4" class="f-acc" opacity=".9"/>
+<rect x="792" y="84" width="22" height="22" rx="4" class="f-acc2" opacity=".9"/>
+<rect x="818" y="84" width="22" height="22" rx="4" class="f-acc" opacity=".9"/>
+<path d="M850 95 H900" class="s-mute draw" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="f-mute"/></marker></defs>
+<rect x="920" y="84" width="22" height="22" rx="4" class="f-acc"/>
+<rect x="946" y="84" width="22" height="22" rx="4" class="f-acc"/>
+<rect x="972" y="84" width="22" height="22" rx="4" class="f-acc"/>
+<rect x="998" y="84" width="22" height="22" rx="4" class="f-acc"/>
+<rect x="1034" y="84" width="22" height="22" rx="4" class="f-acc2"/>
+<rect x="1060" y="84" width="22" height="22" rx="4" class="f-acc2"/>
+<rect x="1086" y="84" width="22" height="22" rx="4" class="f-acc2"/>
+<rect x="1112" y="84" width="22" height="22" rx="4" class="f-acc2"/>
+<rect x="1138" y="84" width="22" height="22" rx="4" class="f-acc2"/>
+</g>
+<g class="layer" data-depth="0.32">
+<line x1="640" y1="250" x2="720" y2="250" class="s-mute" stroke-width="2"/>
+<line x1="720" y1="250" x2="800" y2="200" class="s-mute" stroke-width="2"/>
+<line x1="800" y1="200" x2="880" y2="200" class="s-mute" stroke-width="2"/>
+<line x1="720" y1="250" x2="800" y2="290" class="s-mute" stroke-width="2"/>
+<line x1="800" y1="290" x2="880" y2="290" class="s-mute" stroke-width="2"/>
+<line x1="880" y1="200" x2="960" y2="250" class="s-mute" stroke-width="2"/>
+<line x1="880" y1="290" x2="960" y2="250" class="s-mute" stroke-width="2"/>
+<line x1="960" y1="250" x2="1040" y2="250" class="s-mute" stroke-width="2"/>
+<circle cx="640" cy="250" r="9" class="f-ok s-mute" stroke-width="2"/>
+<circle cx="720" cy="250" r="9" class="f-panel s-mute" stroke-width="2"/>
+<circle cx="800" cy="200" r="9" class="f-panel s-mute" stroke-width="2"/>
+<circle cx="880" cy="200" r="9" class="f-panel s-mute" stroke-width="2"/>
+<circle cx="800" cy="290" r="9" class="f-panel s-mute" stroke-width="2"/>
+<circle cx="880" cy="290" r="9" class="f-panel s-mute" stroke-width="2"/>
+<circle cx="960" cy="250" r="9" class="f-ok pulse" stroke-width="2"/>
+<circle cx="1040" cy="250" r="9" class="f-ok s-mute" stroke-width="2"/>
+</g>
+</svg>

@@ -1,0 +1,90 @@
+<style>
+#hands-w .out{font:700 20px ui-monospace,monospace;margin:4px 0 10px}
+#hands-w .out span{display:inline-block;padding:1px 3px;border-radius:3px;margin-right:1px}
+#hands-w .a{background:var(--accent);color:var(--bg)}#hands-w .b{background:var(--accent2);color:var(--bg)}
+#hands-w input{font:16px ui-monospace,monospace;width:7em;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+#hands-w .tag{font:600 13px system-ui;margin-left:8px}
+#hands-w .bad{color:var(--bad)}#hands-w .ok{color:var(--ok)}
+</style>
+<p>Two ways to see it. First, run the simulation I wrote for this dive (about 120 lines of Python, no dependencies):</p>
+<pre><code>python3 seq_crdt_sim.py</code></pre>
+<p>Expected output (it also asserts that both replicas end with the same text):</p>
+<pre><code>forward typing (a, b, c)
+  RGA    -&gt; XxyzabcZ   runs stay whole
+  Fugue  -&gt; XabcxyzZ   runs stay whole
+backward typing (c, b, a)
+  RGA    -&gt; XxaybzcZ   INTERLEAVED
+  Fugue  -&gt; XabcxyzZ   runs stay whole</code></pre>
+<div class="widget" id="hands-w" role="group" aria-label="Interleaving lab">
+<b>Interleaving lab.</b> <span class="mini">Same logic as the Python script, in your browser. Both users start from XZ and type at the same spot.</span>
+<div class="ctl" style="margin-top:8px">
+  A types <input id="hands-a" value="abc" maxlength="6" aria-label="Word typed by A">
+  B types <input id="hands-b" value="xyz" maxlength="6" aria-label="Word typed by B">
+  <button class="btn" id="hands-f" aria-pressed="false">Forward</button>
+  <button class="btn" id="hands-r" aria-pressed="true">Backward</button>
+</div>
+<div class="mini">RGA <span class="tag" id="hands-t1"></span></div><div class="out" id="hands-o1"></div>
+<div class="mini">Fugue <span class="tag" id="hands-t2"></span></div><div class="out" id="hands-o2"></div>
+</div>
+<script>
+(function(){
+  var back=true,$=function(i){return document.getElementById(i)};
+  function rga(wa,wb){
+    var seq=[{id:[1,'O'],v:'X',prev:null},{id:[2,'O'],v:'Z',prev:[1,'O']}];
+    function same(a,b){return a&&b&&a[0]===b[0]&&a[1]===b[1]}
+    function gt(a,b){return a[0]!==b[0]?a[0]>b[0]:a[1]>b[1]}
+    function pos(id){if(!id)return -1;for(var i=0;i<seq.length;i++)if(same(seq[i].id,id))return i;return -1}
+    function integ(el){var i=pos(el.prev)+1;while(i<seq.length&&gt(seq[i].id,el.id))i++;seq.splice(i,0,el)}
+    function ops(r,w){var o=[],x=[1,'O'],k,prev=x,id;
+      for(k=0;k<w.length;k++){id=[3+k,r];
+        if(back)o.push({id:id,v:w[w.length-1-k],prev:x});
+        else{o.push({id:id,v:w[k],prev:prev});prev=id}}
+      return o}
+    ops('A',wa).concat(ops('B',wb)).forEach(integ);
+    return seq.map(function(e){return{c:e.v,w:e.id[1]}});
+  }
+  function cmp(a,b){return a[0]<b[0]?-1:a[0]>b[0]?1:a[1]-b[1]}
+  function key(id){return id[0]+id[1]}
+  function Fugue(r){this.r=r;this.n=0;this.nodes={}}
+  Fugue.prototype.kids=function(pk,side){var o=[];for(var k in this.nodes){var n=this.nodes[k];if(n.parent===pk&&n.side===side)o.push(n)}o.sort(function(a,b){return cmp(a.id,b.id)});return o};
+  Fugue.prototype.walk=function(pk,out){var t=this;t.kids(pk,'L').forEach(function(n){t.walk(key(n.id),out)});if(pk!==null)out.push(t.nodes[pk]);t.kids(pk,'R').forEach(function(n){t.walk(key(n.id),out)});return out};
+  Fugue.prototype.insert=function(i,v){
+    var order=this.walk(null,[]),vis=order.filter(function(n){return n.v!==null});
+    var left=i>0?vis[i-1]:null,lk=left?key(left.id):null,parent,side;
+    if(!this.kids(lk,'R').length){parent=lk;side='R'}
+    else{var nx=order[left?order.indexOf(left)+1:0];parent=key(nx.id);side='L'}
+    this.n++;var nd={id:[this.r,this.n],parent:parent,side:side,v:v};this.nodes[key(nd.id)]=nd;return nd};
+  Fugue.prototype.add=function(nd){this.nodes[key(nd.id)]=nd};
+  function fugue(wa,wb){
+    var o=new Fugue('O'),base=[o.insert(0,'X'),o.insert(1,'Z')];
+    function typ(r,w){var f=new Fugue(r),ops=[],i;base.forEach(function(b){f.add(b)});
+      if(back){for(i=w.length-1;i>=0;i--)ops.push(f.insert(1,w[i]))}else{for(i=0;i<w.length;i++)ops.push(f.insert(1+i,w[i]))}
+      return{f:f,ops:ops}}
+    var A=typ('A',wa),B=typ('B',wb);B.ops.forEach(function(n){A.f.add(n)});
+    return A.f.walk(null,[]).map(function(n){return{c:n.v,w:n.id[0]}});
+  }
+  function draw(id,tag,res,wa,wb){
+    var el=$(id),s='';el.textContent='';
+    res.forEach(function(x){var sp=document.createElement('span');sp.textContent=x.c;sp.className=x.w==='A'?'a':x.w==='B'?'b':'';el.appendChild(sp)});
+    var t=res.map(function(x){return x.c}).join('');
+    $(tag).textContent=(t.indexOf(wa)>=0&&t.indexOf(wb)>=0)?'runs stay whole':'interleaved';
+    $(tag).className='tag '+((t.indexOf(wa)>=0&&t.indexOf(wb)>=0)?'ok':'bad');
+  }
+  function go(){
+    var wa=$('hands-a').value.replace(/[^a-z]/gi,'').slice(0,6),wb=$('hands-b').value.replace(/[^a-z]/gi,'').slice(0,6);
+    if(!wa||!wb)return;
+    draw('hands-o1','hands-t1',rga(wa,wb),wa,wb);draw('hands-o2','hands-t2',fugue(wa,wb),wa,wb);
+  }
+  function mode(b){back=b;$('hands-f').setAttribute('aria-pressed',!b);$('hands-r').setAttribute('aria-pressed',b);go()}
+  $('hands-f').onclick=function(){mode(false)};$('hands-r').onclick=function(){mode(true)};
+  $('hands-a').oninput=go;$('hands-b').oninput=go;go();
+})();
+</script>
+<h3>Things to try</h3>
+<ul>
+<li>Switch to Forward. Does RGA still interleave? (It shouldn't; the table in section 8 says why.)</li>
+<li>Make the two words different lengths. Does anything change?</li>
+<li>In <code>seq_crdt_sim.py</code>, flip RGA's skip rule from <code>&gt;</code> to <code>&lt;</code> (ascending instead of descending). Both replicas still agree, but what happens to typed order?</li>
+<li>Add a third replica C typing <i>mno</i>. Does Fugue's output stay in three whole runs?</li>
+<li>Delete a character on one replica and insert after it on another. Which structure keeps working only because the tombstone stayed?</li>
+</ul>

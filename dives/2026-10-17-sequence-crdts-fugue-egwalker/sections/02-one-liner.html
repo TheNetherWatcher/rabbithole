@@ -1,0 +1,9 @@
+<blockquote>&ldquo;A sequence CRDT gives every character a unique ID, so &lsquo;insert after this character&rsquo; means the same thing on every replica and all copies converge.&rdquo;</blockquote>
+<p>True, and it hides five things:</p>
+<ol>
+<li><b>Convergence is the easy part.</b> The hard part is the <i>tie-break</i> for two inserts after the same character. A rule can converge perfectly and still weave two typed words together.</li>
+<li><b>Deleted text is never really gone.</b> A tombstone must stay, because a concurrent insert may name it as its anchor.</li>
+<li><b>The metadata is bigger than the text.</b> In the Fugue paper's benchmark, a 105 kB document saves to 168 kB.</li>
+<li><b>You may not need the CRDT most of the time.</b> Eg-walker keeps only an edit log and builds a CRDT just for the stretch where people truly overlapped.</li>
+<li><b>&ldquo;Same text everywhere&rdquo; is not &ldquo;what the users meant.&rdquo;</b> Convergence does not preserve intention; the interleaving literature exists because of this gap.</li>
+</ol>

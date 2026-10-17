@@ -1,0 +1,9 @@
+<ul>
+<li><b>Is Eg-walker maximally non-interleaving?</b> Its authors conjecture yes for the Yjs-style tie-break and leave the analysis to future work. Why hard: Fugue's proof is for a tree-structured algorithm; the YATA-style rule orders via origins in a flat list with different invariants. Who: Gentle, Kleppmann, Weidner.</li>
+<li><b>Bounded metadata and safe garbage collection.</b> Tombstones may be ancestors of live nodes. Causal-stability approaches (Bauwens &amp; Gonzalez Boix, MPLR 2020) need to know the replica set, which open peer-to-peer systems don't have. Yjs users report documents that only grow even after deletion.</li>
+<li><b>Rich text and blocks.</b> Peritext handles inline formatting; headings, lists and tables are open. The Eg-walker authors say their clearing step doesn't hold for Peritext, so combining a log-based design with rich text needs new ideas.</li>
+<li><b>Undo, move and cursors.</b> Moves that survive concurrent edits (Da &amp; Kleppmann), undo with convergent semantics (Stewen &amp; Kleppmann for registers), and stable remote cursors are active topics I did not research deeply.</li>
+<li><b>Intention beyond order.</b> Two users rewrite the same sentence: both rewrites survive and the merged text is gibberish. Convergence has no notion of semantic conflict.</li>
+<li><b>Trust.</b> What if a replica lies? Byzantine-tolerant CRDT work (e.g. the 2026 Brocco preprint) and verified access control for local-first systems are early.</li>
+</ul>
+<div class="callout flag"><b>Disagreement to know about:</b> a Loro blog post critiques Peritext for lacking the state-independence property that Eg-walker's design relies on (relayed by a research agent; I did not read the post).</div>

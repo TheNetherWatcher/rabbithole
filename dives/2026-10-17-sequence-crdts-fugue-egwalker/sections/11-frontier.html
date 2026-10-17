@@ -1,0 +1,25 @@
+<p>Status of the research, honestly: the two big results here are recent and verified from primary sources. The 2026 items below I only saw as abstract pages and say so.</p>
+<h3>1 · Eg-walker (Gentle &amp; Kleppmann, EuroSys 2025, arXiv Sept 2024)</h3>
+<p><b>Problem.</b> OT merges diverged branches too slowly; CRDTs load slowly and eat memory. <b>Method.</b> Keep the event graph, reconstruct state with a temporary CRDT over only the concurrent stretch, and track prepare and effect states per character (section 5). <b>Results</b> (paper, Fig. 8, 10, 12; Ryzen-class desktop, single core):</p>
+<ul>
+<li>Merge on trace A2 (299 authors, 698 k events, mean concurrency 6.11): Eg-walker 23.5 ms, OT 61.1 min, reference CRDT 26.2 ms, Yjs 74.2 ms, Automerge 520 ms.</li>
+<li>Sequential traces S1&ndash;S3: 1.8&ndash;3.6 ms, about as fast as OT and roughly an order of magnitude faster than the reference CRDT.</li>
+</ul>
+<ul>
+<li>Memory while merging: Eg-walker peak 4.7&ndash;79.5 MiB, but steady state 73 KiB&ndash;1 MiB. Yjs 19.5&ndash;30.3 MiB, Automerge 241&ndash;848 MiB, OT peak up to 6.8 GiB on A2.</li>
+</ul>
+<figure data-fig="fig12"></figure>
+<ul>
+<li>File size (deleted text omitted, as Yjs does): Eg-walker is smaller than Yjs on sequential and asynchronous traces (e.g. A2: 330 KiB vs 506 KiB) and larger on the two concurrent ones (C1: 981 KiB vs 845 KiB).</li>
+</ul>
+<p><b>Limits.</b> Plain text only; worst case O(n² log n); concurrent traces use artificial latency; the OT baseline is a simple TTF-style algorithm, not a production one; the maximal-non-interleaving property is conjectured.</p>
+<h3>2 · Fugue and FugueMax (Weidner &amp; Kleppmann, IEEE TPDS 2025, arXiv 2305.00583)</h3>
+<p><b>Problem.</b> Interleaving had no precise definition, and the 2019 attempt was itself flawed. <b>Method.</b> Define <i>maximal non-interleaving</i>, introduce a tree-based algorithm whose FugueMax variant provably satisfies it. <b>Results.</b> Fugue is about 94,000 ops/s (11 µs per operation) with 2.4 MB memory on the editing trace versus Yjs 39,000 ops/s and 3.3 MB; saved size is 168 kB vs Yjs 160 kB for 105 kB of text.</p>
+<h3>3 · Also recent</h3>
+<table><thead><tr><th>Work</th><th>Venue / date</th><th>Contribution</th><th>Verified</th></tr></thead><tbody>
+<tr><td><a href="https://arxiv.org/abs/2607.28101" target="_blank" rel="noopener">ESBT</a>, Mechaoui &amp; Imine</td><td>arXiv, 30 Jul 2026</td><td>Identifier scheme (Extended Stern-Brocot Tree) to bound identifier growth in Logoot-style CRDTs; claims lower memory than Logoot and LSEQ at 100k ops / 50 sites.</td><td>Abstract page only</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2606.18966" target="_blank" rel="noopener">Brocco</a>, Byzantine-resilient CRDT layer</td><td>arXiv, 17 Jun 2026</td><td>Replicas that hold the same updates can't diverge even under equivocation; implemented in Melda. Not a sequence CRDT.</td><td>Abstract page only</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2404.11308" target="_blank" rel="noopener">Stewen &amp; Kleppmann</a>, undo/redo for replicated registers</td><td>PaPoC 2024</td><td>Undo and redo semantics for multi-value registers, a building block for list/map undo.</td><td>Search snippet only</td></tr>
+<tr><td><a href="https://arxiv.org/abs/2311.14007" target="_blank" rel="noopener">Da &amp; Kleppmann</a>, JSON CRDTs with move</td><td>arXiv 2023</td><td>Move operations on tree/list CRDTs (slightly outside the two-year window).</td><td>Abstract page only</td></tr>
+</tbody></table>
+<div class="callout flag">Verification level matters: papers 1 and 2 were checked against the source LaTeX or the arXiv HTML. The table rows are listed as pointers; open them before quoting.</div>

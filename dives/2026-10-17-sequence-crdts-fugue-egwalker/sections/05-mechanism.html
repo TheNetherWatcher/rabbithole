@@ -1,0 +1,65 @@
+<style>
+#mech-w table{width:100%;border-collapse:collapse;margin:8px 0}
+#mech-w td,#mech-w th{padding:4px 8px;text-align:left;border-bottom:1px solid var(--line);font-family:ui-monospace,monospace;font-size:14px}
+#mech-w .niy{color:var(--mute);text-decoration:line-through}
+#mech-w .del{color:var(--bad)}
+#mech-w .hl td{background:var(--hl)}
+#mech-w .docs{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0}
+#mech-w .docs div{font:15px ui-monospace,monospace}
+#mech-w .docs b{font-size:12px;color:var(--mute);display:block;font-family:system-ui}
+</style>
+<h3>1 · From a position to a name</h3>
+<p>Take the Eg-walker paper's own example. Two users start from <code>Helo</code>. User 1 inserts <i>l</i> at index 3. User 2 inserts <i>!</i> at index 4. Applying User 2's operation unchanged on User 1's machine gives <code>Hell!o</code>. The index has to become 5. A sequence CRDT removes the problem at the source: each character has an ID (<code>H1 e2 l3 o4</code>), and User 2's operation is &ldquo;insert <i>!</i> after <code>o4</code>&rdquo;. It needs no adjusting.</p>
+<h3>2 · Same spot, two writers: RGA vs Fugue, traced</h3>
+<p>Start from the shared text <code>XZ</code>. User A types <i>abc</i> <b>backwards</b> (insert <i>c</i> at index 1, then <i>b</i> at index 1, then <i>a</i> at index 1). User B does the same with <i>xyz</i>. This is the sequence people use when they build a list by repeatedly adding at the top. I wrote a small simulation for this dive (<code>seq_crdt_sim.py</code>) and ran it; the traces below are its output.</p>
+<p><b>RGA.</b> Every insert says &ldquo;after X&rdquo; and carries an ID (counter, replica). Ties go to the larger ID first (the Fugue paper's appendix describes RGA's order as descending by timestamp, which my simulation follows). A's IDs are (3,A) <i>c</i>, (4,A) <i>b</i>, (5,A) <i>a</i>; B's are (3,B), (4,B), (5,B). Sorted by descending ID: <code>x(5,B) a(5,A) y(4,B) b(4,A) z(3,B) c(3,A)</code>, so the document is <code>X<b>xaybzc</b>Z</code>. Every character is individually correct, and the words are woven.</p>
+<p><b>Fugue.</b> Characters hang in a tree. To insert at an index, take the character before it as the <i>left origin</i>. If the left origin has no right child, the new node becomes its right child; otherwise it becomes a <i>left</i> child of the next element in the traversal (the <i>right origin</i>). The list is the in-order walk: left children, the node, then right children; same-side siblings are ordered by ID (quoted from Section IV of the paper).</p>
+<figure data-fig="figtree"></figure>
+<p>Here, <i>X</i> already has a right child <i>Z</i>, so <i>c</i> becomes a left child of <i>Z</i>; <i>b</i> sees <i>X</i> has a right child and becomes a left child of the next element, which is <i>c</i>; <i>a</i> does the same under <i>b</i>. A's run is a chain of left children, and B's is another chain under <i>Z</i>. A subtree is contiguous in an in-order walk, so each run stays whole: <code>X<b>abcxyz</b>Z</code>.</p>
+<figure data-fig="figint"></figure>
+<h3>3 · Eg-walker: keep the log, replay only what overlapped</h3>
+<p>Eg-walker flips the design. Each replica keeps the <b>event graph</b>: every edit as an event with its parents (what the author had seen). The current text is stored as a plain string. A CRDT is built only while merging, over the stretch of history that is actually concurrent, and then discarded.</p>
+<figure data-fig="figeg"></figure>
+<p>To transform an event, the algorithm needs to interpret it at the version its author saw, while applying it to the version that exists now. So the temporary CRDT tracks <b>two states per character at once</b>: <code>s_p</code> in the <i>prepare</i> version and <code>s_e</code> in the <i>effect</i> version. Three operations move between versions: <code>apply</code>, <code>retreat</code> (remove an event from the prepare version) and <code>advance</code> (add it back). Step through the paper's example below.</p>
+<div class="widget" id="mech-w" role="group" aria-label="Eg-walker replay step-through">
+<b>Replay of the hi → Hey! event graph.</b> <span class="mini">NIY = NotInsertedYet, Del n = deleted by n events in the prepare version.</span>
+<div class="stepbar">
+  <button class="btn" id="mech-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="mech-next" aria-label="Next step">Next →</button>
+  <span class="info" id="mech-info"></span>
+</div>
+<table><thead><tr><th>char</th><th>s_p (prepare)</th><th>s_e (effect)</th></tr></thead><tbody id="mech-rows"></tbody></table>
+<div class="docs"><div><b>prepare doc</b><span id="mech-prep"></span></div><div><b>effect doc (so far)</b><span id="mech-eff"></span></div><div><b>transformed op</b><span id="mech-op"></span></div></div>
+<p class="mini" id="mech-note"></p>
+</div>
+<p>Two optimisations make it fast. If an event's version and its parent's version are both <i>critical versions</i> (every earlier event is an ancestor, every later one a descendant), nothing is concurrent there, the transformed event equals the original and the internal state can be thrown away. And a merge only replays from the latest critical version before the new events, so the work scales with the concurrent stretch, not the whole history.</p>
+<script>
+(function(){
+  var S=[
+   {t:'apply e1 · Insert(0,"h")',op:'Insert(0,"h")',n:'First event. Record h is created, Ins in both versions.',r:[['h','Ins','Ins']],p:'h',e:'h'},
+   {t:'apply e2 · Insert(1,"i")',op:'Insert(1,"i")',n:'Sequential, nothing concurrent yet.',r:[['h','Ins','Ins'],['i','Ins','Ins']],p:'hi',e:'hi'},
+   {t:'apply e3 · Insert(0,"H")',op:'Insert(0,"H")',n:'Branch A starts (capitalise). H goes before h.',r:[['H','Ins','Ins'],['h','Ins','Ins'],['i','Ins','Ins']],p:'Hhi',e:'Hhi'},
+   {t:'apply e4 · Delete(1)',op:'Delete(1)',n:'Deletes h (index 1 of "Hhi"). Prepare: Del 1. Effect: Del.',r:[['H','Ins','Ins'],['h','Del 1','Del'],['i','Ins','Ins']],p:'Hi',e:'Hi',hl:1},
+   {t:'retreat e4, e3, then apply e5 · Delete(1)',op:'Delete(1)',n:'e5 was written when only e1, e2 existed. Retreat e4 and e3 so the prepare version equals e5’s parents: H becomes NIY, h is Ins again (its effect state stays Del). Delete(1) now hits i.',r:[['H','NIY','Ins'],['h','Ins','Del'],['i','Del 1','Del']],p:'h',e:'H',hl:2},
+   {t:'apply e6 · Insert(1,"e")',op:'Insert(1,"e")',n:'Prepare doc is "h", so e goes after h.',r:[['H','NIY','Ins'],['h','Ins','Del'],['e','Ins','Ins'],['i','Del 1','Del']],p:'he',e:'He',hl:2},
+   {t:'apply e7 · Insert(2,"y")',op:'Insert(2,"y")',n:'Branch B is now "hey" in its own version.',r:[['H','NIY','Ins'],['h','Ins','Del'],['e','Ins','Ins'],['y','Ins','Ins'],['i','Del 1','Del']],p:'hey',e:'Hey',hl:3},
+   {t:'advance e3, e4, then apply e8 · Insert(3,"!")',op:'Insert(3,"!")',n:'e8 has parents e4 and e7, so it saw everything. Advance e3 and e4 to bring the prepare version level with the effect version. Now prepare = effect = "Hey". Insert at 3.',r:[['H','Ins','Ins'],['h','Del 1','Del'],['e','Ins','Ins'],['y','Ins','Ins'],['!','Ins','Ins'],['i','Del 1','Del']],p:'Hey!',e:'Hey!',hl:4}
+  ];
+  var k=0,$=function(i){return document.getElementById(i)};
+  function show(){
+    var s=S[k],h='';
+    s.r.forEach(function(r){
+      var c=(r[1]==='NIY'?' niy':'')+(r[2]==='Del'?' del':'');
+      h+='<tr><td class="'+c+'">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>';
+    });
+    $('mech-rows').innerHTML=h;
+    $('mech-prep').textContent='"'+s.p+'"';$('mech-eff').textContent='"'+s.e+'"';$('mech-op').textContent=s.op;
+    $('mech-info').textContent='Step '+(k+1)+' / '+S.length+' · '+s.t;
+    $('mech-note').textContent=s.n+(k===S.length-1?' Here every index happens to survive unchanged; what matters is that the state machine arrives at the right place without ever storing IDs for settled history.':'');
+    $('mech-prev').disabled=k===0;$('mech-next').disabled=k===S.length-1;
+  }
+  $('mech-prev').onclick=function(){if(k>0){k--;show()}};
+  $('mech-next').onclick=function(){if(k<S.length-1){k++;show()}};
+  show();
+})();
+</script>

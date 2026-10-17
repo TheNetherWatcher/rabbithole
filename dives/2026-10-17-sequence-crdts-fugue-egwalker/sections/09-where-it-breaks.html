@@ -1,0 +1,18 @@
+<h3>Interleaving, forward and backward</h3>
+<p>The Fugue paper's Figure 1 shows the classic case: after a shared &ldquo;milk&rdquo; line, one user types <i>eggs</i> and another <i>bread</i> at the same spot, and a weak algorithm yields <code>ebgrgesad</code>. Its Figure 2 shows a semantic version: two users each add items at the top of a list and one user's item ends up under the wrong heading. Per the paper's Table I, Logoot interleaves in forward, backward and multi-replica cases; RGA is forward non-interleaving but interleaves backward; Yjs shows backward interleaving in multi-replica cases.</p>
+<div class="callout gotcha"><b>Published results have been wrong here too.</b> The 2019 PaPoC paper (Kleppmann, Gomes, Mulligan, Beresford) now carries errata: its non-interleaving definition cannot be satisfied by any algorithm, and its proposed algorithm does not converge. The Fugue paper is the fix. Even the paper that named the bug had a bug.</div>
+<h3>Tombstones and garbage collection</h3>
+<p>A tombstone can't simply be deleted because later (or concurrent) operations may name it. Removal is safe only once the deletion is <i>causally stable</i>, meaning every replica is known to have seen it. Bauwens and Gonzalez Boix (MPLR 2020) work on this, but it requires knowing the full replica set. Practitioners report Yjs documents trending upward even with GC on, and that purging history breaks mergeability (forum threads; secondary evidence).</p>
+<h3>Metadata cost</h3>
+<p>From the Fugue paper: saved metadata is about 60% of the plain text's size (168 kB file for 105 kB of text), and memory is roughly 23 bytes per character, or 13 bytes per character counting tombstones. The simple variants of Fugue and FugueMax cost 618 and 685 bytes per character, which is why implementation engineering (run-length encoding, B-trees) matters more than the paper's pseudocode.</p>
+<h3>Eg-walker's own limits (from its paper)</h3>
+<ul>
+<li><b>Plain text only.</b> Rich text, spreadsheets and the like are stated future work. The paper notes that a critical-version cut does not hold for Peritext because of how it processes concurrent annotations.</li>
+<li><b>Worst case O(n² log n)</b>, and traversal order matters (up to 8× slower on one trace).</li>
+<li><b>Benchmarks are single-node</b> with artificial latency; the async traces were reconstructed from Git history, not keystrokes.</li>
+<li><b>Maximal non-interleaving is a conjecture</b> for its tie-break, not a theorem.</li>
+</ul>
+<h3>Rich text, move, undo, cursors</h3>
+<p>Formatting is its own conflict class. The Peritext essay lists overlapping bold/italic, conflicting highlight colors and insertion at the edge of a link (Word, Google Docs and Pages disagree on whether new text at a link's end is linked). Peritext covers inline marks only; block elements are follow-up work. I did not research undo, cursor stability or move operations in depth.</p>
+<div class="callout mis"><b>Misconception: &ldquo;converged means correct.&rdquo;</b> Convergence only says all replicas agree. The PaPoC paper's framing is that agreement alone does not make an editor usable.</div>
+<div class="callout mis"><b>Misconception: &ldquo;CRDTs beat OT everywhere.&rdquo;</b> The interleaving problem affects both (Fugue abstract), and OT with a central server carries much less metadata. The real trade is metadata and offline support against server simplicity.</div>

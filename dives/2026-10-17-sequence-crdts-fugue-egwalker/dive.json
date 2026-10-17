@@ -1,0 +1,444 @@
+{
+ "meta": {
+  "title": "Sequence CRDTs for collaborative text: RGA, Fugue and Eg-walker",
+  "short": "Sequence CRDTs & Eg-walker",
+  "subject": "Computer science",
+  "domain": "Distributed systems",
+  "topic": "Sequence CRDTs for collaborative text: interleaving, tombstones, event-graph replay",
+  "depth": "hard",
+  "date": "2026-10-17"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "How two offline copies of a note merge with no server, and the 2024 trick that took one real merge from an hour to milliseconds"
+ },
+ "tldr": "A sequence CRDT gives every character a permanent ID so concurrent edits merge without a server. The hard parts are the tie-break (a bad one <b>weaves two typed words together</b>) and metadata (<b>168 kB</b> saved for 105 kB of text). Eg-walker keeps only an edit log and builds a CRDT just for the concurrent stretch: <b>23.5 ms</b> on a trace that took textbook OT <b>61 minutes</b>.",
+ "why": "<b>Why it matters:</b> offline-first and peer-to-peer editors depend on this. Yjs, Automerge, Loro and Zed all ship a version of it, and the cost of getting it wrong is unreadable text or a bloated file.",
+ "stats": [
+  {
+   "v": "160,000×",
+   "l": "faster merge than OT on trace A2 (Eg-walker paper)"
+  },
+  {
+   "v": "23.5 ms",
+   "l": "Eg-walker merge time, trace A2"
+  },
+  {
+   "v": "168 kB",
+   "l": "saved Fugue doc for 105 kB of text"
+  },
+  {
+   "v": "432 KiB",
+   "l": "Eg-walker steady-state RAM on A2 (Automerge: 271 MiB while merging)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "Two housemates, one shopping list, no referee",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>Two housemates photocopy a list and each add a word at the bottom. To merge without a referee, every letter gets a name tag and edits say &ldquo;put this after tag <i>o4</i>&rdquo;.</p><p>The catch: a careless tie-break can weave the two words together, and the name tags make the file bigger than the text.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Concurrent</b> edits: neither author saw the other's.</li><li><b>OT</b> transforms index operations; <b>CRDTs</b> give elements IDs so operations commute.</li><li><b>Tombstone</b>: a deleted element kept as a hidden marker.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Behind Yjs, Automerge, Loro and Zed's editor",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>You pick a library and a transport and exchange binary updates; you watch document size and load time. <b>Figma</b> and (historically) <b>Google Docs</b> are not CRDTs: they order edits on a server.</p>"
+  },
+  {
+   "id": "onel",
+   "group": "Technical deep dive",
+   "kicker": "§2 · The one-liner",
+   "title": "&ldquo;Unique IDs make all copies converge&rdquo; hides five things",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>True, but convergence is the easy part. The tie-break decides readability, tombstones never leave, and metadata outweighs the text. Five hidden things the rest of the dive answers.</p>"
+  },
+  {
+   "id": "problem",
+   "guess": "size",
+   "kicker": "§3 · The problem",
+   "title": "Positions shift, OT goes quadratic, CRDTs are heavy",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>Index edits shift each other (<i>Helo</i> becomes <i>Hell!o</i>). OT merges diverged branches in quadratic time: <b>61.1 min</b> on one real trace. CRDTs avoid that but carry an ID per character and a lot of RAM.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A shelf where books say &ldquo;put me after book 7731&rdquo;",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Barcodes make &ldquo;after 7731&rdquo; mean the same on every copy. The picture breaks in three places: ties, tombstones and the lack of a head librarian.</p>"
+  },
+  {
+   "id": "mech",
+   "guess": "weave",
+   "kicker": "§5 · The mechanism, traced",
+   "title": "Fugue's tree keeps typed runs whole; Eg-walker replays only the overlap",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>Trace one example under RGA and Fugue, then step through Eg-walker's replay with two states per character (prepare and effect). <span class=\"mini\">Step-through inside.</span></p>"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "Order is an in-order tree walk; merging costs O((k+m) log(k+m))",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>Siblings sorted by ID make order depend only on the set of nodes. A subtree is contiguous in the walk, so runs stay whole. Eg-walker's worst case is O(n² log n).</p>"
+  },
+  {
+   "id": "why",
+   "guess": "ablate",
+   "kicker": "§7 · Why it works",
+   "title": "Identity turns &ldquo;where&rdquo; into a relationship every replica resolves alike",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>Remove any piece and something specific breaks: indexes shift, replicas diverge, anchors vanish, runs weave, or merge time balloons. <span class=\"mini\">Ablation table inside.</span></p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs and alternatives",
+   "title": "OT, RGA, Yjs, Fugue, Eg-walker: five trade-offs",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Compared on interleaving, state kept and weak spot. Knobs you touch: GC, run-length encoding, cached text and traversal order.</p>"
+  },
+  {
+   "id": "breaks",
+   "guess": "tomb",
+   "kicker": "§9 · Where it breaks",
+   "title": "Weaving, tombstone growth and metadata bloat",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Interleaving (even the 2019 paper that named it had errata), tombstones GC can't safely drop, metadata near 60% of the text, and Eg-walker's limits: plain text only, O(n² log n) worst case.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "Same 260k-edit trace, 100&times; spread in time and memory",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>Yjs, Loro, Automerge and diamond-types on the same trace, with hardware and version caveats. Zed, Yjs and diamond-types each deviate from the textbook.</p>"
+  },
+  {
+   "id": "frontier",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "Eg-walker and Fugue are the 2024&ndash;25 advances",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>Eg-walker (EuroSys 2025): <b>23.5 ms</b> vs OT's 61.1 min, with memory 1&ndash;2 orders lower. Fugue (TPDS 2025): proves maximal non-interleaving. Four newer pointers, flagged by how much I verified.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Six things nobody has settled",
+   "visual": "img/open.svg",
+   "file": "sections/12-open-problems.html",
+   "brief": "<p>Is Eg-walker's tie-break maximally non-interleaving? Safe tombstone GC? Rich-text blocks? Undo, move, trust.</p>"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "Agree (2000s), make it readable (2019&ndash;23), make it cheap (2024&ndash;)",
+   "visual": "img/lineage.svg",
+   "file": "sections/13-lineage.html",
+   "brief": "<p>OT (1989) → WOOT/Logoot → RGA (2011) → YATA/Yjs → interleaving anomalies (2019) → Fugue → Eg-walker.</p>"
+  },
+  {
+   "id": "hands",
+   "group": "Practice & self-test",
+   "kicker": "§13 · Hands-on",
+   "title": "Make RGA weave two words, then watch Fugue refuse",
+   "visual": "img/hands.svg",
+   "file": "sections/14-hands-on.html",
+   "brief": "<p>Run a ~120-line simulation, or use the in-page lab: type two words at the same spot. <span class=\"mini\">Interactive inside.</span></p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>18 questions from mechanism to open problems, with answers.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three topics that build on this",
+   "visual": "img/next.svg",
+   "file": "sections/16-go-deeper.html",
+   "brief": "<p>Causal broadcast and version vectors, Peritext and rich text, and OT correctness (TP1/TP2).</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Papers, code and articles, with what was verified",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "credits": true,
+   "brief": "<p>Eg-walker, Fugue, the PaPoC 2019 paper and RGA; Yjs, Automerge, Loro; benchmark posts. Includes a note on trust levels.</p>"
+  }
+ ],
+ "guesses": {
+  "cold": {
+   "q": "A 2024 algorithm merged the same trace. How long did it take?",
+   "options": [
+    "About 40 minutes",
+    "About 10 seconds",
+    "About 1 second",
+    "About 24 milliseconds"
+   ],
+   "answer": 3,
+   "reveal": "<p><b>23.5 ms</b>, about 160,000× faster, on trace A2 of the Eg-walker paper (EuroSys 2025). It keeps only an edit log and builds a CRDT just for the stretch where authors truly overlapped.</p>"
+  },
+  "size": {
+   "q": "A 105 kB document is saved with full CRDT metadata (Fugue paper). How big is the file?",
+   "min": 100,
+   "max": 400,
+   "step": 5,
+   "unit": " kB",
+   "answer": [
+    160,
+    170
+   ],
+   "start": 200,
+   "tol": 20,
+   "reveal": "<p><b>168 kB</b> for Fugue (Yjs: 160 kB). The metadata is about 60% of the text's size. Nothing is forgotten: deleted characters stay as tombstones.</p>"
+  },
+  "weave": {
+   "q": "Two users each type a three-letter word <i>backwards</i> at the same spot of <i>XZ</i> (A: abc, B: xyz). Plain RGA produces:",
+   "options": [
+    "XabcxyzZ (words whole)",
+    "XxaybzcZ (letters woven)",
+    "XzyxcbaZ",
+    "The replicas diverge"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>XxaybzcZ.</b> Every insert has the same anchor, so the descending-ID rule alternates the two users' characters. The replicas converge; the text is just unreadable. Fugue's tree gives XabcxyzZ (my simulation, in the hands-on section).</p>"
+  },
+  "ablate": {
+   "q": "Eg-walker clears its internal state at critical versions. On trace S1 (sequential editing), how much slower is merging without that optimisation?",
+   "options": [
+    "No difference",
+    "About 1.5×",
+    "About 5×",
+    "About 100×"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>About 5×</b>: 1.8 ms with it, 9.8 ms without (paper Fig. 9). On A2, which has no critical versions, it makes no difference (23.5 vs 23.7 ms).</p>"
+  },
+  "tomb": {
+   "q": "One user deletes a character. Another, offline, inserts text right after it. Why can't replicas just erase the deleted character?",
+   "options": [
+    "Memory is cheap anyway",
+    "The offline insert names it as its anchor",
+    "Undo needs it",
+    "Deletes are never transmitted"
+   ],
+   "answer": 1,
+   "reveal": "<p>The offline insert says &ldquo;after character <i>c</i>&rdquo;. If <i>c</i> were erased, that instruction would have nothing to attach to. The Fugue paper notes tombstones may be ancestors of live or concurrent nodes.</p>"
+  }
+ },
+ "questions": [
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "On &ldquo;Helo&rdquo;, why does User 1 have to rewrite Insert(4,'!') to Insert(5,'!')? How does an ID-based operation avoid this?",
+   "a": "<p>User 1 has already inserted an <i>l</i> before index 4, so index 4 now names a different position. An ID-based operation says &ldquo;after <code>o4</code>&rdquo;; the ID refers to the same character regardless of what was inserted earlier.</p>"
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "In Fugue, when does a new character become a right child and when a left child?",
+   "a": "<p>Take the character before the insertion point as the left origin. If it has no right child, the new node is its right child. Otherwise the new node becomes a left child of the next element in the traversal (the right origin).</p>"
+  },
+  {
+   "type": "Mechanism",
+   "sec": "mech",
+   "q": "Eg-walker tracks s_p and s_e per character. What does each mean, and why two?",
+   "a": "<p>s_e is the character's state in the latest document; s_p is its state at the version the current event's author saw. The event must be interpreted against s_p but its transformed position must be computed against s_e.</p>"
+  },
+  {
+   "type": "Mechanism",
+   "sec": "math",
+   "q": "Why does s_p count deletions (Del 1, Del 2) rather than being a boolean?",
+   "a": "<p>Two concurrent users can delete the same character. Retreating one deletion must not make the character visible while the other deletion still applies, so the prepare state counts how many deletions hit it.</p>"
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why does an in-order tree walk keep a typed run contiguous?",
+   "a": "<p>A subtree's nodes appear as one unbroken block in an in-order walk. If a typed run forms one subtree, nothing from a different subtree can land in the middle of it.</p>"
+  },
+  {
+   "type": "Why",
+   "sec": "math",
+   "q": "Why must same-side siblings be sorted by a total order on IDs?",
+   "a": "<p>Convergence requires the order to depend only on the set of nodes, not arrival order. A total order on IDs gives every replica the same sibling order independently.</p>"
+  },
+  {
+   "type": "Why",
+   "sec": "mech",
+   "q": "Why does RGA interleave backward typing but not forward typing?",
+   "a": "<p>Forward typing anchors each character to the previous one, so each user's run is a chain. Backward typing anchors every character to the same element, and the tie-break compares individual IDs, alternating the two users' characters.</p>"
+  },
+  {
+   "type": "Why",
+   "sec": "problem",
+   "q": "Why do CRDTs need to keep the whole structure in memory, while Eg-walker doesn't?",
+   "a": "<p>A CRDT needs its per-character IDs to integrate any future operation. Eg-walker only needs them to merge concurrent events, so it keeps the plain text and an on-disk event graph, building the CRDT during a merge and discarding it.</p>"
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "breaks",
+   "q": "What if tombstones were dropped the moment a delete was applied?",
+   "a": "<p>A concurrent insert whose anchor was the deleted character would have nowhere to attach, and different replicas would place it differently. Removal is only safe when the deletion is causally stable.</p>"
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "why",
+   "q": "What if Eg-walker never cleared state at critical versions?",
+   "a": "<p>It would keep a CRDT over the whole history, so sequential traces slow down about 5&ndash;7× (S1: 1.8 to 9.8 ms; S3: 3.6 to 24.4 ms) and memory rises.</p>"
+  },
+  {
+   "type": "Counterfactual",
+   "sec": "hands",
+   "q": "Flip RGA's skip rule to ascending order. Do replicas still converge? What changes?",
+   "a": "<p>They still converge, since any deterministic total order does. Typed order changes: with the same anchor, later inserts now land after earlier ones, which affects how forward and backward typing read.</p>"
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "How could a malicious replica break an ID-based CRDT?",
+   "a": "<p>By reusing an ID with different content or parents (equivocation), different replicas may keep different versions. Byzantine-resilient CRDT work addresses this; plain sequence CRDTs assume honest replicas.</p>"
+  },
+  {
+   "type": "Adversarial",
+   "sec": "math",
+   "q": "What event-graph shape pushes Eg-walker toward O(n² log n)?",
+   "a": "<p>A graph where each event must retreat or advance over many earlier events, such as many long alternating branches. The paper says this is unlikely in practice and that a poor traversal order made one trace up to 8× slower.</p>"
+  },
+  {
+   "type": "Adversarial",
+   "sec": "breaks",
+   "q": "Why can no algorithm achieve the 2019 paper's non-interleaving definition?",
+   "a": "<p>Its errata state that the definition cannot be guaranteed by any algorithm. Fugue's <i>maximal</i> non-interleaving relaxes it to what is achievable.</p>"
+  },
+  {
+   "type": "Connection",
+   "sec": "mech",
+   "q": "How is Eg-walker like <code>git rebase</code>?",
+   "a": "<p>The paper describes it as rebasing a DAG of operations into one linear history with the same effect, transforming each event so it can be applied in topological order.</p>"
+  },
+  {
+   "type": "Connection",
+   "sec": "breaks",
+   "q": "How do version vectors relate to safe tombstone removal?",
+   "a": "<p>Causal stability, knowing every replica has seen a deletion, is what makes removal safe, and version vectors or acknowledgements are how replicas learn it. It needs a known replica set.</p>"
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Is Eg-walker's tie-break maximally non-interleaving?",
+   "a": "<p>Unknown: its authors conjecture yes and leave the analysis to future work. Fugue proves it only for its own tree algorithm.</p>"
+  },
+  {
+   "type": "Open",
+   "sec": "open",
+   "q": "Can a log-based design like Eg-walker support rich text?",
+   "a": "<p>Open. The authors believe the idea generalises, but note their clearing step doesn't hold for Peritext because of how it processes concurrent annotations.</p>"
+  }
+ ],
+ "figures": {
+  "fig8": {
+   "file": "img/fig/egwalker-fig8-merge-time.png",
+   "caption": "CPU time to merge each trace: Eg-walker, OT, the reference CRDT, Automerge and Yjs. The red line is one 60 Hz frame (16 ms); OT on A2 takes 61.1 minutes.",
+   "source": {
+    "cite": "Gentle & Kleppmann, \"Collaborative Text Editing with Eg-walker: Better, Faster, Smaller\", EuroSys 2025",
+    "url": "https://arxiv.org/abs/2409.14252",
+    "figure": "Fig. 8"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "recompressed, white margins trimmed"
+  },
+  "fig10": {
+   "file": "img/fig/egwalker-fig10-memory.png",
+   "caption": "RAM while merging each trace. Eg-walker's steady state is under 1 MiB for most traces; Automerge needs hundreds of MiB.",
+   "source": {
+    "cite": "Gentle & Kleppmann, \"Collaborative Text Editing with Eg-walker: Better, Faster, Smaller\", EuroSys 2025",
+    "url": "https://arxiv.org/abs/2409.14252",
+    "figure": "Fig. 10"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "recompressed, white margins trimmed"
+  },
+  "figclear": {
+   "file": "img/fig/egwalker-fig9-clearing.png",
+   "caption": "Merge time with and without the clear-at-critical-version optimisation. Sequential traces benefit most; A2 has no critical versions.",
+   "source": {
+    "cite": "Gentle & Kleppmann, \"Collaborative Text Editing with Eg-walker: Better, Faster, Smaller\", EuroSys 2025",
+    "url": "https://arxiv.org/abs/2409.14252",
+    "figure": "Fig. 9"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "recompressed, white margins trimmed"
+  },
+  "fig12": {
+   "file": "img/fig/egwalker-fig12-filesize.png",
+   "caption": "Encoded size with deleted text omitted: Eg-walker's event graph vs Yjs. The light region of each bar is the final document text, the lower bound.",
+   "source": {
+    "cite": "Gentle & Kleppmann, \"Collaborative Text Editing with Eg-walker: Better, Faster, Smaller\", EuroSys 2025",
+    "url": "https://arxiv.org/abs/2409.14252",
+    "figure": "Fig. 12"
+   },
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "modified": "recompressed, white margins trimmed"
+  },
+  "figtree": {
+   "original": true,
+   "file": "img/fig/own-fugue-tree.svg",
+   "caption": "The Fugue tree after both users type backwards at the same spot. A's characters are a chain of left children under Z, B's another; an in-order walk keeps each chain contiguous."
+  },
+  "figint": {
+   "original": true,
+   "file": "img/fig/own-interleave.svg",
+   "caption": "Same operations, two tie-break rules. RGA alternates the two users' characters; Fugue keeps each run whole. Both replicas print identical text."
+  },
+  "figeg": {
+   "original": true,
+   "file": "img/fig/own-event-graph.svg",
+   "caption": "The paper's hi → Hey! event graph. Everything outside the dashed box is a straight line that needs no CRDT.",
+   "source": {
+    "cite": "Gentle & Kleppmann, \"Collaborative Text Editing with Eg-walker: Better, Faster, Smaller\", EuroSys 2025",
+    "url": "https://arxiv.org/abs/2409.14252",
+    "figure": "Fig. 4"
+   }
+  }
+ }
+}

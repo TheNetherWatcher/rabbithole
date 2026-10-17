@@ -1,0 +1,37 @@
+<style>.deep-inner{min-width:0}.deep-content pre{max-width:100%}</style>
+<h3>What it is</h3>
+<p>A <b>sequence CRDT</b> is the data structure behind real-time and offline collaborative text. It stores a document as a list of characters, each with a permanent unique ID, plus enough metadata to decide where concurrent insertions go. Any replica can edit freely; merging is deterministic.</p>
+<h3>Why it exists</h3>
+<p>Before it, collaboration meant a central server serializing every keystroke (Google Docs, built on OT, per Google's <a href="https://drive.googleblog.com/2010/09/whats-different-about-new-google-docs.html" target="_blank" rel="noopener">2010 announcement</a>). That fails offline and gets complicated peer-to-peer. Zed's team <a href="https://zed.dev/blog/crdts" target="_blank" rel="noopener">tried OT in 2017 and chose a CRDT</a> because operations commute and there is no transform step to get wrong.</p>
+<h3>Where it is used</h3>
+<div class="grid">
+<div class="gc"><b>Yjs</b>YATA-derived JavaScript library; the de facto web default. MIT.</div>
+<div class="gc"><b>Automerge</b>Rust core with JS/WASM wrappers; history-preserving documents. MIT.</div>
+<div class="gc"><b>Loro</b>Implements Fugue text and Eg-walker; also a rich-text CRDT (per its README).</div>
+<div class="gc"><b>diamond-types</b>Seph Gentle's Rust library; the Eg-walker reference implementation.</div>
+<div class="gc"><b>Zed editor</b>Per its 2022 post: CRDT text with anchors, fragments and tombstones, ordered by Lamport timestamps.</div>
+<div class="gc"><b>Notion</b>Says its offline pages migrate to a &ldquo;new CRDT data model&rdquo;; the text algorithm is not stated.</div>
+</div>
+<div class="callout mis"><b>Not CRDTs:</b> Figma is server-authoritative with last-writer-wins per property (&ldquo;Figma isn't using true CRDTs though&rdquo;), and says simultaneous edits to the same text value don't work. Google Docs is OT with a central server (2010 source; current internals not verified).</div>
+<h3>How you use it</h3>
+<pre><code>// Yjs: a shared text, synced by exchanging updates
+import * as Y from 'yjs'
+const doc = new Y.Doc()
+const text = doc.getText('note')
+text.insert(0, 'milk')
+const update = Y.encodeStateVector(doc)       // what I have
+// ... send/receive binary updates over any transport:
+// Y.applyUpdate(otherDoc, updateBytes)
+</code></pre>
+<pre><code>// Loro (from its README): export a delta, import it elsewhere
+const docA = new LoroDoc(); const listA = docA.getList("list")
+listA.insert(0, "A")
+const bytes = docA.export({ mode: "update" })
+docB.import(bytes)                // docA and docB now converge
+</code></pre>
+<p>You never touch IDs or tie-breaks. You choose a library, a transport (WebSocket, WebRTC, files) and a persistence strategy, and watch document size and load time.</p>
+<h3>When to use it, when not</h3>
+<div class="two"><div class="use"><b>Use a text CRDT</b> when users edit offline or peer-to-peer, when you want local-first apps, or when you can't afford a single ordering server.</div>
+<div class="skip"><b>Skip it</b> when one service owns the document and is always reachable: server-ordered OT or last-writer-wins on fields (Figma's choice) carries far less metadata.</div></div>
+<h3>Who should care</h3>
+<p>Frontend and app engineers building editors or notes; infra engineers sizing sync backends; and anyone building local-first software, where document size and cold-load time decide whether the app feels fast.</p>

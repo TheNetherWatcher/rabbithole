@@ -1,0 +1,8 @@
+<ul>
+<li><b>Replication without a leader.</b> Each device keeps a full copy and edits locally; changes travel later, possibly out of order. Goal: <i>strong eventual consistency</i>, meaning replicas that have seen the same operations hold the same state (<a href="https://arxiv.org/abs/1707.01747" target="_blank" rel="noopener">Gomes et al.</a> define it formally).</li>
+<li><b>Happened-before and concurrency.</b> Operation A <i>happened before</i> B if the author of B had seen A. If neither saw the other, they are <i>concurrent</i>. Concurrency is the only case that needs conflict resolution.</li>
+<li><b>Operational Transformation (OT).</b> Operations are index-based (&ldquo;insert x at 5&rdquo;); concurrent ones are <i>transformed</i> against each other to shift indexes. Google Docs has long used OT with a central server.</li>
+<li><b>CRDT.</b> A data type whose operations commute, so replicas converge regardless of delivery order, with no transform step. Sequence CRDTs give every element a unique ID.</li>
+<li><b>Tombstone.</b> A deleted element kept as a hidden marker so later operations that refer to it still resolve.</li>
+<li><b>Interleaving.</b> Characters of two concurrent runs end up woven together. It is a readability bug, not a convergence bug.</li>
+</ul>

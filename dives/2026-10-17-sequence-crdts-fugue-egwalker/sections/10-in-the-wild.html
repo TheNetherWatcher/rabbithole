@@ -1,0 +1,16 @@
+<h3>Benchmark numbers (date and hardware matter, so read them as ratios)</h3>
+<table><thead><tr><th>Setup</th><th>Result</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/dmonad/crdt-benchmarks" target="_blank" rel="noopener">crdt-benchmarks</a> B4 (259,778 ops, final doc 104,852 chars; i5-8400, Node 20.5)</td><td>Yjs: 5.7 s, 159,929 B doc, 3.2 MB RAM. Loro 0.10.1: 3.1 s, 258,228 B. Automerge 2.1.10: 14.3 s, 129,116 B, 1.8 s to parse.</td></tr>
+<tr><td><a href="https://josephg.com/blog/crdts-go-brrr/" target="_blank" rel="noopener">&ldquo;CRDTs go brrr&rdquo;</a> (260k edits; Ryzen 5800X; older library versions)</td><td>Automerge v1.0.0-preview2: 291 s, 880 MB. Reference CRDT: 31 s, 28 MB. Yjs 13.5.5: 0.97 s, 3.3 MB. diamond-types native: 0.056 s, 1.1 MB.</td></tr>
+<tr><td>Fugue paper, Table III (live editing)</td><td>Fugue: 94,000 ops/s, 2.4 MB. Yjs: 39,000 ops/s, 3.3 MB.</td></tr>
+<tr><td>Fugue paper, Table IV (10.5 M characters)</td><td>18 MB saved, under 2 s to save or load, 223 MB memory.</td></tr>
+</tbody></table>
+<p>Treat the Automerge rows in particular as snapshots: Automerge's own <a href="https://automerge.org/blog/automerge-2/" target="_blank" rel="noopener">version 2 post</a> reports the same task falling from about 500 s (0.14) to 1.8 s (2.0.1), so the 2020-era numbers don't describe today's library.</p>
+<figure data-fig="fig10"></figure>
+<h3>How production systems deviate from the textbook</h3>
+<ul>
+<li><b>Yjs:</b> a modified YATA; the lean-yjs verification project says the original YATA pseudocode contains errors. Stores runs of typed characters as single structs and partially collects tombstones.</li>
+<li><b>diamond-types:</b> a range tree (B-tree) instead of a linked list, a separate rope for document text, and fixed blocks of 32 entries per leaf. Recording deletion time would double memory (1.12 MB to 2.34 MB), so the published benchmarks use the Yjs-style deleted flag.</li>
+<li><b>Zed:</b> insertions are immutable and edits split them into fragments; deletes hide fragments and carry a version vector so they skip concurrent insertions; concurrent inserts order by descending Lamport timestamp with a replica-ID tie-break; undo is a per-operation counter.</li>
+<li><b>Figma:</b> not a text CRDT at all. The server holds the latest value per property per object; last write wins.</li>
+</ul>

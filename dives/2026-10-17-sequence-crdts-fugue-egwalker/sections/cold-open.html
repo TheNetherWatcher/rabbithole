@@ -1,0 +1,20 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:20px;border-radius:4px;margin:6px 0 3px;transform-origin:left;animation:cv-grow 1.1s var(--ease) both}
+.cv-bar.ot{background:var(--warn);width:100%}
+.cv-bar.eg{background:var(--ok);width:4px}
+@keyframes cv-grow{from{transform:scaleX(0)}to{transform:none}}
+</style>
+<p class="cold-line">Two people edit one shared note, offline, on separate flights.</p>
+<p class="cold-line sm">No server decides who goes first. When the planes land, both copies must merge into the same text, and that text must still read sensibly. Algorithms that do this are <em>sequence CRDTs</em>. On one real two-author trace, the textbook algorithm needed <b>61 minutes</b> to merge.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Textbook OT: 61.1 minutes.</b>
+    <div class="cv-bar ot"></div></div>
+  <div class="cv-row"><b>Eg-walker (2024): 23.5 milliseconds.</b> Drawn to scale, that is the sliver below.
+    <div class="cv-bar eg" style="animation-delay:.9s"></div></div>
+</div>

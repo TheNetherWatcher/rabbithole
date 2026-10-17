@@ -1,0 +1,17 @@
+<h3>Competing designs</h3>
+<table><thead><tr><th>Approach</th><th>Interleaving</th><th>State kept</th><th>Weak spot</th></tr></thead><tbody>
+<tr><td><b>OT</b> (server-ordered)</td><td>Affected too (per Fugue's abstract: OT and CRDTs)</td><td>Text + recent ops</td><td>Quadratic merge on diverged branches: 61.1 min on trace A2</td></tr>
+<tr><td><b>RGA</b></td><td>Forward non-interleaving (proved by Kleppmann et al.); backward interleaves</td><td>Per-char list with tombstones</td><td>Backward and multi-replica interleaving</td></tr>
+<tr><td><b>Yjs / YATA</b></td><td>Forward proved in a paper in progress; some backward cases in multi-replica (Fugue Table I)</td><td>Run-length-encoded struct list</td><td>Tombstones can't be fully collected; GC partial</td></tr>
+<tr><td><b>Fugue / FugueMax</b></td><td>FugueMax: maximally non-interleaving (proved)</td><td>Tree with tombstones</td><td>Simple variants use far more memory (618&ndash;685 bytes/char)</td></tr>
+<tr><td><b>Eg-walker</b></td><td>Conjectured maximally non-interleaving (Yjs-style tie-break; not proved)</td><td>Event graph + plain text</td><td>Plain text only; replay cost depends on traversal order</td></tr>
+</tbody></table>
+<h3>Knobs a practitioner touches</h3>
+<ul>
+<li><b>Garbage collection</b> (Yjs <code>doc.gc</code>): on, old content of deleted items is dropped; off, you can restore old versions but the document only grows.</li>
+<li><b>Run-length encoding.</b> Storing a typed run as one span cut Yjs's entries from ~180k to ~12k on the benchmark trace (Seph Gentle's post).</li>
+<li><b>Cached document text</b> (Eg-walker): store the final text next to the event graph so opening a document needs no replay. Fig. 8's &ldquo;cached load&rdquo; bars show 0.01&ndash;0.12 ms across all seven traces.</li>
+<li><b>Traversal order</b> (Eg-walker): a poor order slowed one trace by up to 8×; the topological sort prefers shorter branches first.</li>
+<li><b>Tie-break detail</b> (Fugue vs FugueMax): FugueMax visits right-side siblings in reverse order of their right origins; Fugue uses ID only. They differ only where some interleaving is unavoidable.</li>
+</ul>
+<div class="callout tip"><b>Why Fugue still matters if Eg-walker exists:</b> Eg-walker needs some rule for concurrent insertions inside its temporary state. Its authors use a Yjs-style rule and conjecture that it is maximally non-interleaving; Fugue is where the property is defined and proved for a CRDT.</div>
