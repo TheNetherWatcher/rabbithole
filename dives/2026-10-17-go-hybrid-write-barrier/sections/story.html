@@ -1,0 +1,116 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-nm{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad);font:700 15px system-ui,sans-serif}
+#story-fig .sf-ok{fill:var(--ok);font:700 15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 22px var(--serif)}
+#story-fig .sf-nl{fill:var(--ink);font:700 16px var(--mono)}
+#story-fig .sf-nk{fill:var(--bg);font:700 16px var(--mono)}
+#story-fig .sf-nk2{fill:var(--bg);font:14px system-ui,sans-serif;opacity:.85}
+#story-fig .sf-num{fill:var(--ink);font:700 34px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Objects B and C and goroutine stacks colored white, grey and black as write barriers keep the collector from losing an object">
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Mark phase: find everything reachable</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Go 1.5: shade the new pointer on heap stores</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Go 1.7: a scanned stack goes stale</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">Hybrid: also shade the overwritten pointer</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">…and the new pointer, while a stack is grey</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">A scanned stack stays black</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">What ships: a buffer, not a function call</text>
+<text x="26" y="100" class="sf-nm" text-anchor="start" data-in="1" data-out="7">global</text>
+<path d="M64 112 H116" class="f-none s-mute" stroke-width="2.5" data-in="1" data-out="7"/>
+<circle cx="150" cy="112" r="30" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" data-in="1" data-out="2"/>
+<text x="150" y="118" class="sf-nl" text-anchor="middle" data-in="1" data-out="2">B</text>
+<circle cx="150" cy="112" r="30" class="f-hl s-warn" stroke-width="2.5" data-in="2" data-out="4"/>
+<text x="150" y="118" class="sf-nl" text-anchor="middle" data-in="2" data-out="4">B</text>
+<circle cx="150" cy="112" r="30" class="f-ink s-ink" stroke-width="2.5" data-in="4" data-out="7"/>
+<text x="150" y="118" class="sf-nk" text-anchor="middle" data-in="4" data-out="7">B</text>
+<path d="M182 112 H296" class="f-none s-acc2" stroke-width="2.5" data-in="1" data-out="4"/>
+<path d="M182 112 H296" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="5 5" data-in="4" data-out="5"/>
+<circle cx="330" cy="112" r="30" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" data-in="1" data-out="4"/>
+<text x="330" y="118" class="sf-nl" text-anchor="middle" data-in="1" data-out="4">C</text>
+<circle cx="330" cy="112" r="30" class="f-hl s-warn" stroke-width="2.5" data-in="4" data-out="6"/>
+<text x="330" y="118" class="sf-nl" text-anchor="middle" data-in="4" data-out="6">C</text>
+<circle cx="330" cy="112" r="30" class="f-ink s-ink" stroke-width="2.5" data-in="6" data-out="7"/>
+<text x="330" y="118" class="sf-nk" text-anchor="middle" data-in="6" data-out="7">C</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-hl s-warn" stroke-width="2.5" data-in="1" data-out="3"/>
+<text x="375" y="234" class="sf-nl" text-anchor="middle" data-in="1" data-out="3">goroutine stack S</text>
+<text x="375" y="256" class="sf-nm" text-anchor="middle" data-in="1" data-out="3">unscanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-ink s-ink" stroke-width="2.5" data-in="3" data-out="5"/>
+<text x="375" y="234" class="sf-nk" text-anchor="middle" data-in="3" data-out="5">goroutine stack S</text>
+<text x="375" y="256" class="sf-nk2" text-anchor="middle" data-in="3" data-out="5">scanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-hl s-warn" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="375" y="234" class="sf-nl" text-anchor="middle" data-in="5" data-out="6">goroutine stack S</text>
+<text x="375" y="256" class="sf-nm" text-anchor="middle" data-in="5" data-out="6">unscanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-ink s-ink" stroke-width="2.5" data-in="6" data-out="7"/>
+<text x="375" y="234" class="sf-nk" text-anchor="middle" data-in="6" data-out="7">goroutine stack S</text>
+<text x="375" y="256" class="sf-nk2" text-anchor="middle" data-in="6" data-out="7">scanned</text>
+<path d="M340.0 206.0 L336.7 156.0" class="f-none s-acc" stroke-width="3"  data-in="4" data-out="7"/><path d="M336.0 146.0 L341.7 155.6 L331.7 156.3 Z" class="f-acc"  data-in="4" data-out="7"/>
+<text x="352" y="182" class="sf-nm" text-anchor="start" data-in="4" data-out="7">t = C</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="2" data-out="3">heap store → shade(new)</text>
+<text x="20" y="202" class="sf-bad" text-anchor="start" data-in="2" data-out="3">stack write → no barrier</text>
+<rect x="20" y="296" width="440" height="52" rx="8" class="f-panel s-bad" stroke-width="2.5" data-in="3" data-out="4"/>
+<text x="240" y="318" class="sf-bad" text-anchor="middle" data-in="3" data-out="4">STOP THE WORLD: re-scan every stack</text>
+<text x="240" y="338" class="sf-lab" text-anchor="middle" data-in="3" data-out="4">that ran since its scan · 10s–100s ms</text>
+<text x="20" y="176" class="sf-bad" text-anchor="start" data-in="3" data-out="4">↻ the goroutine runs again →</text>
+<text x="20" y="202" class="sf-bad" text-anchor="start" data-in="3" data-out="4">S may hold a white pointer: grey again</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="4" data-out="5">B.f = nil → shade(old = C)</text>
+<text x="20" y="202" class="sf-nm" text-anchor="start" data-in="4" data-out="5">C grey: the stack can't hide it</text>
+<circle cx="150" cy="226" r="26" class="f-ink s-ink" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="150" y="232" class="sf-nk" text-anchor="middle" data-in="5" data-out="6">A</text>
+<path d="M176.0 218.0 L293.5 145.3" class="f-none s-acc" stroke-width="3"  data-in="5" data-out="6"/><path d="M302.0 140.0 L296.1 149.5 L290.9 141.0 Z" class="f-acc"  data-in="5" data-out="6"/>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="5" data-out="6">A.f = C → shade(new)</text>
+<text x="20" y="290" class="sf-nm" text-anchor="start" data-in="5" data-out="6">S still unscanned = grey,</text>
+<text x="20" y="310" class="sf-nm" text-anchor="start" data-in="5" data-out="6">so the insertion shade is required</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="6" data-out="7">S is black, C already shaded:</text>
+<text x="20" y="202" class="sf-ok" text-anchor="start" data-in="6" data-out="7">no rescan, no pause</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".94" data-in="7" data-out="8"/>
+<text x="20" y="28" class="sf-cap" text-anchor="start" data-in="7" data-out="8">What ships: a buffer, not a function call</text>
+<text x="20" y="76" class="sf-lab" text-anchor="start" data-in="7" data-out="8">per-P write-barrier buffer</text>
+<rect x="20" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="47" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="74" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="101" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="128" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="155" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="182" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="209" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="236" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="263" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="290" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="317" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="344" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="371" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="398" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="425" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<path d="M328 84 V136" class="f-none s-acc" stroke-width="3" data-in="7" data-out="8"/>
+<text x="20" y="168" class="sf-big" text-anchor="start" data-in="7" data-out="8">512 pointers · 4 KiB</text>
+<text x="20" y="200" class="sf-lab" text-anchor="start" data-in="7" data-out="8">1. barrier off outside mark: just a flag test</text>
+<text x="20" y="226" class="sf-lab" text-anchor="start" data-in="7" data-out="8">2. barrier on: bump next, store old + new</text>
+<text x="20" y="252" class="sf-lab" text-anchor="start" data-in="7" data-out="8">3. buffer full: flush, mark, queue grey</text>
+<text x="20" y="296" class="sf-nm" text-anchor="start" data-in="7" data-out="8">Both pointers recorded every time,</text>
+<text x="20" y="316" class="sf-nm" text-anchor="start" data-in="7" data-out="8">not only while the stack is grey.</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="8"/>
+<text x="240" y="70" class="sf-cap" text-anchor="middle" data-in="8" data-out="9">The whole trade</text>
+<text x="240" y="150" class="sf-num" text-anchor="middle" data-in="8">< 50 µs</text>
+<text x="240" y="176" class="sf-lab" text-anchor="middle" data-in="8">worst-case STW target in the design doc</text>
+<text x="240" y="242" class="sf-num" text-anchor="middle" data-in="8">512</text>
+<text x="240" y="268" class="sf-lab" text-anchor="middle" data-in="8">pointers buffered per P</text>
+<text x="240" y="334" class="sf-num" text-anchor="middle" data-in="8">25%</text>
+<text x="240" y="360" class="sf-lab" text-anchor="middle" data-in="8">CPU the pacer gives background marking</text>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A garbage collector has to find everything a program can still reach, and Go does it <em>while the program runs</em>. It tags objects <b>white</b> (not seen), <b>grey</b> (seen, contents not yet read) and <b>black</b> (fully read). Whatever is still white at the end is freed. Goroutine stacks count as roots.</p></div>
+<div class="step"><p><b>The Go 1.5 way.</b> Every time the program stores a pointer into the heap, a small <em>write barrier</em> shades the new pointer so a black object can never hold a white one. But stack writes get no barrier, because they are the most common operation in any program.</p></div>
+<div class="step"><p><b>The catch (Go 1.7).</b> A scanned stack turns black, but as soon as its goroutine runs it can pick up a white pointer, so it is grey again. The collector had to <em>stop the world and re-scan every stack that ran</em>. The design doc says that took 10s to 100s of milliseconds with many goroutines.</p></div>
+<div class="step"><p><b>The new idea (Go 1.8).</b> Also shade the pointer being <em>overwritten</em>. Now if a scanned stack loads C and the heap link to C is cut, the cut itself shades C. The stack can no longer hide anything the collector hasn't seen.</p></div>
+<div class="step"><p><b>The other half.</b> If a stack is <em>not yet scanned</em>, it may hold the only pointer to C, and it can store C into an already-black object. So while the current stack is grey, the new pointer gets shaded too. (Simulated: either shade alone loses C in one of the two races.)</p></div>
+<div class="step"><p><b>The payoff.</b> After a stack is scanned, everything on it was shaded and the deletion shade stops it hiding more. It stays black for the rest of the cycle. No re-scan list, no stop-the-world re-scan.</p></div>
+<div class="step"><p><b>What actually ships.</b> The runtime does not call a function per store. The compiler tests a flag, and when marking is on it writes the old and new pointer into a 512-entry per-P buffer, flushed in batches. It records <em>both</em> unconditionally, which the design doc says costs about twice the conditional form.</p></div>
+<div class="step"><p><b>The trade.</b> A tiny worst-case pause, paid for by a barrier that runs on every pointer store during the mark phase, and a pacer that keeps marking near 25% of CPU and bills allocating goroutines when it falls behind.</p></div>
+</div>
+</div>

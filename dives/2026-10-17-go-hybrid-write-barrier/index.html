@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Go&#x27;s collector marks while your program runs, so it must hear about pointer changes. Go 1.7 could not trust stacks (no barrier on stack writes), so it froze the world and re-scanned them: 10s to 100s of ms. The hybrid barrier shades the overwritten pointer, and the new one while a stack is unscanned">
+<title>Go&#x27;s hybrid write barrier · Rabbithole</title>
+<style>
+/* rabbithole dive template — shared by every dive page and the hub. Edit here, rebuild dives. */
+:root{
+  --bg:#fbfaf7;--bg2:#f4f1ea;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;
+  --accent:#b4411f;--accent2:#1f6f8b;--ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;
+  --code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.06);
+  --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+a{color:var(--accent2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.scrolled{border-bottom-color:var(--line)}
+.tb-home{font-size:14px;color:var(--mute);text-decoration:none;white-space:nowrap}
+.tb-home:hover{color:var(--ink)}
+.tb-title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.topbar.scrolled .tb-title{opacity:1;transform:none}
+.tb-actions{display:flex;align-items:center;gap:8px}
+.tb-btn{font:inherit;font-size:13px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap}
+.tb-btn:hover{border-color:var(--accent)}
+.tb-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ring{position:relative;width:34px;height:34px;flex:none}
+.ring svg{width:34px;height:34px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .r-bg{stroke:var(--line)}
+.ring .r-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s var(--ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:700}
+@media(max-width:560px){.tb-home span{display:none}.tb-btn .lbl{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;padding:0 0 8px}
+.hero-art{position:relative;height:clamp(180px,30vw,320px);overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.hero-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.hero-art::after{content:"";position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(transparent,var(--bg))}
+.hero-art .layer{will-change:transform}
+.ascii-hero{position:absolute;inset:0;margin:0;display:grid;place-items:center;font:clamp(9px,1.4vw,14px)/1.15 var(--mono);color:var(--accent);white-space:pre;opacity:.9}
+.hero-text{position:relative;margin-top:-48px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
+.why{color:var(--mute);margin:0 0 16px}
+.tldr b,.why b{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.stat .v{font-size:24px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .l{font-size:12px;color:var(--mute);line-height:1.35}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--mute);margin:8px 0 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.badge[data-s="started"]::before{background:var(--accent2)}
+.badge[data-s="skimmed"]::before{background:var(--warn)}
+.badge[data-s="understood"]::before{background:var(--ok)}
+
+/* ---------- groups + cards ---------- */
+main.wrap{padding-bottom:96px}
+.group{margin:40px 0 12px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:14px 0;box-shadow:var(--shadow);
+  transition:box-shadow .3s var(--ease),transform .3s var(--ease),border-color .3s;scroll-margin-top:64px}
+@media(hover:hover){.card:not(.open):hover{box-shadow:var(--shadow-lift);transform:translateY(-2px)}}
+.card.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.card.plain{background:var(--plain);border-color:var(--plainline)}
+.card-head{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;padding:16px 18px}
+@media(max-width:620px){.card-head{grid-template-columns:minmax(0,1fr);gap:8px}.card-vis{max-width:200px}}
+.card-vis{align-self:start;aspect-ratio:16/10;border-radius:10px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;
+  transition:transform .4s var(--ease),opacity .4s}
+.card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.card-vis svg{width:100%;height:100%;display:block}
+.card.open .card-vis{transform:scale(.92);opacity:.75}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
+.brief p{margin:0 0 6px}
+.brief ul{margin:4px 0 6px;padding-left:18px}
+.brief li{margin:2px 0}
+.card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:10px}
+.deeper{font:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;
+  border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:background .2s,color .2s}
+.deeper:hover{background:var(--accent);color:var(--bg)}
+.deeper .chev{display:inline-block;transition:transform .35s var(--ease)}
+.card.open .deeper .chev{transform:rotate(90deg)}
+.deeper small{font-weight:500;opacity:.75}
+.got{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);cursor:pointer;user-select:none}
+.got input{position:absolute;opacity:0;width:1px;height:1px}
+.got .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel);display:grid;place-items:center;transition:background .2s,border-color .2s}
+.got .box svg{width:14px;height:14px}
+.got .box path{fill:none;stroke:var(--bg);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .3s var(--ease) .05s}
+.got input:checked+.box{background:var(--ok);border-color:var(--ok)}
+.got input:checked+.box path{stroke-dashoffset:0}
+.got input:checked~span{color:var(--ok);font-weight:600}
+.got input:focus-visible+.box{outline:2px solid var(--accent);outline-offset:2px}
+
+.deep{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease)}
+.card.open .deep{grid-template-rows:1fr}
+.deep-inner{overflow:hidden;min-height:0}
+.deep-content{padding:4px 22px 8px;border-top:1px dashed var(--line);margin:0 18px;opacity:0;transform:translateY(-6px);transition:opacity .35s .1s,transform .45s var(--ease) .05s}
+.card.open .deep-content{opacity:1;transform:none}
+.deep-foot{display:flex;justify-content:flex-end;padding:0 18px 14px}
+.collapse{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;cursor:pointer;padding:4px 6px}
+.collapse:hover{color:var(--ink)}
+
+/* side dot nav */
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:9px;z-index:15}
+@media(min-width:1120px){.dots{display:flex}}
+.dots a{position:relative;display:block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--mute);opacity:.55;transition:transform .2s,opacity .2s,background .2s}
+.dots a.got{background:var(--ok);border-color:var(--ok)}
+.dots a.on{opacity:1;transform:scale(1.35);border-color:var(--accent)}
+.dots a span{position:absolute;right:18px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12px;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .15s}
+.dots a:hover span,.dots a:focus-visible span{opacity:1}
+
+/* scroll reveal (only when JS runs) */
+.js .rv{opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*40ms)}
+.js .rv.in{opacity:1;transform:none}
+
+/* hero intro */
+.js .hero-art .layer{animation:rh-in 1s var(--ease) both;animation-delay:calc(var(--i,0)*140ms)}
+@keyframes rh-in{from{opacity:0;transform:translateY(14px)}}
+
+/* ---------- quiz ---------- */
+.qgroup{margin:18px 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.q{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;background:var(--bg)}
+.q .qq{font-weight:600}
+.q .qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.q.show .qa{grid-template-rows:1fr}
+.q .qa>div{overflow:hidden}
+.q .qa p{margin:8px 0 4px}
+.q .qrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.q .qrow .sec{margin-left:auto;font-size:12px}
+.q[data-r="y"]{border-left:4px solid var(--ok)}
+.q[data-r="n"]{border-left:4px solid var(--bad)}
+.qbtn{font:inherit;font-size:13px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qbtn:hover{border-color:var(--accent)}
+.qbtn[aria-pressed="true"].y{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.qbtn[aria-pressed="true"].n{background:var(--bad);border-color:var(--bad);color:var(--bg)}
+.score{font-weight:700;color:var(--accent)}
+
+/* ---------- content kit (use inside sections/*.html) ---------- */
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
+.deep-content h4{font-size:15px;margin:1.2em 0 .2em}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
+code,pre{font-family:var(--mono);font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer;opacity:0;transition:opacity .2s}
+pre:hover .copy,.copy:focus-visible{opacity:1}
+@media(hover:none){.copy{opacity:1}}
+blockquote{margin:12px 0;padding:8px 16px;border-left:4px solid var(--accent);background:var(--bg2);border-radius:0 10px 10px 0;font-style:italic}
+.eq{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--bg);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}.callout.tip{border-left:5px solid var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto;margin:10px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.btn:disabled{opacity:.4;cursor:default}
+button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.widget{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px;accent-color:var(--accent)}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s var(--ease)}
+.mini{font-size:13px;color:var(--mute)}
+.deep-content,.brief{overflow-wrap:anywhere}
+
+/* ---------- reference figures (from papers/docs, cited) ---------- */
+.fig{margin:18px 0}
+.fig-zoom{display:block;width:100%;padding:10px;margin:0;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:zoom-in;
+  transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.fig-zoom:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+:root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
+.fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
+.fig figcaption b{color:var(--ink)}
+.fig-cite{display:block;font-size:12px;margin-top:2px}
+.fig-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.fig-pair{grid-template-columns:1fr}}
+.credits{font-size:13.5px}
+.lightbox{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;
+  background:rgba(10,9,7,.86);opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox img{max-width:min(1400px,100%);max-height:80vh;background:#fff;border-radius:10px;padding:12px;transform:scale(.96);transition:transform .3s var(--ease)}
+.lightbox.on img{transform:none}
+.lightbox p{max-width:900px;color:#ddd;font-size:14px;margin:0;text-align:center}
+.lightbox p a{color:#9fd3e6}
+.lightbox button{position:absolute;top:14px;right:16px;font:inherit;font-size:14px;padding:4px 12px;border-radius:99px;border:1px solid #666;background:#222;color:#eee;cursor:pointer}
+
+/* ---------- SVG palette helpers (hero, card visuals, diagrams) ---------- */
+.f-bg{fill:var(--bg)}.f-bg2{fill:var(--bg2)}.f-panel{fill:var(--panel)}.f-code{fill:var(--code)}.f-line{fill:var(--line)}
+.f-ink{fill:var(--ink)}.f-mute{fill:var(--mute)}.f-acc{fill:var(--accent)}.f-acc2{fill:var(--accent2)}
+.f-ok{fill:var(--ok)}.f-warn{fill:var(--warn)}.f-bad{fill:var(--bad)}.f-hl{fill:var(--hl)}.f-none{fill:none}
+.s-ink{stroke:var(--ink)}.s-mute{stroke:var(--mute)}.s-line{stroke:var(--line)}.s-acc{stroke:var(--accent)}.s-acc2{stroke:var(--accent2)}
+.s-ok{stroke:var(--ok)}.s-warn{stroke:var(--warn)}.s-bad{stroke:var(--bad)}
+.t-ink{fill:var(--ink);font:600 11px var(--mono)}.t-mute{fill:var(--mute);font:10px system-ui,sans-serif}
+/* motion helpers: .draw (stroke draws in when visible), .flow (dashes travel), .pulse, .float, .blink */
+.js .draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s var(--ease);transition-delay:calc(var(--d,0)*120ms)}
+.js .in-view .draw{stroke-dashoffset:0}
+.flow{stroke-dasharray:4 6;animation:rh-flow 1.6s linear infinite}
+@keyframes rh-flow{to{stroke-dashoffset:-20}}
+.pulse{transform-box:fill-box;transform-origin:center;animation:rh-pulse 2.6s var(--ease) infinite}
+@keyframes rh-pulse{50%{transform:scale(1.08);opacity:.75}}
+.float{transform-box:fill-box;animation:rh-float 6s ease-in-out infinite}
+@keyframes rh-float{50%{transform:translateY(-4px)}}
+.blink{animation:rh-blink 1.4s steps(1) infinite}
+@keyframes rh-blink{50%{opacity:0}}
+.card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
+
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
+/* ---------- hub ---------- */
+.hub-head{padding:40px 0 8px}
+.hub-head p{color:var(--mute);margin:0}
+.hub-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0}
+.hub-tools input{font:inherit;font-size:14px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);flex:1 1 200px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:8px 0 80px}
+.tile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:var(--shadow);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
+@media(hover:hover){.tile:hover{box-shadow:var(--shadow-lift);transform:translateY(-3px)}}
+.tile-art{position:relative;aspect-ratio:3/1;background:var(--bg2);border-bottom:1px solid var(--line);overflow:hidden}
+.tile-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.tile-art .ascii-hero{font-size:6px}
+.tile-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.tile-body h3{font-size:15px;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mute);margin-top:auto}
+.tile .bar{height:5px;border:0;border-radius:3px}
+.tile[hidden]{display:none}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js .rv{opacity:1;transform:none}
+  .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
+}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="tb-home" href="../index.html">← <span>All dives</span></a>
+  <span class="tb-title">Go&#x27;s hybrid write barrier</span>
+  <div class="tb-actions">
+    <button class="tb-btn" id="expand-all" type="button" aria-pressed="false" title="Open every card (deep mode)">⇕ <span class="lbl">Expand all</span></button>
+    <button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button>
+    <span class="ring" title="Progress: cards marked 'Got it' + questions you knew">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="r-bg" cx="18" cy="18" r="15"/><circle class="r-fg" cx="18" cy="18" r="15" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+      <b id="ring-pct">0%</b>
+    </span>
+  </div>
+</header>
+
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:14px;margin:6px 0 4px;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv-bar i{display:block;height:100%;width:var(--w);min-width:3px;background:var(--c);transform-origin:left;animation:cv-grow 1s var(--ease) both;animation-delay:var(--o,0s)}
+@keyframes cv-grow{from{transform:scaleX(0)}}
+</style>
+<p class="cold-line">A Go server can run half a million goroutines at once.</p>
+<p class="cold-line sm">Each one has its own stack, and the garbage collector must read every stack to know what is still in use. Before Go 1.8 it had to read them <em>a second time</em>, with the whole program frozen, at the very end of every collection cycle.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> Before Go 1.8, the last stop-the-world step of a GC cycle re-scanned goroutine stacks. How long could that pause last in the worst case?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Under 50 µs</button><button class="g-opt" type="button" data-k="1">About 1 ms</button><button class="g-opt" type="button" data-k="2">10s to 100s of ms</button><button class="g-opt" type="button" data-k="3">Several seconds</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>10s to 100s of milliseconds</b>, per the Go design doc (proposal 17503), and it grew with the number of goroutines. The hybrid barrier cut worst-case STW to under 50 µs in the doc's preliminary experiments.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Go 1.7: freeze, re-scan every dirty stack.</b> 10s to 100s of ms
+    <div class="cv-bar"><i style="--w:100%;--c:var(--bad)"></i></div></div>
+  <div class="cv-row"><b>Go 1.8 hybrid barrier.</b> Under 50 µs worst case (design-doc experiments), at least 200× shorter
+    <div class="cv-bar"><i style="--w:.5%;--c:var(--ok);--o:.8s"></i></div></div>
+</div>
+</div><a class="cold-cue" href="#top">Go&#x27;s hybrid write barrier <span>↓</span></a></section>
+<section class="hero" id="top">
+  <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#dots)"/></g>
+<g class="layer" data-depth="0.12">
+<path d="M320 140 L318 183" class="f-none s-ink" stroke-width="2"/>
+<path d="M318 183 L381 199" class="f-none s-ink" stroke-width="2"/>
+<path d="M318 183 L344 238" class="f-none s-ink" stroke-width="2"/>
+<path d="M344 238 L379 239" class="f-none s-ink" stroke-width="2"/>
+<path d="M394 77 L437 71" class="f-none s-ink" stroke-width="2"/>
+<path d="M394 77 L389 134" class="f-none s-ink" stroke-width="2"/>
+<path d="M394 77 L447 145" class="f-none s-ink" stroke-width="2"/>
+<path d="M389 134 L381 199" class="f-none s-ink" stroke-width="2"/>
+<path d="M389 134 L447 179" class="f-none s-ink" stroke-width="2"/>
+<path d="M381 199 L447 179" class="f-none s-ink" stroke-width="2"/>
+<path d="M379 239 L443 260" class="f-none s-ink" stroke-width="2"/>
+<path d="M437 71 L498 81" class="f-none s-ink" stroke-width="2"/>
+<path d="M437 71 L447 145" class="f-none s-ink" stroke-width="2"/>
+<path d="M437 71 L507 139" class="f-none s-ink" stroke-width="2"/>
+<path d="M447 145 L507 139" class="f-none s-ink" stroke-width="2"/>
+<path d="M447 145 L447 179" class="f-none s-ink" stroke-width="2"/>
+<path d="M447 145 L505 195" class="f-none s-ink" stroke-width="2"/>
+<path d="M443 260 L510 250" class="f-none s-ink" stroke-width="2"/>
+<path d="M498 81 L581 80" class="f-none s-ink" stroke-width="2"/>
+<path d="M498 81 L507 139" class="f-none s-ink" stroke-width="2"/>
+<path d="M498 81 L560 122" class="f-none s-ink" stroke-width="2"/>
+<path d="M507 139 L582 190" class="f-none s-ink" stroke-width="2"/>
+<path d="M505 195 L510 250" class="f-none s-ink" stroke-width="2"/>
+<path d="M505 195 L561 258" class="f-none s-ink" stroke-width="2"/>
+<path d="M510 250 L561 258" class="f-none s-ink" stroke-width="2"/>
+<path d="M581 80 L641 128" class="f-none s-ink" stroke-width="2"/>
+<path d="M582 190 L620 253" class="f-none s-ink" stroke-width="2"/>
+<path d="M561 258 L620 253" class="f-none s-ink" stroke-width="2"/>
+<path d="M632 84 L679 83" class="f-none s-line" stroke-width="1.5"/>
+<path d="M632 84 L696 147" class="f-none s-line" stroke-width="1.5"/>
+<path d="M641 128 L700 190" class="f-none s-line" stroke-width="1.5"/>
+<path d="M620 253 L682 236" class="f-none s-line" stroke-width="1.5"/>
+<path d="M679 83 L696 147" class="f-none s-line" stroke-width="1.5"/>
+<path d="M679 83 L738 145" class="f-none s-line" stroke-width="1.5"/>
+<path d="M696 147 L750 196" class="f-none s-line" stroke-width="1.5"/>
+<path d="M700 190 L750 196" class="f-none s-line" stroke-width="1.5"/>
+<path d="M738 145 L750 196" class="f-none s-line" stroke-width="1.5"/>
+<path d="M738 145 L807 199" class="f-none s-line" stroke-width="1.5"/>
+<path d="M750 196 L807 199" class="f-none s-line" stroke-width="1.5"/>
+<path d="M750 196 L742 239" class="f-none s-line" stroke-width="1.5"/>
+<path d="M742 239 L821 237" class="f-none s-line" stroke-width="1.5"/>
+<path d="M796 74 L867 69" class="f-none s-line" stroke-width="1.5"/>
+<path d="M796 74 L875 147" class="f-none s-line" stroke-width="1.5"/>
+<path d="M803 132 L875 147" class="f-none s-line" stroke-width="1.5"/>
+<path d="M803 132 L807 199" class="f-none s-line" stroke-width="1.5"/>
+<path d="M807 199 L862 197" class="f-none s-line" stroke-width="1.5"/>
+<path d="M807 199 L821 237" class="f-none s-line" stroke-width="1.5"/>
+<path d="M821 237 L864 232" class="f-none s-line" stroke-width="1.5"/>
+<path d="M867 69 L937 74" class="f-none s-line" stroke-width="1.5"/>
+<path d="M867 69 L921 132" class="f-none s-line" stroke-width="1.5"/>
+<path d="M875 147 L921 132" class="f-none s-line" stroke-width="1.5"/>
+<path d="M862 197 L864 232" class="f-none s-line" stroke-width="1.5"/>
+<path d="M937 74 L921 132" class="f-none s-line" stroke-width="1.5"/>
+<path d="M921 132 L922 187" class="f-none s-line" stroke-width="1.5"/>
+<path d="M992 72 L1050 84" class="f-none s-line" stroke-width="1.5"/>
+<path d="M979 122 L1063 122" class="f-none s-line" stroke-width="1.5"/>
+<path d="M979 122 L979 191" class="f-none s-line" stroke-width="1.5"/>
+<path d="M979 191 L1047 248" class="f-none s-line" stroke-width="1.5"/>
+<path d="M1050 84 L1123 120" class="f-none s-line" stroke-width="1.5"/>
+<path d="M1063 122 L1123 120" class="f-none s-line" stroke-width="1.5"/>
+<path d="M1036 180 L1047 248" class="f-none s-line" stroke-width="1.5"/>
+<path d="M1119 182 L1121 233" class="f-none s-line" stroke-width="1.5"/>
+</g><g class="layer" data-depth="0.2">
+<circle cx="322" cy="91" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="320" cy="140" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="318" cy="183" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="344" cy="238" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="394" cy="77" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="389" cy="134" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="381" cy="199" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="379" cy="239" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="437" cy="71" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="447" cy="145" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="447" cy="179" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="443" cy="260" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="498" cy="81" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="507" cy="139" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="505" cy="195" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="510" cy="250" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="581" cy="80" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="560" cy="122" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="582" cy="190" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="561" cy="258" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="632" cy="84" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="641" cy="128" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="626" cy="201" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="620" cy="253" r="10" class="f-ink s-ink" stroke-width="2.5" />
+<circle cx="679" cy="83" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="696" cy="147" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="700" cy="190" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="682" cy="236" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="751" cy="78" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="738" cy="145" r="11" class="pulse f-hl s-warn" stroke-width="2.5"/>
+<circle cx="750" cy="196" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="742" cy="239" r="11" class="f-hl s-warn" stroke-width="2.5" />
+<circle cx="796" cy="74" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="803" cy="132" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="807" cy="199" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="821" cy="237" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="867" cy="69" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="875" cy="147" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="862" cy="197" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="864" cy="232" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="937" cy="74" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="921" cy="132" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="922" cy="187" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="928" cy="244" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="992" cy="72" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="979" cy="122" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="979" cy="191" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="986" cy="255" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1050" cy="84" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1063" cy="122" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1036" cy="180" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1047" cy="248" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1117" cy="74" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1123" cy="120" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1119" cy="182" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<circle cx="1121" cy="233" r="10" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+</g><g class="layer" data-depth="0.3">
+<rect x="130" y="70" width="110" height="26" rx="5" class="f-ink" stroke-width="2"/>
+<rect x="130" y="104" width="110" height="26" rx="5" class="f-ink" stroke-width="2"/>
+<rect x="130" y="138" width="110" height="26" rx="5" class="f-ink" stroke-width="2"/>
+<rect x="130" y="172" width="110" height="26" rx="5" class="f-ink" stroke-width="2"/>
+<rect x="130" y="206" width="110" height="26" rx="5" class="f-hl s-warn" stroke-width="2"/>
+<rect x="130" y="240" width="110" height="26" rx="5" class="f-panel s-mute" stroke-width="2"/>
+<rect x="800" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="822" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="844" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="866" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="888" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="910" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="932" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="954" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="976" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="998" y="272" width="18" height="22" rx="3" class="f-acc2" />
+<rect x="1020" y="272" width="18" height="22" rx="3" class="f-line" />
+<rect x="1042" y="272" width="18" height="22" rx="3" class="f-line" />
+<rect x="1064" y="272" width="18" height="22" rx="3" class="f-line" />
+<rect x="1086" y="272" width="18" height="22" rx="3" class="f-line" />
+<rect x="1108" y="272" width="18" height="22" rx="3" class="f-line" />
+<rect x="1130" y="272" width="18" height="22" rx="3" class="f-line" />
+<path d="M1000 262 V300" class="f-none s-acc blink" stroke-width="3"/>
+<path d="M560.0 130.0 L792.2 265.5" class="f-none s-acc2 flow" stroke-width="2" opacity=".7"/><path d="M800.0 270.0 L790.0 269.4 L794.5 261.6 Z" class="f-acc2 flow" opacity=".7"/>
+</g></svg></div>
+  <div class="hero-text wrap">
+    <div class="chips rv"><span class="chip">Computer science</span><span class="chip">Compilers/PL/runtimes</span><span class="chip">Depth: hard</span><span class="chip">2026-10-17</span></div>
+    <h1 class="rv" style="--i:1">Go&#x27;s hybrid write barrier: why stacks are never re-scanned</h1>
+    <p class="tldr rv" style="--i:2">Go's collector marks while your program runs, so it must hear about pointer changes. Go 1.7 could not trust stacks (no barrier on stack writes), so it froze the world and re-scanned them: <b>10s to 100s of ms</b>. The hybrid barrier shades the <b>overwritten</b> pointer, and the <b>new</b> one while a stack is unscanned, so a scanned stack stays black.</p>
+    <p class="why rv" style="--i:3"><b>Why it matters:</b> the stop-the-world pause stopped growing with goroutine count; the design doc's target was under <b>50 µs</b>. The cost moved to a barrier on every pointer store during marking and to mark assists.</p>
+    <div class="stats"><div class="stat rv" style="--i:0"><div class="v">&lt; 50 µs</div><div class="l">worst-case STW target (design doc, 2016)</div></div><div class="stat rv" style="--i:1"><div class="v">10–100 ms</div><div class="l">old stack re-scan pause (Go 1.7)</div></div><div class="stat rv" style="--i:2"><div class="v">512</div><div class="l">pointers buffered per P</div></div><div class="stat rv" style="--i:3"><div class="v">25%</div><div class="l">CPU target for background marking</div></div><div class="stat rv" style="--i:4"><div class="v">10–40%</div><div class="l">less GC CPU expected from Green Tea (1.26)</div></div></div>
+    <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
+      <span>19 cards</span><span>· ~8 min skim</span><span>· ~38 min deep</span>
+      <span class="g-score" hidden></span>
+      <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
+  </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 8 scrolls</div><h2>How Go&#x27;s garbage collector stopped re-reading every stack while the world was frozen</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:15px system-ui,sans-serif}
+#story-fig .sf-nm{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad);font:700 15px system-ui,sans-serif}
+#story-fig .sf-ok{fill:var(--ok);font:700 15px system-ui,sans-serif}
+#story-fig .sf-big{fill:var(--ink);font:700 22px var(--serif)}
+#story-fig .sf-nl{fill:var(--ink);font:700 16px var(--mono)}
+#story-fig .sf-nk{fill:var(--bg);font:700 16px var(--mono)}
+#story-fig .sf-nk2{fill:var(--bg);font:14px system-ui,sans-serif;opacity:.85}
+#story-fig .sf-num{fill:var(--ink);font:700 34px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig">
+<svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Objects B and C and goroutine stacks colored white, grey and black as write barriers keep the collector from losing an object">
+<text x="20" y="28" class="sf-cap" data-in="1" data-out="2">Mark phase: find everything reachable</text>
+<text x="20" y="28" class="sf-cap" data-in="2" data-out="3">Go 1.5: shade the new pointer on heap stores</text>
+<text x="20" y="28" class="sf-cap" data-in="3" data-out="4">Go 1.7: a scanned stack goes stale</text>
+<text x="20" y="28" class="sf-cap" data-in="4" data-out="5">Hybrid: also shade the overwritten pointer</text>
+<text x="20" y="28" class="sf-cap" data-in="5" data-out="6">…and the new pointer, while a stack is grey</text>
+<text x="20" y="28" class="sf-cap" data-in="6" data-out="7">A scanned stack stays black</text>
+<text x="20" y="28" class="sf-cap" data-in="7" data-out="8">What ships: a buffer, not a function call</text>
+<text x="26" y="100" class="sf-nm" text-anchor="start" data-in="1" data-out="7">global</text>
+<path d="M64 112 H116" class="f-none s-mute" stroke-width="2.5" data-in="1" data-out="7"/>
+<circle cx="150" cy="112" r="30" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" data-in="1" data-out="2"/>
+<text x="150" y="118" class="sf-nl" text-anchor="middle" data-in="1" data-out="2">B</text>
+<circle cx="150" cy="112" r="30" class="f-hl s-warn" stroke-width="2.5" data-in="2" data-out="4"/>
+<text x="150" y="118" class="sf-nl" text-anchor="middle" data-in="2" data-out="4">B</text>
+<circle cx="150" cy="112" r="30" class="f-ink s-ink" stroke-width="2.5" data-in="4" data-out="7"/>
+<text x="150" y="118" class="sf-nk" text-anchor="middle" data-in="4" data-out="7">B</text>
+<path d="M182 112 H296" class="f-none s-acc2" stroke-width="2.5" data-in="1" data-out="4"/>
+<path d="M182 112 H296" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="5 5" data-in="4" data-out="5"/>
+<circle cx="330" cy="112" r="30" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" data-in="1" data-out="4"/>
+<text x="330" y="118" class="sf-nl" text-anchor="middle" data-in="1" data-out="4">C</text>
+<circle cx="330" cy="112" r="30" class="f-hl s-warn" stroke-width="2.5" data-in="4" data-out="6"/>
+<text x="330" y="118" class="sf-nl" text-anchor="middle" data-in="4" data-out="6">C</text>
+<circle cx="330" cy="112" r="30" class="f-ink s-ink" stroke-width="2.5" data-in="6" data-out="7"/>
+<text x="330" y="118" class="sf-nk" text-anchor="middle" data-in="6" data-out="7">C</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-hl s-warn" stroke-width="2.5" data-in="1" data-out="3"/>
+<text x="375" y="234" class="sf-nl" text-anchor="middle" data-in="1" data-out="3">goroutine stack S</text>
+<text x="375" y="256" class="sf-nm" text-anchor="middle" data-in="1" data-out="3">unscanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-ink s-ink" stroke-width="2.5" data-in="3" data-out="5"/>
+<text x="375" y="234" class="sf-nk" text-anchor="middle" data-in="3" data-out="5">goroutine stack S</text>
+<text x="375" y="256" class="sf-nk2" text-anchor="middle" data-in="3" data-out="5">scanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-hl s-warn" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="375" y="234" class="sf-nl" text-anchor="middle" data-in="5" data-out="6">goroutine stack S</text>
+<text x="375" y="256" class="sf-nm" text-anchor="middle" data-in="5" data-out="6">unscanned</text>
+<rect x="290" y="206" width="170" height="64" rx="9" class="f-ink s-ink" stroke-width="2.5" data-in="6" data-out="7"/>
+<text x="375" y="234" class="sf-nk" text-anchor="middle" data-in="6" data-out="7">goroutine stack S</text>
+<text x="375" y="256" class="sf-nk2" text-anchor="middle" data-in="6" data-out="7">scanned</text>
+<path d="M340.0 206.0 L336.7 156.0" class="f-none s-acc" stroke-width="3"  data-in="4" data-out="7"/><path d="M336.0 146.0 L341.7 155.6 L331.7 156.3 Z" class="f-acc"  data-in="4" data-out="7"/>
+<text x="352" y="182" class="sf-nm" text-anchor="start" data-in="4" data-out="7">t = C</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="2" data-out="3">heap store → shade(new)</text>
+<text x="20" y="202" class="sf-bad" text-anchor="start" data-in="2" data-out="3">stack write → no barrier</text>
+<rect x="20" y="296" width="440" height="52" rx="8" class="f-panel s-bad" stroke-width="2.5" data-in="3" data-out="4"/>
+<text x="240" y="318" class="sf-bad" text-anchor="middle" data-in="3" data-out="4">STOP THE WORLD: re-scan every stack</text>
+<text x="240" y="338" class="sf-lab" text-anchor="middle" data-in="3" data-out="4">that ran since its scan · 10s–100s ms</text>
+<text x="20" y="176" class="sf-bad" text-anchor="start" data-in="3" data-out="4">↻ the goroutine runs again →</text>
+<text x="20" y="202" class="sf-bad" text-anchor="start" data-in="3" data-out="4">S may hold a white pointer: grey again</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="4" data-out="5">B.f = nil → shade(old = C)</text>
+<text x="20" y="202" class="sf-nm" text-anchor="start" data-in="4" data-out="5">C grey: the stack can't hide it</text>
+<circle cx="150" cy="226" r="26" class="f-ink s-ink" stroke-width="2.5" data-in="5" data-out="6"/>
+<text x="150" y="232" class="sf-nk" text-anchor="middle" data-in="5" data-out="6">A</text>
+<path d="M176.0 218.0 L293.5 145.3" class="f-none s-acc" stroke-width="3"  data-in="5" data-out="6"/><path d="M302.0 140.0 L296.1 149.5 L290.9 141.0 Z" class="f-acc"  data-in="5" data-out="6"/>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="5" data-out="6">A.f = C → shade(new)</text>
+<text x="20" y="290" class="sf-nm" text-anchor="start" data-in="5" data-out="6">S still unscanned = grey,</text>
+<text x="20" y="310" class="sf-nm" text-anchor="start" data-in="5" data-out="6">so the insertion shade is required</text>
+<text x="20" y="176" class="sf-lab" text-anchor="start" data-in="6" data-out="7">S is black, C already shaded:</text>
+<text x="20" y="202" class="sf-ok" text-anchor="start" data-in="6" data-out="7">no rescan, no pause</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".94" data-in="7" data-out="8"/>
+<text x="20" y="28" class="sf-cap" text-anchor="start" data-in="7" data-out="8">What ships: a buffer, not a function call</text>
+<text x="20" y="76" class="sf-lab" text-anchor="start" data-in="7" data-out="8">per-P write-barrier buffer</text>
+<rect x="20" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="47" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="74" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="101" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="128" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="155" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="182" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="209" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="236" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="263" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="290" y="92" width="23" height="36" rx="3" class="f-acc2" data-in="7" data-out="8"/>
+<rect x="317" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="344" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="371" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="398" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<rect x="425" y="92" width="23" height="36" rx="3" class="f-line" data-in="7" data-out="8"/>
+<path d="M328 84 V136" class="f-none s-acc" stroke-width="3" data-in="7" data-out="8"/>
+<text x="20" y="168" class="sf-big" text-anchor="start" data-in="7" data-out="8">512 pointers · 4 KiB</text>
+<text x="20" y="200" class="sf-lab" text-anchor="start" data-in="7" data-out="8">1. barrier off outside mark: just a flag test</text>
+<text x="20" y="226" class="sf-lab" text-anchor="start" data-in="7" data-out="8">2. barrier on: bump next, store old + new</text>
+<text x="20" y="252" class="sf-lab" text-anchor="start" data-in="7" data-out="8">3. buffer full: flush, mark, queue grey</text>
+<text x="20" y="296" class="sf-nm" text-anchor="start" data-in="7" data-out="8">Both pointers recorded every time,</text>
+<text x="20" y="316" class="sf-nm" text-anchor="start" data-in="7" data-out="8">not only while the stack is grey.</text>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="8"/>
+<text x="240" y="70" class="sf-cap" text-anchor="middle" data-in="8" data-out="9">The whole trade</text>
+<text x="240" y="150" class="sf-num" text-anchor="middle" data-in="8">< 50 µs</text>
+<text x="240" y="176" class="sf-lab" text-anchor="middle" data-in="8">worst-case STW target in the design doc</text>
+<text x="240" y="242" class="sf-num" text-anchor="middle" data-in="8">512</text>
+<text x="240" y="268" class="sf-lab" text-anchor="middle" data-in="8">pointers buffered per P</text>
+<text x="240" y="334" class="sf-num" text-anchor="middle" data-in="8">25%</text>
+<text x="240" y="360" class="sf-lab" text-anchor="middle" data-in="8">CPU the pacer gives background marking</text>
+</svg>
+</div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">A garbage collector has to find everything a program can still reach, and Go does it <em>while the program runs</em>. It tags objects <b>white</b> (not seen), <b>grey</b> (seen, contents not yet read) and <b>black</b> (fully read). Whatever is still white at the end is freed. Goroutine stacks count as roots.</p></div>
+<div class="step"><p><b>The Go 1.5 way.</b> Every time the program stores a pointer into the heap, a small <em>write barrier</em> shades the new pointer so a black object can never hold a white one. But stack writes get no barrier, because they are the most common operation in any program.</p></div>
+<div class="step"><p><b>The catch (Go 1.7).</b> A scanned stack turns black, but as soon as its goroutine runs it can pick up a white pointer, so it is grey again. The collector had to <em>stop the world and re-scan every stack that ran</em>. The design doc says that took 10s to 100s of milliseconds with many goroutines.</p></div>
+<div class="step"><p><b>The new idea (Go 1.8).</b> Also shade the pointer being <em>overwritten</em>. Now if a scanned stack loads C and the heap link to C is cut, the cut itself shades C. The stack can no longer hide anything the collector hasn't seen.</p></div>
+<div class="step"><p><b>The other half.</b> If a stack is <em>not yet scanned</em>, it may hold the only pointer to C, and it can store C into an already-black object. So while the current stack is grey, the new pointer gets shaded too. (Simulated: either shade alone loses C in one of the two races.)</p></div>
+<div class="step"><p><b>The payoff.</b> After a stack is scanned, everything on it was shaded and the deletion shade stops it hiding more. It stays black for the rest of the cycle. No re-scan list, no stop-the-world re-scan.</p></div>
+<div class="step"><p><b>What actually ships.</b> The runtime does not call a function per store. The compiler tests a flag, and when marking is on it writes the old and new pointer into a 512-entry per-P buffer, flushed in batches. It records <em>both</em> unconditionally, which the design doc says costs about twice the conditional form.</p></div>
+<div class="step"><p><b>The trade.</b> A tiny worst-case pause, paid for by a barrier that runs on every pointer store during the mark phase, and a pacer that keeps marking near 25% of CPU and bills allocating goroutines when it falls behind.</p></div>
+</div>
+</div></section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="An inspector, a shop that stays open, and a shout-it-out rule"><span>An inspector, a shop that stays open, and a shout-it-out rule</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six things to know first"><span>Six things to know first</span></a><a href="#c-world" data-id="world" aria-label="Every Go binary runs it; you steer it with GOGC and GOMEMLIMIT"><span>Every Go binary runs it; you steer it with GOGC and GOMEMLIMIT</span></a><a href="#c-onel" data-id="onel" aria-label="&quot;Shade the old and new pointer&quot; hides five questions"><span>&quot;Shade the old and new pointer&quot; hides five questions</span></a><a href="#c-problem" data-id="problem" aria-label="A stop-the-world rescan was the last unbounded pause"><span>A stop-the-world rescan was the last unbounded pause</span></a><a href="#c-model" data-id="model" aria-label="A stocktake in a shop that stays open"><span>A stocktake in a shop that stays open</span></a><a href="#c-mech" data-id="mech" aria-label="Replaying one race shows what each shade is for"><span>Replaying one race shows what each shade is for</span></a><a href="#c-math" data-id="math" aria-label="Two conditions to lose an object, and pacing as arithmetic"><span>Two conditions to lose an object, and pacing as arithmetic</span></a><a href="#c-why" data-id="why" aria-label="A scanned stack is shaded once and then cannot hide anything"><span>A scanned stack is shaded once and then cannot hide anything</span></a><a href="#c-knobs" data-id="knobs" aria-label="GOGC and GOMEMLIMIT move the trade; the barrier stays fixed"><span>GOGC and GOMEMLIMIT move the trade; the barrier stays fixed</span></a><a href="#c-breaks" data-id="breaks" aria-label="Real bugs, assist stalls and the unsafe escape hatch"><span>Real bugs, assist stalls and the unsafe escape hatch</span></a><a href="#c-wild" data-id="wild" aria-label="The runtime buffers, records both, and allocates black"><span>The runtime buffers, records both, and allocates black</span></a><a href="#c-frontier" data-id="frontier" aria-label="The barrier is settled; the work moved to locality and pacing"><span>The barrier is settled; the work moved to locality and pacing</span></a><a href="#c-open" data-id="open" aria-label="Assist latency and the 25% budget are still unsettled"><span>Assist latency and the 25% budget are still unsettled</span></a><a href="#c-lineage" data-id="lineage" aria-label="1978 insertion, 1990 deletion, 2017 hybrid"><span>1978 insertion, 1990 deletion, 2017 hybrid</span></a><a href="#c-hands" data-id="hands" aria-label="Break the barrier in a simulator, then count goroutines"><span>Break the barrier in a simulator, then count goroutines</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three dives that build on this"><span>Three dives that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Design docs, runtime source and issues"><span>Design docs, runtime source and issues</span></a></nav>
+
+<main class="wrap">
+<div class="group rv">Plain English</div>
+<article class="card rv plain" id="c-plain" data-id="plain">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="36" cy="30" r="14" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><circle cx="80" cy="30" r="14" class="f-hl s-warn" stroke-width="2.5" /><circle cx="124" cy="30" r="14" class="f-ink s-ink" stroke-width="2.5" /><path d="M52.0 30.0 L58.0 30.0" class="f-none s-mute" stroke-width="1.6" /><path d="M64.0 30.0 L58.0 33.0 L58.0 27.0 Z" class="f-mute" /><path d="M96.0 30.0 L102.0 30.0" class="f-none s-mute" stroke-width="1.6" /><path d="M108.0 30.0 L102.0 33.0 L102.0 27.0 Z" class="f-mute" /><rect x="30" y="62" width="100" height="22" rx="5" class="f-code s-line" stroke-width="1.5"/><rect x="36" y="68" width="14" height="10" rx="2" class="f-warn"/><rect x="56" y="68" width="14" height="10" rx="2" class="f-ok"/><rect x="76" y="68" width="14" height="10" rx="2" class="f-acc2"/><rect x="96" y="68" width="14" height="10" rx="2" class="f-line"/></svg></div>
+<div class="card-body"><div class="kicker">In everyday words</div><h2>An inspector, a shop that stays open, and a shout-it-out rule</h2>
+<div class="brief"><p>An inspector tags boxes while clerks keep moving them. A clerk can lift an unseen box off a shelf and clear the shelf, and the box gets binned. The fix is a rule: shout the name of any box you take off or put on a shelf.</p><p>Check each clerk's pockets once, and never again.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
+<p class="dropcap">Imagine a warehouse that has to throw away anything nobody can reach anymore, but it can't close while it counts. So an inspector walks the aisles with tags: <b>white</b> means "haven't seen this box yet", <b>grey</b> means "seen it, haven't looked inside", <b>black</b> means "seen it and everything it points to". When the walk ends, every box still tagged white gets thrown out.</p>
+<p>The trouble is that clerks keep moving boxes while the inspector works. A clerk can lift a white box off a shelf the inspector is about to skip, hold it, and clear the shelf. The inspector then finishes the walk, never sees that box, and bins it while the clerk is still carrying it. Go's garbage collector has this exact problem, and the fix is a house rule: <b>whenever a clerk takes a box off a shelf or puts one onto a shelf, they call out its name</b> and the inspector tags it. The clerk's own hands and pockets are too busy to police, so the inspector checks them once. The clever part of Go's rule is that after that one check, the pockets never need checking again.</p>
+<h3 id="example">Everyday example</h3>
+<p>Priya is a clerk. Shelf B holds box C. The inspector has already checked Priya's pockets (empty) and has just tagged shelf B as "to look inside". Priya takes C from shelf B into her hands, then clears the slot on the shelf. She calls out "C" as she clears the slot, so the inspector tags it. The inspector looks inside shelf B (now empty) and moves on, but C is already tagged and is kept. Without the call-out, C would still be white at the end, and the box in Priya's hands would be binned.</p>
+<p>Before Go 1.8 the call-out rule was weaker, so the inspector had to <em>close the shop</em> at the end and re-check every clerk's pockets one last time. With 100,000 clerks that took long enough for customers to notice. The new rule removes the re-check.</p>
+<p><b>Now the same thing, technically.</b></p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Context</div>
+<article class="card rv" id="c-ctx" data-id="ctx">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M40.0 50.0 L71.0 29.3" class="f-none s-mute" stroke-width="1.5" /><path d="M76.0 26.0 L72.7 31.8 L69.3 26.8 Z" class="f-mute" /><path d="M40.0 50.0 L71.0 70.7" class="f-none s-mute" stroke-width="1.5" /><path d="M76.0 74.0 L69.3 73.2 L72.7 68.2 Z" class="f-mute" /><path d="M96.0 26.0 L120.0 26.0" class="f-none s-mute" stroke-width="1.5" /><path d="M126.0 26.0 L120.0 29.0 L120.0 23.0 Z" class="f-mute" /><circle cx="28" cy="50" r="12" class="f-ink s-ink" stroke-width="2.5" /><circle cx="86" cy="26" r="12" class="f-hl s-warn" stroke-width="2.5" /><circle cx="86" cy="74" r="12" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><circle cx="140" cy="26" r="12" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><path d="M104 78 l14 -10 M118 78 l-14 -10" class="f-none s-bad" stroke-width="2.5"/></svg></div>
+<div class="card-body"><div class="kicker">§1 · Prerequisites</div><h2>Six things to know first</h2>
+<div class="brief"><ul><li><b>Tri-color marking</b>: white unseen, grey queued, black scanned.</li><li><b>Strong invariant</b>: no black object points to a white one.</li><li><b>Write barrier</b>: code around heap pointer stores. Stack writes get none.</li></ul></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-ctx">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-ctx"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Tracing GC</b>: an object is live if a chain of pointers leads to it from a <i>root</i> (goroutine stacks, globals, registers). Everything else is freed. <a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">Go GC guide</a>.</li>
+<li><b>Concurrent marking</b>: the collector traces while the program (the <i>mutator</i>) keeps running and rewiring pointers, so the graph changes under the tracer.</li>
+<li><b>Tri-color abstraction</b>: white = unvisited, grey = visited but its pointers not yet scanned (on the work queue), black = visited and scanned. White objects left at the end are garbage.</li>
+<li><b>Strong invariant</b>: no black object points to a white object. If it holds, finishing the grey queue marks everything reachable. <a href="https://go.googlesource.com/proposal/+show/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Design doc 17503</a>.</li>
+<li><b>Write barrier</b>: a few instructions the compiler wraps around pointer stores into the heap, so the collector hears about the change. Stack writes get none, because they are far too frequent.</li>
+<li><b>Stop-the-world (STW)</b>: every goroutine pauses. Go keeps two short STW phases per cycle (sweep termination and mark termination).</li>
+</ul>
+<figure class="fig fig-own" id="fig-tricolor"><div class="fig-svg" role="img" aria-label="Black to white pointers are allowed only when a grey object still reaches the white one; K2 to W2 is the dangerous case."><svg viewBox="0 0 780 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Black, grey and white objects; the weak invariant allows black to white only when a grey object protects it">
+<path d="M108.0 70.0 L242.0 70.0" class="f-none s-ink" stroke-width="2.5" /><path d="M252.0 70.0 L242.0 75.0 L242.0 65.0 Z" class="f-ink" />
+<path d="M308.0 76.0 L442.3 109.6" class="f-none s-mute" stroke-width="2.5" /><path d="M452.0 112.0 L441.1 114.4 L443.5 104.7 Z" class="f-mute" />
+<path d="M106.0 190.0 L444.1 131.7" class="f-none s-ok" stroke-width="2.5" stroke-dasharray="7 5"/><path d="M454.0 130.0 L445.0 136.6 L443.3 126.8 Z" class="f-ok" stroke-dasharray="7 5"/>
+<path d="M106.0 210.0 L442.0 227.5" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="7 5"/><path d="M452.0 228.0 L441.8 232.5 L442.3 222.5 Z" class="f-bad" stroke-dasharray="7 5"/>
+<path d="M240 232 l26 26 M266 232 l-26 26" class="f-none s-bad" stroke-width="3.5"/>
+<circle cx="80" cy="70" r="26" class="f-ink s-ink" stroke-width="2.5" /><circle cx="80" cy="200" r="26" class="f-ink s-ink" stroke-width="2.5" /><circle cx="280" cy="70" r="26" class="f-hl s-warn" stroke-width="2.5" /><circle cx="480" cy="120" r="26" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><circle cx="480" cy="230" r="26" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<text x="80" y="75" class="t-ink" style="fill:var(--bg);font-size:14px;text-anchor:middle">K1</text>
+<text x="80" y="205" class="t-ink" style="fill:var(--bg);font-size:14px;text-anchor:middle">K2</text>
+<text x="280" y="75" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">G</text>
+<text x="480" y="125" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">W1</text>
+<text x="480" y="235" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">W2</text>
+<text x="500" y="46" class="t-mute" style="font-size:13px">grey G still has a white path to W1</text>
+<text x="500" y="64" class="t-mute" style="font-size:13px">so K2 → W1 is allowed (weak invariant)</text>
+<text x="520" y="214" class="t-mute" style="font-size:13px">K2 → W2: no grey path to W2,</text>
+<text x="520" y="232" class="t-mute" style="font-size:13px">W2 would be freed while reachable</text>
+</svg></div><figcaption><b>Figure 1.</b> Black to white pointers are allowed only when a grey object still reaches the white one; K2 to W2 is the dangerous case.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Clements and Hudson, proposal 17503 (weak tri-color invariant)</a> · text</span></figcaption></figure>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-world" data-id="world">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="40" width="136" height="18" rx="4" class="f-line"/><rect x="12" y="40" width="58" height="18" rx="4" class="f-acc2"/><rect x="70" y="40" width="46" height="18" class="f-hl"/><path d="M116 30 V68" class="f-none s-warn" stroke-width="2"/><path d="M148 30 V68" class="f-none s-bad" stroke-width="2"/><text x="100" y="82" class="t-mute">trigger</text><text x="126" y="24" class="t-mute">goal</text><text x="16" y="82" class="t-mute">live</text></svg></div>
+<div class="card-body"><div class="kicker">§1b · Real-world context</div><h2>Every Go binary runs it; you steer it with GOGC and GOMEMLIMIT</h2>
+<div class="brief"><p>Kubernetes, etcd, Docker, Prometheus and Terraform are all Go, so they all run this collector. You never call the barrier. You set <code>GOGC</code>, <code>GOMEMLIMIT</code> (Go 1.19) and read <code>GODEBUG=gctrace=1</code>.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-world">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-world"><div class="deep-inner"><div class="deep-content">
+<style>.deep{grid-template-columns:minmax(0,1fr)}</style>
+<h3>What it is</h3>
+<p>A small piece of compiler-emitted code that runs on every heap pointer store <i>while a GC mark phase is active</i>. It records the old pointer being overwritten and the new pointer being written, so the concurrent collector can never miss an object that the program moves around. It is why Go's GC pauses are measured in tens to hundreds of microseconds instead of milliseconds.</p>
+<h3>Why it exists</h3>
+<p>Go 1.5 (2015) shipped a concurrent collector, and by 1.7 the one remaining unbounded pause was the stop-the-world <b>re-scan of goroutine stacks</b> at the end of marking, which the design doc says could take <b>10s to 100s of ms</b> with many goroutines. Go makes goroutines cheap enough to run 10<sup>5</sup> or more, so the pause scaled with a number users control. The hybrid barrier (proposal #17503, Go 1.8) removed it.</p>
+<h3>Where it runs</h3>
+<p>Every Go binary carries this runtime. I did not check any of these projects' GC settings, only that they are written in Go and so run this collector:</p>
+<div class="grid">
+<div class="gc"><b>Kubernetes, etcd</b><br>Control-plane servers where a GC pause shows up as API latency or a missed leader heartbeat.</div>
+<div class="gc"><b>Docker / moby, containerd</b><br>Daemon processes that hold many goroutines per container.</div>
+<div class="gc"><b>Prometheus</b><br>Large pointer-rich in-memory indexes, so GC CPU is a real cost.</div>
+<div class="gc"><b>Terraform, Hugo, CockroachDB</b><br>Go programs whose heaps grow to many GB.</div>
+</div>
+<h3>How you touch it</h3>
+<p>You never call the barrier. You steer the collector that turns it on and off:</p>
+<pre><code>GOGC=100                  # heap goal = live + (live + roots) * GOGC/100   (default 100)
+GOMEMLIMIT=3500MiB        # soft total-memory limit, Go 1.19+
+GODEBUG=gctrace=1         # one line per GC cycle on stderr
+
+// in code
+debug.SetGCPercent(200)
+debug.SetMemoryLimit(3500 &lt;&lt; 20)</code></pre>
+<p>A real <code>gctrace</code> line (my machine, <code>gcdemo.go</code>, 14 P):</p>
+<pre><code>gc 1 @0.003s 2%: 0.035+0.30+0.061 ms clock, 0.49+0.14/0.34/0+0.86 ms cpu, 3-&gt;4-&gt;0 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 14 P
+         ^wall%   ^STW sweep-term + concurrent mark + STW mark-term     ^heap at start-&gt;end-&gt;live   ^goal</code></pre>
+<p>The first and last numbers in the clock triple are the two STW pauses. The middle one is the concurrent mark, and it is the phase during which the barrier is on.</p>
+<h3>When to care, when not</h3>
+<div class="two"><div class="use"><b>Tune GOGC / GOMEMLIMIT when</b> a profile shows <code>runtime.gcAssistAlloc</code>, GC CPU above ~25%, or you run in a container with a hard memory limit.</div><div class="skip"><b>Don't touch it when</b> pauses are already sub-millisecond and memory is not tight. The barrier itself is not tunable, and the alternatives (Java ZGC, Shenandoah) are different runtimes, not flags.</div></div>
+<h3>Who should care</h3>
+<p>Backend and infra engineers running latency-sensitive Go services (p99), SREs sizing memory in containers, and anyone writing <code>unsafe</code> or cgo code that stores pointers behind the compiler's back, since that bypasses the barrier.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-onel" data-id="onel">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M18.0 22.0 L58.8 42.4" class="f-none s-acc2" stroke-width="2" /><path d="M66.0 46.0 L57.1 46.0 L60.6 38.8 Z" class="f-acc2" /><path d="M18.0 78.0 L58.8 57.6" class="f-none s-acc" stroke-width="2" /><path d="M66.0 54.0 L60.6 61.2 L57.1 54.0 Z" class="f-acc" /><circle cx="84" cy="50" r="16" class="f-hl s-warn" stroke-width="2.5" /><text x="10" y="14" class="t-mute">old</text><text x="10" y="94" class="t-mute">new</text><path d="M102.0 50.0 L136.0 50.0" class="f-none s-ok" stroke-width="2" /><path d="M144.0 50.0 L136.0 54.0 L136.0 46.0 Z" class="f-ok" /></svg></div>
+<div class="card-body"><div class="kicker">§2 · The one-liner</div><h2>&quot;Shade the old and new pointer&quot; hides five questions</h2>
+<div class="brief"><p>The sentence skips: why stacks need no barrier, why <i>two</i> shades, why the shipped code is not the pseudocode, why the barrier is mostly off, and why assists now cost more tail latency than the barrier.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-onel">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-onel"><div class="deep-inner"><div class="deep-content">
+<blockquote>"Go's write barrier shades the old and new pointer on every heap store during marking, so the collector can run concurrently."</blockquote>
+<p>What that sentence hides:</p>
+<ol>
+<li><b>Stacks have no barrier at all.</b> So how can the collector trust a stack it scanned a millisecond ago?</li>
+<li><b>The two shades fix two different races.</b> Each alone is broken, in a different place.</li>
+<li><b>The shipped code is not the textbook pseudocode.</b> It buffers pointers and records both unconditionally.</li>
+<li><b>The barrier is off most of the time.</b> It exists only during the mark phase, and the pacer decides when that is.</li>
+<li><b>The barrier is not the latency risk anymore.</b> Mark assists, charged to whoever allocates, are.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-problem" data-id="problem">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="18" width="40" height="34" rx="5" class="f-ink"/><path d="M30 70 a14 14 0 1 1 6 10" class="f-none s-bad draw" stroke-width="2.5"/><path d="M30 80 l-6 -2 l2 -7" class="f-none s-bad" stroke-width="2.5"/><rect x="70" y="26" width="76" height="14" rx="3" class="f-line"/><rect x="70" y="26" width="76" height="14" rx="3" class="f-bad" opacity=".75"/><text x="72" y="58" class="t-mute">STW rescan</text><rect x="70" y="72" width="3" height="14" class="f-ok"/><text x="80" y="83" class="t-mute">&lt;50 us</text></svg></div>
+<div class="card-body"><div class="kicker">§3 · The problem</div><h2>A stop-the-world rescan was the last unbounded pause</h2>
+<div class="guess" data-g="stackbar" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Stack writes have no write barrier. Under Go 1.7's insertion-only barrier, what happens to a stack after the GC scans it and the goroutine runs again?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">It stays black for the cycle</button><button class="g-opt" type="button" data-k="1">It reverts to grey and must be re-scanned</button><button class="g-opt" type="button" data-k="2">The GC frees it</button><button class="g-opt" type="button" data-k="3">It gets a barrier on demand</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p>It <b>reverts to grey</b>. A scanned stack is black only until its goroutine runs and can pick up a white pointer, so Go 1.7 re-scanned every dirty stack in a stop-the-world step.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Go 1.7 marked concurrently but treated stacks as permanently grey, then re-scanned every dirty one with the world stopped. The design doc says <b>10s to 100s of ms</b> with many goroutines, and it grew with goroutine count.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>10s–100s ms</b><span>worst-case STW stack re-scan per GC cycle in Go 1.7, per the design doc. Hybrid barrier target: under 50 µs.</span></div>
+<p>Go 1.5 (2015) made marking concurrent with a <b>Dijkstra insertion barrier</b>: on <code>*slot = ptr</code>, shade <code>ptr</code>. That keeps the strong invariant for the <i>heap</i>: no black heap object ever points to a white one.</p>
+<p>Stacks are the catch. The compiler emits no barrier for stack writes (a local assignment is the most common operation in a program), so a stack can pick up a white pointer silently. Go 1.7 handled this by treating stacks as <b>permanently grey</b>: scanning a stack colors it black, but the moment its goroutine runs again it can hold a white pointer, so it is grey again. Marking therefore cannot finish until every stack touched since its scan is scanned <i>again</i>, with the world stopped, because a running goroutine could re-dirty it.</p>
+<table><thead><tr><th>Go 1.7 mark termination</th><th>Cost</th></tr></thead><tbody>
+<tr><td>Stacks to re-scan</td><td>every goroutine that ran since its stack was scanned</td></tr>
+<tr><td>Pause length</td><td>"10s to 100s of ms" with many goroutines (design doc 17503)</td></tr>
+<tr><td>Scales with</td><td>goroutine count and stack depth, both set by the application</td></tr>
+</tbody></table>
+<p>So the pause was unbounded in exactly the quantity Go encourages you to make large. Proposal 17503 (Clements and Hudson, 2016-10-21) set out to delete the re-scan. Its preliminary experiments put worst-case STW under 50 µs.</p>
+<p>Why not put a barrier on stack writes? Because a barrier is a load, a compare and a possible call. Putting that on every local pointer assignment would tax all code, all the time, to protect a rare race. The design goal was the opposite: keep stack writes free and make the <i>heap</i> barrier smart enough that a scanned stack is provably safe.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-model" data-id="model">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="30" width="60" height="8" class="f-line"/><rect x="14" y="60" width="60" height="8" class="f-line"/><rect x="24" y="16" width="16" height="14" rx="2" class="f-hl s-warn" stroke-width="1.5"/><rect x="44" y="46" width="16" height="14" rx="2" class="f-panel s-mute" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="116" cy="28" r="9" class="f-panel s-ink" stroke-width="2"/><path d="M116 37 V62 M116 46 L98 54 M116 46 L134 54 M116 62 L104 84 M116 62 L128 84" class="f-none s-ink" stroke-width="2"/><rect x="92" y="52" width="14" height="12" rx="2" class="f-hl s-warn" stroke-width="1.5"/></svg></div>
+<div class="card-body"><div class="kicker">§4 · Mental model</div><h2>A stocktake in a shop that stays open</h2>
+<div class="brief"><p>Boxes are objects, a clerk's hands are a stack, and shouting is the barrier. It breaks because the inspector runs on other CPUs (a race, not a conversation), shouting over-tags, and allocators also get drafted into counting.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-model">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-model"><div class="deep-inner"><div class="deep-content">
+<p><b>A stocktake in an open shop.</b> Boxes are objects, shelves are heap objects, a clerk's hands are a goroutine stack. White, grey and black are tags. Whenever a clerk takes a box off a shelf or sets one on a shelf, they shout its name and the inspector tags it. The inspector checks a clerk's hands once; after that the clerk can't hide anything.</p>
+<p><b>Where it breaks.</b></p>
+<ul>
+<li>The real inspector is a set of GC worker goroutines on other CPUs, so "shouting" is a memory write racing with their reads, not a conversation. That race is why the shipped barrier never checks the color of the holder (see the mechanism).</li>
+<li>Shouting over-tags. A box that is thrown away a moment after being tagged still survives this cycle (floating garbage).</li>
+<li>Clerks can also be forced to help count (mark assist), and the analogy has no equivalent of that tax on allocators.</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Technical deep dive</div>
+<article class="card rv gated" id="c-mech" data-id="mech">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="29" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="46" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="63" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="80" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="97" y="34" width="14" height="22" rx="2" class="f-acc2"/><rect x="114" y="34" width="14" height="22" rx="2" class="f-line"/><rect x="131" y="34" width="14" height="22" rx="2" class="f-line"/><path d="M12 70 H148" class="f-none s-mute" stroke-width="1.5"/><path d="M114 62 V78" class="f-none s-acc" stroke-width="2.5" class="blink"/><path d="M80.0 24.0 L80.0 20.0" class="f-none s-ok" stroke-width="2" /><path d="M80.0 14.0 L83.0 20.0 L77.0 20.0 Z" class="f-ok" /><text x="14" y="90" class="t-mute">wbBuf</text><text x="104" y="90" class="t-mute">next</text></svg></div>
+<div class="card-body"><div class="kicker">§5 · The mechanism, traced</div><h2>Replaying one race shows what each shade is for</h2>
+<div class="guess" data-g="yuasa" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> A scanned (black) stack loads C from B, then B's pointer to C is set to nil. Which barrier alone saves C?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Insertion (Dijkstra) alone</button><button class="g-opt" type="button" data-k="1">Deletion (Yuasa) alone</button><button class="g-opt" type="button" data-k="2">Neither</button><button class="g-opt" type="button" data-k="3">Only both together</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Deletion alone.</b> The nil store looks harmless to an insertion barrier (it shades only the new value, nil), so C is lost. The deletion shade catches the overwritten C. Source: this dive's <code>barrier_sim.py</code>, race S1.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>A simulator replays three races under five barriers. Insertion alone loses an object behind a black stack; deletion alone loses one behind a grey stack; the hybrid keeps both. The real runtime buffers <b>512</b> pointers per P and records both always.</p><p class="mini">Step-through inside.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>6 min · 2 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
+<style>
+#hb .ob{stroke-width:2.5}
+#hb .w{fill:var(--panel);stroke:var(--mute);stroke-dasharray:5 4}
+#hb .g{fill:var(--hl);stroke:var(--warn)}
+#hb .k{fill:var(--ink);stroke:var(--ink)}
+#hb .lab{fill:var(--ink);font:700 15px ui-monospace,monospace;text-anchor:middle}
+#hb .lab.k{fill:var(--bg);stroke:none}
+#hb .sm{fill:var(--mute);font:12px system-ui}
+#hb .edge{stroke:var(--accent2);stroke-width:2;fill:none}
+#hb .edge.hid{stroke:var(--bad);stroke-dasharray:3 4;opacity:.8}
+#hb .stk{fill:var(--panel);stroke:var(--line);stroke-width:2}
+#hb .stk.k{fill:var(--code);stroke:var(--ink)}
+#hb .stk.g{fill:var(--hl);stroke:var(--warn)}
+#hb-info b{color:var(--ink)}
+.hb-bad{color:var(--bad)}
+</style>
+<p>The simulator in this folder (<code>barrier_sim.py</code>) replays one hand-scheduled race. Below is scenario <b>S1</b>: a goroutine's stack is already scanned and empty; it loads <code>C</code> out of <code>B</code>, then unlinks it from the heap. Toggle the deletion shade off to see the bug.</p>
+<div class="widget" role="group" aria-label="Hybrid barrier step-through">
+<svg id="hb" viewBox="0 0 560 240" role="img" aria-label="Objects B and C and a goroutine stack, colored by mark state"></svg>
+<div class="stepbar">
+  <button class="btn" id="hb-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="hb-next" aria-label="Next step">Next →</button>
+  <label class="mini" style="margin-left:10px"><input type="checkbox" id="hb-off"> remove deletion shade (<code>shade(*slot)</code>)</label>
+  <span class="mini" id="hb-n" aria-live="polite"></span>
+  <div class="info" id="hb-info" aria-live="polite"></div>
+</div>
+</div>
+<p>The simulator's verdict for all three races under five barriers (<code>python3 barrier_sim.py</code>):</p>
+<table><thead><tr><th>Race</th><th style="white-space:nowrap">none</th><th style="white-space:nowrap">Yuasa only</th><th style="white-space:nowrap">Dijkstra only</th><th style="white-space:nowrap">hybrid</th><th style="white-space:nowrap">shade both</th></tr></thead><tbody>
+<tr><td>S1 · load C to a <b>black</b> stack, then unlink from heap</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td>ok</td></tr>
+<tr><td>S2 · stack (still <b>grey</b>) is the only holder of C, store C into a black heap object, drop it</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td>ok</td><td>ok</td></tr>
+<tr><td>S3 · scanned stack shares an object it already shaded</td><td>ok</td><td>ok</td><td>ok</td><td>ok</td><td>ok</td></tr>
+</tbody></table>
+<p>Read the table as the whole design. Insertion alone fails S1 (a black stack hides things), which is exactly why Go 1.7 needed to rescan stacks. Deletion alone fails S2 (a grey stack is not a consistent snapshot). The hybrid passes both.</p>
+<figure class="fig fig-own" id="fig-races"><div class="fig-svg" role="img" aria-label="The two races the hybrid barrier must win: S1 needs the deletion shade, S2 needs the insertion shade while the stack is grey."><svg viewBox="0 0 860 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two races: a black stack hides an object loaded from the heap, and a grey stack stores its only pointer into a black heap object">
+<text x="30" y="34" class="t-ink" style="font-size:15px;font-weight:700">S1 · black stack hides C</text>
+<text x="470" y="34" class="t-ink" style="font-size:15px;font-weight:700">S2 · grey stack feeds black A</text>
+<circle cx="100" cy="110" r="28" class="f-hl s-warn" stroke-width="2.5" /><circle cx="310" cy="110" r="28" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><text x="100" y="116" class="t-ink" style="font-size:16px;text-anchor:middle">B</text><text x="310" y="116" class="t-ink" style="font-size:16px;text-anchor:middle">C</text>
+<path d="M128.0 110.0 L271.0 110.0" class="f-none s-mute" stroke-width="2" opacity=".5"/><path d="M280.0 110.0 L271.0 114.5 L271.0 105.5 Z" class="f-mute" opacity=".5"/>
+<path d="M180 94 l36 32 M216 94 l-36 32" class="f-none s-bad" stroke-width="3.5"/>
+<text x="150" y="82" class="t-mute" style="font-size:13px">② B.f = nil</text>
+<rect x="170" y="220" width="170" height="64" rx="8" class="f-ink"/>
+<text x="255" y="248" class="t-ink" style="fill:var(--bg);font-size:14px;text-anchor:middle">stack S (black)</text><text x="255" y="268" class="t-ink" style="fill:var(--bg);font-size:13px;text-anchor:middle">holds t = C</text>
+<path d="M300.0 220.0 L310.4 153.9" class="f-none s-acc" stroke-width="2.5" /><path d="M312.0 144.0 L315.4 154.7 L305.5 153.1 Z" class="f-acc" />
+<text x="330" y="190" class="t-mute" style="font-size:13px">① t := B.f</text>
+<text x="30" y="318" class="t-mute" style="font-size:13px">Fix: shade(old = C). Without it C stays white while S holds it.</text>
+<circle cx="540" cy="110" r="28" class="f-ink s-ink" stroke-width="2.5" /><circle cx="750" cy="110" r="28" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><text x="540" y="116" class="t-ink" style="fill:var(--bg);font-size:16px;text-anchor:middle">A</text><text x="750" y="116" class="t-ink" style="font-size:16px;text-anchor:middle">C</text>
+<path d="M568.0 110.0 L710.0 110.0" class="f-none s-acc" stroke-width="2.5" /><path d="M720.0 110.0 L710.0 115.0 L710.0 105.0 Z" class="f-acc" />
+<text x="560" y="82" class="t-mute" style="font-size:13px">① A.f = C</text>
+<rect x="620" y="220" width="190" height="64" rx="8" class="f-hl s-warn" stroke-width="2.5"/>
+<text x="715" y="248" class="t-ink" style="font-size:14px;text-anchor:middle">stack S (grey)</text><text x="715" y="268" class="t-ink" style="font-size:13px;text-anchor:middle">only holder of C</text>
+<path d="M745.0 220.0 L749.3 154.0" class="f-none s-mute" stroke-width="2" opacity=".5"/><path d="M750.0 144.0 L754.3 154.3 L744.4 153.7 Z" class="f-mute" opacity=".5"/>
+<path d="M770 176 l30 24 M800 176 l-30 24" class="f-none s-bad" stroke-width="3.5"/>
+<text x="810" y="178" class="t-mute" style="font-size:13px">② S drops C</text>
+<text x="470" y="318" class="t-mute" style="font-size:13px">Fix: shade(new = C). Without it C hides inside black A.</text>
+</svg></div><figcaption><b>Figure 2.</b> The two races the hybrid barrier must win: S1 needs the deletion shade, S2 needs the insertion shade while the stack is grey.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Scenarios simulated in barrier_sim.py (this dive)</a> · adapted from the doc&#x27;s reasoning</span></figcaption></figure>
+<h3>What the compiler and runtime actually do</h3>
+<pre><code>// compiler, for every heap pointer store  *slot = ptr
+if runtime.writeBarrier.enabled {          // CMPL runtime.writeBarrier, $0
+    buf := gcWriteBarrier2()               // reserves 2 slots (16 B) in this P's wbBuf
+    buf[0] = ptr                           // new value  (Dijkstra half)
+    buf[1] = *slot                         // old value  (Yuasa half)
+}
+*slot = ptr
+
+// runtime (mwbbuf.go): per-P buffer, wbBufEntries = 512 pointers = 4 KiB
+// fast path = bump a pointer; when full -&gt; wbBufFlush() on the system stack:
+//   for each entry: drop nil / tiny values, mark the object, push to the GC work queue</code></pre>
+<figure class="fig fig-own" id="fig-wbbuf"><div class="fig-svg" role="img" aria-label="A heap pointer store, from flag check to the per-P buffer; entries are marked in batches when the buffer fills."><svg viewBox="0 0 860 296" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Store, enabled check, buffer reserve, per-P buffer, flush">
+<rect x="20" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="115" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">*slot = ptr</text>
+<text x="115" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">heap pointer store</text>
+<rect x="220" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="315" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">writeBarrier</text>
+<text x="315" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">enabled? (only during mark)</text>
+<rect x="430" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="525" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">gcWriteBarrier2</text>
+<text x="525" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">reserve 16 B, store old + new</text>
+<rect x="640" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="735" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">wbBufFlush</text>
+<text x="735" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">when the buffer is full</text>
+<path d="M212.0 72.0 L209.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M218.0 72.0 L209.0 76.5 L209.0 67.5 Z" class="f-acc2" />
+<path d="M412.0 72.0 L419.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M428.0 72.0 L419.0 76.5 L419.0 67.5 Z" class="f-acc2" />
+<path d="M622.0 72.0 L629.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M638.0 72.0 L629.0 76.5 L629.0 67.5 Z" class="f-acc2" />
+<text x="20" y="150" class="t-ink" style="font-size:15px;font-weight:700">per-P write-barrier buffer: 512 pointers (4 KiB)</text>
+<rect x="20" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="45" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="70" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="95" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="120" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="145" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="170" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="195" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="220" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="245" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="270" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="295" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="320" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="345" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="370" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="395" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="420" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="445" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="470" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="495" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="520" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="545" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="570" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="595" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="620" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="645" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="670" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="695" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="720" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="745" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="770" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="795" y="164" width="21" height="34" rx="3" class="f-line"/>
+<path d="M545 156 V206" class="f-none s-acc" stroke-width="3.5"/>
+<text x="533" y="224" class="t-mute" style="font-size:12px;text-anchor:middle">next</text>
+<path d="M820 156 V206" class="f-none s-bad" stroke-width="3.5"/>
+<text x="800" y="224" class="t-mute" style="font-size:12px;text-anchor:middle">end</text>
+<text x="20" y="258" class="t-mute" style="font-size:13px">Fast path: bump next by 16 B and store both pointers.</text>
+<text x="20" y="278" class="t-mute" style="font-size:13px">Slow path: flush every entry, mark the object, queue it grey. Marking happens in batches.</text>
+</svg></div><figcaption><b>Figure 3.</b> A heap pointer store, from flag check to the per-P buffer; entries are marked in batches when the buffer fills.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/golang/go/blob/master/src/runtime/mwbbuf.go" target="_blank" rel="noopener">runtime/mwbbuf.go and asm_amd64.s (golang/go master)</a> · code</span></figcaption></figure>
+<p>Three differences from the textbook pseudocode, all visible in <code>mbarrier.go</code> and <code>mwbbuf.go</code>:</p>
+<ol>
+<li><b>Buffered, not immediate.</b> <code>shade</code> does not mark on the spot. Pointers go into a 512-entry per-P buffer and are marked in batches. Entry points <code>gcWriteBarrier1/2/3</code> reserve 8, 16 or 24 bytes; up to 8 pointers per call (<code>wbMaxEntriesPerCall</code>).</li>
+<li><b>Unconditional.</b> The comment keeps the conditional pseudocode (<code>if current stack is grey: shade(ptr)</code>) as the proof, but the code path records <i>both</i> pointers every time. The comment gives the reason for not even conditioning on the <i>holder's</i> color: a mutator store followed by a mark-bit load can reorder against the GC's mark-bit store and slot load, and avoiding that needs an expensive memory barrier. So it always greys the pointer. Design doc 17503 lists this "unconditional" shape as a safe, easier-to-reason-about variant that costs about twice as much for most of the mark phase.</li>
+<li><b>Buffers drain before termination.</b> <code>gcMarkDone</code> runs a "ragged barrier" with <code>forEachP</code>, flushing every P's buffer and work cache before it may declare marking done.</li>
+</ol>
+<h3>Stacks, scanned once</h3>
+<pre><code>markroot(i):
+    gp := stack of goroutine i
+    suspendG(gp)                 // or park self in _Gwaiting (waitReasonGarbageCollectionScan)
+    scanstack(gp)                // shade every pointer found, set gp.gcscandone
+    // never scanned again this cycle: no rescan list, no STW rescan
+
+newobject during mark:  gcmarknewobject()   // allocate black</code></pre>
+<p>Allocate-black is a precondition the design doc names. Go already allocated black, so the hybrid barrier changed nothing there. Whether a goroutine's stack created mid-cycle is born black is something I did not verify (it lives in <code>proc.go</code>, which I did not read).</p>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('hb');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  // colors: w white, g grey, k black.  e = B->C edge visible, hid = C held only by stack
+  var S=[
+    {i:'<b>Mark begins.</b> The barrier is on. B and C are white. The goroutine\'s stack S is unscanned, which counts as grey. Heap: global &rarr; B &rarr; C.',B:'w',C:'w',S:'g',e:1,sc:0},
+    {i:'<b>GC scans the globals.</b> It finds B and shades it grey.',B:'g',C:'w',S:'g',e:1,sc:0},
+    {i:'<b>GC scans stack S.</b> It is empty, so nothing to shade, and S turns <b>black</b>. From here on the insertion half of the barrier is unnecessary for this goroutine.',B:'g',C:'w',S:'k',e:1,sc:0},
+    {i:'<b>Mutator: <code>t := B.f</code>.</b> C is now held by S as well. Writes to the stack have <b>no barrier</b>, so the GC heard nothing. C is still white.',B:'g',C:'w',S:'k',e:1,sc:1,held:1},
+    {i:'<b>Mutator: <code>B.f = nil</code>.</b> This is a heap store, so the barrier runs: <code>shade(*slot)</code> shades the <i>old</i> value, C &rarr; grey. The only path to C from the heap is gone, but the GC now has it queued.',B:'g',C:'g',S:'k',e:0,sc:1,held:1,shade:1},
+    {i:'<b>GC drains the queue.</b> B scanned (no children now) &rarr; black. C scanned &rarr; black.',B:'k',C:'k',S:'k',e:0,sc:1,held:1},
+    {i:'<b>Mark termination.</b> No reachable object is white, so C survives. S was never rescanned and never needed to be.',B:'k',C:'k',S:'k',e:0,sc:1,held:1}
+  ];
+  var BAD={4:{B:'g',C:'w',S:'k',e:0,sc:1,held:1,i:'<b>Mutator: <code>B.f = nil</code>, deletion shade removed.</b> The barrier only looks at the new value (nil), so it shades nothing. C is white and the only path left runs from the stack.'},
+           5:{B:'k',C:'w',S:'k',e:0,sc:1,held:1,i:'<b>GC drains the queue.</b> B is scanned and has no children. The queue is empty, but C is still white.'},
+           6:{B:'k',C:'w',S:'k',e:0,sc:1,held:1,i:'<b class="hb-bad">Mark termination: C is white but reachable from S, so it is freed while the goroutine still holds it.</b> A use-after-free, in a memory-safe language. This is why Go 1.7 had to rescan every stack.'}};
+  var n=0,off=document.getElementById('hb-off');
+  function st(){var s=S[n];if(off.checked&&BAD[n])s=BAD[n];return s}
+  function draw(){
+    var s=st();svg.textContent='';
+    // global root
+    svg.appendChild(el('text',{x:30,y:72,class:'sm'},'global'));
+    svg.appendChild(el('path',{d:'M70 68 H150',class:'edge'}));
+    // B
+    svg.appendChild(el('circle',{cx:190,cy:68,r:30,class:'ob '+s.B}));
+    svg.appendChild(el('text',{x:190,y:74,class:'lab '+(s.B=='k'?'k':'')},'B'));
+    // B->C
+    svg.appendChild(el('path',{d:'M220 68 H330',class:'edge'+(s.e?'':' hid'),'opacity':s.e?1:.55}));
+    if(!s.e)svg.appendChild(el('text',{x:275,y:58,class:'sm'},'B.f = nil'));
+    svg.appendChild(el('circle',{cx:360,cy:68,r:30,class:'ob '+s.C}));
+    svg.appendChild(el('text',{x:360,y:74,class:'lab '+(s.C=='k'?'k':'')},'C'));
+    // stack
+    svg.appendChild(el('rect',{x:150,y:150,width:260,height:56,rx:8,class:'stk '+s.S}));
+    svg.appendChild(el('text',{x:166,y:174,class:'sm'},'goroutine stack S'));
+    svg.appendChild(el('text',{x:166,y:194,class:'sm'},s.S=='g'?'unscanned (grey)':'scanned (black)'));
+    if(s.held){svg.appendChild(el('text',{x:330,y:184,class:'lab'},'t = C'));
+      svg.appendChild(el('path',{d:'M360 150 V100',class:'edge'}));}
+    // legend
+    var lx=440;[['w','white'],['g','grey'],['k','black']].forEach(function(c,i){
+      svg.appendChild(el('circle',{cx:lx+8,cy:36+i*26,r:9,class:'ob '+c[0],'stroke-width':2}));
+      svg.appendChild(el('text',{x:lx+24,y:41+i*26,class:'sm'},c[1]));});
+    document.getElementById('hb-info').innerHTML=s.i;
+    document.getElementById('hb-n').textContent='step '+(n+1)+' / '+S.length;
+    document.getElementById('hb-prev').disabled=n==0;document.getElementById('hb-next').disabled=n==S.length-1;
+  }
+  document.getElementById('hb-prev').onclick=function(){if(n>0){n--;draw()}};
+  document.getElementById('hb-next').onclick=function(){if(n<S.length-1){n++;draw()}};
+  off.onchange=draw;draw();
+})();
+</script>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-math" data-id="math">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="34" width="52" height="24" rx="3" class="f-acc2"/><rect x="66" y="34" width="12" height="24" class="f-warn"/><rect x="78" y="34" width="64" height="24" rx="3" class="f-hl s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><text x="18" y="50" class="t-ink" style="fill:var(--panel)">live</text><text x="84" y="50" class="t-ink">x GOGC</text><text x="14" y="78" class="t-mute">goal = live + (live + roots) x GOGC/100</text></svg></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>Two conditions to lose an object, and pacing as arithmetic</h2>
+<div class="guess" data-g="goal" data-kind="range" data-min="100" data-max="400" data-lo="203" data-hi="203" data-tol="8" data-unit=" MB"><p class="g-q"><span class="g-tag">Guess first</span> Live heap after the last cycle is 100 MB, stacks 2 MB, globals 1 MB, GOGC = 100. What is the heap goal?</p><div class="g-ctl"><input type="range" min="100" max="400" step="1" value="150" aria-label="Your guess"><output>150 MB</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>100 MB</span><span>400 MB</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>203 MB</b> = 100 + (100 + 2 + 1) × 100/100. Roots count toward the goal since Go 1.18, per the GC guide and <code>mgcpacer.go</code>.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>An object is lost only if a black object gains a pointer to it <i>and</i> every grey path to it is cut. Each shade breaks one condition. The pacer sets a heap goal from live heap, roots and GOGC, and assists bill allocation by scan work remaining.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>5 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
+<h3>1 · When is an object lost?</h3>
+<p>An object <i>x</i> is freed wrongly only if two things both happen during marking:</p>
+<div class="eq">(1) the mutator stores a pointer to white <i>x</i> into a <b>black</b> object<br>(2) every path from a grey object to <i>x</i> through white objects is destroyed before the GC follows it<small>→ in plain terms: a black object will never be looked at again, so a pointer hidden there is invisible, and removing the last "grey-protected" path means nobody else will find it either.</small></div>
+<p>That is the classic two-condition result for concurrent tracing. A barrier only has to break <i>one</i> condition:</p>
+<ul>
+<li><b>Dijkstra insertion</b> <code>shade(ptr)</code> breaks (1): a black object never gains a white pointer. This is the <i>strong</i> invariant.</li>
+<li><b>Yuasa deletion</b> <code>shade(*slot)</code> breaks (2): whatever was reachable when marking began stays reachable-or-shaded (snapshot-at-the-beginning).</li>
+</ul>
+<h3>2 · The weak invariant the hybrid actually keeps</h3>
+<div class="eq">every white object pointed to by a black object is reachable from some grey object through a chain of white objects<small>→ in plain terms: a black object may point at a white one, but only if a grey object still has a path to that white one. The collector will find it when it gets to the grey object.</small></div>
+<p>The design doc is explicit that the hybrid barrier <b>does not</b> keep the strong invariant: a black goroutine may store a white pointer into a black heap object without shading it. What it keeps is this weaker, "grey-protected" form, which is enough because Yuasa shading protects the chain.</p>
+<h3>3 · Why the insertion half may stop once the stack is black</h3>
+<p>Right after <code>scanstack</code>, the stack points only to objects the scan shaded. For a scanned stack to hide an object <i>y</i> in a black heap object it must first hold a pointer to <i>y</i> that the GC has not seen. It can only acquire one by (a) loading it from the heap, which needs the heap slot to be overwritten later or <i>y</i> to be grey-protected, and Yuasa covers the overwrite; or (b) allocating it, which is black. So <code>shade(ptr)</code> adds nothing for a black stack. For a <b>grey</b> stack it is required (race S2).</p>
+<h3>4 · The pacer's arithmetic</h3>
+<p>The barrier only runs while the collector is marking, and the pacer decides when that starts. From <code>mgcpacer.go</code>:</p>
+<div class="eq">heapGoal = heapMarked + (heapMarked + lastStackScan + globalsScan) × GOGC / 100<small>→ in plain terms: after a cycle, let the heap grow by GOGC percent of (live heap + roots) before the next one finishes. Since Go 1.18 stacks and globals count, so a program with a huge number of goroutines gets a bigger goal.</small></div>
+<figure class="fig fig-own" id="fig-cycle"><div class="fig-svg" role="img" aria-label="Heap size over a few cycles for the worked example: marking starts inside the trigger band, the barrier runs until the mark ends, and the goal is 203 MB."><svg viewBox="0 0 860 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Heap size over time with live heap, trigger band, heap goal, and the barrier-on window">
+<path d="M70 261 H830" class="f-none s-mute" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="826" y="255" class="t-mute" style="font-size:12px;text-anchor:end">heapMarked 100 MB</text>
+<path d="M70 63 H830" class="f-none s-bad" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="826" y="57" class="t-mute" style="font-size:12px;text-anchor:end">goal 203 MB</text>
+<rect x="70" y="73" width="760" height="50" class="f-hl" opacity=".55"/>
+<text x="78" y="102" class="t-ink" style="font-size:12px">trigger lands in 172–198 MB</text>
+<path d="M70 261 L270 98 L300 63 L300 261 L500 98 L530 63 L530 261 L730 98 L760 63 L760 261" class="f-none s-acc2" stroke-width="3"/>
+<rect x="270" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<rect x="500" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<rect x="730" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<text x="300" y="28" class="t-ink" style="font-size:12px;text-anchor:middle">barrier on · mark assists if behind</text>
+<text x="70" y="310" class="t-mute" style="font-size:12px">time →  (heap grows by allocation, drops when sweep frees the dead)</text>
+</svg></div><figcaption><b>Figure 4.</b> Heap size over a few cycles for the worked example: marking starts inside the trigger band, the barrier runs until the mark ends, and the goal is 203 MB.<span class="fig-cite">Original diagram · adapted from <a href="https://github.com/golang/go/blob/master/src/runtime/mgcpacer.go" target="_blank" rel="noopener">runtime/mgcpacer.go (goal and trigger bounds)</a> · code</span></figcaption></figure>
+<p>Worked example: <code>heapMarked</code> = 100 MB, stacks 2 MB, globals 1 MB, GOGC = 100: goal = 100 + (100 + 2 + 1) × 1 = <b>203 MB</b>. The goal is clamped to at least a minimum heap of 4 MiB × GOGC/100.</p>
+<div class="eq">trigger = clamp(goal − runway, minTrigger, maxTrigger)<br>minTrigger ≥ heapMarked + (goal − heapMarked) × 45/64 &nbsp;&nbsp; maxTrigger ≈ heapMarked + (goal − heapMarked) × 61/64<small>→ in plain terms: start marking early enough that the expected work finishes by the goal, but never earlier than ~70% or later than ~95% of the way from live heap to goal (for small heaps). The earlier it starts, the longer the barrier is on.</small></div>
+<p>With the example above, the trigger lies between about 100 + 103 × 0.70 ≈ <b>172 MB</b> and 100 + 103 × 0.95 ≈ <b>198 MB</b>. <code>runway</code> is the pacer's estimate of how much the program allocates during the mark.</p>
+<h3>5 · Mark assist</h3>
+<div class="eq">assistWorkPerByte = scanWorkRemaining / (heapGoal − heapLive)<small>→ in plain terms: if marking has 40 MB of scanning left and only 20 MB of room before the goal, each byte you allocate must be paid for with 2 bytes of scanning.</small></div>
+<p>An allocating goroutine's debt <code>gcAssistBytes</code> goes negative as it allocates; it must do <code>assistWorkPerByte × debt</code> scan work, but never less than <code>gcOverAssistWork</code> = 64 KiB per assist, so it builds credit instead of assisting on every allocation. Background workers target <code>gcBackgroundUtilization</code> = 25% of CPU; assists cover whatever gap remains. On GOMAXPROCS = 8 that is exactly 2 dedicated mark workers.</p>
+<p>The ratio is published with separate atomic stores, so a reader can briefly see a skewed pair (a source comment says so).</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-why" data-id="why">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="22" width="48" height="40" rx="6" class="f-ink"/><path d="M38 42 l8 8 l14 -16" class="f-none s-ok draw" stroke-width="3.5" style="stroke:var(--ok)"/><path d="M92 30 a14 14 0 1 1 6 22" class="f-none s-mute" stroke-width="2.5" stroke-dasharray="3 4"/><path d="M88 24 L128 64" class="f-none s-bad" stroke-width="3"/><text x="26" y="82" class="t-mute">scanned once</text></svg></div>
+<div class="card-body"><div class="kicker">§7 · Why it works</div><h2>A scanned stack is shaded once and then cannot hide anything</h2>
+<div class="brief"><p>After a stack scan, everything on it is shaded, and the deletion shade blocks anything new from being smuggled in. Remove either shade and a race loses an object; remove "scan once" and the stop-the-world rescan returns.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
+<p><b>Core insight:</b> a stack only needs a barrier-protected hand-off at the moment it is scanned. After that, the deletion shade keeps it from smuggling anything out of the heap, and everything already on it was shaded by the scan. So a scanned stack is <i>permanently</i> safe for the rest of the cycle and the re-scan list disappears.</p>
+<p><b>Ablation: remove each piece and see what breaks</b> (rows are the simulator's results):</p>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td><code>shade(*slot)</code> (deletion)</td><td>S1: a black stack loads C and unlinks it; C is freed while held. Go 1.7 papered over this by rescanning stacks in STW.</td></tr>
+<tr><td><code>shade(ptr)</code> while the stack is grey</td><td>S2: a grey stack stores its only pointer into a black object and drops it; the object is lost.</td></tr>
+<tr><td>"scan the stack once"</td><td>Back to Go 1.7: STW rescan of every goroutine that ran, 10s–100s of ms.</td></tr>
+<tr><td>Allocate-black during mark</td><td>A fresh object would be white and could be stored into a black object unseen. Design doc lists allocate-black as a requirement; Go already did it (<code>gcmarknewobject</code>).</td></tr>
+<tr><td>Draining wbBuf before termination</td><td>Pointers sitting in a buffer are not yet marked, so mark termination could finish with work still hidden in a per-P buffer. <code>gcMarkDone</code> flushes with <code>forEachP</code> first.</td></tr>
+</tbody></table>
+<p>The price is a barrier that is more conservative than the minimum: because it records both pointers regardless of colors, it marks objects that a precise barrier would skip, and some of them die during the cycle anyway (<i>floating garbage</i>, reclaimed next cycle).</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-knobs" data-id="knobs">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M16 26 H144 M16 50 H144 M16 74 H144" class="f-none s-line" stroke-width="3"/><circle cx="96" cy="26" r="7" class="f-acc"/><circle cx="52" cy="50" r="7" class="f-acc2"/><circle cx="118" cy="74" r="7" class="f-warn"/></svg></div>
+<div class="card-body"><div class="kicker">§8 · Design knobs &amp; alternatives</div><h2>GOGC and GOMEMLIMIT move the trade; the barrier stays fixed</h2>
+<div class="brief"><p>Doubling GOGC roughly doubles heap overhead and halves GC CPU. <code>GOMEMLIMIT</code> caps GC near 50% CPU to avoid thrash. Other runtimes pay on loads (ZGC) or add SATB (Shenandoah, G1) because they move objects.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
+<table><thead><tr><th>Knob</th><th>Effect</th><th>Trade-off</th></tr></thead><tbody>
+<tr><td><code>GOGC</code> (default 100)</td><td>Heap goal = live + (live + roots) × GOGC/100</td><td>Doubling it roughly doubles heap overhead and halves GC CPU (Go GC guide)</td></tr>
+<tr><td><code>GOMEMLIMIT</code> (Go 1.19)</td><td>Soft total-memory limit; goal is the min of the GOGC goal and the limit (minus non-heap memory, ~3% headroom)</td><td>GC CPU is capped near 50% over a window so a too-tight limit slows the program instead of thrashing. Leave 5–10% headroom (guide)</td></tr>
+<tr><td><code>GOMAXPROCS</code></td><td>Sets the 25% dedicated-worker budget</td><td>Fewer Ps means fractional workers and more assist</td></tr>
+<tr><td>Heap minimum (4 MiB × GOGC/100)</td><td>Floor for the goal on tiny heaps</td><td>Not directly settable</td></tr>
+<tr><td>Memory ballast (old trick)</td><td>A large pointer-free allocation inflates "live" so cycles run less often. Twitch reported ~99% less assist work and ~45% better p99 at peak (2019, vendor blog)</td><td>Mostly superseded by <code>GOMEMLIMIT</code> + <code>GOGC</code></td></tr>
+</tbody></table>
+<h3>Barrier alternatives and why Go chose this one</h3>
+<table><thead><tr><th>Approach</th><th>Needs</th><th>Used by</th></tr></thead><tbody>
+<tr><td>Insertion only (Dijkstra)</td><td>STW rescan of stacks (or barriers on stacks)</td><td>Go 1.5–1.7</td></tr>
+<tr><td>Deletion only (Yuasa / SATB)</td><td>A consistent snapshot, so all stacks scanned atomically at the start</td><td>Shenandoah's marking barrier, G1 (SATB)</td></tr>
+<tr><td>Hybrid, conditional</td><td>Know whether the current stack is grey</td><td>Design doc's proof shape</td></tr>
+<tr><td>Hybrid, unconditional</td><td>Nothing; ~2× the cost of the conditional form for most of the mark phase</td><td>What Go's buffer effectively does</td></tr>
+<tr><td>Load barrier (colored pointers)</td><td>Cost on every pointer <i>load</i>, pointer metadata</td><td>ZGC</td></tr>
+</tbody></table>
+<p>Go bets that stores are rarer than loads, that a non-moving non-generational collector is simple enough to keep latency low, and that the barrier is off most of the time. The same bet fails for programs that mutate pointers heavily during long marks.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-breaks" data-id="breaks">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="34" cy="40" r="14" class="f-ink s-ink" stroke-width="2.5" /><path d="M48.0 40.0 L74.0 40.0" class="f-none s-mute" stroke-width="1.5" /><path d="M80.0 40.0 L74.0 43.0 L74.0 37.0 Z" class="f-mute" /><circle cx="96" cy="40" r="14" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><path d="M84 28 l24 24 M108 28 l-24 24" class="f-none s-bad" stroke-width="3"/><text x="12" y="82" class="t-mute">lost object</text><path d="M120 76 h28" class="f-none s-warn" stroke-width="3"/></svg></div>
+<div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Real bugs, assist stalls and the unsafe escape hatch</h2>
+<div class="guess" data-g="always" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Is the write barrier's work done on every pointer store into the heap, in every Go program, all the time?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Yes, always</button><button class="g-opt" type="button" data-k="1">Only while a GC mark phase is running</button><button class="g-opt" type="button" data-k="2">Only for goroutines doing a mark assist</button><button class="g-opt" type="button" data-k="3">Only for objects over 32 KB</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Only during marking.</b> The compiler emits a cheap flag test (<code>runtime.writeBarrier</code>) before the call; the buffered work runs only when the flag is set.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>Barrier-correctness bugs were rare and are fixed (wasm #30873, #22987). Today's pain is <b>mark assist</b> tail latency, floating garbage, and corruption from cgo or <code>unsafe</code> that bypasses the compiler's barrier.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
+<h3>Real bugs (all historical; no open barrier-correctness bug surfaced in my search)</h3>
+<ul>
+<li><b>Wasm deletion barrier greyed the wrong object</b> (<a href="https://golang.org/issue/30873" target="_blank" rel="noopener">#30873</a>, #30872; fixed 2019, backported to 1.11/1.12): a reachable object could go unmarked. Lost-object bug in the exact class this dive is about.</li>
+<li><b>Preemption inside barrier code</b> (<a href="https://golang.org/issue/22987" target="_blank" rel="noopener">#22987</a>, fixed 2017): a preemption inside <code>heapBits.bits</code> could lose a pointer and overflow the per-P buffer. Fixed with <code>go:nosplit</code>.</li>
+<li><b>Crashes in <code>gcWriteBarrier</code>/<code>wbBufFlush</code></b> (#14149, #15293, <a href="https://golang.org/issue/42249" target="_blank" rel="noopener">#42249</a>): maintainers attributed them to heap corruption from cgo or <code>unsafe</code>; the barrier is where a bad pointer first gets dereferenced.</li>
+</ul>
+<h3>Costs</h3>
+<ul>
+<li><b>Mark assist latency</b> is the main user complaint now. No assist credit exists at cycle start, so allocating goroutines pay early. Field reports include hundreds of ms stalls with 1–2 ms STW pauses (<a href="https://github.com/golang/go/issues/16293" target="_blank" rel="noopener">#16293</a>) and one anecdotal ~10× latency during GC in <code>runtime.gcAssistAlloc</code> (a mailing-list thread). Pacer meta-issue: <a href="https://github.com/golang/go/issues/42430" target="_blank" rel="noopener">#42430</a>.</li>
+<li><b>Barrier overhead</b> (<a href="https://github.com/golang/go/issues/22460" target="_blank" rel="noopener">#22460</a>): usually small because the barrier is off, but a few percent in some programs such as the compiler. A buffered fast path was about 4× faster on amd64 for the single-pointer case, about 2% on GC-heavy apps. <a href="https://github.com/golang/go/issues/20005" target="_blank" rel="noopener">#20005</a> (open) is about the code size of the enabled-flag check.</li>
+<li><b>Floating garbage</b>: over-shading keeps some dying objects for one more cycle.</li>
+<li><b>Stack scanning still costs CPU</b>, just not pause time. It also feeds the pacer (<code>lastStackScan</code>).</li>
+</ul>
+<div class="callout mis"><b>Misconceptions.</b> (1) "Stacks are rescanned at the end." Not since the hybrid barrier. (2) "The write barrier is always on." It is checked on every heap store but only <i>executes</i> during marking. (3) "GC latency means STW pauses." STW is now tens of µs; assists charged to allocating goroutines are the larger tail.</div>
+<div class="callout gotcha"><b>unsafe / cgo.</b> A pointer written through <code>unsafe</code> arithmetic or from C bypasses the compiler's barrier. If marking is running, the object it points to can be freed. Use <code>GODEBUG=cgocheck</code> and the race/asan builds.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-wild" data-id="wild">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="16" width="56" height="28" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="92" y="16" width="56" height="28" rx="4" class="f-hl s-warn" stroke-width="1.5"/><path d="M70.0 30.0 L84.0 30.0" class="f-none s-mute" stroke-width="1.5" /><path d="M90.0 30.0 L84.0 33.0 L84.0 27.0 Z" class="f-mute" /><rect x="92" y="62" width="5" height="16" class="f-acc2"/><rect x="99" y="62" width="5" height="16" class="f-acc2"/><rect x="106" y="62" width="5" height="16" class="f-acc2"/><rect x="113" y="62" width="5" height="16" class="f-acc2"/><rect x="120" y="62" width="5" height="16" class="f-acc2"/><rect x="127" y="62" width="5" height="16" class="f-acc2"/><rect x="134" y="62" width="5" height="16" class="f-acc2"/><rect x="141" y="62" width="5" height="16" class="f-acc2"/><text x="14" y="62" class="t-mute">paper</text><text x="14" y="76" class="t-mute">runtime</text></svg></div>
+<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>The runtime buffers, records both, and allocates black</h2>
+<div class="brief"><p>Shipped code differs from the pseudocode: a 512-entry per-P buffer, unconditional recording justified by memory ordering, a two-register fast path, checkmark mode, and allocate-black. Non-moving runtimes need only a marking barrier.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
+<p>Where the shipped runtime departs from the paper-and-pseudocode version:</p>
+<ul>
+<li><b>Buffered shading.</b> 512-entry per-P <code>wbBuf</code>; <code>next</code> and <code>end</code> are <code>uintptr</code> so updating them needs no barrier of its own.</li>
+<li><b>Unconditional recording</b> of old and new pointers, justified by memory-ordering cost (see <code>mbarrier.go</code>).</li>
+<li><b>Fast path saves two registers.</b> <code>gcWriteBarrier1/2/3</code> set a reserve size and jump to one shared body that only saves R12 and R13 on amd64; the slow path (flush) saves every general register.</li>
+<li><b>Checkmark mode.</b> A debug mode re-marks the heap and shades every buffer entry to verify nothing was missed.</li>
+<li><b>Stack scan as a root job.</b> <code>markroot</code> → <code>suspendG</code> → <code>scanstack</code> (self-scans move the goroutine to <code>_Gwaiting</code>), with <code>gcscandone</code> making it once-per-cycle.</li>
+<li><b>Allocate-black</b> via <code>gcmarknewobject</code> during <code>_GCmark</code> and <code>_GCmarktermination</code>.</li>
+</ul>
+<h3>How other runtimes place their barriers</h3>
+<table><thead><tr><th>Runtime</th><th>Barrier</th><th>Moves objects?</th></tr></thead><tbody>
+<tr><td>Go</td><td>Hybrid store barrier, only during mark</td><td>No (non-moving)</td></tr>
+<tr><td>Java ZGC</td><td>Load barrier (colored pointers), no store barrier for marking</td><td>Yes, concurrently</td></tr>
+<tr><td>Shenandoah (JDK 13+)</td><td>SATB store barrier + Baker-style load-reference barrier</td><td>Yes, concurrently</td></tr>
+<tr><td>Java G1</td><td>Store barriers (SATB + card marking); reworked in 2025 per a Schatzl blog post</td><td>Yes (regions)</td></tr>
+</tbody></table>
+<p>The pattern: a runtime that does not move objects needs only a marking barrier; one that moves them concurrently needs the more expensive load-side machinery.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Research edge</div>
+<article class="card rv gated" id="c-frontier" data-id="frontier">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M12 62 H148" class="f-none s-line" stroke-width="2"/><circle cx="30" cy="62" r="6" class="f-mute"/><circle cx="76" cy="62" r="6" class="f-acc2"/><circle cx="124" cy="62" r="7" class="f-ok pulse"/><text x="14" y="46" class="t-mute">1.19</text><text x="62" y="46" class="t-mute">1.25</text><text x="106" y="46" class="t-mute">1.26</text><text x="86" y="86" class="t-mute">Green Tea</text></svg></div>
+<div class="card-body"><div class="kicker">§11 · Frontier</div><h2>The barrier is settled; the work moved to locality and pacing</h2>
+<div class="guess" data-g="tea" data-kind="choice" data-ans="1"><p class="g-q"><span class="g-tag">Guess first</span> Green Tea GC became the default in Go 1.26. What part of the collector does it change?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">The write barrier</button><button class="g-opt" type="button" data-k="1">How marking and scanning visit small objects (by locality)</button><button class="g-opt" type="button" data-k="2">The sweeper</button><button class="g-opt" type="button" data-k="3">The stop-the-world pauses</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Marking and scanning.</b> The Go 1.26 notes say it improves marking and scanning of small objects through locality and CPU scalability; Google expects 10–40% less GC CPU. The write barrier design is unchanged by it, as far as I found.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>I found no new Go write-barrier paper in 2024–26. Green Tea GC became the default in <b>Go 1.26</b> (10–40% less GC CPU expected), after a Go 1.25 experiment. Java's G1 reworked its own barriers in 2025.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
+<div class="callout flag"><b>Plain statement:</b> the barrier design is settled. It has been the same hybrid shape since Go 1.8 (2017), and I found no 2024–2026 paper proposing a new Go write barrier (four extended searches, several dead ends). The active work moved to <i>how the marking is ordered</i> and <i>how the pacer reasons</i>, plus neighboring runtimes' barriers.</div>
+<table><thead><tr><th>Year</th><th>Item</th><th>What changed</th></tr></thead><tbody>
+<tr><td>2026</td><td><a href="https://go.dev/doc/go1.26" target="_blank" rel="noopener">Go 1.26: Green Tea GC on by default</a></td><td>Mark/scan works on whole pages instead of object by object, for locality. Google expects <b>10–40%</b> less GC CPU, ~10% more from vector instructions on newer amd64. Opt out with <code>GOEXPERIMENT=nogreenteagc</code>, expected removed in 1.27.</td></tr>
+<tr><td>2025</td><td><a href="https://go.dev/blog/greenteagc" target="_blank" rel="noopener">Green Tea as a Go 1.25 experiment</a> (Knyszek and Clements)</td><td>Opt-in via <code>GOEXPERIMENT=greenteagc</code>; InfoQ reported early higher latency, fixed for 1.26 (secondary source). Tracking issue <a href="https://github.com/golang/go/issues/73581" target="_blank" rel="noopener">#73581</a>.</td></tr>
+<tr><td>2025</td><td><a href="https://tschatzl.github.io/2025/02/21/new-write-barriers.html" target="_blank" rel="noopener">New write barriers for G1</a> (Schatzl, blog)</td><td>Java's G1 reworked its store barriers: a data point that barrier cost is still being engineered down elsewhere. Not peer-reviewed.</td></tr>
+<tr><td>2026</td><td>Go 1.26 experimental <code>goroutineleak</code> profile</td><td>Uses the GC's reachability to find goroutines blocked forever. Not a barrier change; shows marking reused as a tool.</td></tr>
+<tr><td>2022</td><td>Go 1.19 <code>GOMEMLIMIT</code></td><td>A memory-limit goal beside GOGC, with a ~50% CPU cap (<a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">GC guide</a>).</td></tr>
+<tr><td>~2021</td><td><a href="https://github.com/golang/go/issues/44167" target="_blank" rel="noopener">Pacer redesign #44167</a></td><td>Count stacks and globals as GC work; a feedback controller for assists. Its shipping release (reportedly 1.18) I did not verify against release notes.</td></tr>
+</tbody></table>
+<p>Not verified, so not relied on: the LXR collector (reference counting + concurrent trace; I could not confirm venue and year from snippets) and a 2025 Blackburn-group item whose title was truncated.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-open" data-id="open">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M62 36 a18 18 0 1 1 28 14 q-10 8 -10 18" class="f-none s-acc draw" stroke-width="4"/><circle cx="80" cy="84" r="4" class="f-acc"/></svg></div>
+<div class="card-body"><div class="kicker">§11b · Open problems</div><h2>Assist latency and the 25% budget are still unsettled</h2>
+<div class="brief"><p>Every fix for assist tail latency trades CPU, memory or allocation latency for another. How the fixed 25% worker budget behaves with a million goroutines is unresearched, and Green Tea's effect on barrier cost is unreported.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-open">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-open"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Assist tail latency.</b> Assists tax whoever allocates when marking falls behind, and no credit exists at cycle start. Fixing it means starting marking earlier (more CPU, more time with the barrier on) or slowing allocation (latency) or growing the heap (memory). The obvious fix just moves the cost. I found no recent Go-team statement; "open" here is inferred from the long-running issues (#16293, #42430).</li>
+<li><b>The 25% worker budget at huge goroutine counts.</b> How the fixed CPU share interacts with 10<sup>6</sup> goroutines' stack-scan work: I found no discussion. Treat as unresearched.</li>
+<li><b>Barrier code size and check cost.</b> #20005 (open): the enabled-flag test uses an absolute address and accounts for a large share of barrier instructions; per-G shadows were proposed. Whether it shipped is unconfirmed.</li>
+<li><b>Does Green Tea change barrier cost?</b> The sources I found do not say.</li>
+<li><b>Generational or compacting Go.</b> Go stays non-moving and non-generational; whether that stays optimal for pointer-heavy heaps is contested. I did not research the current proposals, so no position is attributed here.</li>
+</ul>
+<p>Why it stays hard: every lever (start earlier, assist harder, grow the heap, buffer more) trades latency, CPU or memory against another one, and the workload decides which hurts.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Practice &amp; self-test</div>
+<article class="card rv" id="c-lineage" data-id="lineage">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M22.0 60.0 L130.0 60.0" class="f-none s-mute" stroke-width="2" /><path d="M138.0 60.0 L130.0 64.0 L130.0 56.0 Z" class="f-mute" /><circle cx="28" cy="60" r="6" class="f-mute"/><circle cx="64" cy="60" r="6" class="f-mute"/><circle cx="104" cy="60" r="7" class="f-acc"/><text x="14" y="44" class="t-mute">1978</text><text x="50" y="44" class="t-mute">1990</text><text x="92" y="44" class="t-mute">2017</text></svg></div>
+<div class="card-body"><div class="kicker">§12 · Lineage</div><h2>1978 insertion, 1990 deletion, 2017 hybrid</h2>
+<div class="brief"><p>Dijkstra's insertion barrier (1978) and Yuasa's deletion barrier (1990) meet in Go 1.8 (2017), echoing the double barrier in IBM's Metronome. Then a buffered barrier, a pacer rewrite, <code>GOMEMLIMIT</code>, and Green Tea.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-lineage">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-lineage"><div class="deep-inner"><div class="deep-content">
+<ol>
+<li><b>1978</b> · Dijkstra et al., on-the-fly GC: insertion barrier, tri-color invariant. <i>(title and venue from memory, not fetched)</i></li>
+<li><b>1990</b> · Yuasa, real-time GC: deletion barrier, snapshot-at-the-beginning. <i>(same caveat)</i></li>
+<li><b>2007</b> · Metronome (IBM real-time Java): a "double write barrier" the design doc equates to Go's hybrid.</li>
+<li><b>2015</b> · Go 1.5: concurrent tri-color collector, <a href="https://go.dev/blog/go15gc" target="_blank" rel="noopener">Hudson's post</a>.</li>
+<li><b>2016–17</b> · Go 1.7 coarsened Dijkstra + permagrey stacks → proposal <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">17503</a> → hybrid barrier in Go 1.8.</li>
+<li><b>Later</b> · Buffered barrier (#22460), pacer redesign (#44167), <code>GOMEMLIMIT</code> (1.19, 2022).</li>
+<li><b>2025–26</b> · Green Tea: page-oriented marking, default in Go 1.26.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-hands" data-id="hands">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="14" width="132" height="72" rx="6" class="f-code s-line" stroke-width="1.5"/><text x="24" y="38" class="t-ink">$ go run gcdemo.go</text><text x="24" y="56" class="t-mute">max STW pause=104us</text><rect x="24" y="64" width="8" height="12" class="f-acc blink"/></svg></div>
+<div class="card-body"><div class="kicker">§13 · Hands-on</div><h2>Break the barrier in a simulator, then count goroutines</h2>
+<div class="brief"><p>Run <code>barrier_sim.py</code> and delete a shade to watch an object get lost. Run <code>gcdemo.go</code> with 1,000 to 500,000 goroutines: on my machine the worst STW pause stayed near <b>100 µs</b>.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-hands">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-hands"><div class="deep-inner"><div class="deep-content">
+<h3>Experiment 1 · Replay the races (2 min)</h3>
+<pre><code>python3 barrier_sim.py</code></pre>
+<p>Prints the barrier × race table and the S1 trace. Then break it: in <code>heap_store</code>, delete the line <code>self.shade(old, "deletion")</code> from the <code>hybrid</code> branch and rerun. S1 starts losing C. Add a fourth scenario where a <b>new</b> object is allocated white during marking and stored into a black object: you will need allocate-black to make it pass.</p>
+<h3>Experiment 2 · Watch STW stay flat as goroutines grow (5 min)</h3>
+<pre><code>go run gcdemo.go -g 1000
+go run gcdemo.go -g 100000
+go run gcdemo.go -g 500000
+GODEBUG=gctrace=1 go run gcdemo.go -g 100000 2&gt;&amp;1 | grep '^gc ' | head</code></pre>
+<p>My run (Go 1.27.2, 14 P, Apple silicon, 3 s of pointer churn):</p>
+<pre><code>goroutines=1000   GCs=9 max STW pause=62us  total STW=0.4ms
+goroutines=100000 GCs=9 max STW pause=133us total STW=0.4ms
+goroutines=500000 GCs=9 max STW pause=104us total STW=0.4ms</code></pre>
+<p>The worst pause stays around 100 µs from 1,000 to 500,000 goroutines. That is the headline of the design doc, observed. <b>Caveat:</b> the goroutines are idle and the heap is small, so this shows the absence of a goroutine-count-scaling STW, not that your service is pause-free. Also try <code>GOGC=25</code> and <code>GOGC=400</code> and watch the cycle count and the <code>GCCPUFraction</code> printed at the end.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-quiz" data-id="quiz">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 10 V92 M110 10 V92" class="s-mute" stroke-width="2"/><path d="M50 20 H110" class="s-mute" stroke-width="2"/><path d="M50 38 H110" class="s-mute" stroke-width="2"/><path d="M50 56 H110" class="s-mute" stroke-width="2"/><path d="M50 74 H110" class="s-mute" stroke-width="2"/><path d="M50 92 H110" class="s-mute" stroke-width="2"/><path d="M120 52 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:2"/><path d="M120 70 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:1"/><path d="M120 88 l3 3 l6 -6" class="f-none s-ok draw" stroke-width="2" style="--d:0"/></svg></div>
+<div class="card-body"><div class="kicker">§14 · Question ladder</div><h2>Test yourself</h2>
+<div class="brief"><p>20 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p><p class="score" id="quiz-score"></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-quiz">Go deeper <span class="chev">▸</span> <small>6 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-quiz"><div class="deep-inner"><div class="deep-content">
+<p class="mini">Answer in your head first, then reveal and mark yourself honestly. Marks are saved in this browser and feed the progress ring.</p><p><button class="btn" id="reveal-all" type="button" aria-pressed="false">Reveal all answers</button> <button class="btn" id="quiz-reset" type="button">Reset marks</button></p><div class="qgroup">Mechanism</div>
+<div class="q" data-i="0"><div class="qq">1. In race S1 (black stack, nil store), what does the barrier do on <code>B.f = nil</code>, step by step?</div><div class="qa"><div><p>The compiler tests <code>runtime.writeBarrier</code>; enabled, it reserves slots in the P's buffer and records the old value (C) and new value (nil). Nil is dropped at flush; C is marked grey and queued. C survives even though the heap no longer reaches it.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="1"><div class="qq">2. When is a goroutine's stack scanned, and what happens to it afterwards?</div><div class="qa"><div><p>As a root job (<code>markroot</code>): the goroutine is suspended (or parks itself in <code>_Gwaiting</code>), <code>scanstack</code> shades every pointer found and sets <code>gcscandone</code>. It is not scanned again this cycle.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="2"><div class="qq">3. What does <code>gcMarkDone</code> do with the write-barrier buffers, and why?</div><div class="qa"><div><p>It runs a ragged barrier with <code>forEachP</code>, flushing each P's buffer and work cache. Pointers still in a buffer are unmarked, so termination before flushing could miss reachable objects.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="3"><div class="qq">4. How does a mark assist decide how much to scan?</div><div class="qa"><div><p><code>assistWorkPerByte = scanWorkRemaining / (heapGoal − heapLive)</code>. The goroutine's negative <code>gcAssistBytes</code> debt is multiplied by it, with a floor of 64 KiB of scan work per assist so it builds credit.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="qgroup">Why</div>
+<div class="q" data-i="4"><div class="qq">5. Why shade the <i>old</i> pointer instead of only the new one?</div><div class="qa"><div><p>A black stack can load a white pointer from the heap and then unlink it. An insertion barrier ignores the overwrite. Shading the old value keeps it reachable-or-shaded (race S1).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="5"><div class="qq">6. Why is the insertion shade only needed while the stack is grey?</div><div class="qa"><div><p>A freshly scanned stack points only to shaded objects, and the deletion shade stops it hiding others. A grey stack may hold the only pointer to an object and store it into a black object (race S2).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="6"><div class="qq">7. Why not put a barrier on stack writes instead?</div><div class="qa"><div><p>Stack pointer writes are the most frequent operation in a program. A barrier there would tax all code to protect a rare race; the design keeps stack writes free and makes the heap barrier sufficient.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-problem">→ related card</a></div></div>
+<div class="q" data-i="7"><div class="qq">8. Why does the shipped barrier record both pointers regardless of the holder's color?</div><div class="qa"><div><p>Checking the holder's mark bit races with the GC's own mark-bit store; on x86 the result can be r1==r2==0 without an expensive memory barrier. Always greying the pointer avoids the barrier (<code>mbarrier.go</code> comment).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="qgroup">Counterfactual</div>
+<div class="q" data-i="8"><div class="qq">9. What if Go allocated white during marking?</div><div class="qa"><div><p>A new object could be stored into a black object and never be seen. The hybrid barrier requires allocate-black (design doc), which Go already did via <code>gcmarknewobject</code>.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="9"><div class="qq">10. What if the pacer started marking at 99% of the goal instead of ~70–95%?</div><div class="qa"><div><p>The barrier would be on for less time but there is little runway: scan work must finish before the goal, so assist ratios spike and allocating goroutines pay latency, or the heap overshoots.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="q" data-i="10"><div class="qq">11. What if GOGC were 200 on a service with 1 GB live heap?</div><div class="qa"><div><p>The goal is roughly 3× live instead of 2×, so cycles are about half as frequent, GC CPU roughly halves, and peak heap overhead roughly doubles (GC guide).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="q" data-i="11"><div class="qq">12. What changes if you remove the 25% background-worker target?</div><div class="qa"><div><p>Marking would be paced only by assists, so allocating goroutines would do all the work when behind, concentrating latency in the application's own request path.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="qgroup">Adversarial</div>
+<div class="q" data-i="12"><div class="qq">13. How could you cause a use-after-free in Go despite the barrier?</div><div class="qa"><div><p>Store a pointer through <code>unsafe</code> arithmetic or from C during marking: the compiler emitted no barrier, so the object can stay white and be freed. Checks: <code>GODEBUG=cgocheck</code>, race and asan builds.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="13"><div class="qq">14. How would you make a service suffer mark-assist latency on purpose?</div><div class="qa"><div><p>Allocate heavily while marking runs and the pacer is behind: assists bill each allocation. A sharp change in live heap size is a known trigger (pacer issues #42430, #44167).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="14"><div class="qq">15. What would a bug that greyed the wrong object cause?</div><div class="qa"><div><p>A reachable object left white and freed: memory corruption. It happened in the wasm deletion barrier (#30872/#30873, fixed 2019).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="qgroup">Connection</div>
+<div class="q" data-i="15"><div class="qq">16. How is this like OS copy-on-write or page-table dirty bits?</div><div class="qa"><div><p>All three track mutation lazily: a barrier or fault records "this changed" so a background process can catch up later. The stack scan once-and-done mirrors scanning a snapshot.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-model">→ related card</a></div></div>
+<div class="q" data-i="16"><div class="qq">17. Why do ZGC and Shenandoah need load-side barriers while Go does not?</div><div class="qa"><div><p>They move live objects concurrently, so a loaded pointer might be stale. Go never moves heap objects, so it only needs to guard marking.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-wild">→ related card</a></div></div>
+<div class="q" data-i="17"><div class="qq">18. How does Green Tea relate to the barrier?</div><div class="qa"><div><p>It changes the order and granularity of marking (by page, for locality), not the invariant. The barrier still guards correctness; I found no report of how Green Tea changes barrier cost.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-frontier">→ related card</a></div></div>
+<div class="qgroup">Open</div>
+<div class="q" data-i="18"><div class="qq">19. Can assist tail latency be eliminated without more CPU or memory?</div><div class="qa"><div><p>Not by a known method: starting earlier costs barrier-on time and CPU, assisting harder moves latency into the request path, a bigger heap costs memory. The trade is workload dependent.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+<div class="q" data-i="19"><div class="qq">20. Would a generational Go collector pay for the barrier it would need?</div><div class="qa"><div><p>Contested and not researched here: a generational collector needs a remembered-set barrier on top of the marking barrier. Whether pointer-heavy Go heaps repay that cost is unsettled in my sources.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Further</div>
+<article class="card rv" id="c-next" data-id="next">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="28" cy="50" r="12" class="f-ink s-ink" stroke-width="2.5" /><path d="M42.0 46.0 L98.6 23.0" class="f-none s-acc2" stroke-width="2" /><path d="M106.0 20.0 L100.1 26.7 L97.1 19.3 Z" class="f-acc2" /><path d="M42.0 50.0 L98.0 50.0" class="f-none s-acc2" stroke-width="2" /><path d="M106.0 50.0 L98.0 54.0 L98.0 46.0 Z" class="f-acc2" /><path d="M42.0 54.0 L98.6 77.0" class="f-none s-acc2" stroke-width="2" /><path d="M106.0 80.0 L97.1 80.7 L100.1 73.3 Z" class="f-acc2" /><circle cx="124" cy="18" r="9" class="f-panel s-acc2" stroke-width="2"/><circle cx="124" cy="50" r="9" class="f-panel s-acc2" stroke-width="2"/><circle cx="124" cy="82" r="9" class="f-panel s-acc2" stroke-width="2"/></svg></div>
+<div class="card-body"><div class="kicker">§15 · Go deeper next</div><h2>Three dives that build on this</h2>
+<div class="brief"><p>Green Tea page-oriented marking · ZGC colored pointers and load barriers · G1 SATB and card-marking barriers.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-next">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-next"><div class="deep-inner"><div class="deep-content">
+<ol>
+<li><b>Green Tea GC:</b> page-oriented marking, why locality beats per-object work queues, vectorized scanning.</li>
+<li><b>ZGC colored pointers and load barriers:</b> how a collector that moves objects concurrently pays on reads instead of writes.</li>
+<li><b>Generational and card-marking barriers (G1):</b> remembered sets, SATB, and why Java's store barriers got reworked.</li>
+</ol>
+<p><code>barrier_sim.py</code> and <code>gcdemo.go</code> (in this folder) are the two experiments from the hands-on card.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-sources" data-id="sources">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="10" width="80" height="80" rx="6" class="f-panel s-line" stroke-width="1.5"/><path d="M52 28 H108 M52 42 H108 M52 56 H96 M52 70 H100" class="f-none s-mute" stroke-width="3"/></svg></div>
+<div class="card-body"><div class="kicker">Sources</div><h2>Design docs, runtime source and issues</h2>
+<div class="brief"><p>Design doc 17503, six runtime files read from source, nine issues, plus a list of claims I could not verify.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-sources">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-sources"><div class="deep-inner"><div class="deep-content">
+<h3>Design docs and posts</h3>
+<ul>
+<li><a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Proposal 17503: Eliminate STW stack re-scanning</a> (Clements, Hudson; 2016-10-21). Read in full for barrier, invariants, alternatives.</li>
+<li><a href="https://github.com/golang/proposal/blob/master/design/17505-concurrent-rescan.md" target="_blank" rel="noopener">Proposal 17505: Concurrent stack re-scanning</a> (listed in search; not read).</li>
+<li><a href="https://go.dev/blog/go15gc" target="_blank" rel="noopener">Hudson, "Go GC: Prioritizing low latency and simplicity" (2015)</a></li>
+<li><a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">A Guide to the Go Garbage Collector</a></li>
+<li><a href="https://go.dev/blog/greenteagc" target="_blank" rel="noopener">Green Tea GC</a> · <a href="https://go.dev/doc/go1.26" target="_blank" rel="noopener">Go 1.26 release notes</a></li>
+<li><a href="https://go.dev/blog/ismmkeynote" target="_blank" rel="noopener">ISMM keynote, "Getting to Go"</a> (appeared in results; summary only)</li>
+</ul>
+<h3>Runtime source (golang/go master, as fetched 2026-10-17)</h3>
+<ul>
+<li><a href="https://github.com/golang/go/blob/master/src/runtime/mbarrier.go" target="_blank" rel="noopener">mbarrier.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mwbbuf.go" target="_blank" rel="noopener">mwbbuf.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgcmark.go" target="_blank" rel="noopener">mgcmark.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgcpacer.go" target="_blank" rel="noopener">mgcpacer.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgc.go" target="_blank" rel="noopener">mgc.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/asm_amd64.s" target="_blank" rel="noopener">asm_amd64.s</a></li>
+</ul>
+<h3>Issues</h3>
+<ul>
+<li><a href="https://github.com/golang/go/issues/22460" target="_blank" rel="noopener">#22460</a> · <a href="https://github.com/golang/go/issues/20005" target="_blank" rel="noopener">#20005</a> · <a href="https://github.com/golang/go/issues/16293" target="_blank" rel="noopener">#16293</a> · <a href="https://github.com/golang/go/issues/42430" target="_blank" rel="noopener">#42430</a> · <a href="https://github.com/golang/go/issues/44167" target="_blank" rel="noopener">#44167</a> · <a href="https://github.com/golang/go/issues/73581" target="_blank" rel="noopener">#73581</a> · <a href="https://golang.org/issue/30873" target="_blank" rel="noopener">#30873</a> · <a href="https://golang.org/issue/22987" target="_blank" rel="noopener">#22987</a> · <a href="https://golang.org/issue/42249" target="_blank" rel="noopener">#42249</a></li>
+</ul>
+<h3>Other runtimes and articles</h3>
+<ul>
+<li><a href="https://developers.redhat.com/blog/2019/06/27/shenandoah-gc-in-jdk-13-part-1-load-reference-barriers" target="_blank" rel="noopener">Shenandoah in JDK 13: load reference barriers</a> · <a href="https://tschatzl.github.io/2025/02/21/new-write-barriers.html" target="_blank" rel="noopener">New write barriers for G1</a> · <a href="https://dl.acm.org/doi/full/10.1145/3538532" target="_blank" rel="noopener">ZGC deep dive (ACM)</a></li>
+<li><a href="https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap/" target="_blank" rel="noopener">Twitch: Go memory ballast</a> (vendor blog)</li>
+<li><a href="https://infoq.com/news/2025/11/go-green-tea-gc/" target="_blank" rel="noopener">InfoQ on Green Tea</a> (secondary)</li>
+</ul>
+<h3>Claims I could not verify</h3>
+<ul>
+<li>Dijkstra 1978 and Yuasa 1990 titles and venues (cited from the design doc's keys and memory); Hudson '97 and Auerbach '07.</li>
+<li>The two-condition lost-object statement is the standard result in the GC literature; I did not fetch a paper for it.</li>
+<li>Whether the shipped Go 1.8 barrier matched the design doc at that release; the current <i>source</i> was read, the 1.8 commit was not. The "unconditional" shape is read from the current <code>mbarrier.go</code> comment and the runtime's buffer code, not from a release note.</li>
+<li>The exact compiler-emitted store sequence (which slot gets old vs new); the shown sequence is a faithful sketch, not disassembly.</li>
+<li>Pacer redesign release (1.18), pacer stack-scan numbers (500k idle goroutines, 15 ms → 238 µs, commit 2a889b9d) and Twitch's figures are secondary or historical.</li>
+<li>Application adoption (Kubernetes, etcd, etc.): only that they are written in Go.</li>
+<li>That a goroutine's stack created mid-cycle is born black (<code>proc.go</code> not read).</li>
+</ul>
+<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced figures are used under their open licenses, with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits"><li><a href="#fig-tricolor">Figure 1</a>: original diagram, adapted from <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Clements and Hudson, proposal 17503 (weak tri-color invariant)</a>, text.</li><li><a href="#fig-races">Figure 2</a>: original diagram, adapted from <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Scenarios simulated in barrier_sim.py (this dive)</a>, adapted from the doc&#x27;s reasoning.</li><li><a href="#fig-wbbuf">Figure 3</a>: original diagram, adapted from <a href="https://github.com/golang/go/blob/master/src/runtime/mwbbuf.go" target="_blank" rel="noopener">runtime/mwbbuf.go and asm_amd64.s (golang/go master)</a>, code.</li><li><a href="#fig-cycle">Figure 4</a>: original diagram, adapted from <a href="https://github.com/golang/go/blob/master/src/runtime/mgcpacer.go" target="_blank" rel="noopener">runtime/mgcpacer.go (goal and trigger bounds)</a>, code.</li></ol>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+</main>
+
+<script type="application/json" id="rh-data">{"slug": "2026-10-17-go-hybrid-write-barrier", "cards": ["plain", "ctx", "world", "onel", "problem", "model", "mech", "math", "why", "knobs", "breaks", "wild", "frontier", "open", "lineage", "hands", "quiz", "next", "sources"], "questions": 20}</script>
+<script>
+/* rabbithole dive template runtime — cards, progress, quiz, motion. Shared by every dive page. */
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return [].slice.call((el || document).querySelectorAll(s)); };
+
+  // ---- storage (never required: page works without it) ----
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  // ---- theme ----
+  var theme = load('rh:theme', null);
+  if (theme) root.setAttribute('data-theme', theme);
+  var tb = $('#theme');
+  if (tb) tb.onclick = function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    theme = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', theme); save('rh:theme', theme);
+  };
+
+  // ---- copy buttons ----
+  $$('pre').forEach(function (p) {
+    var c = p.querySelector('code'); if (!c) return;
+    var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(c.innerText) : Promise.reject())
+        .then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select + copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1400);
+    };
+    p.appendChild(b);
+  });
+
+  // ---- SVG stroke draw-in: normalise path length ----
+  $$('.draw').forEach(function (e) { e.setAttribute('pathLength', '1'); });
+
+  // ---- hero layers: stagger intro, parallax ----
+  var layers = $$('.hero-art .layer');
+  layers.forEach(function (g, i) { g.style.setProperty('--i', i); });
+  var bar = $('.topbar');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      if (bar) bar.classList.toggle('scrolled', y > 40);
+      // parallax measured from the hero's own position (a cold open may sit above it)
+      var art = layers.length && layers[0].closest('.hero-art');
+      var rel = art ? Math.min(700, Math.max(0, -art.getBoundingClientRect().top)) : 0;
+      if (!reduce) layers.forEach(function (g) {
+        g.style.translate = '0 ' + (rel * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
+      });
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  var heroArt = $('.hero-art');
+  if (heroArt) requestAnimationFrame(function () { requestAnimationFrame(function () { heroArt.classList.add('in-view'); }); });
+
+  // ---- ASCII hero: scramble then resolve ----
+  var ascii = $('.hero-art .ascii-hero');
+  if (ascii && !reduce) {
+    var target = ascii.textContent, glyphs = '01#*+=-:.<>/\\|[]{}', t0 = performance.now();
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / 1400), out = '';
+      for (var i = 0; i < target.length; i++) {
+        var ch = target[i];
+        out += (ch === '\n' || ch === ' ' || Math.random() < k * 1.15) ? ch : glyphs[(Math.random() * glyphs.length) | 0];
+      }
+      ascii.textContent = out;
+      if (k < 1) requestAnimationFrame(frame); else ascii.textContent = target;
+    })(t0);
+  }
+
+  // ---- stat count-up ----
+  function countUp(el) {
+    var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(el.textContent.trim());
+    if (!m || reduce) return;
+    if (el.dataset.counted) return; el.dataset.counted = 1;
+    var final = el.textContent, end = parseFloat(m[1]), dec = (m[1].split('.')[1] || '').length, rest = m[2], t0 = performance.now();
+    (function f() {
+      var k = Math.min(1, Math.max(0, (performance.now() - t0) / 900)), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k < 1 ? (end * e).toFixed(dec) + rest : final;
+      if (k < 1) requestAnimationFrame(f);
+    })();
+    setTimeout(function () { el.textContent = final; }, 1200); // rAF can stall in background tabs
+  }
+
+  // ---- reveal on scroll ----
+  var cardsSeen = {};
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        var t = e.target;
+        if (t.classList.contains('card')) t.classList.toggle('in-view', e.isIntersecting);
+        if (!e.isIntersecting) return;
+        if (t.classList.contains('rv') && !t.classList.contains('in')) {
+          t.classList.add('in');
+          if (t.classList.contains('stat')) countUp($('.v', t));
+        }
+        if (t.matches && t.matches('svg') ) t.classList.add('in-view');
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    $$('.rv, .card, .deep-content svg, .card-vis svg').forEach(function (e) { io.observe(e); });
+  } else {
+    $$('.rv').forEach(function (e) { e.classList.add('in'); });
+    $$('.card, svg').forEach(function (e) { e.classList.add('in-view'); });
+  }
+
+  // ---- figure lightbox ----
+  var figs = $$('.fig-zoom');
+  if (figs.length) {
+    var lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true');
+    lb.innerHTML = '<button type="button">Close ✕</button><img alt=""><p></p>';
+    document.body.appendChild(lb);
+    var lastFocus = null;
+    var close = function () { lb.classList.remove('on'); if (lastFocus) lastFocus.focus(); };
+    figs.forEach(function (b) {
+      b.onclick = function () {
+        var img = $('img', b), cap = b.parentNode.querySelector('figcaption');
+        $('img', lb).src = img.src; $('img', lb).alt = img.alt; $('p', lb).innerHTML = cap ? cap.innerHTML : '';
+        lastFocus = b; lb.classList.add('on'); $('button', lb).focus();
+      };
+    });
+    lb.onclick = function (e) { if (e.target === lb || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') close(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
+  }
+
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
+  // ---- page data + progress ----
+  var dataEl = $('#rh-data'); if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var KEY = 'rh:p:' + D.slug;
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
+  var cards = $$('article.card');
+  var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
+
+  function status(gotN, yesN) {
+    var nc = cards.length, nq = qs.length;
+    if (gotN === nc && (nq === 0 || yesN / nq >= 0.8)) return 'understood';
+    if (gotN >= Math.ceil(nc / 2)) return 'skimmed';
+    return 'started';
+  }
+  function refresh() {
+    var gotN = cards.filter(function (c) { return P.got[c.dataset.id]; }).length;
+    var yesN = qs.filter(function (q) { return P.q[q.dataset.i] === 'y'; }).length;
+    var ansN = qs.filter(function (q) { return P.q[q.dataset.i]; }).length;
+    var pct = Math.round(100 * (gotN + yesN) / Math.max(1, cards.length + qs.length));
+    var st = status(gotN, yesN);
+    P.pct = pct; P.status = st; save(KEY, P);
+    var fg = $('.ring .r-fg'); if (fg) fg.style.strokeDashoffset = (1 - pct / 100).toFixed(3);
+    var rp = $('#ring-pct'); if (rp) rp.textContent = pct + '%';
+    $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
+    var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
+    $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
+  }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
+
+  // ---- cards: expand / collapse / got-it ----
+  function setOpen(card, open, scroll) {
+    card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
+    var btn = $('.deeper', card), deep = $('.deep', card);
+    btn.setAttribute('aria-expanded', open);
+    if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
+    if (!open && scroll) {
+      var top = card.getBoundingClientRect().top;
+      if (top < 0) card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  cards.forEach(function (card) {
+    var id = card.dataset.id;
+    $('.deeper', card).onclick = function () { setOpen(card, !card.classList.contains('open'), true); };
+    var col = $('.collapse', card); if (col) col.onclick = function () { setOpen(card, false, true); };
+    var cb = $('.got input', card);
+    cb.checked = !!P.got[id];
+    cb.onchange = function () { if (cb.checked) P.got[id] = 1; else delete P.got[id]; refresh(); };
+    setOpen(card, card.hasAttribute('data-open'), false);
+  });
+
+  // expand-all ("deep mode")
+  var ea = $('#expand-all');
+  if (ea) {
+    var setAll = function (on) {
+      ea.setAttribute('aria-pressed', on); $('.lbl', ea).textContent = on ? 'Collapse all' : 'Expand all';
+      cards.forEach(function (c) { setOpen(c, on, false); }); save('rh:deep', on);
+    };
+    ea.onclick = function () { setAll(ea.getAttribute('aria-pressed') !== 'true'); };
+    if (load('rh:deep', false)) setAll(true);
+  }
+
+  // deep links: #c-<id> or #<anchor inside a card> opens it
+  function openFromHash() {
+    var h = decodeURIComponent(location.hash.slice(1)); if (!h) return;
+    var el = document.getElementById(h); if (!el) return;
+    var card = el.closest('article.card');
+    if (card && !card.classList.contains('open')) { setOpen(card, true, false); setTimeout(function () { el.scrollIntoView(); }, 480); }
+  }
+  window.addEventListener('hashchange', openFromHash); openFromHash();
+
+  // ---- quiz ----
+  qs.forEach(function (q) {
+    var i = q.dataset.i;
+    var show = $('.qshow', q), y = $('.qbtn.y', q), n = $('.qbtn.n', q);
+    function paint() {
+      var r = P.q[i] || '';
+      q.dataset.r = r; y.setAttribute('aria-pressed', r === 'y'); n.setAttribute('aria-pressed', r === 'n');
+    }
+    show.onclick = function () { var s = q.classList.toggle('show'); show.textContent = s ? 'Hide answer' : 'Show answer'; show.setAttribute('aria-expanded', s); };
+    y.onclick = function () { P.q[i] = P.q[i] === 'y' ? '' : 'y'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    n.onclick = function () { P.q[i] = P.q[i] === 'n' ? '' : 'n'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    paint();
+  });
+  var ra = $('#reveal-all');
+  if (ra) ra.onclick = function () {
+    var on = ra.getAttribute('aria-pressed') !== 'true'; ra.setAttribute('aria-pressed', on);
+    ra.textContent = on ? 'Hide all answers' : 'Reveal all answers';
+    qs.forEach(function (q) { q.classList.toggle('show', on); var s = $('.qshow', q); s.textContent = on ? 'Hide answer' : 'Show answer'; });
+  };
+  var rs = $('#quiz-reset');
+  if (rs) rs.onclick = function () { P.q = {}; qs.forEach(function (q) { q.dataset.r = ''; $$('.qbtn', q).forEach(function (b) { b.setAttribute('aria-pressed', false); }); }); refresh(); };
+
+  // ---- side dots: current card ----
+  var dots = $$('.dots a');
+  if (dots.length && 'IntersectionObserver' in window) {
+    var map = {}; dots.forEach(function (a) { map[a.dataset.id] = a; });
+    var dio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        dots.forEach(function (a) { a.classList.remove('on'); });
+        var a = map[e.target.dataset.id]; if (a) a.classList.add('on');
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    cards.forEach(function (c) { dio.observe(c); });
+  }
+
+  refresh();
+})();
+
+</script>
+</body>
+</html>

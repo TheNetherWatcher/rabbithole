@@ -1,0 +1,30 @@
+<style>.deep{grid-template-columns:minmax(0,1fr)}</style>
+<h3>What it is</h3>
+<p>A small piece of compiler-emitted code that runs on every heap pointer store <i>while a GC mark phase is active</i>. It records the old pointer being overwritten and the new pointer being written, so the concurrent collector can never miss an object that the program moves around. It is why Go's GC pauses are measured in tens to hundreds of microseconds instead of milliseconds.</p>
+<h3>Why it exists</h3>
+<p>Go 1.5 (2015) shipped a concurrent collector, and by 1.7 the one remaining unbounded pause was the stop-the-world <b>re-scan of goroutine stacks</b> at the end of marking, which the design doc says could take <b>10s to 100s of ms</b> with many goroutines. Go makes goroutines cheap enough to run 10<sup>5</sup> or more, so the pause scaled with a number users control. The hybrid barrier (proposal #17503, Go 1.8) removed it.</p>
+<h3>Where it runs</h3>
+<p>Every Go binary carries this runtime. I did not check any of these projects' GC settings, only that they are written in Go and so run this collector:</p>
+<div class="grid">
+<div class="gc"><b>Kubernetes, etcd</b><br>Control-plane servers where a GC pause shows up as API latency or a missed leader heartbeat.</div>
+<div class="gc"><b>Docker / moby, containerd</b><br>Daemon processes that hold many goroutines per container.</div>
+<div class="gc"><b>Prometheus</b><br>Large pointer-rich in-memory indexes, so GC CPU is a real cost.</div>
+<div class="gc"><b>Terraform, Hugo, CockroachDB</b><br>Go programs whose heaps grow to many GB.</div>
+</div>
+<h3>How you touch it</h3>
+<p>You never call the barrier. You steer the collector that turns it on and off:</p>
+<pre><code>GOGC=100                  # heap goal = live + (live + roots) * GOGC/100   (default 100)
+GOMEMLIMIT=3500MiB        # soft total-memory limit, Go 1.19+
+GODEBUG=gctrace=1         # one line per GC cycle on stderr
+
+// in code
+debug.SetGCPercent(200)
+debug.SetMemoryLimit(3500 &lt;&lt; 20)</code></pre>
+<p>A real <code>gctrace</code> line (my machine, <code>gcdemo.go</code>, 14 P):</p>
+<pre><code>gc 1 @0.003s 2%: 0.035+0.30+0.061 ms clock, 0.49+0.14/0.34/0+0.86 ms cpu, 3-&gt;4-&gt;0 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 14 P
+         ^wall%   ^STW sweep-term + concurrent mark + STW mark-term     ^heap at start-&gt;end-&gt;live   ^goal</code></pre>
+<p>The first and last numbers in the clock triple are the two STW pauses. The middle one is the concurrent mark, and it is the phase during which the barrier is on.</p>
+<h3>When to care, when not</h3>
+<div class="two"><div class="use"><b>Tune GOGC / GOMEMLIMIT when</b> a profile shows <code>runtime.gcAssistAlloc</code>, GC CPU above ~25%, or you run in a container with a hard memory limit.</div><div class="skip"><b>Don't touch it when</b> pauses are already sub-millisecond and memory is not tight. The barrier itself is not tunable, and the alternatives (Java ZGC, Shenandoah) are different runtimes, not flags.</div></div>
+<h3>Who should care</h3>
+<p>Backend and infra engineers running latency-sensitive Go services (p99), SREs sizing memory in containers, and anyone writing <code>unsafe</code> or cgo code that stores pointers behind the compiler's back, since that bypasses the barrier.</p>

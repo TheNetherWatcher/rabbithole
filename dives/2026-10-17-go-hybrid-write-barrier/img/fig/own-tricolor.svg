@@ -1,0 +1,17 @@
+<svg viewBox="0 0 780 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Black, grey and white objects; the weak invariant allows black to white only when a grey object protects it">
+<path d="M108.0 70.0 L242.0 70.0" class="f-none s-ink" stroke-width="2.5" /><path d="M252.0 70.0 L242.0 75.0 L242.0 65.0 Z" class="f-ink" />
+<path d="M308.0 76.0 L442.3 109.6" class="f-none s-mute" stroke-width="2.5" /><path d="M452.0 112.0 L441.1 114.4 L443.5 104.7 Z" class="f-mute" />
+<path d="M106.0 190.0 L444.1 131.7" class="f-none s-ok" stroke-width="2.5" stroke-dasharray="7 5"/><path d="M454.0 130.0 L445.0 136.6 L443.3 126.8 Z" class="f-ok" stroke-dasharray="7 5"/>
+<path d="M106.0 210.0 L442.0 227.5" class="f-none s-bad" stroke-width="2.5" stroke-dasharray="7 5"/><path d="M452.0 228.0 L441.8 232.5 L442.3 222.5 Z" class="f-bad" stroke-dasharray="7 5"/>
+<path d="M240 232 l26 26 M266 232 l-26 26" class="f-none s-bad" stroke-width="3.5"/>
+<circle cx="80" cy="70" r="26" class="f-ink s-ink" stroke-width="2.5" /><circle cx="80" cy="200" r="26" class="f-ink s-ink" stroke-width="2.5" /><circle cx="280" cy="70" r="26" class="f-hl s-warn" stroke-width="2.5" /><circle cx="480" cy="120" r="26" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" /><circle cx="480" cy="230" r="26" class="f-panel s-mute" stroke-width="2.5" stroke-dasharray="5 4" />
+<text x="80" y="75" class="t-ink" style="fill:var(--bg);font-size:14px;text-anchor:middle">K1</text>
+<text x="80" y="205" class="t-ink" style="fill:var(--bg);font-size:14px;text-anchor:middle">K2</text>
+<text x="280" y="75" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">G</text>
+<text x="480" y="125" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">W1</text>
+<text x="480" y="235" class="t-ink" style="fill:var(--ink);font-size:14px;text-anchor:middle">W2</text>
+<text x="500" y="46" class="t-mute" style="font-size:13px">grey G still has a white path to W1</text>
+<text x="500" y="64" class="t-mute" style="font-size:13px">so K2 → W1 is allowed (weak invariant)</text>
+<text x="520" y="214" class="t-mute" style="font-size:13px">K2 → W2: no grey path to W2,</text>
+<text x="520" y="232" class="t-mute" style="font-size:13px">W2 would be freed while reachable</text>
+</svg>

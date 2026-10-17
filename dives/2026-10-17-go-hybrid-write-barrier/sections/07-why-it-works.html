@@ -1,0 +1,10 @@
+<p><b>Core insight:</b> a stack only needs a barrier-protected hand-off at the moment it is scanned. After that, the deletion shade keeps it from smuggling anything out of the heap, and everything already on it was shaded by the scan. So a scanned stack is <i>permanently</i> safe for the rest of the cycle and the re-scan list disappears.</p>
+<p><b>Ablation: remove each piece and see what breaks</b> (rows are the simulator's results):</p>
+<table><thead><tr><th>Remove</th><th>What breaks</th></tr></thead><tbody>
+<tr><td><code>shade(*slot)</code> (deletion)</td><td>S1: a black stack loads C and unlinks it; C is freed while held. Go 1.7 papered over this by rescanning stacks in STW.</td></tr>
+<tr><td><code>shade(ptr)</code> while the stack is grey</td><td>S2: a grey stack stores its only pointer into a black object and drops it; the object is lost.</td></tr>
+<tr><td>"scan the stack once"</td><td>Back to Go 1.7: STW rescan of every goroutine that ran, 10s–100s of ms.</td></tr>
+<tr><td>Allocate-black during mark</td><td>A fresh object would be white and could be stored into a black object unseen. Design doc lists allocate-black as a requirement; Go already did it (<code>gcmarknewobject</code>).</td></tr>
+<tr><td>Draining wbBuf before termination</td><td>Pointers sitting in a buffer are not yet marked, so mark termination could finish with work still hidden in a per-P buffer. <code>gcMarkDone</code> flushes with <code>forEachP</code> first.</td></tr>
+</tbody></table>
+<p>The price is a barrier that is more conservative than the minimum: because it records both pointers regardless of colors, it marks objects that a precise barrier would skip, and some of them die during the cycle anyway (<i>floating garbage</i>, reclaimed next cycle).</p>

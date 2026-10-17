@@ -1,0 +1,10 @@
+<div class="pull"><b>10s–100s ms</b><span>worst-case STW stack re-scan per GC cycle in Go 1.7, per the design doc. Hybrid barrier target: under 50 µs.</span></div>
+<p>Go 1.5 (2015) made marking concurrent with a <b>Dijkstra insertion barrier</b>: on <code>*slot = ptr</code>, shade <code>ptr</code>. That keeps the strong invariant for the <i>heap</i>: no black heap object ever points to a white one.</p>
+<p>Stacks are the catch. The compiler emits no barrier for stack writes (a local assignment is the most common operation in a program), so a stack can pick up a white pointer silently. Go 1.7 handled this by treating stacks as <b>permanently grey</b>: scanning a stack colors it black, but the moment its goroutine runs again it can hold a white pointer, so it is grey again. Marking therefore cannot finish until every stack touched since its scan is scanned <i>again</i>, with the world stopped, because a running goroutine could re-dirty it.</p>
+<table><thead><tr><th>Go 1.7 mark termination</th><th>Cost</th></tr></thead><tbody>
+<tr><td>Stacks to re-scan</td><td>every goroutine that ran since its stack was scanned</td></tr>
+<tr><td>Pause length</td><td>"10s to 100s of ms" with many goroutines (design doc 17503)</td></tr>
+<tr><td>Scales with</td><td>goroutine count and stack depth, both set by the application</td></tr>
+</tbody></table>
+<p>So the pause was unbounded in exactly the quantity Go encourages you to make large. Proposal 17503 (Clements and Hudson, 2016-10-21) set out to delete the re-scan. Its preliminary experiments put worst-case STW under 50 µs.</p>
+<p>Why not put a barrier on stack writes? Because a barrier is a load, a compare and a possible call. Putting that on every local pointer assignment would tax all code, all the time, to protect a rare race. The design goal was the opposite: keep stack writes free and make the <i>heap</i> barrier smart enough that a scanned stack is provably safe.</p>

@@ -1,0 +1,15 @@
+<h3>Real bugs (all historical; no open barrier-correctness bug surfaced in my search)</h3>
+<ul>
+<li><b>Wasm deletion barrier greyed the wrong object</b> (<a href="https://golang.org/issue/30873" target="_blank" rel="noopener">#30873</a>, #30872; fixed 2019, backported to 1.11/1.12): a reachable object could go unmarked. Lost-object bug in the exact class this dive is about.</li>
+<li><b>Preemption inside barrier code</b> (<a href="https://golang.org/issue/22987" target="_blank" rel="noopener">#22987</a>, fixed 2017): a preemption inside <code>heapBits.bits</code> could lose a pointer and overflow the per-P buffer. Fixed with <code>go:nosplit</code>.</li>
+<li><b>Crashes in <code>gcWriteBarrier</code>/<code>wbBufFlush</code></b> (#14149, #15293, <a href="https://golang.org/issue/42249" target="_blank" rel="noopener">#42249</a>): maintainers attributed them to heap corruption from cgo or <code>unsafe</code>; the barrier is where a bad pointer first gets dereferenced.</li>
+</ul>
+<h3>Costs</h3>
+<ul>
+<li><b>Mark assist latency</b> is the main user complaint now. No assist credit exists at cycle start, so allocating goroutines pay early. Field reports include hundreds of ms stalls with 1–2 ms STW pauses (<a href="https://github.com/golang/go/issues/16293" target="_blank" rel="noopener">#16293</a>) and one anecdotal ~10× latency during GC in <code>runtime.gcAssistAlloc</code> (a mailing-list thread). Pacer meta-issue: <a href="https://github.com/golang/go/issues/42430" target="_blank" rel="noopener">#42430</a>.</li>
+<li><b>Barrier overhead</b> (<a href="https://github.com/golang/go/issues/22460" target="_blank" rel="noopener">#22460</a>): usually small because the barrier is off, but a few percent in some programs such as the compiler. A buffered fast path was about 4× faster on amd64 for the single-pointer case, about 2% on GC-heavy apps. <a href="https://github.com/golang/go/issues/20005" target="_blank" rel="noopener">#20005</a> (open) is about the code size of the enabled-flag check.</li>
+<li><b>Floating garbage</b>: over-shading keeps some dying objects for one more cycle.</li>
+<li><b>Stack scanning still costs CPU</b>, just not pause time. It also feeds the pacer (<code>lastStackScan</code>).</li>
+</ul>
+<div class="callout mis"><b>Misconceptions.</b> (1) "Stacks are rescanned at the end." Not since the hybrid barrier. (2) "The write barrier is always on." It is checked on every heap store but only <i>executes</i> during marking. (3) "GC latency means STW pauses." STW is now tens of µs; assists charged to allocating goroutines are the larger tail.</div>
+<div class="callout gotcha"><b>unsafe / cgo.</b> A pointer written through <code>unsafe</code> arithmetic or from C bypasses the compiler's barrier. If marking is running, the object it points to can be freed. Use <code>GODEBUG=cgocheck</code> and the race/asan builds.</div>

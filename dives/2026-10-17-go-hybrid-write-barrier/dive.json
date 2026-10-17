@@ -1,0 +1,440 @@
+{
+ "meta": {
+  "title": "Go's hybrid write barrier: why stacks are never re-scanned",
+  "short": "Go's hybrid write barrier",
+  "subject": "Computer science",
+  "domain": "Compilers/PL/runtimes",
+  "topic": "Go hybrid write barrier: Yuasa deletion + Dijkstra insertion, no stack re-scan, mark assist and pacing",
+  "depth": "hard",
+  "date": "2026-10-17"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 8 scrolls",
+  "title": "How Go's garbage collector stopped re-reading every stack while the world was frozen"
+ },
+ "tldr": "Go's collector marks while your program runs, so it must hear about pointer changes. Go 1.7 could not trust stacks (no barrier on stack writes), so it froze the world and re-scanned them: <b>10s to 100s of ms</b>. The hybrid barrier shades the <b>overwritten</b> pointer, and the <b>new</b> one while a stack is unscanned, so a scanned stack stays black.",
+ "why": "<b>Why it matters:</b> the stop-the-world pause stopped growing with goroutine count; the design doc's target was under <b>50 µs</b>. The cost moved to a barrier on every pointer store during marking and to mark assists.",
+ "stats": [
+  {
+   "v": "< 50 µs",
+   "l": "worst-case STW target (design doc, 2016)"
+  },
+  {
+   "v": "10–100 ms",
+   "l": "old stack re-scan pause (Go 1.7)"
+  },
+  {
+   "v": "512",
+   "l": "pointers buffered per P"
+  },
+  {
+   "v": "25%",
+   "l": "CPU target for background marking"
+  },
+  {
+   "v": "10–40%",
+   "l": "less GC CPU expected from Green Tea (1.26)"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "group": "Plain English",
+   "tone": "plain",
+   "kicker": "In everyday words",
+   "title": "An inspector, a shop that stays open, and a shout-it-out rule",
+   "visual": "img/plain.svg",
+   "file": "sections/00-plain.html",
+   "brief": "<p>An inspector tags boxes while clerks keep moving them. A clerk can lift an unseen box off a shelf and clear the shelf, and the box gets binned. The fix is a rule: shout the name of any box you take off or put on a shelf.</p><p>Check each clerk's pockets once, and never again.</p>"
+  },
+  {
+   "id": "ctx",
+   "group": "Context",
+   "kicker": "§1 · Prerequisites",
+   "title": "Six things to know first",
+   "visual": "img/ctx.svg",
+   "file": "sections/01-context.html",
+   "brief": "<ul><li><b>Tri-color marking</b>: white unseen, grey queued, black scanned.</li><li><b>Strong invariant</b>: no black object points to a white one.</li><li><b>Write barrier</b>: code around heap pointer stores. Stack writes get none.</li></ul>"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "Every Go binary runs it; you steer it with GOGC and GOMEMLIMIT",
+   "visual": "img/world.svg",
+   "file": "sections/01b-real-world.html",
+   "brief": "<p>Kubernetes, etcd, Docker, Prometheus and Terraform are all Go, so they all run this collector. You never call the barrier. You set <code>GOGC</code>, <code>GOMEMLIMIT</code> (Go 1.19) and read <code>GODEBUG=gctrace=1</code>.</p>"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "\"Shade the old and new pointer\" hides five questions",
+   "visual": "img/onel.svg",
+   "file": "sections/02-one-liner.html",
+   "brief": "<p>The sentence skips: why stacks need no barrier, why <i>two</i> shades, why the shipped code is not the pseudocode, why the barrier is mostly off, and why assists now cost more tail latency than the barrier.</p>"
+  },
+  {
+   "id": "problem",
+   "guess": "stackbar",
+   "kicker": "§3 · The problem",
+   "title": "A stop-the-world rescan was the last unbounded pause",
+   "visual": "img/problem.svg",
+   "file": "sections/03-problem.html",
+   "brief": "<p>Go 1.7 marked concurrently but treated stacks as permanently grey, then re-scanned every dirty one with the world stopped. The design doc says <b>10s to 100s of ms</b> with many goroutines, and it grew with goroutine count.</p>"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A stocktake in a shop that stays open",
+   "visual": "img/model.svg",
+   "file": "sections/04-mental-model.html",
+   "brief": "<p>Boxes are objects, a clerk's hands are a stack, and shouting is the barrier. It breaks because the inspector runs on other CPUs (a race, not a conversation), shouting over-tags, and allocators also get drafted into counting.</p>"
+  },
+  {
+   "id": "mech",
+   "guess": "yuasa",
+   "group": "Technical deep dive",
+   "kicker": "§5 · The mechanism, traced",
+   "title": "Replaying one race shows what each shade is for",
+   "visual": "img/mech.svg",
+   "file": "sections/05-mechanism.html",
+   "brief": "<p>A simulator replays three races under five barriers. Insertion alone loses an object behind a black stack; deletion alone loses one behind a grey stack; the hybrid keeps both. The real runtime buffers <b>512</b> pointers per P and records both always.</p><p class=\"mini\">Step-through inside.</p>"
+  },
+  {
+   "id": "math",
+   "guess": "goal",
+   "kicker": "§6 · The math",
+   "title": "Two conditions to lose an object, and pacing as arithmetic",
+   "visual": "img/math.svg",
+   "file": "sections/06-math.html",
+   "brief": "<p>An object is lost only if a black object gains a pointer to it <i>and</i> every grey path to it is cut. Each shade breaks one condition. The pacer sets a heap goal from live heap, roots and GOGC, and assists bill allocation by scan work remaining.</p>"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "A scanned stack is shaded once and then cannot hide anything",
+   "visual": "img/why.svg",
+   "file": "sections/07-why-it-works.html",
+   "brief": "<p>After a stack scan, everything on it is shaded, and the deletion shade blocks anything new from being smuggled in. Remove either shade and a race loses an object; remove \"scan once\" and the stop-the-world rescan returns.</p>"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Design knobs & alternatives",
+   "title": "GOGC and GOMEMLIMIT move the trade; the barrier stays fixed",
+   "visual": "img/knobs.svg",
+   "file": "sections/08-knobs.html",
+   "brief": "<p>Doubling GOGC roughly doubles heap overhead and halves GC CPU. <code>GOMEMLIMIT</code> caps GC near 50% CPU to avoid thrash. Other runtimes pay on loads (ZGC) or add SATB (Shenandoah, G1) because they move objects.</p>"
+  },
+  {
+   "id": "breaks",
+   "guess": "always",
+   "kicker": "§9 · Where it breaks",
+   "title": "Real bugs, assist stalls and the unsafe escape hatch",
+   "visual": "img/breaks.svg",
+   "file": "sections/09-where-it-breaks.html",
+   "brief": "<p>Barrier-correctness bugs were rare and are fixed (wasm #30873, #22987). Today's pain is <b>mark assist</b> tail latency, floating garbage, and corruption from cgo or <code>unsafe</code> that bypasses the compiler's barrier.</p>"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "The runtime buffers, records both, and allocates black",
+   "visual": "img/wild.svg",
+   "file": "sections/10-in-the-wild.html",
+   "brief": "<p>Shipped code differs from the pseudocode: a 512-entry per-P buffer, unconditional recording justified by memory ordering, a two-register fast path, checkmark mode, and allocate-black. Non-moving runtimes need only a marking barrier.</p>"
+  },
+  {
+   "id": "frontier",
+   "guess": "tea",
+   "group": "Research edge",
+   "kicker": "§11 · Frontier",
+   "title": "The barrier is settled; the work moved to locality and pacing",
+   "visual": "img/frontier.svg",
+   "file": "sections/11-frontier.html",
+   "brief": "<p>I found no new Go write-barrier paper in 2024–26. Green Tea GC became the default in <b>Go 1.26</b> (10–40% less GC CPU expected), after a Go 1.25 experiment. Java's G1 reworked its own barriers in 2025.</p>"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Assist latency and the 25% budget are still unsettled",
+   "visual": "img/open.svg",
+   "file": "sections/11b-open-problems.html",
+   "brief": "<p>Every fix for assist tail latency trades CPU, memory or allocation latency for another. How the fixed 25% worker budget behaves with a million goroutines is unresearched, and Green Tea's effect on barrier cost is unreported.</p>"
+  },
+  {
+   "id": "lineage",
+   "group": "Practice & self-test",
+   "kicker": "§12 · Lineage",
+   "title": "1978 insertion, 1990 deletion, 2017 hybrid",
+   "visual": "img/lineage.svg",
+   "file": "sections/12-lineage.html",
+   "brief": "<p>Dijkstra's insertion barrier (1978) and Yuasa's deletion barrier (1990) meet in Go 1.8 (2017), echoing the double barrier in IBM's Metronome. Then a buffered barrier, a pacer rewrite, <code>GOMEMLIMIT</code>, and Green Tea.</p>"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "Break the barrier in a simulator, then count goroutines",
+   "visual": "img/hands.svg",
+   "file": "sections/13-hands-on.html",
+   "brief": "<p>Run <code>barrier_sim.py</code> and delete a shade to watch an object get lost. Run <code>gcdemo.go</code> with 1,000 to 500,000 goroutines: on my machine the worst STW pause stayed near <b>100 µs</b>.</p>"
+  },
+  {
+   "id": "quiz",
+   "builtin": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>20 questions from mechanism to open research. Reveal, then mark ✓ or ✗; marks feed your progress ring.</p>"
+  },
+  {
+   "id": "next",
+   "group": "Further",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three dives that build on this",
+   "visual": "img/next.svg",
+   "file": "sections/15-go-deeper.html",
+   "brief": "<p>Green Tea page-oriented marking · ZGC colored pointers and load barriers · G1 SATB and card-marking barriers.</p>"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Design docs, runtime source and issues",
+   "visual": "img/sources.svg",
+   "file": "sections/99-sources.html",
+   "brief": "<p>Design doc 17503, six runtime files read from source, nine issues, plus a list of claims I could not verify.</p>"
+  }
+ ],
+ "guesses": {
+  "cold": {
+   "q": "Before Go 1.8, the last stop-the-world step of a GC cycle re-scanned goroutine stacks. How long could that pause last in the worst case?",
+   "options": [
+    "Under 50 µs",
+    "About 1 ms",
+    "10s to 100s of ms",
+    "Several seconds"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>10s to 100s of milliseconds</b>, per the Go design doc (proposal 17503), and it grew with the number of goroutines. The hybrid barrier cut worst-case STW to under 50 µs in the doc's preliminary experiments.</p>"
+  },
+  "stackbar": {
+   "q": "Stack writes have no write barrier. Under Go 1.7's insertion-only barrier, what happens to a stack after the GC scans it and the goroutine runs again?",
+   "options": [
+    "It stays black for the cycle",
+    "It reverts to grey and must be re-scanned",
+    "The GC frees it",
+    "It gets a barrier on demand"
+   ],
+   "answer": 1,
+   "reveal": "<p>It <b>reverts to grey</b>. A scanned stack is black only until its goroutine runs and can pick up a white pointer, so Go 1.7 re-scanned every dirty stack in a stop-the-world step.</p>"
+  },
+  "yuasa": {
+   "q": "A scanned (black) stack loads C from B, then B's pointer to C is set to nil. Which barrier alone saves C?",
+   "options": [
+    "Insertion (Dijkstra) alone",
+    "Deletion (Yuasa) alone",
+    "Neither",
+    "Only both together"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>Deletion alone.</b> The nil store looks harmless to an insertion barrier (it shades only the new value, nil), so C is lost. The deletion shade catches the overwritten C. Source: this dive's <code>barrier_sim.py</code>, race S1.</p>"
+  },
+  "goal": {
+   "q": "Live heap after the last cycle is 100 MB, stacks 2 MB, globals 1 MB, GOGC = 100. What is the heap goal?",
+   "min": 100,
+   "max": 400,
+   "step": 1,
+   "unit": " MB",
+   "answer": 203,
+   "start": 150,
+   "tol": 8,
+   "reveal": "<p><b>203 MB</b> = 100 + (100 + 2 + 1) × 100/100. Roots count toward the goal since Go 1.18, per the GC guide and <code>mgcpacer.go</code>.</p>"
+  },
+  "always": {
+   "q": "Is the write barrier's work done on every pointer store into the heap, in every Go program, all the time?",
+   "options": [
+    "Yes, always",
+    "Only while a GC mark phase is running",
+    "Only for goroutines doing a mark assist",
+    "Only for objects over 32 KB"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>Only during marking.</b> The compiler emits a cheap flag test (<code>runtime.writeBarrier</code>) before the call; the buffered work runs only when the flag is set.</p>"
+  },
+  "tea": {
+   "q": "Green Tea GC became the default in Go 1.26. What part of the collector does it change?",
+   "options": [
+    "The write barrier",
+    "How marking and scanning visit small objects (by locality)",
+    "The sweeper",
+    "The stop-the-world pauses"
+   ],
+   "answer": 1,
+   "reveal": "<p><b>Marking and scanning.</b> The Go 1.26 notes say it improves marking and scanning of small objects through locality and CPU scalability; Google expects 10–40% less GC CPU. The write barrier design is unchanged by it, as far as I found.</p>"
+  }
+ },
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "In race S1 (black stack, nil store), what does the barrier do on <code>B.f = nil</code>, step by step?",
+   "a": "The compiler tests <code>runtime.writeBarrier</code>; enabled, it reserves slots in the P's buffer and records the old value (C) and new value (nil). Nil is dropped at flush; C is marked grey and queued. C survives even though the heap no longer reaches it.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "When is a goroutine's stack scanned, and what happens to it afterwards?",
+   "a": "As a root job (<code>markroot</code>): the goroutine is suspended (or parks itself in <code>_Gwaiting</code>), <code>scanstack</code> shades every pointer found and sets <code>gcscandone</code>. It is not scanned again this cycle.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does <code>gcMarkDone</code> do with the write-barrier buffers, and why?",
+   "a": "It runs a ragged barrier with <code>forEachP</code>, flushing each P's buffer and work cache. Pointers still in a buffer are unmarked, so termination before flushing could miss reachable objects.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "How does a mark assist decide how much to scan?",
+   "a": "<code>assistWorkPerByte = scanWorkRemaining / (heapGoal − heapLive)</code>. The goroutine's negative <code>gcAssistBytes</code> debt is multiplied by it, with a floor of 64 KiB of scan work per assist so it builds credit.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why shade the <i>old</i> pointer instead of only the new one?",
+   "a": "A black stack can load a white pointer from the heap and then unlink it. An insertion barrier ignores the overwrite. Shading the old value keeps it reachable-or-shaded (race S1).",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why is the insertion shade only needed while the stack is grey?",
+   "a": "A freshly scanned stack points only to shaded objects, and the deletion shade stops it hiding others. A grey stack may hold the only pointer to an object and store it into a black object (race S2).",
+   "sec": "why"
+  },
+  {
+   "type": "Why",
+   "q": "Why not put a barrier on stack writes instead?",
+   "a": "Stack pointer writes are the most frequent operation in a program. A barrier there would tax all code to protect a rare race; the design keeps stack writes free and makes the heap barrier sufficient.",
+   "sec": "problem"
+  },
+  {
+   "type": "Why",
+   "q": "Why does the shipped barrier record both pointers regardless of the holder's color?",
+   "a": "Checking the holder's mark bit races with the GC's own mark-bit store; on x86 the result can be r1==r2==0 without an expensive memory barrier. Always greying the pointer avoids the barrier (<code>mbarrier.go</code> comment).",
+   "sec": "mech"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if Go allocated white during marking?",
+   "a": "A new object could be stored into a black object and never be seen. The hybrid barrier requires allocate-black (design doc), which Go already did via <code>gcmarknewobject</code>.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if the pacer started marking at 99% of the goal instead of ~70–95%?",
+   "a": "The barrier would be on for less time but there is little runway: scan work must finish before the goal, so assist ratios spike and allocating goroutines pay latency, or the heap overshoots.",
+   "sec": "math"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if GOGC were 200 on a service with 1 GB live heap?",
+   "a": "The goal is roughly 3× live instead of 2×, so cycles are about half as frequent, GC CPU roughly halves, and peak heap overhead roughly doubles (GC guide).",
+   "sec": "knobs"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What changes if you remove the 25% background-worker target?",
+   "a": "Marking would be paced only by assists, so allocating goroutines would do all the work when behind, concentrating latency in the application's own request path.",
+   "sec": "math"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How could you cause a use-after-free in Go despite the barrier?",
+   "a": "Store a pointer through <code>unsafe</code> arithmetic or from C during marking: the compiler emitted no barrier, so the object can stay white and be freed. Checks: <code>GODEBUG=cgocheck</code>, race and asan builds.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How would you make a service suffer mark-assist latency on purpose?",
+   "a": "Allocate heavily while marking runs and the pacer is behind: assists bill each allocation. A sharp change in live heap size is a known trigger (pacer issues #42430, #44167).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "What would a bug that greyed the wrong object cause?",
+   "a": "A reachable object left white and freed: memory corruption. It happened in the wasm deletion barrier (#30872/#30873, fixed 2019).",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How is this like OS copy-on-write or page-table dirty bits?",
+   "a": "All three track mutation lazily: a barrier or fault records \"this changed\" so a background process can catch up later. The stack scan once-and-done mirrors scanning a snapshot.",
+   "sec": "model"
+  },
+  {
+   "type": "Connection",
+   "q": "Why do ZGC and Shenandoah need load-side barriers while Go does not?",
+   "a": "They move live objects concurrently, so a loaded pointer might be stale. Go never moves heap objects, so it only needs to guard marking.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How does Green Tea relate to the barrier?",
+   "a": "It changes the order and granularity of marking (by page, for locality), not the invariant. The barrier still guards correctness; I found no report of how Green Tea changes barrier cost.",
+   "sec": "frontier"
+  },
+  {
+   "type": "Open",
+   "q": "Can assist tail latency be eliminated without more CPU or memory?",
+   "a": "Not by a known method: starting earlier costs barrier-on time and CPU, assisting harder moves latency into the request path, a bigger heap costs memory. The trade is workload dependent.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "Would a generational Go collector pay for the barrier it would need?",
+   "a": "Contested and not researched here: a generational collector needs a remembered-set barrier on top of the marking barrier. Whether pointer-heavy Go heaps repay that cost is unsettled in my sources.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "tricolor": {
+   "original": true,
+   "file": "img/fig/own-tricolor.svg",
+   "caption": "Black to white pointers are allowed only when a grey object still reaches the white one; K2 to W2 is the dangerous case.",
+   "source": {
+    "cite": "Clements and Hudson, proposal 17503 (weak tri-color invariant)",
+    "url": "https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md",
+    "figure": "text"
+   }
+  },
+  "races": {
+   "original": true,
+   "file": "img/fig/own-races.svg",
+   "caption": "The two races the hybrid barrier must win: S1 needs the deletion shade, S2 needs the insertion shade while the stack is grey.",
+   "source": {
+    "cite": "Scenarios simulated in barrier_sim.py (this dive)",
+    "url": "https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md",
+    "figure": "adapted from the doc's reasoning"
+   }
+  },
+  "wbbuf": {
+   "original": true,
+   "file": "img/fig/own-wbbuf.svg",
+   "caption": "A heap pointer store, from flag check to the per-P buffer; entries are marked in batches when the buffer fills.",
+   "source": {
+    "cite": "runtime/mwbbuf.go and asm_amd64.s (golang/go master)",
+    "url": "https://github.com/golang/go/blob/master/src/runtime/mwbbuf.go",
+    "figure": "code"
+   }
+  },
+  "cycle": {
+   "original": true,
+   "file": "img/fig/own-cycle.svg",
+   "caption": "Heap size over a few cycles for the worked example: marking starts inside the trigger band, the barrier runs until the mark ends, and the goal is 203 MB.",
+   "source": {
+    "cite": "runtime/mgcpacer.go (goal and trigger bounds)",
+    "url": "https://github.com/golang/go/blob/master/src/runtime/mgcpacer.go",
+    "figure": "code"
+   }
+  }
+ }
+}

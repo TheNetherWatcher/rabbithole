@@ -1,0 +1,14 @@
+<svg viewBox="0 0 860 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Heap size over time with live heap, trigger band, heap goal, and the barrier-on window">
+<path d="M70 261 H830" class="f-none s-mute" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="826" y="255" class="t-mute" style="font-size:12px;text-anchor:end">heapMarked 100 MB</text>
+<path d="M70 63 H830" class="f-none s-bad" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="826" y="57" class="t-mute" style="font-size:12px;text-anchor:end">goal 203 MB</text>
+<rect x="70" y="73" width="760" height="50" class="f-hl" opacity=".55"/>
+<text x="78" y="102" class="t-ink" style="font-size:12px">trigger lands in 172–198 MB</text>
+<path d="M70 261 L270 98 L300 63 L300 261 L500 98 L530 63 L530 261 L730 98 L760 63 L760 261" class="f-none s-acc2" stroke-width="3"/>
+<rect x="270" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<rect x="500" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<rect x="730" y="34" width="30" height="252" class="f-warn" opacity=".28"/>
+<text x="300" y="28" class="t-ink" style="font-size:12px;text-anchor:middle">barrier on · mark assists if behind</text>
+<text x="70" y="310" class="t-mute" style="font-size:12px">time →  (heap grows by allocation, drops when sweep frees the dead)</text>
+</svg>

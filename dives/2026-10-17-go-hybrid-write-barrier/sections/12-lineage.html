@@ -1,0 +1,9 @@
+<ol>
+<li><b>1978</b> · Dijkstra et al., on-the-fly GC: insertion barrier, tri-color invariant. <i>(title and venue from memory, not fetched)</i></li>
+<li><b>1990</b> · Yuasa, real-time GC: deletion barrier, snapshot-at-the-beginning. <i>(same caveat)</i></li>
+<li><b>2007</b> · Metronome (IBM real-time Java): a "double write barrier" the design doc equates to Go's hybrid.</li>
+<li><b>2015</b> · Go 1.5: concurrent tri-color collector, <a href="https://go.dev/blog/go15gc" target="_blank" rel="noopener">Hudson's post</a>.</li>
+<li><b>2016–17</b> · Go 1.7 coarsened Dijkstra + permagrey stacks → proposal <a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">17503</a> → hybrid barrier in Go 1.8.</li>
+<li><b>Later</b> · Buffered barrier (#22460), pacer redesign (#44167), <code>GOMEMLIMIT</code> (1.19, 2022).</li>
+<li><b>2025–26</b> · Green Tea: page-oriented marking, default in Go 1.26.</li>
+</ol>

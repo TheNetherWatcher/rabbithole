@@ -1,0 +1,19 @@
+<style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 14px}
+.cv-row b{color:var(--ink)}
+.cv-bar{height:14px;margin:6px 0 4px;border-radius:4px;background:var(--code);border:1px solid var(--line);overflow:hidden}
+.cv-bar i{display:block;height:100%;width:var(--w);min-width:3px;background:var(--c);transform-origin:left;animation:cv-grow 1s var(--ease) both;animation-delay:var(--o,0s)}
+@keyframes cv-grow{from{transform:scaleX(0)}}
+</style>
+<p class="cold-line">A Go server can run half a million goroutines at once.</p>
+<p class="cold-line sm">Each one has its own stack, and the garbage collector must read every stack to know what is still in use. Before Go 1.8 it had to read them <em>a second time</em>, with the whole program frozen, at the very end of every collection cycle.</p>
+<div data-guess="cold"></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>Go 1.7: freeze, re-scan every dirty stack.</b> 10s to 100s of ms
+    <div class="cv-bar"><i style="--w:100%;--c:var(--bad)"></i></div></div>
+  <div class="cv-row"><b>Go 1.8 hybrid barrier.</b> Under 50 µs worst case (design-doc experiments), at least 200× shorter
+    <div class="cv-bar"><i style="--w:.5%;--c:var(--ok);--o:.8s"></i></div></div>
+</div>

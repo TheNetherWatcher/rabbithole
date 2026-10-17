@@ -1,0 +1,24 @@
+<h3>1 · When is an object lost?</h3>
+<p>An object <i>x</i> is freed wrongly only if two things both happen during marking:</p>
+<div class="eq">(1) the mutator stores a pointer to white <i>x</i> into a <b>black</b> object<br>(2) every path from a grey object to <i>x</i> through white objects is destroyed before the GC follows it<small>→ in plain terms: a black object will never be looked at again, so a pointer hidden there is invisible, and removing the last "grey-protected" path means nobody else will find it either.</small></div>
+<p>That is the classic two-condition result for concurrent tracing. A barrier only has to break <i>one</i> condition:</p>
+<ul>
+<li><b>Dijkstra insertion</b> <code>shade(ptr)</code> breaks (1): a black object never gains a white pointer. This is the <i>strong</i> invariant.</li>
+<li><b>Yuasa deletion</b> <code>shade(*slot)</code> breaks (2): whatever was reachable when marking began stays reachable-or-shaded (snapshot-at-the-beginning).</li>
+</ul>
+<h3>2 · The weak invariant the hybrid actually keeps</h3>
+<div class="eq">every white object pointed to by a black object is reachable from some grey object through a chain of white objects<small>→ in plain terms: a black object may point at a white one, but only if a grey object still has a path to that white one. The collector will find it when it gets to the grey object.</small></div>
+<p>The design doc is explicit that the hybrid barrier <b>does not</b> keep the strong invariant: a black goroutine may store a white pointer into a black heap object without shading it. What it keeps is this weaker, "grey-protected" form, which is enough because Yuasa shading protects the chain.</p>
+<h3>3 · Why the insertion half may stop once the stack is black</h3>
+<p>Right after <code>scanstack</code>, the stack points only to objects the scan shaded. For a scanned stack to hide an object <i>y</i> in a black heap object it must first hold a pointer to <i>y</i> that the GC has not seen. It can only acquire one by (a) loading it from the heap, which needs the heap slot to be overwritten later or <i>y</i> to be grey-protected, and Yuasa covers the overwrite; or (b) allocating it, which is black. So <code>shade(ptr)</code> adds nothing for a black stack. For a <b>grey</b> stack it is required (race S2).</p>
+<h3>4 · The pacer's arithmetic</h3>
+<p>The barrier only runs while the collector is marking, and the pacer decides when that starts. From <code>mgcpacer.go</code>:</p>
+<div class="eq">heapGoal = heapMarked + (heapMarked + lastStackScan + globalsScan) × GOGC / 100<small>→ in plain terms: after a cycle, let the heap grow by GOGC percent of (live heap + roots) before the next one finishes. Since Go 1.18 stacks and globals count, so a program with a huge number of goroutines gets a bigger goal.</small></div>
+<figure data-fig="cycle"></figure>
+<p>Worked example: <code>heapMarked</code> = 100 MB, stacks 2 MB, globals 1 MB, GOGC = 100: goal = 100 + (100 + 2 + 1) × 1 = <b>203 MB</b>. The goal is clamped to at least a minimum heap of 4 MiB × GOGC/100.</p>
+<div class="eq">trigger = clamp(goal − runway, minTrigger, maxTrigger)<br>minTrigger ≥ heapMarked + (goal − heapMarked) × 45/64 &nbsp;&nbsp; maxTrigger ≈ heapMarked + (goal − heapMarked) × 61/64<small>→ in plain terms: start marking early enough that the expected work finishes by the goal, but never earlier than ~70% or later than ~95% of the way from live heap to goal (for small heaps). The earlier it starts, the longer the barrier is on.</small></div>
+<p>With the example above, the trigger lies between about 100 + 103 × 0.70 ≈ <b>172 MB</b> and 100 + 103 × 0.95 ≈ <b>198 MB</b>. <code>runway</code> is the pacer's estimate of how much the program allocates during the mark.</p>
+<h3>5 · Mark assist</h3>
+<div class="eq">assistWorkPerByte = scanWorkRemaining / (heapGoal − heapLive)<small>→ in plain terms: if marking has 40 MB of scanning left and only 20 MB of room before the goal, each byte you allocate must be paid for with 2 bytes of scanning.</small></div>
+<p>An allocating goroutine's debt <code>gcAssistBytes</code> goes negative as it allocates; it must do <code>assistWorkPerByte × debt</code> scan work, but never less than <code>gcOverAssistWork</code> = 64 KiB per assist, so it builds credit instead of assisting on every allocation. Background workers target <code>gcBackgroundUtilization</code> = 25% of CPU; assists cover whatever gap remains. On GOMAXPROCS = 8 that is exactly 2 dedicated mark workers.</p>
+<p>The ratio is published with separate atomic stores, so a reader can briefly see a skewed pair (a source comment says so).</p>

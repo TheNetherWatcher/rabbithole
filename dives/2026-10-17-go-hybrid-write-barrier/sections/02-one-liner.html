@@ -1,0 +1,9 @@
+<blockquote>"Go's write barrier shades the old and new pointer on every heap store during marking, so the collector can run concurrently."</blockquote>
+<p>What that sentence hides:</p>
+<ol>
+<li><b>Stacks have no barrier at all.</b> So how can the collector trust a stack it scanned a millisecond ago?</li>
+<li><b>The two shades fix two different races.</b> Each alone is broken, in a different place.</li>
+<li><b>The shipped code is not the textbook pseudocode.</b> It buffers pointers and records both unconditionally.</li>
+<li><b>The barrier is off most of the time.</b> It exists only during the mark phase, and the pacer decides when that is.</li>
+<li><b>The barrier is not the latency risk anymore.</b> Mark assists, charged to whoever allocates, are.</li>
+</ol>

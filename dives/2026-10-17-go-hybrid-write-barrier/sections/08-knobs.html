@@ -1,0 +1,16 @@
+<table><thead><tr><th>Knob</th><th>Effect</th><th>Trade-off</th></tr></thead><tbody>
+<tr><td><code>GOGC</code> (default 100)</td><td>Heap goal = live + (live + roots) × GOGC/100</td><td>Doubling it roughly doubles heap overhead and halves GC CPU (Go GC guide)</td></tr>
+<tr><td><code>GOMEMLIMIT</code> (Go 1.19)</td><td>Soft total-memory limit; goal is the min of the GOGC goal and the limit (minus non-heap memory, ~3% headroom)</td><td>GC CPU is capped near 50% over a window so a too-tight limit slows the program instead of thrashing. Leave 5–10% headroom (guide)</td></tr>
+<tr><td><code>GOMAXPROCS</code></td><td>Sets the 25% dedicated-worker budget</td><td>Fewer Ps means fractional workers and more assist</td></tr>
+<tr><td>Heap minimum (4 MiB × GOGC/100)</td><td>Floor for the goal on tiny heaps</td><td>Not directly settable</td></tr>
+<tr><td>Memory ballast (old trick)</td><td>A large pointer-free allocation inflates "live" so cycles run less often. Twitch reported ~99% less assist work and ~45% better p99 at peak (2019, vendor blog)</td><td>Mostly superseded by <code>GOMEMLIMIT</code> + <code>GOGC</code></td></tr>
+</tbody></table>
+<h3>Barrier alternatives and why Go chose this one</h3>
+<table><thead><tr><th>Approach</th><th>Needs</th><th>Used by</th></tr></thead><tbody>
+<tr><td>Insertion only (Dijkstra)</td><td>STW rescan of stacks (or barriers on stacks)</td><td>Go 1.5–1.7</td></tr>
+<tr><td>Deletion only (Yuasa / SATB)</td><td>A consistent snapshot, so all stacks scanned atomically at the start</td><td>Shenandoah's marking barrier, G1 (SATB)</td></tr>
+<tr><td>Hybrid, conditional</td><td>Know whether the current stack is grey</td><td>Design doc's proof shape</td></tr>
+<tr><td>Hybrid, unconditional</td><td>Nothing; ~2× the cost of the conditional form for most of the mark phase</td><td>What Go's buffer effectively does</td></tr>
+<tr><td>Load barrier (colored pointers)</td><td>Cost on every pointer <i>load</i>, pointer metadata</td><td>ZGC</td></tr>
+</tbody></table>
+<p>Go bets that stores are rarer than loads, that a non-moving non-generational collector is simple enough to keep latency low, and that the barrier is off most of the time. The same bet fails for programs that mutate pointers heavily during long marks.</p>

@@ -1,0 +1,17 @@
+<p>Where the shipped runtime departs from the paper-and-pseudocode version:</p>
+<ul>
+<li><b>Buffered shading.</b> 512-entry per-P <code>wbBuf</code>; <code>next</code> and <code>end</code> are <code>uintptr</code> so updating them needs no barrier of its own.</li>
+<li><b>Unconditional recording</b> of old and new pointers, justified by memory-ordering cost (see <code>mbarrier.go</code>).</li>
+<li><b>Fast path saves two registers.</b> <code>gcWriteBarrier1/2/3</code> set a reserve size and jump to one shared body that only saves R12 and R13 on amd64; the slow path (flush) saves every general register.</li>
+<li><b>Checkmark mode.</b> A debug mode re-marks the heap and shades every buffer entry to verify nothing was missed.</li>
+<li><b>Stack scan as a root job.</b> <code>markroot</code> → <code>suspendG</code> → <code>scanstack</code> (self-scans move the goroutine to <code>_Gwaiting</code>), with <code>gcscandone</code> making it once-per-cycle.</li>
+<li><b>Allocate-black</b> via <code>gcmarknewobject</code> during <code>_GCmark</code> and <code>_GCmarktermination</code>.</li>
+</ul>
+<h3>How other runtimes place their barriers</h3>
+<table><thead><tr><th>Runtime</th><th>Barrier</th><th>Moves objects?</th></tr></thead><tbody>
+<tr><td>Go</td><td>Hybrid store barrier, only during mark</td><td>No (non-moving)</td></tr>
+<tr><td>Java ZGC</td><td>Load barrier (colored pointers), no store barrier for marking</td><td>Yes, concurrently</td></tr>
+<tr><td>Shenandoah (JDK 13+)</td><td>SATB store barrier + Baker-style load-reference barrier</td><td>Yes, concurrently</td></tr>
+<tr><td>Java G1</td><td>Store barriers (SATB + card marking); reworked in 2025 per a Schatzl blog post</td><td>Yes (regions)</td></tr>
+</tbody></table>
+<p>The pattern: a runtime that does not move objects needs only a marking barrier; one that moves them concurrently needs the more expensive load-side machinery.</p>

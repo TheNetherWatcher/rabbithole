@@ -1,0 +1,33 @@
+<h3>Design docs and posts</h3>
+<ul>
+<li><a href="https://github.com/golang/proposal/blob/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Proposal 17503: Eliminate STW stack re-scanning</a> (Clements, Hudson; 2016-10-21). Read in full for barrier, invariants, alternatives.</li>
+<li><a href="https://github.com/golang/proposal/blob/master/design/17505-concurrent-rescan.md" target="_blank" rel="noopener">Proposal 17505: Concurrent stack re-scanning</a> (listed in search; not read).</li>
+<li><a href="https://go.dev/blog/go15gc" target="_blank" rel="noopener">Hudson, "Go GC: Prioritizing low latency and simplicity" (2015)</a></li>
+<li><a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">A Guide to the Go Garbage Collector</a></li>
+<li><a href="https://go.dev/blog/greenteagc" target="_blank" rel="noopener">Green Tea GC</a> · <a href="https://go.dev/doc/go1.26" target="_blank" rel="noopener">Go 1.26 release notes</a></li>
+<li><a href="https://go.dev/blog/ismmkeynote" target="_blank" rel="noopener">ISMM keynote, "Getting to Go"</a> (appeared in results; summary only)</li>
+</ul>
+<h3>Runtime source (golang/go master, as fetched 2026-10-17)</h3>
+<ul>
+<li><a href="https://github.com/golang/go/blob/master/src/runtime/mbarrier.go" target="_blank" rel="noopener">mbarrier.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mwbbuf.go" target="_blank" rel="noopener">mwbbuf.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgcmark.go" target="_blank" rel="noopener">mgcmark.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgcpacer.go" target="_blank" rel="noopener">mgcpacer.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/mgc.go" target="_blank" rel="noopener">mgc.go</a> · <a href="https://github.com/golang/go/blob/master/src/runtime/asm_amd64.s" target="_blank" rel="noopener">asm_amd64.s</a></li>
+</ul>
+<h3>Issues</h3>
+<ul>
+<li><a href="https://github.com/golang/go/issues/22460" target="_blank" rel="noopener">#22460</a> · <a href="https://github.com/golang/go/issues/20005" target="_blank" rel="noopener">#20005</a> · <a href="https://github.com/golang/go/issues/16293" target="_blank" rel="noopener">#16293</a> · <a href="https://github.com/golang/go/issues/42430" target="_blank" rel="noopener">#42430</a> · <a href="https://github.com/golang/go/issues/44167" target="_blank" rel="noopener">#44167</a> · <a href="https://github.com/golang/go/issues/73581" target="_blank" rel="noopener">#73581</a> · <a href="https://golang.org/issue/30873" target="_blank" rel="noopener">#30873</a> · <a href="https://golang.org/issue/22987" target="_blank" rel="noopener">#22987</a> · <a href="https://golang.org/issue/42249" target="_blank" rel="noopener">#42249</a></li>
+</ul>
+<h3>Other runtimes and articles</h3>
+<ul>
+<li><a href="https://developers.redhat.com/blog/2019/06/27/shenandoah-gc-in-jdk-13-part-1-load-reference-barriers" target="_blank" rel="noopener">Shenandoah in JDK 13: load reference barriers</a> · <a href="https://tschatzl.github.io/2025/02/21/new-write-barriers.html" target="_blank" rel="noopener">New write barriers for G1</a> · <a href="https://dl.acm.org/doi/full/10.1145/3538532" target="_blank" rel="noopener">ZGC deep dive (ACM)</a></li>
+<li><a href="https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap/" target="_blank" rel="noopener">Twitch: Go memory ballast</a> (vendor blog)</li>
+<li><a href="https://infoq.com/news/2025/11/go-green-tea-gc/" target="_blank" rel="noopener">InfoQ on Green Tea</a> (secondary)</li>
+</ul>
+<h3>Claims I could not verify</h3>
+<ul>
+<li>Dijkstra 1978 and Yuasa 1990 titles and venues (cited from the design doc's keys and memory); Hudson '97 and Auerbach '07.</li>
+<li>The two-condition lost-object statement is the standard result in the GC literature; I did not fetch a paper for it.</li>
+<li>Whether the shipped Go 1.8 barrier matched the design doc at that release; the current <i>source</i> was read, the 1.8 commit was not. The "unconditional" shape is read from the current <code>mbarrier.go</code> comment and the runtime's buffer code, not from a release note.</li>
+<li>The exact compiler-emitted store sequence (which slot gets old vs new); the shown sequence is a faithful sketch, not disassembly.</li>
+<li>Pacer redesign release (1.18), pacer stack-scan numbers (500k idle goroutines, 15 ms → 238 µs, commit 2a889b9d) and Twitch's figures are secondary or historical.</li>
+<li>Application adoption (Kubernetes, etcd, etc.): only that they are written in Go.</li>
+<li>That a goroutine's stack created mid-cycle is born black (<code>proc.go</code> not read).</li>
+</ul>

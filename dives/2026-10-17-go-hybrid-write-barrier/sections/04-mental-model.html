@@ -1,0 +1,7 @@
+<p><b>A stocktake in an open shop.</b> Boxes are objects, shelves are heap objects, a clerk's hands are a goroutine stack. White, grey and black are tags. Whenever a clerk takes a box off a shelf or sets one on a shelf, they shout its name and the inspector tags it. The inspector checks a clerk's hands once; after that the clerk can't hide anything.</p>
+<p><b>Where it breaks.</b></p>
+<ul>
+<li>The real inspector is a set of GC worker goroutines on other CPUs, so "shouting" is a memory write racing with their reads, not a conversation. That race is why the shipped barrier never checks the color of the holder (see the mechanism).</li>
+<li>Shouting over-tags. A box that is thrown away a moment after being tagged still survives this cycle (floating garbage).</li>
+<li>Clerks can also be forced to help count (mark assist), and the analogy has no equivalent of that tax on allocators.</li>
+</ul>

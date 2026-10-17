@@ -1,0 +1,114 @@
+<style>
+#hb .ob{stroke-width:2.5}
+#hb .w{fill:var(--panel);stroke:var(--mute);stroke-dasharray:5 4}
+#hb .g{fill:var(--hl);stroke:var(--warn)}
+#hb .k{fill:var(--ink);stroke:var(--ink)}
+#hb .lab{fill:var(--ink);font:700 15px ui-monospace,monospace;text-anchor:middle}
+#hb .lab.k{fill:var(--bg);stroke:none}
+#hb .sm{fill:var(--mute);font:12px system-ui}
+#hb .edge{stroke:var(--accent2);stroke-width:2;fill:none}
+#hb .edge.hid{stroke:var(--bad);stroke-dasharray:3 4;opacity:.8}
+#hb .stk{fill:var(--panel);stroke:var(--line);stroke-width:2}
+#hb .stk.k{fill:var(--code);stroke:var(--ink)}
+#hb .stk.g{fill:var(--hl);stroke:var(--warn)}
+#hb-info b{color:var(--ink)}
+.hb-bad{color:var(--bad)}
+</style>
+<p>The simulator in this folder (<code>barrier_sim.py</code>) replays one hand-scheduled race. Below is scenario <b>S1</b>: a goroutine's stack is already scanned and empty; it loads <code>C</code> out of <code>B</code>, then unlinks it from the heap. Toggle the deletion shade off to see the bug.</p>
+<div class="widget" role="group" aria-label="Hybrid barrier step-through">
+<svg id="hb" viewBox="0 0 560 240" role="img" aria-label="Objects B and C and a goroutine stack, colored by mark state"></svg>
+<div class="stepbar">
+  <button class="btn" id="hb-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="hb-next" aria-label="Next step">Next →</button>
+  <label class="mini" style="margin-left:10px"><input type="checkbox" id="hb-off"> remove deletion shade (<code>shade(*slot)</code>)</label>
+  <span class="mini" id="hb-n" aria-live="polite"></span>
+  <div class="info" id="hb-info" aria-live="polite"></div>
+</div>
+</div>
+<p>The simulator's verdict for all three races under five barriers (<code>python3 barrier_sim.py</code>):</p>
+<table><thead><tr><th>Race</th><th style="white-space:nowrap">none</th><th style="white-space:nowrap">Yuasa only</th><th style="white-space:nowrap">Dijkstra only</th><th style="white-space:nowrap">hybrid</th><th style="white-space:nowrap">shade both</th></tr></thead><tbody>
+<tr><td>S1 · load C to a <b>black</b> stack, then unlink from heap</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td>ok</td></tr>
+<tr><td>S2 · stack (still <b>grey</b>) is the only holder of C, store C into a black heap object, drop it</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td class="hb-bad" style="white-space:nowrap">C lost</td><td>ok</td><td>ok</td><td>ok</td></tr>
+<tr><td>S3 · scanned stack shares an object it already shaded</td><td>ok</td><td>ok</td><td>ok</td><td>ok</td><td>ok</td></tr>
+</tbody></table>
+<p>Read the table as the whole design. Insertion alone fails S1 (a black stack hides things), which is exactly why Go 1.7 needed to rescan stacks. Deletion alone fails S2 (a grey stack is not a consistent snapshot). The hybrid passes both.</p>
+<figure data-fig="races"></figure>
+<h3>What the compiler and runtime actually do</h3>
+<pre><code>// compiler, for every heap pointer store  *slot = ptr
+if runtime.writeBarrier.enabled {          // CMPL runtime.writeBarrier, $0
+    buf := gcWriteBarrier2()               // reserves 2 slots (16 B) in this P's wbBuf
+    buf[0] = ptr                           // new value  (Dijkstra half)
+    buf[1] = *slot                         // old value  (Yuasa half)
+}
+*slot = ptr
+
+// runtime (mwbbuf.go): per-P buffer, wbBufEntries = 512 pointers = 4 KiB
+// fast path = bump a pointer; when full -&gt; wbBufFlush() on the system stack:
+//   for each entry: drop nil / tiny values, mark the object, push to the GC work queue</code></pre>
+<figure data-fig="wbbuf"></figure>
+<p>Three differences from the textbook pseudocode, all visible in <code>mbarrier.go</code> and <code>mwbbuf.go</code>:</p>
+<ol>
+<li><b>Buffered, not immediate.</b> <code>shade</code> does not mark on the spot. Pointers go into a 512-entry per-P buffer and are marked in batches. Entry points <code>gcWriteBarrier1/2/3</code> reserve 8, 16 or 24 bytes; up to 8 pointers per call (<code>wbMaxEntriesPerCall</code>).</li>
+<li><b>Unconditional.</b> The comment keeps the conditional pseudocode (<code>if current stack is grey: shade(ptr)</code>) as the proof, but the code path records <i>both</i> pointers every time. The comment gives the reason for not even conditioning on the <i>holder's</i> color: a mutator store followed by a mark-bit load can reorder against the GC's mark-bit store and slot load, and avoiding that needs an expensive memory barrier. So it always greys the pointer. Design doc 17503 lists this "unconditional" shape as a safe, easier-to-reason-about variant that costs about twice as much for most of the mark phase.</li>
+<li><b>Buffers drain before termination.</b> <code>gcMarkDone</code> runs a "ragged barrier" with <code>forEachP</code>, flushing every P's buffer and work cache before it may declare marking done.</li>
+</ol>
+<h3>Stacks, scanned once</h3>
+<pre><code>markroot(i):
+    gp := stack of goroutine i
+    suspendG(gp)                 // or park self in _Gwaiting (waitReasonGarbageCollectionScan)
+    scanstack(gp)                // shade every pointer found, set gp.gcscandone
+    // never scanned again this cycle: no rescan list, no STW rescan
+
+newobject during mark:  gcmarknewobject()   // allocate black</code></pre>
+<p>Allocate-black is a precondition the design doc names. Go already allocated black, so the hybrid barrier changed nothing there. Whether a goroutine's stack created mid-cycle is born black is something I did not verify (it lives in <code>proc.go</code>, which I did not read).</p>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg',svg=document.getElementById('hb');
+  function el(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e}
+  // colors: w white, g grey, k black.  e = B->C edge visible, hid = C held only by stack
+  var S=[
+    {i:'<b>Mark begins.</b> The barrier is on. B and C are white. The goroutine\'s stack S is unscanned, which counts as grey. Heap: global &rarr; B &rarr; C.',B:'w',C:'w',S:'g',e:1,sc:0},
+    {i:'<b>GC scans the globals.</b> It finds B and shades it grey.',B:'g',C:'w',S:'g',e:1,sc:0},
+    {i:'<b>GC scans stack S.</b> It is empty, so nothing to shade, and S turns <b>black</b>. From here on the insertion half of the barrier is unnecessary for this goroutine.',B:'g',C:'w',S:'k',e:1,sc:0},
+    {i:'<b>Mutator: <code>t := B.f</code>.</b> C is now held by S as well. Writes to the stack have <b>no barrier</b>, so the GC heard nothing. C is still white.',B:'g',C:'w',S:'k',e:1,sc:1,held:1},
+    {i:'<b>Mutator: <code>B.f = nil</code>.</b> This is a heap store, so the barrier runs: <code>shade(*slot)</code> shades the <i>old</i> value, C &rarr; grey. The only path to C from the heap is gone, but the GC now has it queued.',B:'g',C:'g',S:'k',e:0,sc:1,held:1,shade:1},
+    {i:'<b>GC drains the queue.</b> B scanned (no children now) &rarr; black. C scanned &rarr; black.',B:'k',C:'k',S:'k',e:0,sc:1,held:1},
+    {i:'<b>Mark termination.</b> No reachable object is white, so C survives. S was never rescanned and never needed to be.',B:'k',C:'k',S:'k',e:0,sc:1,held:1}
+  ];
+  var BAD={4:{B:'g',C:'w',S:'k',e:0,sc:1,held:1,i:'<b>Mutator: <code>B.f = nil</code>, deletion shade removed.</b> The barrier only looks at the new value (nil), so it shades nothing. C is white and the only path left runs from the stack.'},
+           5:{B:'k',C:'w',S:'k',e:0,sc:1,held:1,i:'<b>GC drains the queue.</b> B is scanned and has no children. The queue is empty, but C is still white.'},
+           6:{B:'k',C:'w',S:'k',e:0,sc:1,held:1,i:'<b class="hb-bad">Mark termination: C is white but reachable from S, so it is freed while the goroutine still holds it.</b> A use-after-free, in a memory-safe language. This is why Go 1.7 had to rescan every stack.'}};
+  var n=0,off=document.getElementById('hb-off');
+  function st(){var s=S[n];if(off.checked&&BAD[n])s=BAD[n];return s}
+  function draw(){
+    var s=st();svg.textContent='';
+    // global root
+    svg.appendChild(el('text',{x:30,y:72,class:'sm'},'global'));
+    svg.appendChild(el('path',{d:'M70 68 H150',class:'edge'}));
+    // B
+    svg.appendChild(el('circle',{cx:190,cy:68,r:30,class:'ob '+s.B}));
+    svg.appendChild(el('text',{x:190,y:74,class:'lab '+(s.B=='k'?'k':'')},'B'));
+    // B->C
+    svg.appendChild(el('path',{d:'M220 68 H330',class:'edge'+(s.e?'':' hid'),'opacity':s.e?1:.55}));
+    if(!s.e)svg.appendChild(el('text',{x:275,y:58,class:'sm'},'B.f = nil'));
+    svg.appendChild(el('circle',{cx:360,cy:68,r:30,class:'ob '+s.C}));
+    svg.appendChild(el('text',{x:360,y:74,class:'lab '+(s.C=='k'?'k':'')},'C'));
+    // stack
+    svg.appendChild(el('rect',{x:150,y:150,width:260,height:56,rx:8,class:'stk '+s.S}));
+    svg.appendChild(el('text',{x:166,y:174,class:'sm'},'goroutine stack S'));
+    svg.appendChild(el('text',{x:166,y:194,class:'sm'},s.S=='g'?'unscanned (grey)':'scanned (black)'));
+    if(s.held){svg.appendChild(el('text',{x:330,y:184,class:'lab'},'t = C'));
+      svg.appendChild(el('path',{d:'M360 150 V100',class:'edge'}));}
+    // legend
+    var lx=440;[['w','white'],['g','grey'],['k','black']].forEach(function(c,i){
+      svg.appendChild(el('circle',{cx:lx+8,cy:36+i*26,r:9,class:'ob '+c[0],'stroke-width':2}));
+      svg.appendChild(el('text',{x:lx+24,y:41+i*26,class:'sm'},c[1]));});
+    document.getElementById('hb-info').innerHTML=s.i;
+    document.getElementById('hb-n').textContent='step '+(n+1)+' / '+S.length;
+    document.getElementById('hb-prev').disabled=n==0;document.getElementById('hb-next').disabled=n==S.length-1;
+  }
+  document.getElementById('hb-prev').onclick=function(){if(n>0){n--;draw()}};
+  document.getElementById('hb-next').onclick=function(){if(n<S.length-1){n++;draw()}};
+  off.onchange=draw;draw();
+})();
+</script>

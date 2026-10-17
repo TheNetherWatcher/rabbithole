@@ -1,0 +1,56 @@
+<svg viewBox="0 0 860 296" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Store, enabled check, buffer reserve, per-P buffer, flush">
+<rect x="20" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="115" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">*slot = ptr</text>
+<text x="115" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">heap pointer store</text>
+<rect x="220" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="315" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">writeBarrier</text>
+<text x="315" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">enabled? (only during mark)</text>
+<rect x="430" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="525" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">gcWriteBarrier2</text>
+<text x="525" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">reserve 16 B, store old + new</text>
+<rect x="640" y="40" width="190" height="64" rx="8" class="f-panel s-line" stroke-width="2"/>
+<text x="735" y="68" class="t-ink" style="font-size:14px;text-anchor:middle">wbBufFlush</text>
+<text x="735" y="90" class="t-mute" style="font-size:12px;text-anchor:middle">when the buffer is full</text>
+<path d="M212.0 72.0 L209.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M218.0 72.0 L209.0 76.5 L209.0 67.5 Z" class="f-acc2" />
+<path d="M412.0 72.0 L419.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M428.0 72.0 L419.0 76.5 L419.0 67.5 Z" class="f-acc2" />
+<path d="M622.0 72.0 L629.0 72.0" class="f-none s-acc2" stroke-width="2.5" /><path d="M638.0 72.0 L629.0 76.5 L629.0 67.5 Z" class="f-acc2" />
+<text x="20" y="150" class="t-ink" style="font-size:15px;font-weight:700">per-P write-barrier buffer: 512 pointers (4 KiB)</text>
+<rect x="20" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="45" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="70" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="95" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="120" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="145" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="170" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="195" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="220" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="245" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="270" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="295" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="320" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="345" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="370" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="395" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="420" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="445" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="470" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="495" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="520" y="164" width="21" height="34" rx="3" class="f-acc2"/>
+<rect x="545" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="570" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="595" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="620" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="645" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="670" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="695" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="720" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="745" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="770" y="164" width="21" height="34" rx="3" class="f-line"/>
+<rect x="795" y="164" width="21" height="34" rx="3" class="f-line"/>
+<path d="M545 156 V206" class="f-none s-acc" stroke-width="3.5"/>
+<text x="533" y="224" class="t-mute" style="font-size:12px;text-anchor:middle">next</text>
+<path d="M820 156 V206" class="f-none s-bad" stroke-width="3.5"/>
+<text x="800" y="224" class="t-mute" style="font-size:12px;text-anchor:middle">end</text>
+<text x="20" y="258" class="t-mute" style="font-size:13px">Fast path: bump next by 16 B and store both pointers.</text>
+<text x="20" y="278" class="t-mute" style="font-size:13px">Slow path: flush every entry, mark the object, queue it grey. Marking happens in batches.</text>
+</svg>

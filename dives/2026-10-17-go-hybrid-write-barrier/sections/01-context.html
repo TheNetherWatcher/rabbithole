@@ -1,0 +1,9 @@
+<ul>
+<li><b>Tracing GC</b>: an object is live if a chain of pointers leads to it from a <i>root</i> (goroutine stacks, globals, registers). Everything else is freed. <a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">Go GC guide</a>.</li>
+<li><b>Concurrent marking</b>: the collector traces while the program (the <i>mutator</i>) keeps running and rewiring pointers, so the graph changes under the tracer.</li>
+<li><b>Tri-color abstraction</b>: white = unvisited, grey = visited but its pointers not yet scanned (on the work queue), black = visited and scanned. White objects left at the end are garbage.</li>
+<li><b>Strong invariant</b>: no black object points to a white object. If it holds, finishing the grey queue marks everything reachable. <a href="https://go.googlesource.com/proposal/+show/master/design/17503-eliminate-rescan.md" target="_blank" rel="noopener">Design doc 17503</a>.</li>
+<li><b>Write barrier</b>: a few instructions the compiler wraps around pointer stores into the heap, so the collector hears about the change. Stack writes get none, because they are far too frequent.</li>
+<li><b>Stop-the-world (STW)</b>: every goroutine pauses. Go keeps two short STW phases per cycle (sweep termination and mark termination).</li>
+</ul>
+<figure data-fig="tricolor"></figure>

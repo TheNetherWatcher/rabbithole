@@ -1,0 +1,13 @@
+<h3>Experiment 1 · Replay the races (2 min)</h3>
+<pre><code>python3 barrier_sim.py</code></pre>
+<p>Prints the barrier × race table and the S1 trace. Then break it: in <code>heap_store</code>, delete the line <code>self.shade(old, "deletion")</code> from the <code>hybrid</code> branch and rerun. S1 starts losing C. Add a fourth scenario where a <b>new</b> object is allocated white during marking and stored into a black object: you will need allocate-black to make it pass.</p>
+<h3>Experiment 2 · Watch STW stay flat as goroutines grow (5 min)</h3>
+<pre><code>go run gcdemo.go -g 1000
+go run gcdemo.go -g 100000
+go run gcdemo.go -g 500000
+GODEBUG=gctrace=1 go run gcdemo.go -g 100000 2&gt;&amp;1 | grep '^gc ' | head</code></pre>
+<p>My run (Go 1.27.2, 14 P, Apple silicon, 3 s of pointer churn):</p>
+<pre><code>goroutines=1000   GCs=9 max STW pause=62us  total STW=0.4ms
+goroutines=100000 GCs=9 max STW pause=133us total STW=0.4ms
+goroutines=500000 GCs=9 max STW pause=104us total STW=0.4ms</code></pre>
+<p>The worst pause stays around 100 µs from 1,000 to 500,000 goroutines. That is the headline of the design doc, observed. <b>Caveat:</b> the goroutines are idle and the heap is small, so this shows the absence of a goroutine-count-scaling STW, not that your service is pause-free. Also try <code>GOGC=25</code> and <code>GOGC=400</code> and watch the cycle count and the <code>GCCPUFraction</code> printed at the end.</p>

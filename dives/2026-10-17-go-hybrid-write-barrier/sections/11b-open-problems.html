@@ -1,0 +1,8 @@
+<ul>
+<li><b>Assist tail latency.</b> Assists tax whoever allocates when marking falls behind, and no credit exists at cycle start. Fixing it means starting marking earlier (more CPU, more time with the barrier on) or slowing allocation (latency) or growing the heap (memory). The obvious fix just moves the cost. I found no recent Go-team statement; "open" here is inferred from the long-running issues (#16293, #42430).</li>
+<li><b>The 25% worker budget at huge goroutine counts.</b> How the fixed CPU share interacts with 10<sup>6</sup> goroutines' stack-scan work: I found no discussion. Treat as unresearched.</li>
+<li><b>Barrier code size and check cost.</b> #20005 (open): the enabled-flag test uses an absolute address and accounts for a large share of barrier instructions; per-G shadows were proposed. Whether it shipped is unconfirmed.</li>
+<li><b>Does Green Tea change barrier cost?</b> The sources I found do not say.</li>
+<li><b>Generational or compacting Go.</b> Go stays non-moving and non-generational; whether that stays optimal for pointer-heavy heaps is contested. I did not research the current proposals, so no position is attributed here.</li>
+</ul>
+<p>Why it stays hard: every lever (start earlier, assist harder, grow the heap, buffer more) trades latency, CPU or memory against another one, and the workload decides which hurts.</p>
