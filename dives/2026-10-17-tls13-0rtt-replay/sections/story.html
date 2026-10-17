@@ -1,0 +1,87 @@
+<style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:14px system-ui,sans-serif}
+#story-fig .sf-note{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad);font:700 14px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Message ladder between a client and a server: full handshake, 1-RTT resumption, 0-RTT early data, a replayed flight and the defenses against it">
+<defs><pattern id="sth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Visit 1: full handshake, ticket issued</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Visit 2: resumed, request waits 1 RTT</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">0-RTT: the request rides the first flight</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">The early key comes from the ticket alone</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">An attacker copies the flight</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Replay cache: refuse the repeat</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">A freshness window bounds the cache</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">No shared cache: once per server</text>
+<rect x="20" y="40" width="100" height="30" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="70" y="60" class="sf-lab" text-anchor="middle">Client</text>
+<rect x="360" y="40" width="100" height="30" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="410" y="60" class="sf-lab" text-anchor="middle">Server</text>
+<line x1="70" y1="70" x2="70" y2="390" class="s-line" stroke-width="1.5" stroke-dasharray="4 5"/><line x1="410" y1="70" x2="410" y2="390" class="s-line" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g data-in="1" data-out="2"><line x1="70" y1="110" x2="410" y2="110" class="s-ink" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-ink"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello</text></g>
+<g data-in="1" data-out="2"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished</text></g>
+<g data-in="1" data-out="2"><line x1="70" y1="190" x2="410" y2="190" class="s-ink" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-ink"/><text x="240" y="182" text-anchor="middle" class="sf-lab">Finished</text></g>
+<g data-in="1" data-out="2" data-hl="1"><line x1="410" y1="230" x2="70" y2="230" class="s-acc" stroke-width="2" /><polygon points="70,230 79,225 79,235" class="f-acc"/><text x="240" y="222" text-anchor="middle" class="sf-lab">NewSessionTicket (the ticket)</text></g>
+<text x="240" y="290" class="sf-note" text-anchor="middle" data-in="1" data-out="2">A full handshake costs a round trip first.</text>
+<g data-in="2" data-out="3"><line x1="70" y1="110" x2="410" y2="110" class="s-ink" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-ink"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello + ticket (PSK)</text></g>
+<g data-in="2" data-out="3"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished</text></g>
+<g data-in="2" data-out="3" data-hl="2"><line x1="70" y1="190" x2="410" y2="190" class="s-warn" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-warn"/><text x="240" y="182" text-anchor="middle" class="sf-lab">Finished + GET /cart</text></g>
+<g data-in="2" data-out="3"><line x1="410" y1="230" x2="70" y2="230" class="s-ink" stroke-width="2" /><polygon points="70,230 79,225 79,235" class="f-ink"/><text x="240" y="222" text-anchor="middle" class="sf-lab">200 OK</text></g>
+<text x="240" y="290" class="sf-note" text-anchor="middle" data-in="2" data-out="3">The GET leaves only after 1 round trip.</text>
+<text x="240" y="312" class="sf-note" text-anchor="middle" data-in="2" data-out="3">(TCP handshake not drawn.)</text>
+<g data-in="3" data-hl="3 4"><line x1="70" y1="110" x2="410" y2="110" class="s-acc" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-acc"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello + ticket + GET /cart</text></g>
+<g data-in="3"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished, 200 OK</text></g>
+<g data-in="3"><line x1="70" y1="190" x2="410" y2="190" class="s-ink" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-ink"/><text x="240" y="182" text-anchor="middle" class="sf-lab">EndOfEarlyData, Finished</text></g>
+<text x="240" y="224" class="sf-note" text-anchor="middle" data-in="3" data-out="4">One round trip saved on the first request.</text>
+<rect x="20" y="236" width="250" height="50" rx="6" class="f-panel s-acc" stroke-width="1.5" data-in="4" data-out="5"/>
+<text x="30" y="258" class="sf-lab" data-in="4" data-out="5">early key = HKDF(PSK, ClientHello)</text>
+<text x="30" y="277" class="sf-note" data-in="4" data-out="5">no randomness from the server yet</text>
+<text x="240" y="224" class="sf-note" text-anchor="middle" data-in="4" data-out="5">Nothing in it says “this is the first copy”.</text>
+<rect x="20" y="338" width="100" height="30" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="5" data-out="7"/>
+<text x="70" y="358" class="sf-bad" text-anchor="middle" data-in="5" data-out="7">Attacker</text>
+<g data-in="5" data-out="7" data-hl="5"><line x1="120" y1="353" x2="410" y2="353" class="s-bad" stroke-width="2" stroke-dasharray="5 4"/><polygon points="410,353 401,348 401,358" class="f-bad"/><text x="268" y="345" class="sf-bad" text-anchor="middle">same bytes, sent again</text></g>
+<text x="240" y="304" class="sf-note" text-anchor="middle" data-in="5" data-out="6">Valid ticket, valid binder, valid key. It runs twice.</text>
+<text x="250" y="256" class="sf-note" data-in="6" data-out="8">replay cache (binder hashes)</text>
+<rect x="250" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="276" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" />
+<rect x="302" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="328" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="354" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" />
+<rect x="380" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="406" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" data-hl="6"/>
+<rect x="432" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<text x="240" y="322" class="sf-note" text-anchor="middle" data-in="6" data-out="7">Seen before: refuse 0-RTT, finish as a normal handshake.</text>
+<g data-in="7" data-out="8"><line x1="40" y1="322" x2="440" y2="322" class="s-mute" stroke-width="2" /><rect x="190" y="308" width="100" height="28" rx="3" class="f-ok" opacity=".35"/><line x1="240" y1="300" x2="240" y2="344" class="s-ink" stroke-width="2" stroke-dasharray="3 3"/><text x="240" y="296" class="sf-note" text-anchor="middle">now</text><text x="240" y="360" class="sf-note" text-anchor="middle">accept only if the ticket age fits (about ±10 s)</text><text x="240" y="380" class="sf-note" text-anchor="middle">older entries can be forgotten</text></g>
+<g data-in="8" data-out="9"><text x="240" y="240" class="sf-lab" text-anchor="middle">Several servers, one cache each</text>
+<rect x="24" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="89" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server A</text>
+<text x="89" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<rect x="174" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="239" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server B</text>
+<text x="239" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<rect x="324" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="389" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server C</text>
+<text x="389" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<text x="240" y="366" class="sf-note" text-anchor="middle" data-in="8" data-out="9">Replays are capped at once per server instance.</text>
+</g>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="9"/>
+<text x="240" y="130" class="sf-num" text-anchor="middle" data-in="9">−1 RTT</text>
+<text x="240" y="156" class="sf-lab" text-anchor="middle" data-in="9">saved on the first request</text>
+<text x="240" y="230" class="sf-num" text-anchor="middle" data-in="9">≤ 1 run per server</text>
+<text x="240" y="256" class="sf-lab" text-anchor="middle" data-in="9">per replayed flight, without shared state</text>
+<text x="240" y="330" class="sf-num" text-anchor="middle" data-in="9">only safe-to-repeat requests</text>
+<text x="240" y="356" class="sf-lab" text-anchor="middle" data-in="9">may ride in early data</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">You open a shop's app. Your phone and the shop's server do a <b>handshake</b>: a few messages to agree on secret keys. At the end the server hands your phone a <b>ticket</b>, a small sealed token meaning “this client was here before”.</p></div>
+<div class="step"><p><b>The next visit is faster, but not free.</b> The phone shows the ticket and the two sides resume. Even so, the first real request (<code>GET /cart</code>) waits for one full round trip. On a 100 ms path that is 100 ms of staring at nothing.</p></div>
+<div class="step"><p><b>0-RTT removes that wait.</b> The phone encrypts <code>GET /cart</code> with a key made from the ticket and sends it in the <i>very first</i> flight, glued to the ClientHello. The server can start work the moment the flight lands.</p></div>
+<div class="step"><p><b>The catch is in the key.</b> It is built only from the ticket's secret and the ClientHello. The server has contributed no fresh randomness, so nothing ties these bytes to <i>this</i> connection. That also means no forward secrecy for this data.</p></div>
+<div class="step"><p><b>So the flight can be copied.</b> An attacker on the path records the whole first flight and sends it again. Everything checks out: real ticket, real binder, correct key. The server has no way to call it a duplicate by cryptography alone.</p></div>
+<div class="step"><p><b>Defense one: remember.</b> The server stores a fingerprint of each accepted ClientHello (the PSK binder works). A second sighting means “refuse 0-RTT”: the handshake still completes, but the early data is thrown away and the client resends it safely.</p></div>
+<div class="step"><p><b>Defense two: forget on schedule.</b> The client says how old its ticket is. The server accepts early data only if that age fits the wall clock to within about ten seconds, so the cache only needs the last few seconds of entries, not all history.</p></div>
+<div class="step"><p><b>Real fleets break the memory.</b> If eight servers each keep their own cache, the attacker replays the flight to all eight. Each accepts it once. The RFC says outright that this “limits the number of replays to the number of server instances”.</p></div>
+<div class="step"><p><b>So: one round trip bought, replay not fully closed.</b> Treat early data like a request that may arrive twice, and put only safe-to-repeat requests in it. The cards below open each part.</p></div>
+</div>
+</div>

@@ -1,0 +1,8 @@
+<ul>
+<li><b>Who tells the application?</b> The signal (<code>Early-Data: 1</code>) is advisory: the origin has to check it, and intermediaries have to set it. If any hop forgets, replay protection silently vanishes. Whether safety should instead be <i>opt-in by the app</i> is still debated in standards discussion (see the httpbis replay work).</li>
+<li><b>Is shared replay state worth it?</b> Global consistent state across regions costs latency, which is the very thing 0-RTT was meant to save. The alternatives are “one owner zone per ticket” (needs routing) or “reject early data except for pure reads”. I found no measurement of how many real deployments have any shared state.</li>
+<li><b>Forward-secure 0-RTT.</b> Puncturable constructions (2019) exist on paper. I found no evidence of mainstream deployment and did not look for it exhaustively.</li>
+<li><b>Post-quantum tickets.</b> Hybrid ML-KEM tickets promise secrecy against harvest-now-decrypt-later but make tickets larger; how that interacts with anti-replay storage and QUIC’s amplification limits is not settled in anything I could verify.</li>
+<li><b>Delay vs replay.</b> The freshness window does not stop an attacker from holding a flight for several seconds and then releasing it. One participant in an IETF thread argued this is a retry-style attack, not a replay; it was a hypothetical, not a reported incident.</li>
+</ul>
+<p>I found <b>no</b> public production incident from a CDN where a non-idempotent request was replayed through 0-RTT. That could mean it hasn’t happened, or that nobody wrote it up.</p>

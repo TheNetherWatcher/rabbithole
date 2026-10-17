@@ -1,0 +1,8 @@
+<ul>
+<li><b>RTT</b> is the round-trip time between client and server; every back-and-forth message pair costs one. <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a> §1 lists TLS 1.3’s handshake modes.</li>
+<li><b>TLS 1.3 handshake</b>: ClientHello (with a key share) → ServerHello and Finished. Encryption keys come from HKDF over the shared secret, so a normal connection is already 1-RTT.</li>
+<li><b>Resumption with a PSK</b>: after a connection the server sends a <code>NewSessionTicket</code>. Later the client offers it back as a pre-shared key (PSK) so the two skip certificates and key exchange.</li>
+<li><b>AEAD records</b>: TLS wraps data in authenticated-encryption records; the attacker can neither read nor alter them, only drop, delay or duplicate.</li>
+<li><b>Idempotent</b>: running a request twice has the same effect as once (a read, a <code>PUT</code> to a fixed value). <code>POST /charge</code> is the opposite. See <a href="https://www.rfc-editor.org/rfc/rfc8470" target="_blank" rel="noopener">RFC 8470</a>.</li>
+<li><b>QUIC</b> embeds TLS 1.3, so its 0-RTT is the same mechanism (<a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a>).</li>
+</ul>

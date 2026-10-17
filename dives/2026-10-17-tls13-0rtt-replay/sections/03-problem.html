@@ -1,0 +1,12 @@
+<div class="pull"><b>−1 RTT</b><span>the entire prize: one round trip off the first request</span></div>
+<p>Every handshake message pair costs a full round trip, and round trips are the one cost that does not shrink with faster hardware. On a 100 ms path, here is the time until the first response byte arrives:</p>
+<table><thead><tr><th>Setup</th><th>Round trips before response</th><th>At 100 ms RTT</th></tr></thead><tbody>
+<tr><td>TCP + TLS 1.3, full handshake</td><td>1 (TCP) + 1 (TLS) + 1 (request)</td><td>300 ms</td></tr>
+<tr><td>TCP + TLS 1.3, resumed (PSK)</td><td>same: the PSK removes certificates, not the round trip</td><td>300 ms</td></tr>
+<tr><td>TCP + TLS 1.3, <b>0-RTT</b></td><td>1 (TCP) + 1 (request rides the first TLS flight)</td><td><b>200 ms</b></td></tr>
+<tr><td>QUIC 1-RTT</td><td>1 (handshake) + 1 (request)</td><td>200 ms</td></tr>
+<tr><td>QUIC <b>0-RTT</b></td><td>1</td><td><b>100 ms</b></td></tr>
+</tbody></table>
+<figure data-fig="flow"></figure>
+<p>The obstacle is cryptographic. In a normal handshake both sides contribute fresh randomness (the ECDHE shares and the Random values), and the traffic keys are derived from all of it, so every connection’s keys are unique and a recorded message is useless on another connection. To send data <i>before</i> the server has said anything, the client has to encrypt under something both sides already know: the ticket’s PSK. That is the root of both properties that come with 0-RTT: <b>no forward secrecy</b> and <b>no replay protection</b>.</p>
+<p>So the design problem is: gain the round trip, bound the damage of replays, and keep the whole thing optional so a server that cannot defend itself can say no.</p>

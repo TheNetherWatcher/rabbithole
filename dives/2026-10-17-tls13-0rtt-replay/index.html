@@ -1,0 +1,1395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A TLS 1.3 client holding a resumption ticket can send its request in the first flight, encrypted with a key made from the ticket alone. That saves one round trip, but no fresh server randomness is involved, so a network attacker can replay it. Servers fight back with a replay cache and a ~10 s fresh">
+<title>TLS 1.3 0-RTT replay · Rabbithole</title>
+<style>
+/* rabbithole dive template — shared by every dive page and the hub. Edit here, rebuild dives. */
+:root{
+  --bg:#fbfaf7;--bg2:#f4f1ea;--panel:#fff;--ink:#1c1b19;--mute:#6a665e;--line:#e4e0d6;
+  --accent:#b4411f;--accent2:#1f6f8b;--ok:#2f7d4f;--warn:#a96a00;--bad:#b3261e;
+  --code:#f3f0e8;--hl:#fff1c7;--plain:#eef6ee;--plainline:#bcd9bf;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.06);
+  --shadow-lift:0 2px 4px rgba(40,30,10,.08),0 12px 32px rgba(40,30,10,.12);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Charter,"Bitstream Charter","Source Serif Pro","Book Antiqua",Georgia,serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#14130f;--bg2:#1a1914;--panel:#1e1d18;--ink:#ece8dd;--mute:#a09a8b;--line:#34312a;
+  --accent:#ff8a5c;--accent2:#6cc4e0;--ok:#6fd08f;--warn:#e6b04d;--bad:#ff8077;
+  --code:#25231d;--hl:#4a3d12;--plain:#1b2a1d;--plainline:#35553a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.4);
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+a{color:var(--accent2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.scrolled{border-bottom-color:var(--line)}
+.tb-home{font-size:14px;color:var(--mute);text-decoration:none;white-space:nowrap}
+.tb-home:hover{color:var(--ink)}
+.tb-title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.topbar.scrolled .tb-title{opacity:1;transform:none}
+.tb-actions{display:flex;align-items:center;gap:8px}
+.tb-btn{font:inherit;font-size:13px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap}
+.tb-btn:hover{border-color:var(--accent)}
+.tb-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ring{position:relative;width:34px;height:34px;flex:none}
+.ring svg{width:34px;height:34px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .r-bg{stroke:var(--line)}
+.ring .r-fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s var(--ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:700}
+@media(max-width:560px){.tb-home span{display:none}.tb-btn .lbl{display:none}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;padding:0 0 8px}
+.hero-art{position:relative;height:clamp(180px,30vw,320px);overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));border-bottom:1px solid var(--line)}
+.hero-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.hero-art::after{content:"";position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(transparent,var(--bg))}
+.hero-art .layer{will-change:transform}
+.ascii-hero{position:absolute;inset:0;margin:0;display:grid;place-items:center;font:clamp(9px,1.4vw,14px)/1.15 var(--mono);color:var(--accent);white-space:pre;opacity:.9}
+.hero-text{position:relative;margin-top:-48px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--mute);background:var(--panel)}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,5.6vw,50px);line-height:1.08;letter-spacing:-.01em;margin:.1em 0 .4em;text-wrap:balance}
+.tldr{font-family:var(--serif);font-size:20px;line-height:1.55;margin:0 0 10px}
+.why{color:var(--mute);margin:0 0 16px}
+.tldr b,.why b{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.stat .v{font-size:24px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .l{font-size:12px;color:var(--mute);line-height:1.35}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--mute);margin:8px 0 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.badge[data-s="started"]::before{background:var(--accent2)}
+.badge[data-s="skimmed"]::before{background:var(--warn)}
+.badge[data-s="understood"]::before{background:var(--ok)}
+
+/* ---------- groups + cards ---------- */
+main.wrap{padding-bottom:96px}
+.group{margin:40px 0 12px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:14px 0;box-shadow:var(--shadow);
+  transition:box-shadow .3s var(--ease),transform .3s var(--ease),border-color .3s;scroll-margin-top:64px}
+@media(hover:hover){.card:not(.open):hover{box-shadow:var(--shadow-lift);transform:translateY(-2px)}}
+.card.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.card.plain{background:var(--plain);border-color:var(--plainline)}
+.card-head{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;padding:16px 18px}
+@media(max-width:620px){.card-head{grid-template-columns:minmax(0,1fr);gap:8px}.card-vis{max-width:200px}}
+.card-vis{align-self:start;aspect-ratio:16/10;border-radius:10px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;
+  transition:transform .4s var(--ease),opacity .4s}
+.card.plain .card-vis{background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.card-vis svg{width:100%;height:100%;display:block}
+.card.open .card-vis{transform:scale(.92);opacity:.75}
+.kicker{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.card h2{font-family:var(--serif);font-size:23px;font-weight:700;line-height:1.22;margin:2px 0 6px;text-wrap:balance}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6}
+.brief p{margin:0 0 6px}
+.brief ul{margin:4px 0 6px;padding-left:18px}
+.brief li{margin:2px 0}
+.card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:10px}
+.deeper{font:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;
+  border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:background .2s,color .2s}
+.deeper:hover{background:var(--accent);color:var(--bg)}
+.deeper .chev{display:inline-block;transition:transform .35s var(--ease)}
+.card.open .deeper .chev{transform:rotate(90deg)}
+.deeper small{font-weight:500;opacity:.75}
+.got{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);cursor:pointer;user-select:none}
+.got input{position:absolute;opacity:0;width:1px;height:1px}
+.got .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel);display:grid;place-items:center;transition:background .2s,border-color .2s}
+.got .box svg{width:14px;height:14px}
+.got .box path{fill:none;stroke:var(--bg);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .3s var(--ease) .05s}
+.got input:checked+.box{background:var(--ok);border-color:var(--ok)}
+.got input:checked+.box path{stroke-dashoffset:0}
+.got input:checked~span{color:var(--ok);font-weight:600}
+.got input:focus-visible+.box{outline:2px solid var(--accent);outline-offset:2px}
+
+.deep{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease)}
+.card.open .deep{grid-template-rows:1fr}
+.deep-inner{overflow:hidden;min-height:0}
+.deep-content{padding:4px 22px 8px;border-top:1px dashed var(--line);margin:0 18px;opacity:0;transform:translateY(-6px);transition:opacity .35s .1s,transform .45s var(--ease) .05s}
+.card.open .deep-content{opacity:1;transform:none}
+.deep-foot{display:flex;justify-content:flex-end;padding:0 18px 14px}
+.collapse{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;cursor:pointer;padding:4px 6px}
+.collapse:hover{color:var(--ink)}
+
+/* side dot nav */
+.dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:9px;z-index:15}
+@media(min-width:1120px){.dots{display:flex}}
+.dots a{position:relative;display:block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--mute);opacity:.55;transition:transform .2s,opacity .2s,background .2s}
+.dots a.got{background:var(--ok);border-color:var(--ok)}
+.dots a.on{opacity:1;transform:scale(1.35);border-color:var(--accent)}
+.dots a span{position:absolute;right:18px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12px;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .15s}
+.dots a:hover span,.dots a:focus-visible span{opacity:1}
+
+/* scroll reveal (only when JS runs) */
+.js .rv{opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*40ms)}
+.js .rv.in{opacity:1;transform:none}
+
+/* hero intro */
+.js .hero-art .layer{animation:rh-in 1s var(--ease) both;animation-delay:calc(var(--i,0)*140ms)}
+@keyframes rh-in{from{opacity:0;transform:translateY(14px)}}
+
+/* ---------- quiz ---------- */
+.qgroup{margin:18px 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.q{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;background:var(--bg)}
+.q .qq{font-weight:600}
+.q .qa{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.q.show .qa{grid-template-rows:1fr}
+.q .qa>div{overflow:hidden}
+.q .qa p{margin:8px 0 4px}
+.q .qrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.q .qrow .sec{margin-left:auto;font-size:12px}
+.q[data-r="y"]{border-left:4px solid var(--ok)}
+.q[data-r="n"]{border-left:4px solid var(--bad)}
+.qbtn{font:inherit;font-size:13px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qbtn:hover{border-color:var(--accent)}
+.qbtn[aria-pressed="true"].y{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.qbtn[aria-pressed="true"].n{background:var(--bad);border-color:var(--bad);color:var(--bg)}
+.score{font-weight:700;color:var(--accent)}
+
+/* ---------- content kit (use inside sections/*.html) ---------- */
+.deep-content{font-family:var(--serif);font-size:17.5px;line-height:1.7}
+.deep-content h3{font-family:var(--serif);font-size:21px;margin:1.5em 0 .3em}
+.deep-content h4{font-size:15px;margin:1.2em 0 .2em}
+.deep-content p,.deep-content li{max-width:66ch}
+.deep-content .widget,.deep-content .callout,.deep-content table,.deep-content .gc,.deep-content .two>div,.deep-content figcaption,.deep-content details,.deep-content .q,.stepbar,.ctl{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6}
+.dropcap::first-letter{float:left;font-family:var(--serif);font-weight:700;font-size:3.3em;line-height:.85;margin:.06em .1em 0 0;color:var(--accent)}
+.pull{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:22px 0;padding:14px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.pull b{font-family:var(--serif);font-size:clamp(44px,8vw,68px);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pull span{flex:1 1 220px;font-family:var(--serif);font-size:19px;line-height:1.4}
+code,pre{font-family:var(--mono);font-size:13.5px}
+code{background:var(--code);padding:1px 5px;border-radius:5px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;position:relative;line-height:1.5}
+pre code{background:none;padding:0}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;cursor:pointer;opacity:0;transition:opacity .2s}
+pre:hover .copy,.copy:focus-visible{opacity:1}
+@media(hover:none){.copy{opacity:1}}
+blockquote{margin:12px 0;padding:8px 16px;border-left:4px solid var(--accent);background:var(--bg2);border-radius:0 10px 10px 0;font-style:italic}
+.eq{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:10px 14px;margin:10px 0;font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;overflow-x:auto}
+.eq small{display:block;font-family:system-ui,sans-serif;font-size:14px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.gc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.gc b{display:block;color:var(--accent2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+.two>div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+.two .use{border-top:4px solid var(--ok)}.two .skip{border-top:4px solid var(--bad)}
+.callout{border-radius:10px;padding:10px 14px;margin:12px 0;border:1px solid var(--line);background:var(--bg);font-size:15px}
+.callout.mis{border-left:5px solid var(--warn)}.callout.gotcha{border-left:5px solid var(--bad)}.callout.flag{border-left:5px solid var(--mute)}.callout.tip{border-left:5px solid var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto;margin:10px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+details{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+button.btn{font:inherit;font-size:14px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+button.btn:disabled{opacity:.4;cursor:default}
+button.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.widget{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.widget svg{width:100%;height:auto;display:block}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.stepbar .info{flex:1 1 220px;font-size:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:14px}
+.ctl input[type=range]{flex:1 1 200px;accent-color:var(--accent)}
+.bar{height:16px;border-radius:8px;background:var(--code);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s var(--ease)}
+.mini{font-size:13px;color:var(--mute)}
+.deep-content,.brief{overflow-wrap:anywhere}
+
+/* ---------- reference figures (from papers/docs, cited) ---------- */
+.fig{margin:18px 0}
+.fig-zoom{display:block;width:100%;padding:10px;margin:0;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:zoom-in;
+  transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.fig-zoom:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
+.fig-zoom img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+:root[data-theme="dark"] .fig-zoom img{filter:brightness(.93)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fig-zoom img{filter:brightness(.93)}}
+.fig-svg{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.fig-svg svg{display:block;width:100%;min-width:560px;height:auto}
+.fig figcaption{font-size:13.5px;color:var(--mute);margin-top:8px;line-height:1.5}
+.fig figcaption b{color:var(--ink)}
+.fig-cite{display:block;font-size:12px;margin-top:2px}
+.fig-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.fig-pair{grid-template-columns:1fr}}
+.credits{font-size:13.5px}
+.lightbox{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;
+  background:rgba(10,9,7,.86);opacity:0;pointer-events:none;transition:opacity .25s}
+.lightbox.on{opacity:1;pointer-events:auto}
+.lightbox img{max-width:min(1400px,100%);max-height:80vh;background:#fff;border-radius:10px;padding:12px;transform:scale(.96);transition:transform .3s var(--ease)}
+.lightbox.on img{transform:none}
+.lightbox p{max-width:900px;color:#ddd;font-size:14px;margin:0;text-align:center}
+.lightbox p a{color:#9fd3e6}
+.lightbox button{position:absolute;top:14px;right:16px;font:inherit;font-size:14px;padding:4px 12px;border-radius:99px;border:1px solid #666;background:#222;color:#eee;cursor:pointer}
+
+/* ---------- SVG palette helpers (hero, card visuals, diagrams) ---------- */
+.f-bg{fill:var(--bg)}.f-bg2{fill:var(--bg2)}.f-panel{fill:var(--panel)}.f-code{fill:var(--code)}.f-line{fill:var(--line)}
+.f-ink{fill:var(--ink)}.f-mute{fill:var(--mute)}.f-acc{fill:var(--accent)}.f-acc2{fill:var(--accent2)}
+.f-ok{fill:var(--ok)}.f-warn{fill:var(--warn)}.f-bad{fill:var(--bad)}.f-hl{fill:var(--hl)}.f-none{fill:none}
+.s-ink{stroke:var(--ink)}.s-mute{stroke:var(--mute)}.s-line{stroke:var(--line)}.s-acc{stroke:var(--accent)}.s-acc2{stroke:var(--accent2)}
+.s-ok{stroke:var(--ok)}.s-warn{stroke:var(--warn)}.s-bad{stroke:var(--bad)}
+.t-ink{fill:var(--ink);font:600 11px var(--mono)}.t-mute{fill:var(--mute);font:10px system-ui,sans-serif}
+/* motion helpers: .draw (stroke draws in when visible), .flow (dashes travel), .pulse, .float, .blink */
+.js .draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s var(--ease);transition-delay:calc(var(--d,0)*120ms)}
+.js .in-view .draw{stroke-dashoffset:0}
+.flow{stroke-dasharray:4 6;animation:rh-flow 1.6s linear infinite}
+@keyframes rh-flow{to{stroke-dashoffset:-20}}
+.pulse{transform-box:fill-box;transform-origin:center;animation:rh-pulse 2.6s var(--ease) infinite}
+@keyframes rh-pulse{50%{transform:scale(1.08);opacity:.75}}
+.float{transform-box:fill-box;animation:rh-float 6s ease-in-out infinite}
+@keyframes rh-float{50%{transform:translateY(-4px)}}
+.blink{animation:rh-blink 1.4s steps(1) infinite}
+@keyframes rh-blink{50%{opacity:0}}
+.card:not(.in-view) .flow,.card:not(.in-view) .pulse{animation-play-state:paused}
+
+/* ---------- cold open: the first screen is a hook, not a title ---------- */
+.cold{position:relative;min-height:calc(100vh - 50px);min-height:calc(100svh - 50px);display:flex;align-items:center;padding:40px 0 72px;overflow:hidden;
+  background:radial-gradient(90% 70% at 50% 35%,var(--bg2),var(--bg))}
+.cold::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.6;
+  -webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 60% at 50% 40%,#000,transparent)}
+.cold-inner{position:relative;width:100%;max-width:820px;margin:0 auto;padding:0 16px}
+.cold-line{font-family:var(--serif);font-size:clamp(26px,5vw,46px);line-height:1.18;letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+.cold-line.sm{font-size:clamp(19px,2.8vw,25px);line-height:1.45;color:var(--mute)}
+.cold-line em{font-style:normal;color:var(--accent)}
+.js .cold-line{opacity:0;transform:translateY(12px);animation:rh-up .9s var(--ease) forwards;animation-delay:calc(.2s + var(--i,0)*.75s)}
+@keyframes rh-up{to{opacity:1;transform:none}}
+.js .cold .guess{opacity:0;animation:rh-fade .8s var(--ease) forwards;animation-delay:calc(.3s + var(--i,0)*.75s)}
+@keyframes rh-fade{to{opacity:1}}
+.cold .guess{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:16px}
+.cold-cue{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:13px;color:var(--mute);text-decoration:none;white-space:nowrap;letter-spacing:.04em}
+.cold-cue span{display:inline-block;animation:rh-float 2s ease-in-out infinite}
+.cold-cue:hover{color:var(--ink)}
+
+/* ---------- guess-first: commit to a prediction, then see the truth ---------- */
+.guess{margin:12px 0 14px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;background:var(--bg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.55}
+.g-q{margin:0 0 10px;font-weight:600}
+.g-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-right:6px}
+.g-opts{display:flex;flex-wrap:wrap;gap:8px}
+.g-opt{font:inherit;font-size:14px;padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .15s}
+.g-opt:hover:not(:disabled){border-color:var(--accent2);transform:translateY(-1px)}
+.g-opt:disabled{cursor:default}
+.g-opt.pick{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.g-opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--panel));font-weight:700}
+.guess.done .g-opt:not(.pick):not(.right){opacity:.45}
+.g-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.g-ctl input{flex:1 1 200px;accent-color:var(--accent2);min-width:0}
+.g-ctl output{min-width:4.5ch;font:700 20px var(--serif);font-variant-numeric:tabular-nums;color:var(--accent2)}
+.g-lock{font:inherit;font-size:14px;font-weight:600;padding:6px 16px;border-radius:99px;border:0;background:var(--accent2);color:var(--bg);cursor:pointer}
+.g-lock:hover{filter:brightness(1.08)}
+.guess.done .g-ctl input,.guess.done .g-lock{display:none}
+.g-scale{position:relative;height:0;margin:0;opacity:0;transition:height .4s var(--ease),opacity .4s,margin .4s}
+.guess.done .g-scale{height:34px;margin:10px 0 2px;opacity:1}
+.g-scale::before{content:"";position:absolute;left:0;right:0;top:6px;height:8px;border-radius:4px;background:var(--code);border:1px solid var(--line)}
+.g-band{position:absolute;top:4px;height:12px;border-radius:6px;background:var(--ok);min-width:6px;transform-origin:left;transform:scaleX(0);transition:transform .7s var(--ease) .15s}
+.guess.done .g-band{transform:none}
+.g-you{position:absolute;top:0;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--accent2)}
+.g-you::after{content:"you";position:absolute;top:19px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent2);font-weight:700}
+.g-scale span{position:absolute;top:19px;font-size:11px;color:var(--mute)}
+.g-scale span:last-of-type{right:0}
+.g-reveal{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s var(--ease)}
+.js .guess:not(.done) .g-reveal{grid-template-rows:0fr}
+.g-reveal>div{overflow:hidden;min-height:0}
+.g-reveal p{margin:8px 0 2px}
+.g-verdict{font-weight:700}
+.g-verdict.ok{color:var(--ok)}.g-verdict.no{color:var(--bad)}
+.js .card.gated .brief{filter:blur(6px);opacity:.55;user-select:none;pointer-events:none;transition:filter .5s,opacity .5s}
+.card .brief{transition:filter .5s,opacity .5s}
+.g-skip{display:none}
+.js .card.gated .g-skip{display:block;margin:-6px 0 6px}
+.g-skip{font:inherit;font-size:13px;color:var(--mute);background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline}
+
+/* ---------- story: sticky diagram that changes as you scroll ---------- */
+.story{padding:28px 0 8px;border-top:1px solid var(--line);margin-top:20px}
+.story-head h2{font-family:var(--serif);font-size:clamp(26px,4.4vw,38px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.scrolly{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:32px;max-width:1120px;margin:0 auto;padding:0 16px}
+.scrolly-fig{grid-column:2;grid-row:1;position:sticky;top:64px;height:calc(100vh - 80px);display:flex;align-items:center;justify-content:center}
+.scrolly-fig svg{width:100%;height:auto;max-height:100%;display:block}
+.scrolly-steps{grid-column:1;grid-row:1;padding:28vh 0 46vh;position:relative;z-index:3}
+.step{margin:0 0 62vh;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);
+  font-family:var(--serif);font-size:18px;line-height:1.6;opacity:.38;transition:opacity .45s var(--ease),transform .45s var(--ease);transform:scale(.98)}
+.step:last-child{margin-bottom:0}
+.step.on{opacity:1;transform:none;border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.step p{margin:0 0 .5em}.step p:last-child{margin:0}
+.step b{color:var(--accent)}
+.step .n{display:block;font:700 11px system-ui,sans-serif;letter-spacing:.12em;color:var(--mute);margin-bottom:4px}
+.js .scrolly-fig [data-in],.js .scrolly-fig [data-out]{transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.js .scrolly-fig .sv-off{opacity:0!important;pointer-events:none}
+.js .scrolly-fig text.sv-off,.js .scrolly-fig g.sv-off text{transition-duration:.12s}
+.js .scrolly-fig .sv-hl{stroke:var(--accent);stroke-width:3}
+@media(max-width:760px){
+  .scrolly{display:block}
+  .scrolly-fig{top:50px;height:auto;max-height:50vh;z-index:2;background:var(--bg);padding:6px 0 8px;margin:0 -16px;padding-left:12px;padding-right:12px;border-bottom:1px solid var(--line)}
+  .scrolly-fig svg{max-height:calc(50vh - 14px)}
+  .scrolly-steps{padding:12vh 0 22vh;z-index:1}
+  .step{margin-bottom:58vh;font-size:16.5px}
+}
+.card.open.settled .deep-inner{overflow:visible}
+
+/* ---------- hub ---------- */
+.hub-head{padding:40px 0 8px}
+.hub-head p{color:var(--mute);margin:0}
+.hub-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0}
+.hub-tools input{font:inherit;font-size:14px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);flex:1 1 200px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:8px 0 80px}
+.tile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:var(--shadow);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
+@media(hover:hover){.tile:hover{box-shadow:var(--shadow-lift);transform:translateY(-3px)}}
+.tile-art{position:relative;aspect-ratio:3/1;background:var(--bg2);border-bottom:1px solid var(--line);overflow:hidden}
+.tile-art>svg{position:absolute;inset:0;width:100%;height:100%}
+.tile-art .ascii-hero{font-size:6px}
+.tile-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.tile-body h3{font-size:15px;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mute);margin-top:auto}
+.tile .bar{height:5px;border:0;border-radius:3px}
+.tile[hidden]{display:none}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js .rv{opacity:1;transform:none}
+  .js .draw{stroke-dashoffset:0}
+  .js .cold-line,.js .cold .guess{opacity:1;transform:none}
+}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="tb-home" href="../index.html">← <span>All dives</span></a>
+  <span class="tb-title">TLS 1.3 0-RTT replay</span>
+  <div class="tb-actions">
+    <button class="tb-btn" id="expand-all" type="button" aria-pressed="false" title="Open every card (deep mode)">⇕ <span class="lbl">Expand all</span></button>
+    <button class="tb-btn" id="theme" type="button" aria-label="Toggle light/dark theme">◐</button>
+    <span class="ring" title="Progress: cards marked 'Got it' + questions you knew">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="r-bg" cx="18" cy="18" r="15"/><circle class="r-fg" cx="18" cy="18" r="15" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg>
+      <b id="ring-pct">0%</b>
+    </span>
+  </div>
+</header>
+
+<section class="cold" id="cold"><div class="cold-inner"><style>
+.cold-viz{margin:18px 0 0;font:13px system-ui,sans-serif;color:var(--mute)}
+.js .cold-viz{display:none}
+.js .guess.done ~ .cold-viz{display:block}
+.cv-row{margin:0 0 12px}
+.cv-row b{color:var(--ink)}
+.cv-list{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:6px 0 4px}
+.cv-list i{display:block;height:22px;border-radius:4px;background:color-mix(in srgb,var(--bad) 70%,var(--panel));border:1px solid var(--line);font:700 11px/22px var(--mono);font-style:normal;color:var(--bg);text-align:center}
+.cv-list i.o{background:var(--ok)}
+.js .cv-list i{opacity:0;transform:translateY(6px);animation:cv-in .35s var(--ease) forwards;animation-delay:calc(var(--d)*80ms)}
+@keyframes cv-in{to{opacity:1;transform:none}}
+</style>
+<p class="cold-line">You tap “Pay” in an app. Your phone fires one encrypted packet at the server.</p>
+<p class="cold-line sm">A stranger on the café wifi can’t read it, can’t change it. But they <em>can</em> copy it and send it again. The protocol that made it fast, TLS 1.3 <em>0-RTT</em>, has no built-in way to say “this is the second copy”.</p>
+<div class="guess" data-g="cold" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> An attacker copies one encrypted 0-RTT request and sends it again. With no extra defense, how many times can the server run it?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">Once, TLS spots the copy</button><button class="g-opt" type="button" data-k="1">Twice at most</button><button class="g-opt" type="button" data-k="2">As many times as they send it</button><button class="g-opt" type="button" data-k="3">Never: copies fail to decrypt</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>As many as they send.</b> RFC 8446 §2.3: “There are no guarantees of non-replay between connections.” The copy decrypts fine because its key needs nothing from the server. Replay caches, a freshness window and app-level care cut it down.</p></div></div></div>
+<div class="cold-viz" aria-hidden="true">
+  <div class="cv-row"><b>With no defense, every copy runs.</b> The attacker’s resends each look like a fresh, valid request.
+    <div class="cv-list" id="cv-bad"></div></div>
+  <div class="cv-row"><b>With a replay cache on one server, only the first runs.</b> With eight servers that don’t share a cache, it can run eight times.
+    <div class="cv-list" id="cv-ok" style="--o:1s"></div></div>
+</div>
+<script>
+(function(){
+  function fill(id,n,okFirst){var g=document.getElementById(id);for(var k=0;k<n;k++){var i=document.createElement('i');i.style.setProperty('--d',k);i.textContent=k===0?'1':'';if(okFirst&&k===0)i.className='o';g.appendChild(i);}}
+  fill('cv-bad',20,false);
+  var g=document.getElementById('cv-ok');
+  for(var k=0;k<20;k++){var i=document.createElement('i');i.style.setProperty('--d',k);if(k<8){i.className='o';i.textContent=String(k+1);}else{i.style.background='var(--code)';i.style.border='1px dashed var(--line)';}g.appendChild(i);}
+})();
+</script>
+</div><a class="cold-cue" href="#top">TLS 1.3 0-RTT replay <span>↓</span></a></section>
+<section class="hero" id="top">
+  <div class="hero-art" aria-hidden="true"><svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs><pattern id="hdots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" class="f-line"/></pattern></defs>
+<g class="layer" data-depth="0.05"><rect width="1200" height="320" fill="url(#hdots)"/></g>
+<g class="layer" data-depth="0.14"><rect x="880" y="66" width="130" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><rect x="890" y="74" width="60" height="8" rx="2" class="f-acc" /><rect x="890" y="88" width="60" height="8" rx="2" class="f-line" /><rect x="1026" y="80" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1038" y="80" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1050" y="80" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1062" y="80" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1074" y="80" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1086" y="80" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1098" y="80" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1110" y="80" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="880" y="122" width="130" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><rect x="890" y="130" width="60" height="8" rx="2" class="f-acc" /><rect x="890" y="144" width="60" height="8" rx="2" class="f-line" /><rect x="1026" y="136" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1038" y="136" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1050" y="136" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1062" y="136" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1074" y="136" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1086" y="136" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1098" y="136" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1110" y="136" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="880" y="178" width="130" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><rect x="890" y="186" width="60" height="8" rx="2" class="f-acc" /><rect x="890" y="200" width="60" height="8" rx="2" class="f-line" /><rect x="1026" y="192" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1038" y="192" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1050" y="192" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1062" y="192" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1074" y="192" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1086" y="192" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1098" y="192" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1110" y="192" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="880" y="234" width="130" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><rect x="890" y="242" width="60" height="8" rx="2" class="f-acc" /><rect x="890" y="256" width="60" height="8" rx="2" class="f-line" /><rect x="1026" y="248" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1038" y="248" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1050" y="248" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1062" y="248" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1074" y="248" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1086" y="248" width="10" height="12" rx="2" class="f-line" opacity=".7"/><rect x="1098" y="248" width="10" height="12" rx="2" class="f-acc2" opacity=".9"/><rect x="1110" y="248" width="10" height="12" rx="2" class="f-line" opacity=".7"/>
+<rect x="120" y="124" width="96" height="72" rx="10" class="f-panel s-line" stroke-width="1.5"/><rect x="136" y="140" width="64" height="40" rx="5" class="f-code" /><rect x="148" y="186" width="40" height="4" rx="2" class="f-line" /></g>
+<g class="layer" data-depth="0.22">
+<path d="M222 160 C 400 160 520 160 640 160" class="f-none s-acc" stroke-width="3"/>
+<path d="M640 160 C 740 160 780 86 876 86" class="f-none s-bad flow" stroke-width="2.2"/>
+<path d="M640 160 C 740 160 780 142 876 142" class="f-none s-bad flow" stroke-width="2.2"/>
+<path d="M640 160 C 740 160 780 198 876 198" class="f-none s-bad flow" stroke-width="2.2"/>
+<path d="M640 160 C 740 160 780 254 876 254" class="f-none s-bad flow" stroke-width="2.2"/>
+<circle cx="640" cy="160" r="9" class="f-bg s-ink" stroke-width="2"/></g>
+<g class="layer" data-depth="0.32">
+<g class="pulse"><rect x="300" y="126" width="56" height="30" rx="4" class="f-acc" /><circle cx="300" cy="141.0" r="4" class="f-bg"/><circle cx="356" cy="141.0" r="4" class="f-bg"/><line x1="314" y1="132" x2="314" y2="150" class="s-ink" stroke-width="1" stroke-dasharray="2 2" opacity=".6"/></g>
+<rect x="420" y="146" width="44" height="28" rx="5" class="f-ok" /><rect x="430" y="156" width="24" height="4" rx="1" class="f-bg" /><rect x="430" y="164" width="16" height="4" rx="1" class="f-bg" />
+<rect x="700" y="134" width="32" height="20" rx="4" class="f-bad" opacity=".85"/><rect x="740" y="180" width="32" height="20" rx="4" class="f-bad" opacity=".6"/>
+</g>
+</svg></div>
+  <div class="hero-text wrap">
+    <div class="chips rv"><span class="chip">Computer science</span><span class="chip">Networking/protocols</span><span class="chip">Depth: hard</span><span class="chip">2026-10-17</span></div>
+    <h1 class="rv" style="--i:1">TLS 1.3 0-RTT early data: replay windows, ticket age, and idempotency</h1>
+    <p class="tldr rv" style="--i:2">A TLS 1.3 client holding a resumption ticket can send its request in the <b>first flight</b>, encrypted with a key made from the ticket alone. That saves <b>one round trip</b>, but no fresh server randomness is involved, so a network attacker can <b>replay</b> it. Servers fight back with a <b>replay cache</b> and a <b>~10 s freshness window</b>, yet a cluster only gets “at most once per server”.</p>
+    <p class="why rv" style="--i:3"><b>Why it matters:</b> 0-RTT is a real latency win for reads and a real double-charge risk for writes, and the line between them is drawn by your application, not by TLS.</p>
+    <div class="stats"><div class="stat rv" style="--i:0"><div class="v">1 RTT</div><div class="l">saved on the first request</div></div><div class="stat rv" style="--i:1"><div class="v">~10 s</div><div class="l">freshness window for Internet clients</div></div><div class="stat rv" style="--i:2"><div class="v">7 days</div><div class="l">maximum ticket lifetime</div></div><div class="stat rv" style="--i:3"><div class="v">N</div><div class="l">max replays with one cache per server</div></div><div class="stat rv" style="--i:4"><div class="v">6.4 MB</div><div class="l">replay cache at 10k accepts/s, ±10 s</div></div></div>
+    <div class="meta-row rv"><span class="badge" data-status data-s="started">Started</span>
+      <span>19 cards</span><span>· ~8 min skim</span><span>· ~38 min deep</span>
+      <span class="g-score" hidden></span>
+      <span>· Read the briefs, open "Go deeper" where you want more.</span></div>
+  </div>
+</section>
+
+<section class="story" id="story"><div class="story-head wrap"><div class="kicker">The whole idea in 9 scrolls</div><h2>How a returning phone saves a round trip, and why a stranger can make it run twice</h2></div><style>
+#story-fig .sf-cap{fill:var(--ink);font:700 17px var(--serif)}
+#story-fig .sf-lab{fill:var(--ink);font:14px system-ui,sans-serif}
+#story-fig .sf-note{fill:var(--mute);font:14px system-ui,sans-serif}
+#story-fig .sf-bad{fill:var(--bad);font:700 14px system-ui,sans-serif}
+#story-fig .sf-num{fill:var(--ink);font:700 26px var(--serif)}
+</style>
+<div class="scrolly">
+<div class="scrolly-fig"><svg id="story-fig" viewBox="0 0 480 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Message ladder between a client and a server: full handshake, 1-RTT resumption, 0-RTT early data, a replayed flight and the defenses against it">
+<defs><pattern id="sth" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="s-warn" stroke-width="2" opacity=".55"/></pattern></defs>
+<text x="20" y="26" class="sf-cap" data-in="1" data-out="2">Visit 1: full handshake, ticket issued</text>
+<text x="20" y="26" class="sf-cap" data-in="2" data-out="3">Visit 2: resumed, request waits 1 RTT</text>
+<text x="20" y="26" class="sf-cap" data-in="3" data-out="4">0-RTT: the request rides the first flight</text>
+<text x="20" y="26" class="sf-cap" data-in="4" data-out="5">The early key comes from the ticket alone</text>
+<text x="20" y="26" class="sf-cap" data-in="5" data-out="6">An attacker copies the flight</text>
+<text x="20" y="26" class="sf-cap" data-in="6" data-out="7">Replay cache: refuse the repeat</text>
+<text x="20" y="26" class="sf-cap" data-in="7" data-out="8">A freshness window bounds the cache</text>
+<text x="20" y="26" class="sf-cap" data-in="8" data-out="9">No shared cache: once per server</text>
+<rect x="20" y="40" width="100" height="30" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="70" y="60" class="sf-lab" text-anchor="middle">Client</text>
+<rect x="360" y="40" width="100" height="30" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="410" y="60" class="sf-lab" text-anchor="middle">Server</text>
+<line x1="70" y1="70" x2="70" y2="390" class="s-line" stroke-width="1.5" stroke-dasharray="4 5"/><line x1="410" y1="70" x2="410" y2="390" class="s-line" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g data-in="1" data-out="2"><line x1="70" y1="110" x2="410" y2="110" class="s-ink" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-ink"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello</text></g>
+<g data-in="1" data-out="2"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished</text></g>
+<g data-in="1" data-out="2"><line x1="70" y1="190" x2="410" y2="190" class="s-ink" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-ink"/><text x="240" y="182" text-anchor="middle" class="sf-lab">Finished</text></g>
+<g data-in="1" data-out="2" data-hl="1"><line x1="410" y1="230" x2="70" y2="230" class="s-acc" stroke-width="2" /><polygon points="70,230 79,225 79,235" class="f-acc"/><text x="240" y="222" text-anchor="middle" class="sf-lab">NewSessionTicket (the ticket)</text></g>
+<text x="240" y="290" class="sf-note" text-anchor="middle" data-in="1" data-out="2">A full handshake costs a round trip first.</text>
+<g data-in="2" data-out="3"><line x1="70" y1="110" x2="410" y2="110" class="s-ink" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-ink"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello + ticket (PSK)</text></g>
+<g data-in="2" data-out="3"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished</text></g>
+<g data-in="2" data-out="3" data-hl="2"><line x1="70" y1="190" x2="410" y2="190" class="s-warn" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-warn"/><text x="240" y="182" text-anchor="middle" class="sf-lab">Finished + GET /cart</text></g>
+<g data-in="2" data-out="3"><line x1="410" y1="230" x2="70" y2="230" class="s-ink" stroke-width="2" /><polygon points="70,230 79,225 79,235" class="f-ink"/><text x="240" y="222" text-anchor="middle" class="sf-lab">200 OK</text></g>
+<text x="240" y="290" class="sf-note" text-anchor="middle" data-in="2" data-out="3">The GET leaves only after 1 round trip.</text>
+<text x="240" y="312" class="sf-note" text-anchor="middle" data-in="2" data-out="3">(TCP handshake not drawn.)</text>
+<g data-in="3" data-hl="3 4"><line x1="70" y1="110" x2="410" y2="110" class="s-acc" stroke-width="2" /><polygon points="410,110 401,105 401,115" class="f-acc"/><text x="240" y="102" text-anchor="middle" class="sf-lab">ClientHello + ticket + GET /cart</text></g>
+<g data-in="3"><line x1="410" y1="150" x2="70" y2="150" class="s-ink" stroke-width="2" /><polygon points="70,150 79,145 79,155" class="f-ink"/><text x="240" y="142" text-anchor="middle" class="sf-lab">ServerHello … Finished, 200 OK</text></g>
+<g data-in="3"><line x1="70" y1="190" x2="410" y2="190" class="s-ink" stroke-width="2" /><polygon points="410,190 401,185 401,195" class="f-ink"/><text x="240" y="182" text-anchor="middle" class="sf-lab">EndOfEarlyData, Finished</text></g>
+<text x="240" y="224" class="sf-note" text-anchor="middle" data-in="3" data-out="4">One round trip saved on the first request.</text>
+<rect x="20" y="236" width="250" height="50" rx="6" class="f-panel s-acc" stroke-width="1.5" data-in="4" data-out="5"/>
+<text x="30" y="258" class="sf-lab" data-in="4" data-out="5">early key = HKDF(PSK, ClientHello)</text>
+<text x="30" y="277" class="sf-note" data-in="4" data-out="5">no randomness from the server yet</text>
+<text x="240" y="224" class="sf-note" text-anchor="middle" data-in="4" data-out="5">Nothing in it says “this is the first copy”.</text>
+<rect x="20" y="338" width="100" height="30" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="5" data-out="7"/>
+<text x="70" y="358" class="sf-bad" text-anchor="middle" data-in="5" data-out="7">Attacker</text>
+<g data-in="5" data-out="7" data-hl="5"><line x1="120" y1="353" x2="410" y2="353" class="s-bad" stroke-width="2" stroke-dasharray="5 4"/><polygon points="410,353 401,348 401,358" class="f-bad"/><text x="268" y="345" class="sf-bad" text-anchor="middle">same bytes, sent again</text></g>
+<text x="240" y="304" class="sf-note" text-anchor="middle" data-in="5" data-out="6">Valid ticket, valid binder, valid key. It runs twice.</text>
+<text x="250" y="256" class="sf-note" data-in="6" data-out="8">replay cache (binder hashes)</text>
+<rect x="250" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="276" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" />
+<rect x="302" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="328" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="354" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" />
+<rect x="380" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<rect x="406" y="264" width="22" height="22" rx="3" class="f-acc2" data-in="6" data-out="8" data-hl="6"/>
+<rect x="432" y="264" width="22" height="22" rx="3" class="f-code" data-in="6" data-out="8" />
+<text x="240" y="322" class="sf-note" text-anchor="middle" data-in="6" data-out="7">Seen before: refuse 0-RTT, finish as a normal handshake.</text>
+<g data-in="7" data-out="8"><line x1="40" y1="322" x2="440" y2="322" class="s-mute" stroke-width="2" /><rect x="190" y="308" width="100" height="28" rx="3" class="f-ok" opacity=".35"/><line x1="240" y1="300" x2="240" y2="344" class="s-ink" stroke-width="2" stroke-dasharray="3 3"/><text x="240" y="296" class="sf-note" text-anchor="middle">now</text><text x="240" y="360" class="sf-note" text-anchor="middle">accept only if the ticket age fits (about ±10 s)</text><text x="240" y="380" class="sf-note" text-anchor="middle">older entries can be forgotten</text></g>
+<g data-in="8" data-out="9"><text x="240" y="240" class="sf-lab" text-anchor="middle">Several servers, one cache each</text>
+<rect x="24" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="89" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server A</text>
+<text x="89" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<rect x="174" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="239" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server B</text>
+<text x="239" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<rect x="324" y="262" width="130" height="70" rx="6" class="f-panel s-bad" stroke-width="1.5" data-in="8" data-out="9"/>
+<text x="389" y="286" class="sf-lab" text-anchor="middle" data-in="8" data-out="9">server C</text>
+<text x="389" y="316" class="sf-bad" text-anchor="middle" data-in="8" data-out="9">accepted once</text>
+<text x="240" y="366" class="sf-note" text-anchor="middle" data-in="8" data-out="9">Replays are capped at once per server instance.</text>
+</g>
+<rect x="0" y="0" width="480" height="430" class="f-bg" opacity=".97" data-in="9"/>
+<text x="240" y="130" class="sf-num" text-anchor="middle" data-in="9">−1 RTT</text>
+<text x="240" y="156" class="sf-lab" text-anchor="middle" data-in="9">saved on the first request</text>
+<text x="240" y="230" class="sf-num" text-anchor="middle" data-in="9">≤ 1 run per server</text>
+<text x="240" y="256" class="sf-lab" text-anchor="middle" data-in="9">per replayed flight, without shared state</text>
+<text x="240" y="330" class="sf-num" text-anchor="middle" data-in="9">only safe-to-repeat requests</text>
+<text x="240" y="356" class="sf-lab" text-anchor="middle" data-in="9">may ride in early data</text>
+</svg></div>
+<div class="scrolly-steps">
+<div class="step"><p class="dropcap">You open a shop's app. Your phone and the shop's server do a <b>handshake</b>: a few messages to agree on secret keys. At the end the server hands your phone a <b>ticket</b>, a small sealed token meaning “this client was here before”.</p></div>
+<div class="step"><p><b>The next visit is faster, but not free.</b> The phone shows the ticket and the two sides resume. Even so, the first real request (<code>GET /cart</code>) waits for one full round trip. On a 100 ms path that is 100 ms of staring at nothing.</p></div>
+<div class="step"><p><b>0-RTT removes that wait.</b> The phone encrypts <code>GET /cart</code> with a key made from the ticket and sends it in the <i>very first</i> flight, glued to the ClientHello. The server can start work the moment the flight lands.</p></div>
+<div class="step"><p><b>The catch is in the key.</b> It is built only from the ticket's secret and the ClientHello. The server has contributed no fresh randomness, so nothing ties these bytes to <i>this</i> connection. That also means no forward secrecy for this data.</p></div>
+<div class="step"><p><b>So the flight can be copied.</b> An attacker on the path records the whole first flight and sends it again. Everything checks out: real ticket, real binder, correct key. The server has no way to call it a duplicate by cryptography alone.</p></div>
+<div class="step"><p><b>Defense one: remember.</b> The server stores a fingerprint of each accepted ClientHello (the PSK binder works). A second sighting means “refuse 0-RTT”: the handshake still completes, but the early data is thrown away and the client resends it safely.</p></div>
+<div class="step"><p><b>Defense two: forget on schedule.</b> The client says how old its ticket is. The server accepts early data only if that age fits the wall clock to within about ten seconds, so the cache only needs the last few seconds of entries, not all history.</p></div>
+<div class="step"><p><b>Real fleets break the memory.</b> If eight servers each keep their own cache, the attacker replays the flight to all eight. Each accepts it once. The RFC says outright that this “limits the number of replays to the number of server instances”.</p></div>
+<div class="step"><p><b>So: one round trip bought, replay not fully closed.</b> Treat early data like a request that may arrive twice, and put only safe-to-repeat requests in it. The cards below open each part.</p></div>
+</div>
+</div>
+</section>
+
+<nav class="dots" aria-label="Cards"><a href="#c-plain" data-id="plain" aria-label="A returning customer can order before saying hello, and anyone can copy the order"><span>A returning customer can order before saying hello, and anyone can copy the order</span></a><a href="#c-ctx" data-id="ctx" aria-label="Six ideas to bring along"><span>Six ideas to bring along</span></a><a href="#c-world" data-id="world" aria-label="nginx, QUIC and CDNs ship it, mostly for safe reads"><span>nginx, QUIC and CDNs ship it, mostly for safe reads</span></a><a href="#c-onel" data-id="onel" aria-label="“Saves a round trip” hides five costs"><span>“Saves a round trip” hides five costs</span></a><a href="#c-problem" data-id="problem" aria-label="Sending data before the handshake ends needs a key both sides already hold"><span>Sending data before the handshake ends needs a key both sides already hold</span></a><a href="#c-model" data-id="model" aria-label="A stamped card plus a sealed slip: copyable, not forgeable"><span>A stamped card plus a sealed slip: copyable, not forgeable</span></a><a href="#c-mech" data-id="mech" aria-label="Ticket in, early key out, then accept or refuse"><span>Ticket in, early key out, then accept or refuse</span></a><a href="#c-math" data-id="math" aria-label="A ±10 s window turns “remember everything” into megabytes"><span>A ±10 s window turns “remember everything” into megabytes</span></a><a href="#c-why" data-id="why" aria-label="The attacker can only duplicate, never read or change"><span>The attacker can only duplicate, never read or change</span></a><a href="#c-knobs" data-id="knobs" aria-label="Window, lifetime and replay store: each trades memory for replay risk"><span>Window, lifetime and replay store: each trades memory for replay risk</span></a><a href="#c-breaks" data-id="breaks" aria-label="Replays, retries and forward secrecy are three different failures"><span>Replays, retries and forward secrecy are three different failures</span></a><a href="#c-wild" data-id="wild" aria-label="nginx off by default, QUIC requires it, Go’s TCP stack skips it"><span>nginx off by default, QUIC requires it, Go’s TCP stack skips it</span></a><a href="#c-frontier" data-id="frontier" aria-label="Replay handling is settled; post-quantum tickets are the live edge"><span>Replay handling is settled; post-quantum tickets are the live edge</span></a><a href="#c-open" data-id="open" aria-label="Who tells the application the request is early?"><span>Who tells the application the request is early?</span></a><a href="#c-lineage" data-id="lineage" aria-label="From TLS 1.2 tickets and Google QUIC to RFC 8446’s one surviving 0-RTT mode"><span>From TLS 1.2 tickets and Google QUIC to RFC 8446’s one surviving 0-RTT mode</span></a><a href="#c-hands" data-id="hands" aria-label="Count how many times one captured flight can run"><span>Count how many times one captured flight can run</span></a><a href="#c-quiz" data-id="quiz" aria-label="Test yourself"><span>Test yourself</span></a><a href="#c-next" data-id="next" aria-label="Three topics that build on this"><span>Three topics that build on this</span></a><a href="#c-sources" data-id="sources" aria-label="Standards, papers, docs, and leads I could not open"><span>Standards, papers, docs, and leads I could not open</span></a></nav>
+
+<main class="wrap">
+<div class="group rv">Plain English</div>
+<article class="card rv plain" id="c-plain" data-id="plain">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="36" width="44" height="26" rx="4" class="f-acc" /><circle cx="14" cy="49.0" r="4" class="f-bg"/><circle cx="58" cy="49.0" r="4" class="f-bg"/><line x1="28" y1="42" x2="28" y2="56" class="s-ink" stroke-width="1" stroke-dasharray="2 2" opacity=".6"/><rect x="100" y="20" width="40" height="60" rx="3" class="f-code s-line" stroke-width="1.5"/><circle cx="132" cy="52" r="2.5" class="f-mute"/><line x1="62" y1="49" x2="96" y2="49" class="s-acc" stroke-width="2" /><polygon points="98,49 89,44 89,54" class="f-acc"/></svg></div>
+<div class="card-body"><div class="kicker">In everyday words</div><h2>A returning customer can order before saying hello, and anyone can copy the order</h2>
+<div class="brief"><p>A members’ card lets you hand over your order the moment you reach the counter. 0-RTT does that for a returning phone. The catch is a photocopier: the sealed order can be duplicated, and the shop notices only if it keeps a log.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-plain">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-plain"><div class="deep-inner"><div class="deep-content">
+<p class="dropcap">Picture a coffee shop with a members’ card. The first time you visit, the staff chat with you, check who you are, and stamp a card that says “regular, known to us”. The next visit you skip the chat: you walk up and slide your card and a sealed order slip across the counter in the same motion. The slip is sealed with a code only you and the shop can compute from the card. The barista starts your flat white before saying hello. That is the whole trick of <b>0-RTT</b>: a returning customer’s first message already carries the order.</p>
+<p>The catch is the photocopier. Anyone standing nearby can’t read the slip or change it, but they can copy the card and the sealed slip and hand both in again. To the barista the copy is perfect, and a second flat white gets made and charged. The fix is boring bookkeeping: the shop keeps a short log of slips it served in the last few seconds and refuses repeats. That works for one barista. With eight baristas who each keep their own log, the copy can be handed to each of them, and each makes one coffee.</p>
+<h3 id="example">Everyday example</h3>
+<p>Maya’s grocery app gets a card (the “ticket”) when she first signs in, good for two days. Next morning she opens it and the phone sends <i>show my basket</i> in its very first packet. The server answers 100 ms sooner than it otherwise would. Someone who recorded that packet replays it: the server shows the basket again. Harmless.</p>
+<p>Now suppose the packet had been <i>place my order</i>. The replay would place it twice. So the app’s rule is: only requests that are safe to repeat may travel this way. For anything else the server answers “425 Too Early, come back after the handshake”, and the phone sends it again through the normal, safe route.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Context</div>
+<article class="card rv" id="c-ctx" data-id="ctx">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="18" y="18" width="8" height="8" rx="2" class="f-acc" /><rect x="34" y="20" width="90" height="5" rx="2" class="f-line" /><rect x="18" y="38" width="8" height="8" rx="2" class="f-acc" /><rect x="34" y="40" width="76" height="5" rx="2" class="f-line" /><rect x="18" y="58" width="8" height="8" rx="2" class="f-acc" /><rect x="34" y="60" width="62" height="5" rx="2" class="f-line" /><rect x="18" y="78" width="8" height="8" rx="2" class="f-acc" /><rect x="34" y="80" width="48" height="5" rx="2" class="f-line" /></svg></div>
+<div class="card-body"><div class="kicker">§1 · Bare-minimum context</div><h2>Six ideas to bring along</h2>
+<div class="brief"><p>RTT, the TLS 1.3 handshake, PSK resumption tickets, AEAD records, idempotency, and the fact that QUIC reuses all of it.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-ctx">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-ctx"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>RTT</b> is the round-trip time between client and server; every back-and-forth message pair costs one. <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a> §1 lists TLS 1.3’s handshake modes.</li>
+<li><b>TLS 1.3 handshake</b>: ClientHello (with a key share) → ServerHello and Finished. Encryption keys come from HKDF over the shared secret, so a normal connection is already 1-RTT.</li>
+<li><b>Resumption with a PSK</b>: after a connection the server sends a <code>NewSessionTicket</code>. Later the client offers it back as a pre-shared key (PSK) so the two skip certificates and key exchange.</li>
+<li><b>AEAD records</b>: TLS wraps data in authenticated-encryption records; the attacker can neither read nor alter them, only drop, delay or duplicate.</li>
+<li><b>Idempotent</b>: running a request twice has the same effect as once (a read, a <code>PUT</code> to a fixed value). <code>POST /charge</code> is the opposite. See <a href="https://www.rfc-editor.org/rfc/rfc8470" target="_blank" rel="noopener">RFC 8470</a>.</li>
+<li><b>QUIC</b> embeds TLS 1.3, so its 0-RTT is the same mechanism (<a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a>).</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-world" data-id="world">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="60" y="10" width="40" height="22" rx="4" class="f-code s-line" stroke-width="1.5"/><text x="66" y="25" class="t-mute" >edge</text><line x1="80" y1="32" x2="28" y2="62" class="s-line" stroke-width="1.5" /><rect x="10" y="62" width="36" height="24" rx="3" class="f-panel s-acc" stroke-width="1.5"/><line x1="80" y1="32" x2="80" y2="62" class="s-line" stroke-width="1.5" /><rect x="62" y="62" width="36" height="24" rx="3" class="f-panel s-acc" stroke-width="1.5"/><line x1="80" y1="32" x2="132" y2="62" class="s-line" stroke-width="1.5" /><rect x="114" y="62" width="36" height="24" rx="3" class="f-panel s-acc" stroke-width="1.5"/></svg></div>
+<div class="card-body"><div class="kicker">§1b · Real-world context</div><h2>nginx, QUIC and CDNs ship it, mostly for safe reads</h2>
+<div class="brief"><p>Early data lets a client with a ticket put its request in the first flight. nginx ships it <b>off by default</b>; QUIC requires replay protection that RFC 9001 calls “imperfect”; origins get an <code>Early-Data: 1</code> header and can answer <b>425</b>.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-world">Go deeper <span class="chev">▸</span> <small>3 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-world"><div class="deep-inner"><div class="deep-content">
+<h3>What it is</h3>
+<p><b>TLS 1.3 early data</b> (“0-RTT”) lets a client that already holds a resumption ticket send application data in its <i>first flight</i>, glued to the ClientHello. The data is encrypted under a key derived from the ticket’s PSK, so the server can decrypt and act on it before the handshake finishes.</p>
+<h3>Why it exists</h3>
+<p>A TLS 1.3 handshake costs one round trip before the first request can leave. On a 100 ms mobile path that is 100 ms on every cold connection, and for QUIC it is half of the total time to first response (2 RTT → 1 RTT). Operators who serve static pages and APIs from CDNs wanted that back. The cost is a security property: <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a> §2.3 says “there are no guarantees of non-replay between connections” for early data.</p>
+<h3>Where it’s used</h3>
+<ul>
+<li><b>nginx</b> (1.15.3+, OpenSSL 1.1.1+ or BoringSSL): <code>ssl_early_data</code>, off by default; <code>$ssl_early_data</code> is <code>"1"</code> while the request is still in early data.</li>
+<li><b>OpenSSL / BoringSSL</b>: the server-side hooks (<code>SSL_read_early_data</code>, <code>SSL_write_early_data</code>) and the library’s own anti-replay option. nginx notes the OpenSSL anti-replay is <i>disabled</i> by default because it breaks resumption.</li>
+<li><b>QUIC / HTTP/3</b>: <a href="https://www.rfc-editor.org/rfc/rfc9001#section-9.2" target="_blank" rel="noopener">RFC 9001 §9.2</a> says endpoints “MUST implement and use the replay protections described in [TLS13], however it is recognized that these protections are imperfect.”</li>
+<li><b>CDNs</b>: Cloudflare offers 0-RTT as a zone setting and tells origins about early-data requests with an <code>Early-Data: 1</code> header (per its docs as summarized in search results, not read in full; Trail of Bits’ 2019 post describes the same idea).</li>
+<li><b>Go’s standard <code>crypto/tls</code></b> has no early-data switch for TLS over TCP (I read the <code>Config</code> struct on pkg.go.dev); Go’s early data lives on the QUIC side.</li>
+<li><b>HTTP layer</b>: <a href="https://www.rfc-editor.org/rfc/rfc8470" target="_blank" rel="noopener">RFC 8470</a> defines the <code>Early-Data: 1</code> request header and the <code>425 Too Early</code> status.</li>
+</ul>
+<h3>How it’s used</h3>
+<p>Switch it on at the TLS terminator, then make the app aware of it:</p>
+<pre><code># nginx
+ssl_early_data on;
+proxy_set_header Early-Data $ssl_early_data;     # origin sees "1" for early-data requests
+# optional, off by default because it breaks resumption on OpenSSL:
+# ssl_conf_command Options AntiReplay;</code></pre>
+<p>The origin then applies RFC 8470: if <code>Early-Data: 1</code> is present and the request is not safe to run twice, answer <code>425 Too Early</code>. A client that gets 425 MUST retry, and the retry MUST NOT be sent as early data.</p>
+<h3>When to use it, when not to</h3>
+<div class="two">
+<div class="use"><b>Use when</b> the early requests are reads (<code>GET</code>/<code>HEAD</code>/<code>OPTIONS</code> with no side effects), the latency win matters (mobile, intercontinental, first-paint), and you know where replay state lives.</div>
+<div class="skip"><b>Skip when</b> requests change state (payments, orders, votes, counters), a GET has side effects, or you front a fleet that does not share replay state and cannot be sure the origin checks the header.</div>
+</div>
+<h3>Who should care</h3>
+<p><b>Infra and CDN engineers</b> who flip the switch; <b>backend developers</b> whose endpoints suddenly receive replayed requests; <b>security reviewers</b> who must treat early data as replayable and not forward secret; <b>client authors</b> who decide what may go in early data and must handle rejection.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Technical deep dive</div>
+<article class="card rv" id="c-onel" data-id="onel">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="34" width="136" height="32" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="22" y="56" class="t-ink" style="font:700 14px var(--mono)">0-RTT = send first</text></svg></div>
+<div class="card-body"><div class="kicker">§2 · The one-liner</div><h2>“Saves a round trip” hides five costs</h2>
+<div class="brief"><p>It saves <b>exactly one</b> round trip, the data is <b>replayable</b>, it is <b>not forward secret</b>, the server may silently <b>refuse</b>, and the defenses need <b>state</b> that fleets rarely share.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-onel">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-onel"><div class="deep-inner"><div class="deep-content">
+<blockquote>“0-RTT lets a returning client send its request in the first packet, so you save a round trip.”</blockquote>
+<ol>
+<li><b>It saves exactly one round trip, not “zero”.</b> A TLS 1.3 resumption is already 1-RTT; 0-RTT removes that one. Over TCP the TCP handshake is a separate round trip.</li>
+<li><b>The data is replayable.</b> No fresh server randomness goes into its key, so a network attacker can resend the flight and every check passes.</li>
+<li><b>It is not forward secret.</b> The early key comes from the PSK alone; whoever later gets the ticket-encryption key can decrypt recorded early data.</li>
+<li><b>The server may refuse, silently.</b> It can skip the early data and complete a normal handshake. The client must be ready to resend.</li>
+<li><b>Defenses need state, and fleets rarely share it.</b> The RFC’s minimum is “at most once per server instance”, which is not the same as once.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-problem" data-id="problem">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><text x="12" y="26" class="t-mute" >1-RTT</text><rect x="12" y="32" width="130" height="12" rx="3" class="f-warn" /><text x="12" y="66" class="t-mute" >0-RTT</text><rect x="12" y="72" width="88" height="12" rx="3" class="f-ok" /></svg></div>
+<div class="card-body"><div class="kicker">§3 · The problem</div><h2>Sending data before the handshake ends needs a key both sides already hold</h2>
+<div class="guess" data-g="rtt" data-kind="range" data-min="0" data-max="300" data-lo="100" data-hi="100" data-tol="20" data-unit=" ms"><p class="g-q"><span class="g-tag">Guess first</span> A phone is 100 ms from the server and connects over TCP. A resumed TLS 1.3 request takes 300 ms to get its first response. How many ms does 0-RTT shave off?</p><div class="g-ctl"><input type="range" min="0" max="300" step="10" value="150" aria-label="Your guess"><output>150 ms</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0 ms</span><span>300 ms</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>100 ms: one round trip.</b> A resumed TLS 1.3 handshake is already 1-RTT, so 0-RTT removes that one (300 → 200 ms). The TCP handshake is a separate round trip. Over QUIC it halves the wait (200 → 100 ms).</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>A resumed TLS 1.3 handshake still makes the request wait a round trip. To send earlier, the client must encrypt under something the server already knows: the ticket’s PSK. That is where replayability and the missing forward secrecy come from. <span class="mini">Figure inside.</span></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-problem">Go deeper <span class="chev">▸</span> <small>2 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-problem"><div class="deep-inner"><div class="deep-content">
+<div class="pull"><b>−1 RTT</b><span>the entire prize: one round trip off the first request</span></div>
+<p>Every handshake message pair costs a full round trip, and round trips are the one cost that does not shrink with faster hardware. On a 100 ms path, here is the time until the first response byte arrives:</p>
+<table><thead><tr><th>Setup</th><th>Round trips before response</th><th>At 100 ms RTT</th></tr></thead><tbody>
+<tr><td>TCP + TLS 1.3, full handshake</td><td>1 (TCP) + 1 (TLS) + 1 (request)</td><td>300 ms</td></tr>
+<tr><td>TCP + TLS 1.3, resumed (PSK)</td><td>same: the PSK removes certificates, not the round trip</td><td>300 ms</td></tr>
+<tr><td>TCP + TLS 1.3, <b>0-RTT</b></td><td>1 (TCP) + 1 (request rides the first TLS flight)</td><td><b>200 ms</b></td></tr>
+<tr><td>QUIC 1-RTT</td><td>1 (handshake) + 1 (request)</td><td>200 ms</td></tr>
+<tr><td>QUIC <b>0-RTT</b></td><td>1</td><td><b>100 ms</b></td></tr>
+</tbody></table>
+<figure class="fig fig-own" id="fig-flow"><div class="fig-svg" role="img" aria-label="Message ladders for a full handshake, a 1-RTT resumption and a 0-RTT resumption: only the last lets the request leave in the first flight."><svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three message ladders: full handshake, resumption and 0-RTT resumption"><style>.fl{font:13px system-ui,sans-serif;fill:var(--ink)}.fm{font:12px system-ui,sans-serif;fill:var(--mute)}.fb{font:700 13px system-ui,sans-serif;fill:var(--ink)}.fx{font:12px var(--mono);fill:var(--ink)}</style><text x="170.0" y="22" class="fb" text-anchor="middle">full handshake</text><text x="60" y="44" class="fm" text-anchor="middle">client</text><text x="280" y="44" class="fm" text-anchor="middle">server</text><line x1="60" y1="50" x2="60" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="280" y1="50" x2="280" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="60" y1="74" x2="280" y2="74" class="s-ink" stroke-width="2" /><polygon points="280,74 271,69 271,79" class="f-ink"/><text x="170.0" y="68" class="fm" text-anchor="middle">ClientHello</text><line x1="280" y1="104" x2="60" y2="104" class="s-ink" stroke-width="2" /><polygon points="60,104 69,99 69,109" class="f-ink"/><text x="170.0" y="98" class="fm" text-anchor="middle">ServerHello … Finished</text><line x1="60" y1="134" x2="280" y2="134" class="s-warn" stroke-width="2" /><polygon points="280,134 271,129 271,139" class="f-warn"/><text x="170.0" y="128" class="fm" text-anchor="middle">Finished + request</text><line x1="280" y1="164" x2="60" y2="164" class="s-ink" stroke-width="2" /><polygon points="60,164 69,159 69,169" class="f-ink"/><text x="170.0" y="158" class="fm" text-anchor="middle">response</text><text x="450.0" y="22" class="fb" text-anchor="middle">1-RTT resumption</text><text x="340" y="44" class="fm" text-anchor="middle">client</text><text x="560" y="44" class="fm" text-anchor="middle">server</text><line x1="340" y1="50" x2="340" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="560" y1="50" x2="560" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="340" y1="74" x2="560" y2="74" class="s-ink" stroke-width="2" /><polygon points="560,74 551,69 551,79" class="f-ink"/><text x="450.0" y="68" class="fm" text-anchor="middle">ClientHello + PSK</text><line x1="560" y1="104" x2="340" y2="104" class="s-ink" stroke-width="2" /><polygon points="340,104 349,99 349,109" class="f-ink"/><text x="450.0" y="98" class="fm" text-anchor="middle">ServerHello … Finished</text><line x1="340" y1="134" x2="560" y2="134" class="s-warn" stroke-width="2" /><polygon points="560,134 551,129 551,139" class="f-warn"/><text x="450.0" y="128" class="fm" text-anchor="middle">Finished + request</text><line x1="560" y1="164" x2="340" y2="164" class="s-ink" stroke-width="2" /><polygon points="340,164 349,159 349,169" class="f-ink"/><text x="450.0" y="158" class="fm" text-anchor="middle">response</text><text x="730.0" y="22" class="fb" text-anchor="middle">0-RTT resumption</text><text x="620" y="44" class="fm" text-anchor="middle">client</text><text x="840" y="44" class="fm" text-anchor="middle">server</text><line x1="620" y1="50" x2="620" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="840" y1="50" x2="840" y2="250" class="s-line" stroke-width="1.5" stroke-dasharray="3 4"/><line x1="620" y1="74" x2="840" y2="74" class="s-acc" stroke-width="2" /><polygon points="840,74 831,69 831,79" class="f-acc"/><text x="730.0" y="68" class="fm" text-anchor="middle">ClientHello + PSK + request</text><line x1="840" y1="104" x2="620" y2="104" class="s-ink" stroke-width="2" /><polygon points="620,104 629,99 629,109" class="f-ink"/><text x="730.0" y="98" class="fm" text-anchor="middle">ServerHello … response</text><line x1="620" y1="134" x2="840" y2="134" class="s-ink" stroke-width="2" /><polygon points="840,134 831,129 831,139" class="f-ink"/><text x="730.0" y="128" class="fm" text-anchor="middle">EndOfEarlyData, Finished</text><text x="60" y="290" class="fm" >Request leaves after 1 RTT</text><text x="340" y="290" class="fm" >Request leaves after 1 RTT</text><text x="620" y="290" class="fm" >Request leaves in flight 1</text><text x="60" y="310" class="fm" >Times are for TLS over TCP; the TCP handshake is not drawn. With QUIC, 0-RTT shortens 2 round trips to 1.</text></svg></div><figcaption><b>Figure 1.</b> Message ladders for a full handshake, a 1-RTT resumption and a 0-RTT resumption: only the last lets the request leave in the first flight.<span class="fig-cite">Original diagram · adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §2.3 (Fig. 4)</a> · Fig. 4</span></figcaption></figure>
+<p>The obstacle is cryptographic. In a normal handshake both sides contribute fresh randomness (the ECDHE shares and the Random values), and the traffic keys are derived from all of it, so every connection’s keys are unique and a recorded message is useless on another connection. To send data <i>before</i> the server has said anything, the client has to encrypt under something both sides already know: the ticket’s PSK. That is the root of both properties that come with 0-RTT: <b>no forward secrecy</b> and <b>no replay protection</b>.</p>
+<p>So the design problem is: gain the round trip, bound the damage of replays, and keep the whole thing optional so a server that cannot defend itself can say no.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-model" data-id="model">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="22" width="80" height="54" rx="5" class="f-panel s-line" stroke-width="1.5"/><circle cx="28" cy="40" r="7" class="f-acc"/><circle cx="50" cy="40" r="7" class="f-acc"/><circle cx="72" cy="40" r="7" class="f-acc"/><circle cx="28" cy="62" r="7" class="f-acc"/><circle cx="50" cy="62" r="7" class="f-line"/><circle cx="72" cy="62" r="7" class="f-line"/><rect x="70" y="34" width="80" height="54" rx="5" class="f-none s-bad" stroke-width="1.5" stroke-dasharray="4 3"/></svg></div>
+<div class="card-body"><div class="kicker">§4 · Mental model</div><h2>A stamped card plus a sealed slip: copyable, not forgeable</h2>
+<div class="brief"><p>The card proves “been here before”; the slip is sealed with a code from the card. Onlookers can’t read or alter it, only duplicate it. Unlike a real card, a ticket is only “spent” if the shop <i>records</i> it.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-model">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-model"><div class="deep-inner"><div class="deep-content">
+<p>A <b>stamped membership card plus a pre-sealed order slip</b>. The card proves “this person was here before”. The slip is sealed with a code derived from the card, so it is authentic and unreadable to onlookers. The shop can serve you before it has met you today.</p>
+<p><b>Where it breaks.</b> A card is a physical thing that you hand over and can get back; a TLS ticket is just bytes, so “spending” it once has no meaning unless the shop <i>records</i> that it was spent (single-use tickets, §8.1). A photocopied slip can be spotted by a human; a replayed flight is bit-identical, so only a shop-side log can catch it. And onlookers can’t forge a <i>new</i> order, only duplicate old ones, which is why the whole problem reduces to “is this order safe to run twice?”.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-mech" data-id="mech">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="18" y1="22" x2="142" y2="22" class="s-acc" stroke-width="2" /><polygon points="142,22 133,17 133,27" class="f-acc"/><line x1="18" y1="46" x2="142" y2="46" class="s-acc2" stroke-width="2" /><polygon points="18,46 27,41 27,51" class="f-acc2"/><line x1="18" y1="70" x2="142" y2="70" class="s-acc" stroke-width="2" /><polygon points="142,70 133,65 133,75" class="f-acc"/></svg></div>
+<div class="card-body"><div class="kicker">§5 · The mechanism, traced</div><h2>Ticket in, early key out, then accept or refuse</h2>
+<div class="guess" data-g="reject" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> The server decides to reject early data (say the ticket age looks wrong). What happens to the request the client already sent?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">The connection fails</button><button class="g-opt" type="button" data-k="1">The server runs it anyway</button><button class="g-opt" type="button" data-k="2">It is discarded and the client resends it after the handshake</button><button class="g-opt" type="button" data-k="3">The server queues it and runs it later</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>Discarded, then resent.</b> RFC 8446 §4.2.10: the server skips the early records (trial-decrypting with the handshake key, up to <code>max_early_data_size</code>) and finishes a normal 1-RTT handshake. The client sees no <code>early_data</code> in EncryptedExtensions and resends.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>The client derives an early key from the PSK and its own ClientHello, sends <code>GET /cart</code> in the first flight, and the server runs four checks: ticket, binder, age, replay cache. <span class="mini">Step-through and two diagrams inside.</span></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-mech">Go deeper <span class="chev">▸</span> <small>4 min · 2 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-mech"><div class="deep-inner"><div class="deep-content">
+<style>
+#zr-info{min-height:7.2em}
+#zr-wire{font:12px/1.55 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0 0;white-space:pre-wrap;overflow-x:auto;color:var(--ink)}
+#zr-wire b{color:var(--accent)}
+#zr-wire i{color:var(--bad);font-style:normal}
+#zr-wire u{color:var(--ok);text-decoration:none}
+</style>
+<p>One returning client, one request. The numbers are made up but follow the RFC’s fields and arithmetic.</p>
+<div class="widget" role="group" aria-label="0-RTT handshake step-through">
+<div class="stepbar">
+  <button class="btn" id="zr-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="zr-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="zr-n" aria-live="polite"></span>
+  <div class="info" id="zr-info" aria-live="polite"></div>
+</div>
+<pre id="zr-wire" aria-live="polite"></pre>
+</div>
+<h3>Where the early key comes from</h3>
+<figure class="fig fig-own" id="fig-keys"><div class="fig-svg" role="img" aria-label="How the early traffic secret is derived: from the resumption secret through the PSK and Early Secret, with no server input."><svg viewBox="0 0 780 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Key schedule from the resumption secret to the early traffic secret"><style>.fl{font:13px system-ui,sans-serif;fill:var(--ink)}.fm{font:12px system-ui,sans-serif;fill:var(--mute)}.fb{font:700 13px system-ui,sans-serif;fill:var(--ink)}.fx{font:12px var(--mono);fill:var(--ink)}</style><rect x="20" y="20" width="250" height="44" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="30" y="40" class="fx" >resumption_master_secret</text><text x="30" y="56" class="fm" >(from the previous connection)</text><line x1="145" y1="64" x2="145" y2="96" class="s-ink" stroke-width="2" /><polygon points="145,100 140,91 150,91" class="f-ink"/><rect x="20" y="100" width="250" height="44" rx="6" class="f-panel s-acc" stroke-width="1.5"/><text x="30" y="120" class="fx" >PSK = HKDF-Expand-Label(</text><text x="30" y="136" class="fx" >  rms, "resumption", ticket_nonce)</text><line x1="145" y1="144" x2="145" y2="176" class="s-ink" stroke-width="2" /><polygon points="145,180 140,171 150,171" class="f-ink"/><rect x="20" y="180" width="250" height="44" rx="6" class="f-panel s-ink" stroke-width="2"/><text x="30" y="200" class="fb" >Early Secret</text><text x="30" y="216" class="fx" >= HKDF-Extract(salt 0, IKM = PSK)</text><line x1="270" y1="202" x2="330" y2="54" class="s-ink" stroke-width="1.5" /><rect x="330" y="30" width="400" height="52" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="340" y="50" class="fb" >binder_key</text><text x="340" y="68" class="fx" >Derive-Secret(ES, "res binder", "")</text><text x="340" y="81" class="fm" ></text><text x="740" y="58" class="fm" ></text><line x1="270" y1="202" x2="330" y2="134" class="s-ink" stroke-width="1.5" /><rect x="330" y="110" width="400" height="52" rx="6" class="f-panel s-acc" stroke-width="1.5"/><text x="340" y="130" class="fb" >client_early_traffic_secret</text><text x="340" y="148" class="fx" >Derive-Secret(ES, "c e traffic", ClientHello)</text><text x="340" y="161" class="fm" ></text><text x="740" y="138" class="fm" ></text><line x1="270" y1="202" x2="330" y2="214" class="s-ink" stroke-width="1.5" /><rect x="330" y="190" width="400" height="52" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="340" y="210" class="fb" >early_exporter_master_secret</text><text x="340" y="228" class="fx" >Derive-Secret(ES, "e exp master", ClientHello)</text><text x="340" y="241" class="fm" ></text><text x="740" y="218" class="fm" ></text><text x="20" y="262" class="fm" >No server input appears anywhere above: the early key needs only the PSK and the ClientHello.</text><text x="20" y="282" class="fm" >The ServerHello (and a fresh ECDHE secret) only join in later, for the handshake secret.</text></svg></div><figcaption><b>Figure 2.</b> How the early traffic secret is derived: from the resumption secret through the PSK and Early Secret, with no server input.<span class="fig-cite">Original diagram · adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §7.1</a> · §7.1</span></figcaption></figure>
+<p>Everything on the left is known to both sides from the previous connection. Nothing the server sends today appears in the derivation. That is exactly why the data can be sent early, and exactly why it can be replayed.</p>
+<h3>What the server does with the flight</h3>
+<figure class="fig fig-own" id="fig-accept"><div class="fig-svg" role="img" aria-label="The server’s four checks before it accepts early data; any “no” falls back to a normal handshake."><svg viewBox="0 0 780 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Server decision flow for accepting or rejecting early data"><style>.fl{font:13px system-ui,sans-serif;fill:var(--ink)}.fm{font:12px system-ui,sans-serif;fill:var(--mute)}.fb{font:700 13px system-ui,sans-serif;fill:var(--ink)}.fx{font:12px var(--mono);fill:var(--ink)}</style><rect x="60" y="20" width="260" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="190.0" y="45.0" class="fl" text-anchor="middle">Ticket decrypts, still valid?</text><rect x="60" y="90" width="260" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="190.0" y="115.0" class="fl" text-anchor="middle">PSK binder verifies?</text><rect x="60" y="160" width="260" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="190.0" y="185.0" class="fl" text-anchor="middle">Ticket age within window?</text><rect x="60" y="230" width="260" height="40" rx="6" class="f-panel s-line" stroke-width="1.5"/><text x="190.0" y="255.0" class="fl" text-anchor="middle">ClientHello not in replay cache?</text><line x1="190" y1="60" x2="190" y2="90" class="s-ink" stroke-width="2" /><polygon points="190,90 181,85 181,95" class="f-ink"/><line x1="190" y1="130" x2="190" y2="160" class="s-ink" stroke-width="2" /><polygon points="190,160 181,155 181,165" class="f-ink"/><line x1="190" y1="200" x2="190" y2="230" class="s-ink" stroke-width="2" /><polygon points="190,230 181,225 181,235" class="f-ink"/><rect x="60" y="300" width="260" height="40" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="190.0" y="325.0" class="fl" text-anchor="middle">Accept early data, record the ClientHello</text><line x1="190" y1="270" x2="190" y2="300" class="s-ok" stroke-width="2" /><rect x="430" y="90" width="300" height="70" rx="6" class="f-panel s-warn" stroke-width="1.5"/><text x="580" y="119" class="fb" text-anchor="middle">Reject 0-RTT</text><text x="580" y="139" class="fl" text-anchor="middle">ignore early records, finish a normal handshake</text><line x1="320" y1="40" x2="430" y2="105" class="s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="320" y1="110" x2="430" y2="125" class="s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="320" y1="180" x2="430" y2="125" class="s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="320" y1="250" x2="430" y2="125" class="s-warn" stroke-width="1.5" stroke-dasharray="4 3"/><text x="430" y="190" class="fm" >Client then resends the request after the handshake.</text><text x="430" y="208" class="fm" >Bloom-style caches with false positives must reject,</text><text x="430" y="226" class="fm" >never abort the connection (RFC 8446 §8.2).</text><text x="330" y="12" class="fm" >any "no"</text></svg></div><figcaption><b>Figure 3.</b> The server’s four checks before it accepts early data; any “no” falls back to a normal handshake.<span class="fig-cite">Original diagram</span></figcaption></figure>
+<p>RFC 8446 §4.2.10 gives the server three ways to answer an <code>early_data</code> extension: ignore it and finish a normal 1-RTT handshake (skipping the early records by trial decryption, up to <code>max_early_data_size</code>), send a HelloRetryRequest, or accept by returning <code>early_data</code> in EncryptedExtensions. It cannot accept “some” of the records. Early data is also not allowed after a HelloRetryRequest.</p>
+<h3>The replay</h3>
+<p>An attacker who copies the first flight gets a second run of steps 5–6 on whatever server receives it. Only the replay cache in step 5 can tell the copy apart from the original: the ticket, binder, key and age all still look valid.</p>
+<script>
+(function(){
+  var steps=[
+    {t:'Visit 1 ends: the ticket',
+     i:'<b>Visit 1.</b> After a full handshake the server sends a <code>NewSessionTicket</code>. The client derives the PSK from the connection’s resumption secret and the ticket nonce. The ticket itself is an opaque blob the server can decrypt later with its ticket-encryption key (STEK).',
+     w:'NewSessionTicket {\n  <b>ticket_lifetime</b>  = 172800        (2 days; RFC caps this at 7 days)\n  <b>ticket_age_add</b>   = 0x9f3a1c52     (random, fresh per ticket)\n  ticket_nonce      = 00\n  ticket            = &lt;opaque, sealed under the STEK&gt;\n  extensions: early_data { <b>max_early_data_size</b> = 16384 }\n}\nclient: PSK = HKDF-Expand-Label(resumption_master_secret, "resumption", ticket_nonce, 32)'},
+    {t:'Visit 2: the ClientHello',
+     i:'<b>One hour later</b> the client builds its ClientHello. It adds an empty <code>early_data</code> extension and a <code>pre_shared_key</code> extension (which must be last). The ticket age is hidden by adding <code>ticket_age_add</code> mod 2<sup>32</sup>, and a <b>binder</b> (an HMAC over the ClientHello) proves the client holds the PSK.',
+     w:'ClientHello {\n  extensions: <b>early_data</b>, psk_key_exchange_modes(psk_dhe_ke), key_share(x25519), ...\n  <b>pre_shared_key</b> {\n    identity              = &lt;the ticket&gt;\n    obfuscated_ticket_age = (3 600 000 ms + 0x9f3a1c52) mod 2^32 = 0x9f710ad2\n    binder                = HMAC(binder_key, Hash(ClientHello up to binders))\n  }\n}'},
+    {t:'Deriving the early key',
+     i:'Before any server message arrives, the client derives the early key. It needs only the PSK and the ClientHello it just built. No server randomness is in there.',
+     w:'Early Secret                 = HKDF-Extract(salt = 0, IKM = PSK)\nclient_early_traffic_secret  = Derive-Secret(Early Secret, "c e traffic", <b>ClientHello</b>)\nkey, iv                      = HKDF-Expand-Label(secret, "key" / "iv", "", ...)'},
+    {t:'Request in the same flight',
+     i:'Right after the ClientHello the client sends its request as ordinary application-data records, sealed under that key. Only application-data bytes count against <code>max_early_data_size</code>.',
+     w:'flight 1  =  ClientHello\n            + [CCS (middlebox compat)]\n            + AppData{ "GET /cart HTTP/1.1\\r\\nHost: shop.example\\r\\n..." }  <b>(0-RTT key)</b>'},
+    {t:'Server decides',
+     i:'The server decrypts the ticket, recovers the PSK, checks the binder, then runs the anti-replay checks. <b>Age:</b> subtract <code>ticket_age_add</code> to get 3 600 000 ms and compare the implied arrival time with its clock. <b>Replay cache:</b> has this binder (or Random) been seen? It also needs the version, cipher suite and ALPN to match the ticket.',
+     w:'client_age        = (0x9f710ad2 - 0x9f3a1c52) mod 2^32 = 3 600 000 ms\nexpected_arrival  = adjusted_creation_time + client_age\n  <u>|expected_arrival - now| &lt; ~10 s ?</u>   <u>binder not in replay cache ?</u>   <u>same cipher / ALPN ?</u>'},
+    {t:'Accept or reject',
+     i:'<b>Accept:</b> EncryptedExtensions carries <code>early_data</code>; the server decrypts and processes the GET at once, and sends its normal handshake. <b>Reject:</b> no <code>early_data</code> in EncryptedExtensions; the server skips the early records and finishes a normal 1-RTT handshake. The client sees the refusal and <b>resends</b> the request on the finished connection.',
+     w:'accept:  EncryptedExtensions { <u>early_data</u> } ... 200 OK for GET /cart\nreject:  EncryptedExtensions { }                 ...  (early records discarded)\n         client: "early data rejected" -> resend GET /cart after Finished'},
+    {t:'Ending the early phase',
+     i:'If early data was accepted, the client sends <code>EndOfEarlyData</code> over TLS/TCP (QUIC omits it) and then its Finished. From here on everything uses fresh, forward-secret keys. Only the early part was exposed to replay.',
+     w:'client -> server:  <b>EndOfEarlyData</b> (under early key), Finished (handshake key)\nfrom now on: application keys derived from the full transcript + fresh (EC)DHE'},
+    {t:'The attacker’s copy',
+     i:'An attacker who recorded flight 1 resends it, to this server or to another one. <b>Without a replay cache</b> every check passes and the GET runs again. <b>With a cache</b> the binder is a duplicate: the server rejects 0-RTT but may still finish the handshake (RFC 8446 §8.2 says stores with false positives must reject, never abort). <b>On a different server</b> with its own empty cache the copy is accepted once more.',
+     w:'attacker: replay flight 1 bytes (ticket, binder, early records unchanged)\n  server A (cache has binder):  <i>reject 0-RTT</i>\n  server B (own cache, empty):  <u>accept 0-RTT</u>  -> request runs again\n  <i>cluster-wide: at most once per server instance (RFC 8446 §8)</i>'}
+  ];
+  var cur=0;
+  function draw(){var s=steps[cur];
+    document.getElementById('zr-info').innerHTML=s.i;
+    document.getElementById('zr-wire').innerHTML=s.w;
+    document.getElementById('zr-n').textContent='STEP '+(cur+1)+' / '+steps.length;
+    document.getElementById('zr-prev').disabled=cur===0;document.getElementById('zr-next').disabled=cur===steps.length-1;}
+  document.getElementById('zr-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('zr-next').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+})();
+</script>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-math" data-id="math">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="14" y1="74" x2="146" y2="74" class="s-mute" stroke-width="1.5" /><rect x="52" y="38" width="62" height="36" rx="2" class="f-ok" opacity=".35"/><line x1="83" y1="30" x2="83" y2="74" class="s-ink" stroke-width="1.5" stroke-dasharray="3 3"/><text x="58" y="90" class="t-mute" >± W</text></svg></div>
+<div class="card-body"><div class="kicker">§6 · The math</div><h2>A ±10 s window turns “remember everything” into megabytes</h2>
+<div class="guess" data-g="cache" data-kind="range" data-min="0" data-max="50" data-lo="5" data-hi="8" data-tol="3" data-unit=" MB"><p class="g-q"><span class="g-tag">Guess first</span> A server accepts 10,000 early-data handshakes per second and must remember each one for 20 s, at 32 bytes each. How big is the replay cache?</p><div class="g-ctl"><input type="range" min="0" max="50" step="0.5" value="25" aria-label="Your guess"><output>25 MB</output><button class="g-lock" type="button">Lock it in</button></div><div class="g-scale" aria-hidden="true"><i class="g-band"></i><i class="g-you"></i><span>0 MB</span><span>50 MB</span></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>6.4 MB</b> (10,000 × 20 × 32 B). The freshness window is what keeps it this small; without it the cache would grow forever. The hard part of anti-replay is coordinating it across servers, not storing it.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>The ticket age is hidden as <i>(age + ticket_age_add) mod 2³²</i> and checked against the clock. That bounds the replay cache to <b>λ · 2W · b</b> bytes, a few megabytes. A Bloom filter fits in ~360 KB. <span class="mini">Calculator inside.</span></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-math">Go deeper <span class="chev">▸</span> <small>5 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-math"><div class="deep-inner"><div class="deep-content">
+<h3>Hiding and checking the ticket age</h3>
+<p>The server picks a random 32-bit <i>a<sub>add</sub></i> (<code>ticket_age_add</code>) for every ticket. The client measures how long it has held the ticket, <i>a</i> milliseconds, and sends</p>
+<div class="eq">o = (a + a<sub>add</sub>) mod 2<sup>32</sup> &nbsp;&nbsp;&nbsp; server: a′ = (o − a<sub>add</sub>) mod 2<sup>32</sup>
+<small>→ in plain terms: the client adds a secret random offset to its ticket age so a passive observer cannot match two connections by their ages; only the server, who chose the offset, can undo it.</small></div>
+<p>Worked example: <i>a<sub>add</sub></i> = 0x9f3a1c52 = 2 671 385 682, age one hour = 3 600 000 ms, so <i>o</i> = 2 674 985 682 = 0x9f710ad2. The server recovers <i>a′</i> = 3 600 000.</p>
+<p>The server stored (or sealed into the ticket) its creation time <i>T<sub>c</sub></i> and an RTT estimate, then predicts when the ClientHello <i>should</i> arrive:</p>
+<div class="eq">E = T<sub>c</sub> + R̂ + a′ &nbsp;&nbsp;&nbsp; accept 0-RTT iff |E − t<sub>now</sub>| ≤ W
+<small>→ in plain terms: “the client says the ticket is an hour old; I issued it an hour ago, plus one network trip; so this flight should land about now. If it lands far from now, it is old or replayed.” W is about ten seconds for Internet clients (RFC 8446 §8.3).</small></div>
+<figure class="fig fig-own" id="fig-age"><div class="fig-svg" role="img" aria-label="The ticket-age check: the server predicts when the ClientHello should arrive and accepts only a flight that lands near that time."><svg viewBox="0 0 780 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Timeline of the ticket age check"><style>.fl{font:13px system-ui,sans-serif;fill:var(--ink)}.fm{font:12px system-ui,sans-serif;fill:var(--mute)}.fb{font:700 13px system-ui,sans-serif;fill:var(--ink)}.fx{font:12px var(--mono);fill:var(--ink)}</style><line x1="40" y1="130" x2="740" y2="130" class="s-mute" stroke-width="2" /><line x1="100" y1="110" x2="100" y2="150" class="s-ink" stroke-width="2" /><text x="100" y="100" class="fb" text-anchor="middle">ticket issued</text><text x="100" y="170" class="fm" text-anchor="middle">creation_time</text><line x1="260" y1="110" x2="260" y2="150" class="s-ink" stroke-width="2" /><text x="260" y="100" class="fb" text-anchor="middle">+ RTT estimate</text><text x="260" y="170" class="fm" text-anchor="middle">adjusted_creation_time</text><line x1="580" y1="110" x2="580" y2="150" class="s-ink" stroke-width="2" /><text x="580" y="100" class="fb" text-anchor="middle">ClientHello arrives</text><text x="580" y="170" class="fm" text-anchor="middle">expected vs now</text><rect x="530" y="112" width="100" height="36" rx="4" class="f-ok" opacity=".3"/><text x="580" y="196" class="fm" text-anchor="middle">acceptance window, about ±10 s</text><path d="M260 70 H 580" class="f-none s-acc" stroke-width="2"/><polygon points="580,70 571,65 571,75" class="f-acc"/><text x="395" y="62" class="fl" text-anchor="middle">client's ticket age = obfuscated_ticket_age − ticket_age_add</text><text x="40" y="240" class="fx" >expected_arrival_time = adjusted_creation_time + clients_ticket_age</text><text x="40" y="262" class="fx" >accept 0-RTT only if |expected_arrival_time − server_now| &lt; window; otherwise fall back to 1-RTT</text></svg></div><figcaption><b>Figure 4.</b> The ticket-age check: the server predicts when the ClientHello should arrive and accepts only a flight that lands near that time.<span class="fig-cite">Original diagram · adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §8.3</a> · §8.3</span></figcaption></figure>
+<p><b>Why the form?</b> A check on wall-clock time alone would require clients and servers to agree on clocks; using the <i>client’s own elapsed time</i> against the <i>server’s own issue time</i> needs only that clock <i>rates</i> match closely, which they do.</p>
+<h3>How big is the replay cache?</h3>
+<p>The freshness window means an entry only has to live as long as a replay could still pass the age check, about 2W with a symmetric window.</p>
+<div class="eq">M = λ · 2W · b
+<small>→ in plain terms: memory = accepted early-data handshakes per second × how long you must remember each × bytes per entry.</small></div>
+<p>At λ = 10 000 accepts/s, W = 10 s, b = 32 bytes (a SHA-256 of the binder): M = 10 000 × 20 × 32 B = <b>6.4 MB</b>. Real hash tables add overhead, but this is nowhere near a scaling problem. The hard part is <i>coordination</i>, not RAM.</p>
+<h3>A Bloom filter instead of a table</h3>
+<p>A probabilistic set is allowed if a false positive means “reject 0-RTT”, because the cost of a false positive is only the lost round trip. For n = 200 000 entries (the case above) and false-positive rate p:</p>
+<div class="eq">m = −n ln p / (ln 2)<sup>2</sup> &nbsp;&nbsp;&nbsp; k = (m/n) ln 2
+<small>→ in plain terms: bits needed grow with the log of how rarely you tolerate wrongly refusing a legitimate client.</small></div>
+<p>p = 10<sup>−3</sup> gives m ≈ 2.88 Mbit ≈ <b>360 KB</b> and k ≈ 10 hash functions. The asymmetry is the point: a Bloom filter has no false negatives, so it never lets a replay through; its error is the safe error.</p>
+<h3>How many times can one flight run?</h3>
+<div class="eq">replays ≤ N<sub>instances</sub> &nbsp;&nbsp;(each keeps its own cache) &nbsp;&nbsp;&nbsp; replays = 1 &nbsp;&nbsp;(one authority per ticket)
+<small>→ in plain terms: RFC 8446 §8 says the MUST-level guarantee is “at most once per server instance”, which “limits the number of replays to the number of server instances”.</small></div>
+<div class="widget" role="group" aria-label="Replay cache calculator">
+<div class="ctl"><label>Accepts per second λ <b id="mz-l-v">10000</b> <input type="range" id="mz-l" min="100" max="200000" step="100" value="10000"></label></div>
+<div class="ctl"><label>Window W (± seconds) <b id="mz-w-v">10</b> <input type="range" id="mz-w" min="1" max="60" step="1" value="10"></label></div>
+<div class="ctl"><label>Server instances N <b id="mz-n-v">8</b> <input type="range" id="mz-n" min="1" max="64" step="1" value="8"></label></div>
+<p id="mz-out" class="mini" aria-live="polite"></p>
+</div>
+<script>
+(function(){
+  var l=document.getElementById('mz-l'),w=document.getElementById('mz-w'),n=document.getElementById('mz-n');
+  function f(){
+    var L=+l.value,W=+w.value,N=+n.value,mem=L*2*W*32;
+    document.getElementById('mz-l-v').textContent=L;document.getElementById('mz-w-v').textContent=W;document.getElementById('mz-n-v').textContent=N;
+    var mb=mem/1e6,bf=(L*2*W)*6.9078/0.480453/8/1e3;
+    document.getElementById('mz-out').innerHTML='Replay table: <b>'+mb.toFixed(1)+' MB</b> (32 B/entry) &middot; Bloom at p = 10<sup>-3</sup>: <b>'+bf.toFixed(0)+' KB</b> &middot; One captured flight can run up to <b>'+N+'</b> times with a per-server cache, <b>1</b> with a single owner per ticket.';
+  }
+  [l,w,n].forEach(function(e){e.addEventListener('input',f)});f();
+})();
+</script>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-why" data-id="why">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="52" y="44" width="56" height="40" rx="5" class="f-panel s-ok" stroke-width="2"/><path d="M62 44 V32 a18 18 0 0 1 36 0 V44" class="f-none s-ok" stroke-width="3"/><circle cx="80" cy="64" r="5" class="f-ok"/></svg></div>
+<div class="card-body"><div class="kicker">§7 · Why it works</div><h2>The attacker can only duplicate, never read or change</h2>
+<div class="brief"><p>The binder and the ClientHello-bound key stop tampering, so the whole risk reduces to “is this request safe to run twice?”. Freshness limits <i>when</i> a replay can land; the cache limits <i>how often</i>; only the app can make “twice” harmless.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-why">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-why"><div class="deep-inner"><div class="deep-content">
+<p><b>The core insight:</b> the attacker can’t read, change or forge early data; they can only <i>duplicate</i> it. The binder authenticates the ClientHello, and the early key is derived from the ClientHello’s hash, so any edit changes the key and breaks decryption. So all of the security of 0-RTT reduces to one question: <b>is this request safe to run twice?</b> That is a question the application can answer and TLS cannot.</p>
+<p><b>Ablation: remove each piece.</b></p>
+<ul>
+<li><b>No replay cache:</b> every copy of the flight passes until the ticket expires (up to 7 days) or, if freshness is on, until the window closes. Freshness alone only <i>limits when</i> a replay can happen; it does not limit <i>how many</i> times.</li>
+<li><b>No freshness check:</b> the cache must remember every ClientHello forever. Memory is unbounded; the check is what turns “remember everything” into “remember the last 20 s”.</li>
+<li><b>No age obfuscation:</b> the age field becomes a stable identifier, letting a passive observer link connections that reuse a ticket.</li>
+<li><b>No binder:</b> an attacker could splice a captured ticket into a different ClientHello of their choosing.</li>
+<li><b>No “reject” option:</b> every server with imperfect state would have to take the replay risk or break the client; the escape hatch is what makes deployment survivable.</li>
+<li><b>No application rule (“only send replay-safe data”):</b> everything above still leaves up to N runs per flight. RFC 8446 §8 puts it bluntly: clients “MUST only send early data which they deem safe to be replayed.”</li>
+</ul>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-knobs" data-id="knobs">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="18" y1="26" x2="142" y2="26" class="s-line" stroke-width="3" /><circle cx="40" cy="26" r="7" class="f-acc"/><line x1="18" y1="48" x2="142" y2="48" class="s-line" stroke-width="3" /><circle cx="78" cy="48" r="7" class="f-acc"/><line x1="18" y1="70" x2="142" y2="70" class="s-line" stroke-width="3" /><circle cx="116" cy="70" r="7" class="f-acc"/></svg></div>
+<div class="card-body"><div class="kicker">§8 · Knobs and alternatives</div><h2>Window, lifetime and replay store: each trades memory for replay risk</h2>
+<div class="brief"><p>Ticket lifetime (≤ 7 days), <code>max_early_data_size</code>, window W, where replay state lives, and which methods may be early. The real alternative is not using it: resumption is already 1-RTT.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-knobs">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-knobs"><div class="deep-inner"><div class="deep-content">
+<table><thead><tr><th>Knob</th><th>Tighter</th><th>Looser</th></tr></thead><tbody>
+<tr><td>Ticket lifetime (≤ 7 days, RFC)</td><td>Short: smaller replay and theft horizon</td><td>Long: more resumptions succeed; with no cache, a longer replay horizon</td></tr>
+<tr><td><code>max_early_data_size</code></td><td>Small: less to replay, less to buffer</td><td>Large: bigger requests fit, bigger blast radius per replay</td></tr>
+<tr><td>Acceptance window W (~10 s)</td><td>Small: smaller cache, more legit clients rejected (jitter, retransmits)</td><td>Large: bigger cache, wider replay window</td></tr>
+<tr><td>Replay store</td><td>Single-use ticket DB (strict, stateful) · one owner zone per ticket (strong)</td><td>Per-zone caches (once per zone) · per-node (once per node) · none</td></tr>
+<tr><td>Which requests may be early</td><td><code>GET</code>/<code>HEAD</code>/<code>OPTIONS</code> only; <code>Early-Data</code> header; 425 for the rest</td><td>Anything (the client alone decides)</td></tr>
+<tr><td>Ticket-key (STEK) rotation</td><td>Frequent: limits who can decrypt recorded early data later</td><td>Rare: weaker secrecy of recorded early data</td></tr>
+</tbody></table>
+<h3>Alternatives</h3>
+<ul>
+<li><b>Don’t use 0-RTT.</b> TLS 1.3 resumption is already 1-RTT, so the usual alternative costs one extra round trip.</li>
+<li><b>TCP Fast Open</b> also carries data before the handshake completes, so applications there face an analogous duplicate-delivery caveat (not researched in depth here).</li>
+<li><b>QUIC 0-RTT</b> is this mechanism, with the same trade-offs and the same RFC 8446 defenses (RFC 9001 §9.2).</li>
+<li><b>Application-level idempotency keys</b> (a unique ID per operation that the server dedupes) remove the problem at the layer that can actually solve it, whatever the transport does.</li>
+</ul>
+<p><b>Why 0-RTT won where it won:</b> reads from a CDN edge are idempotent and plentiful, and latency to first byte is what users feel. For payments, nobody trades a round trip for a double charge.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv gated" id="c-breaks" data-id="breaks">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="40" width="26" height="20" rx="3" class="f-acc" /><line x1="34" y1="50" x2="100" y2="20" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3" class="flow"/><rect x="104" y="10" width="40" height="20" rx="3" class="f-panel s-bad" stroke-width="1.5"/><line x1="34" y1="50" x2="100" y2="50" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3" class="flow"/><rect x="104" y="40" width="40" height="20" rx="3" class="f-panel s-bad" stroke-width="1.5"/><line x1="34" y1="50" x2="100" y2="80" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3" class="flow"/><rect x="104" y="70" width="40" height="20" rx="3" class="f-panel s-bad" stroke-width="1.5"/></svg></div>
+<div class="card-body"><div class="kicker">§9 · Where it breaks</div><h2>Replays, retries and forward secrecy are three different failures</h2>
+<div class="guess" data-g="nodes" data-kind="choice" data-ans="2"><p class="g-q"><span class="g-tag">Guess first</span> 8 servers each keep their own replay cache and share ticket keys. An attacker replays one captured flight at every server. At most how many times can it run?</p><div class="g-opts"><button class="g-opt" type="button" data-k="0">1</button><button class="g-opt" type="button" data-k="1">2</button><button class="g-opt" type="button" data-k="2">8</button><button class="g-opt" type="button" data-k="3">Unlimited</button></div><div class="g-reveal"><div><p class="g-verdict" aria-live="polite"></p><p><b>8.</b> RFC 8446 §8: the guarantee is “at most once per server instance”, which “limits the number of replays to the number of server instances”. One shared cache, or one owner zone per ticket, gets it to 1.</p></div></div></div><button class="g-skip" type="button">Skip the guess, just show me</button><div class="brief"><p>State-changing requests replayed, “GETs” that aren’t safe, client retries TLS can’t see, a cluster whose replay state isn’t shared, and early data that dies with the ticket key. <span class="mini">Diagram inside.</span></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-breaks">Go deeper <span class="chev">▸</span> <small>3 min · 1 fig</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-breaks"><div class="deep-inner"><div class="deep-content">
+<h3>Failure modes</h3>
+<ul>
+<li><b>Replayed state-changing requests.</b> The headline failure: a charge, an order or a vote runs once per replay that gets through.</li>
+<li><b>“Idempotent” methods that aren’t.</b> A GET that bumps a counter, logs out, or triggers an action is safe in the HTTP spec and unsafe here. <a href="https://blog.trailofbits.com/2019/03/25/what-application-developers-need-to-know-about-tls-early-data-0rtt/" target="_blank" rel="noopener">Trail of Bits</a> makes the point that a “GET only” rule is not enough if your app uses GET for actions.</li>
+<li><b>Retries, not replays.</b> A network attacker can drop the server’s answer so that the <i>client</i> retries on its own. RFC 8446 §8 says this second class “cannot be prevented at the TLS layer and MUST be dealt with by any application”, and that any app with client retries already needs its own defense.</li>
+<li><b>Zones that don’t share state.</b> The RFC’s own example: duplicate the ClientHello to zone A and zone B. A accepts; B rejects and forces a full handshake; if the attacker blocks A’s reply, the client completes with B and retries, duplicating the request on the system as a whole.</li>
+<li><b>No forward secrecy for early data.</b> The key comes from the PSK. If the ticket-encryption key (STEK) is later compromised, recorded early data can be decrypted. Tim Taubert’s 2017 write-up reported that Apache, nginx and HAProxy of the time did not rotate ticket keys automatically; I did not re-check current defaults.</li>
+<li><b>Restarts.</b> A freshly started server’s replay window is empty. RFC 8446 §8.2: it SHOULD reject 0-RTT while any part of its recording window overlaps its startup time.</li>
+<li><b>Clock tricks.</b> A ClientHello from a fast client clock can land “in the future”, be accepted for 1-RTT, trigger a client retry, and then be acceptable later for 0-RTT (an RFC 8446 §8.2 note).</li>
+<li><b>Resource attacks.</b> Even idempotent requests can be abused by massive replay (timing, resource exhaustion; RFC 8446 Appendix E.5), hence the “at most once per instance” floor.</li>
+</ul>
+<figure class="fig fig-own" id="fig-cluster"><div class="fig-svg" role="img" aria-label="The same captured flight replayed at three cluster designs: runs once per node, once per zone, or once overall."><svg viewBox="0 0 900 262" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three cluster designs and how many times a replay runs"><style>.fl{font:13px system-ui,sans-serif;fill:var(--ink)}.fm{font:12px system-ui,sans-serif;fill:var(--mute)}.fb{font:700 13px system-ui,sans-serif;fill:var(--ink)}.fx{font:12px var(--mono);fill:var(--ink)}</style><text x="150" y="24" class="fb" text-anchor="middle">No shared state</text><rect x="90" y="40" width="120" height="30" rx="5" class="f-code s-line" stroke-width="1.5"/><text x="150" y="60" class="fm" text-anchor="middle">replayed flight</text><line x1="150" y1="70" x2="60" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="20" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="60" y="130" class="fb" text-anchor="middle">node A</text><text x="60" y="146" class="fm" text-anchor="middle">accepted</text><line x1="150" y1="70" x2="152" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="112" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="152" y="130" class="fb" text-anchor="middle">node B</text><text x="152" y="146" class="fm" text-anchor="middle">accepted</text><line x1="150" y1="70" x2="244" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="204" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="244" y="130" class="fb" text-anchor="middle">node C</text><text x="244" y="146" class="fm" text-anchor="middle">accepted</text><text x="150" y="190" class="fl" text-anchor="middle">3 runs from one captured flight</text><text x="450" y="24" class="fb" text-anchor="middle">State per zone</text><rect x="390" y="40" width="120" height="30" rx="5" class="f-code s-line" stroke-width="1.5"/><text x="450" y="60" class="fm" text-anchor="middle">replayed flight</text><line x1="450" y1="70" x2="360" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="320" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="360" y="130" class="fb" text-anchor="middle">node A</text><text x="360" y="146" class="fm" text-anchor="middle">accepted</text><line x1="450" y1="70" x2="452" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="412" y="112" width="80" height="40" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="452" y="130" class="fb" text-anchor="middle">node B</text><text x="452" y="146" class="fm" text-anchor="middle">rejected</text><line x1="450" y1="70" x2="544" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="504" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="544" y="130" class="fb" text-anchor="middle">node C</text><text x="544" y="146" class="fm" text-anchor="middle">accepted</text><text x="450" y="190" class="fl" text-anchor="middle">2 runs from one captured flight</text><text x="750" y="24" class="fb" text-anchor="middle">One owner per ticket</text><rect x="690" y="40" width="120" height="30" rx="5" class="f-code s-line" stroke-width="1.5"/><text x="750" y="60" class="fm" text-anchor="middle">replayed flight</text><line x1="750" y1="70" x2="660" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="620" y="112" width="80" height="40" rx="6" class="f-panel s-bad" stroke-width="1.5"/><text x="660" y="130" class="fb" text-anchor="middle">node A</text><text x="660" y="146" class="fm" text-anchor="middle">accepted</text><line x1="750" y1="70" x2="752" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="712" y="112" width="80" height="40" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="752" y="130" class="fb" text-anchor="middle">node B</text><text x="752" y="146" class="fm" text-anchor="middle">rejected</text><line x1="750" y1="70" x2="844" y2="112" class="s-bad" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="804" y="112" width="80" height="40" rx="6" class="f-panel s-ok" stroke-width="1.5"/><text x="844" y="130" class="fb" text-anchor="middle">node C</text><text x="844" y="146" class="fm" text-anchor="middle">rejected</text><text x="750" y="190" class="fl" text-anchor="middle">1 run from one captured flight</text><text x="20" y="226" class="fm" >RFC 8446 §8 minimum: any one instance accepts a given 0-RTT handshake at most once.</text><text x="20" y="246" class="fm" >The tightest design lets a single zone own each ticket and refuse 0-RTT elsewhere.</text></svg></div><figcaption><b>Figure 5.</b> The same captured flight replayed at three cluster designs: runs once per node, once per zone, or once overall.<span class="fig-cite">Original diagram · adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §8, §8.2</a> · §8</span></figcaption></figure>
+<div class="callout mis"><b>Misconception:</b> “TLS 1.3 prevents replays.” It does for 1-RTT data. For early data the RFC says the opposite: “TLS does not provide inherent replay protections for 0-RTT data.”</div>
+<div class="callout mis"><b>Misconception:</b> “The freshness window stops replays.” It only narrows <i>when</i> a replay can succeed; a copy sent a second later is still inside ±10 s.</div>
+<div class="callout mis"><b>Misconception:</b> “A Bloom filter false positive breaks the connection.” RFC 8446 §8.2: it MUST reject 0-RTT but MUST NOT abort the handshake. The client just loses the round trip.</div>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-wild" data-id="wild">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="26" width="40" height="48" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="20" y="34" width="28" height="6" rx="2" class="f-acc" /><rect x="20" y="46" width="28" height="6" rx="2" class="f-line" /><rect x="20" y="58" width="28" height="6" rx="2" class="f-line" /><rect x="62" y="26" width="40" height="48" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="68" y="34" width="28" height="6" rx="2" class="f-acc" /><rect x="68" y="46" width="28" height="6" rx="2" class="f-line" /><rect x="68" y="58" width="28" height="6" rx="2" class="f-line" /><rect x="110" y="26" width="40" height="48" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="116" y="34" width="28" height="6" rx="2" class="f-acc" /><rect x="116" y="46" width="28" height="6" rx="2" class="f-line" /><rect x="116" y="58" width="28" height="6" rx="2" class="f-line" /></svg></div>
+<div class="card-body"><div class="kicker">§10 · In the wild</div><h2>nginx off by default, QUIC requires it, Go’s TCP stack skips it</h2>
+<div class="brief"><p><code>ssl_early_data</code> and <code>$ssl_early_data</code> in nginx; OpenSSL’s own anti-replay is off because it breaks resumption; RFC 8470 defines the header and the <b>425</b> status. Real fleets often get “at most once per node”, not once.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-wild">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-wild"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>nginx</b>: <code>ssl_early_data</code> is off by default (since 1.15.3). <code>$ssl_early_data</code> is <code>"1"</code> during early data and empty after the handshake. The docs add that OpenSSL’s built-in anti-replay is off by default because it breaks resumption; opt in with <code>ssl_conf_command Options AntiReplay;</code>. An open bug report (nginx issue #1536) says a server-level <code>on</code> can be ignored when the http block disables it; I did not confirm whether the fix (PR #1557) has merged.</li>
+<li><b>HTTP semantics</b>: RFC 8470 says a server that cannot safely process a request MUST answer <code>425</code>; intermediaries MUST set <code>Early-Data: 1</code> when forwarding an early-data request; clients MUST retry on 425 and retries MUST NOT be early data; 425 is not cacheable by default.</li>
+<li><b>QUIC</b>: RFC 9001 §9.2 requires the RFC 8446 replay protections and notes they are imperfect; accepting 0-RTT “incurs a higher cost”; rejection is an <code>EncryptedExtensions</code> without <code>early_data</code>.</li>
+<li><b>Cloudflare</b> (second-hand, see §1b): early-data limited to safe methods by its docs, an <code>Early-Data</code>-style signal to the origin, and a unique-value header so origins can dedupe non-idempotent endpoints against shared state, per Trail of Bits.</li>
+<li><b>Go</b>: the stdlib TCP stack has no early-data toggle; the QUIC side has its own session-ticket early-data option (name per a search snippet, unverified).</li>
+<li><b>Multi-server reality</b>: an upgrade of the terminating software can silently turn the feature on; operators rarely know whether replay state is shared across their fleet.</li>
+</ul>
+<p><b>Deviation from the textbook:</b> the RFC’s ideal is “accept at most once”. Real deployments commonly accept “at most once per node or zone” and push the rest to the app via headers and 425.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Research edge</div>
+<article class="card rv" id="c-frontier" data-id="frontier">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="14" y1="62" x2="146" y2="62" class="s-line" stroke-width="2" /><circle cx="26" cy="62" r="5" class="f-mute"/><circle cx="56" cy="62" r="5" class="f-mute"/><circle cx="86" cy="62" r="5" class="f-mute"/><circle cx="116" cy="62" r="5" class="f-mute"/><circle cx="146" cy="62" r="7" class="f-acc pulse"/><text x="120" y="40" class="t-ink" >2026</text></svg></div>
+<div class="card-body"><div class="kicker">§11 · Frontier</div><h2>Replay handling is settled; post-quantum tickets are the live edge</h2>
+<div class="brief"><p>One verified 2026 paper (hybrid X25519 + ML-KEM resumption), plus 2016–2019 formal analyses and forward-secure constructions. Leads on multi-server replay state were unreadable, so they are listed, not relied on.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-frontier">Go deeper <span class="chev">▸</span> <small>2 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-frontier"><div class="deep-inner"><div class="deep-content">
+<p><b>Honest status:</b> the replay story is mostly settled at the spec level (RFC 8446, 2018) and the HTTP and QUIC layers (RFC 8470, RFC 9001). My research found <b>one verified 2026 paper</b>, and the rest of the recent leads I could not open. I list those as leads, not facts.</p>
+<table><thead><tr><th>Year · Venue</th><th>Work</th><th>Contribution</th></tr></thead><tbody>
+<tr><td>2026 · Frontiers in Computer Science 8</td><td><a href="https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2026.1848687/full" target="_blank" rel="noopener">HQRT: Hybrid Quantum-Resistant Resumption for zero-RTT TLS 1.3 (Abdul, Kondapalli)</a></td><td>Adds a hybrid X25519 + ML-KEM-768 encapsulation to ticket issuance so tickets and early data resist harvest-now-decrypt-later. Page fetched; the ticket-size numbers I saw only in a search snippet, so I do not quote them.</td></tr>
+<tr><td>2019 · ePrint 2019/228</td><td><a href="https://eprint.iacr.org/2019/228" target="_blank" rel="noopener">Session Resumption Protocols and Efficient Forward Security for TLS 1.3 0-RTT (Aviram, Gellert, Jager)</a></td><td>A puncturable-PRF construction that lets one server give early data forward secrecy without client changes.</td></tr>
+<tr><td>2017 · EuroS&amp;P</td><td><a href="https://eprint.iacr.org/2017/082" target="_blank" rel="noopener">Replay Attacks on Zero Round-Trip Time (Fischlin, Günther)</a></td><td>Shows 0-RTT replay affects key secrecy and analyses the PSK and (EC)DHE 0-RTT draft modes.</td></tr>
+<tr><td>2017 · IEEE S&amp;P · CCS</td><td><a href="https://bblanche.gitlabpages.inria.fr/publications/BhargavanBlanchetKobeissiSP2017.pdf" target="_blank" rel="noopener">Verified models for TLS 1.3 (Bhargavan, Blanchet, Kobeissi)</a> · <a href="https://dl.acm.org/doi/10.1145/3133956.3134063" target="_blank" rel="noopener">Comprehensive symbolic analysis</a></td><td>Machine-checked models; show a 0-RTT flight can be replayed and processed multiple times.</td></tr>
+<tr><td>2016 · IEEE S&amp;P</td><td><a href="https://people.cispa.io/cas.cremers/downloads/papers/CHSV2016-TLS13.pdf" target="_blank" rel="noopener">Cremers, Horvat, Scott, van der Merwe: automated analysis of TLS 1.3 0-RTT</a></td><td>Tamarin model of draft-10 including resumption and 0-RTT.</td></tr>
+</tbody></table>
+<p><b>Where the work moved.</b> Away from “how do we stop a replay” and toward (a) <i>post-quantum</i> resumption (the 2026 paper above) and (b) <i>multi-server</i> replay state. For (b) I found candidate papers (a ScienceDirect article “TLS Guard” and an IEEE survey on 0-RTT replay countermeasures, both around 2023) but could not open either, so their authors, venues and claims are unverified and I rely on neither. I also did not check whether the TLS working group’s <code>rfc8446bis</code> draft changes the anti-replay text.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-open" data-id="open">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><circle cx="80" cy="50" r="32" class="f-panel s-acc2" stroke-width="2"/><text x="70" y="64" class="t-ink" style="font:700 40px var(--serif)">?</text></svg></div>
+<div class="card-body"><div class="kicker">§11b · Open problems</div><h2>Who tells the application the request is early?</h2>
+<div class="brief"><p>The <code>Early-Data</code> signal is advisory, shared replay state costs latency, forward-secure 0-RTT is not mainstream, and nobody has measured how many fleets share any state at all.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-open">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-open"><div class="deep-inner"><div class="deep-content">
+<ul>
+<li><b>Who tells the application?</b> The signal (<code>Early-Data: 1</code>) is advisory: the origin has to check it, and intermediaries have to set it. If any hop forgets, replay protection silently vanishes. Whether safety should instead be <i>opt-in by the app</i> is still debated in standards discussion (see the httpbis replay work).</li>
+<li><b>Is shared replay state worth it?</b> Global consistent state across regions costs latency, which is the very thing 0-RTT was meant to save. The alternatives are “one owner zone per ticket” (needs routing) or “reject early data except for pure reads”. I found no measurement of how many real deployments have any shared state.</li>
+<li><b>Forward-secure 0-RTT.</b> Puncturable constructions (2019) exist on paper. I found no evidence of mainstream deployment and did not look for it exhaustively.</li>
+<li><b>Post-quantum tickets.</b> Hybrid ML-KEM tickets promise secrecy against harvest-now-decrypt-later but make tickets larger; how that interacts with anti-replay storage and QUIC’s amplification limits is not settled in anything I could verify.</li>
+<li><b>Delay vs replay.</b> The freshness window does not stop an attacker from holding a flight for several seconds and then releasing it. One participant in an IETF thread argued this is a retry-style attack, not a replay; it was a hypothetical, not a reported incident.</li>
+</ul>
+<p>I found <b>no</b> public production incident from a CDN where a non-idempotent request was replayed through 0-RTT. That could mean it hasn’t happened, or that nobody wrote it up.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-lineage" data-id="lineage">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="38" width="44" height="24" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="58" y="38" width="44" height="24" rx="4" class="f-panel s-line" stroke-width="1.5"/><rect x="108" y="38" width="44" height="24" rx="4" class="f-panel s-line" stroke-width="1.5"/><line x1="52" y1="50" x2="58" y2="50" class="s-acc" stroke-width="2" /><line x1="102" y1="50" x2="108" y2="50" class="s-acc" stroke-width="2" /><text x="14" y="54" class="t-mute" >OPTLS</text><text x="60" y="54" class="t-ink" >TLS1.3</text><text x="110" y="54" class="t-mute" >QUIC</text></svg></div>
+<div class="card-body"><div class="kicker">§12 · Lineage</div><h2>From TLS 1.2 tickets and Google QUIC to RFC 8446’s one surviving 0-RTT mode</h2>
+<div class="brief"><p>RFC 5077 tickets → QUIC’s first-packet requests → OPTLS → TLS 1.3 drafts (two 0-RTT modes) → RFC 8446 (PSK only) → RFC 8470 and RFC 9001 → post-quantum resumption.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-lineage">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-lineage"><div class="deep-inner"><div class="deep-content">
+<ol>
+<li><b>TLS 1.2 session tickets</b> (RFC 5077, 2008): stateless resumption, but the first request still waits a round trip.</li>
+<li><b>Google QUIC</b> (designed ~2013): sent a request in the first packet by caching server config; replay was an accepted trade-off.</li>
+<li><b>OPTLS</b> (Krawczyk &amp; Wee, 2015, <a href="https://eprint.iacr.org/2015/978.pdf" target="_blank" rel="noopener">ePrint 2015/978</a>): the design background for 0-RTT with forward-secrecy goals in TLS 1.3.</li>
+<li><b>TLS 1.3 drafts 2015–2017</b>: a (EC)DHE-based 0-RTT mode and a PSK-based 0-RTT mode were analysed (Fischlin &amp; Günther, 2017, draft-12 and draft-14). The final standard keeps only PSK-based 0-RTT.</li>
+<li><b>RFC 8446</b> (2018): early_data, the three anti-replay mechanisms in §8, the “clients MUST only send replay-safe early data” rule.</li>
+<li><b>RFC 8470</b> (2018): <code>Early-Data</code> header and <code>425 Too Early</code>. <b>RFC 9001</b> (2021): QUIC inherits it.</li>
+<li><b>2019 → 2026</b>: forward-secure 0-RTT constructions, then post-quantum resumption.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Practice &amp; self-test</div>
+<article class="card rv" id="c-hands" data-id="hands">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="140" height="72" rx="5" class="f-code s-line" stroke-width="1.5"/><text x="18" y="36" class="t-mute" style="font:12px var(--mono)">$ python sim.py</text><text x="18" y="54" class="t-ink" style="font:12px var(--mono)">replays: 8</text><text x="18" y="72" class="t-ink" style="font:12px var(--mono)">replays: 1</text><rect x="98" y="62" width="8" height="12" rx="1" class="f-acc blink" /></svg></div>
+<div class="card-body"><div class="kicker">§13 · Hands-on</div><h2>Count how many times one captured flight can run</h2>
+<div class="brief"><p>A standard-library simulation of the ticket-age check and three replay-cache layouts: no cache (51 runs), one cache per server (8), one shared cache (1). Optional OpenSSL commands included.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-hands">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-hands"><div class="deep-inner"><div class="deep-content">
+<p><code>sim.py</code> (in this folder, standard library only) models one captured 0-RTT flight replayed against a cluster, with the ticket-age arithmetic from §6 and different replay-cache layouts.</p>
+<pre><code>python3 sim.py            # 8 servers, ±10 s window, 50 replay attempts
+python3 sim.py 16 5 200   # servers, window seconds, attempts</code></pre>
+<pre><code>8 servers, window +/-10s, 50 replay attempts, replay arrives 1 s after the original
+
+no replay protection at all                    runs of one request: 51
+freshness window only                          runs of one request: 51
+freshness + one cache per server               runs of one request: 8
+freshness + one shared cache                   runs of one request: 1
+freshness + cache, replay after window closes  runs of one request: 1</code></pre>
+<ul>
+<li>Freshness alone does nothing against a prompt replay: 51 runs.</li>
+<li>Per-server caches cap it at the number of servers: 8. Your fleet size is your replay count.</li>
+<li>A shared cache gives 1, and a late replay (after the window) is refused by the age check without touching the cache.</li>
+</ul>
+<h3>On the wire (optional)</h3>
+<p>Against a server you control with <code>ssl_early_data on</code>, OpenSSL’s client can send early data. The flags below exist in OpenSSL 3.6 (<code>s_client -help</code>), but I did not run this against a live server here:</p>
+<pre><code>openssl s_client -connect host:443 -tls1_3 -sess_out sess.pem &lt; /dev/null
+printf 'GET / HTTP/1.1\r\nHost: host\r\nConnection: close\r\n\r\n' &gt; req.txt
+openssl s_client -connect host:443 -tls1_3 -sess_in sess.pem -early_data req.txt</code></pre>
+<p>Watch for <code>Early data was accepted</code> or <code>rejected</code>. Run the second command twice quickly and see whether the server’s replay protection refuses the repeat.</p>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-quiz" data-id="quiz">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="18" y="18" width="14" height="14" rx="3" class="f-none s-line" stroke-width="1.5"/><rect x="42" y="21" width="90" height="7" rx="2" class="f-line" /><rect x="18" y="40" width="14" height="14" rx="3" class="f-none s-line" stroke-width="1.5"/><rect x="42" y="43" width="72" height="7" rx="2" class="f-line" /><rect x="18" y="62" width="14" height="14" rx="3" class="f-none s-line" stroke-width="1.5"/><rect x="42" y="65" width="54" height="7" rx="2" class="f-line" /><path d="M20 25 l4 4 l8 -9" class="f-none s-ok" stroke-width="2.5"/></svg></div>
+<div class="card-body"><div class="kicker">§14 · Question ladder</div><h2>Test yourself</h2>
+<div class="brief"><p>20 questions across mechanism, why, counterfactual, adversarial, connection and open. Tick each one you could answer.</p><p class="score" id="quiz-score"></p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-quiz">Go deeper <span class="chev">▸</span> <small>6 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-quiz"><div class="deep-inner"><div class="deep-content">
+<p class="mini">Answer in your head first, then reveal and mark yourself honestly. Marks are saved in this browser and feed the progress ring.</p><p><button class="btn" id="reveal-all" type="button" aria-pressed="false">Reveal all answers</button> <button class="btn" id="quiz-reset" type="button">Reset marks</button></p><div class="qgroup">Mechanism</div>
+<div class="q" data-i="0"><div class="qq">1. What exactly does the server compute from <code>obfuscated_ticket_age</code>, and what does it compare the result with?</div><div class="qa"><div><p>It subtracts its stored <code>ticket_age_add</code> mod 2³² to get the client’s view of the ticket age, adds that to the ticket’s creation time (plus an RTT estimate) to predict when the ClientHello should arrive, and compares that with its own clock. Outside about ±10 s it rejects 0-RTT.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="q" data-i="1"><div class="qq">2. Which two inputs does <code>client_early_traffic_secret</code> depend on?</div><div class="qa"><div><p>The PSK (through the Early Secret) and the ClientHello transcript hash: <code>Derive-Secret(Early Secret, "c e traffic", ClientHello)</code>. No server input, which is why the data can be sent before the server speaks.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="2"><div class="qq">3. The server rejects early data. What does it do with the records already on the wire?</div><div class="qa"><div><p>It skips them: it tries to deprotect incoming records with the handshake key, discards the ones that fail (up to <code>max_early_data_size</code>), and treats the first one that succeeds as the client’s second flight. With a HelloRetryRequest it skips all application_data records instead.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="q" data-i="3"><div class="qq">4. What does the PSK binder cover, and why must <code>pre_shared_key</code> be the last extension?</div><div class="qa"><div><p>The binder is an HMAC over the ClientHello up to (not including) the binders, keyed by the PSK. The extension must be last so everything that precedes it is covered by the binder computation.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-mech">→ related card</a></div></div>
+<div class="qgroup">Why</div>
+<div class="q" data-i="4"><div class="qq">5. Why add <code>ticket_age_add</code> to the age?</div><div class="qa"><div><p>Without it the age is a stable number an observer could use to link connections that reuse a ticket. The random per-ticket offset hides it from everyone except the server that chose it.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="q" data-i="5"><div class="qq">6. Why must a Bloom-filter replay store reject 0-RTT on a hit instead of aborting?</div><div class="qa"><div><p>A false positive would otherwise kill a legitimate connection. Rejecting only costs the client the round trip, and a Bloom filter has no false negatives, so it never lets a replay through.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-math">→ related card</a></div></div>
+<div class="q" data-i="6"><div class="qq">7. Why can’t TLS prevent the client-retry class of attack?</div><div class="qa"><div><p>The server sees two separate, legitimately encrypted requests from a client that thinks the first one failed. Nothing at the TLS layer links them, so the application must dedupe.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="7"><div class="qq">8. Why is early data not forward secret when 1-RTT data is?</div><div class="qa"><div><p>1-RTT keys mix in a fresh ephemeral (EC)DHE secret that is deleted afterwards. Early keys come only from the PSK, so whoever later obtains the ticket-encryption key or PSK can decrypt recorded early data.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="qgroup">Counterfactual</div>
+<div class="q" data-i="8"><div class="qq">9. Keep the ClientHello cache but remove the freshness check. What breaks?</div><div class="qa"><div><p>The cache must now remember every ClientHello forever, because any old flight could be replayed. Freshness is what lets entries expire after ~2W.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-why">→ related card</a></div></div>
+<div class="q" data-i="9"><div class="qq">10. If the server mixed fresh randomness into the early key, what would it cost?</div><div class="qa"><div><p>The client would have to wait for the server’s share, which is exactly the round trip 0-RTT saves, and the first-flight data could no longer be encrypted.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-problem">→ related card</a></div></div>
+<div class="q" data-i="10"><div class="qq">11. What if all 8 nodes shared ticket keys but nobody shared caches, versus sharding tickets by hash to one owner node?</div><div class="qa"><div><p>Shared keys alone let every node decrypt the ticket, so each accepts once: up to 8 runs. Routing each ticket to one owner that alone accepts 0-RTT, and rejecting elsewhere, gives 1.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="11"><div class="qq">12. What if ticket lifetime were 30 seconds?</div><div class="qa"><div><p>The replay horizon and theft horizon shrink dramatically, but few clients would hold a valid ticket when they return, so most resumptions (and so most 0-RTT) would disappear.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="qgroup">Adversarial</div>
+<div class="q" data-i="12"><div class="qq">13. You sit on the café wifi. How do you make the app charge twice, and what stops you?</div><div class="qa"><div><p>Record the first flight of a <code>POST /pay</code> sent as early data and resend it. A replay cache catches repeats on that server, but the real stops are: the client must not send non-idempotent requests early, and the server must answer 425 for early-data requests it can’t safely repeat.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="13"><div class="qq">14. You delay a flight by 8 s instead of copying it. Why does the freshness check let it through, and is it harmful?</div><div class="qa"><div><p>The age check passes inside ±10 s. It is not a duplicate, so the cache won’t flag it; it is a delay attack on a request that is still valid. Whether that matters depends on the request’s time sensitivity.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="q" data-i="14"><div class="qq">15. How does stealing the ticket-encryption key (STEK) change the threat?</div><div class="qa"><div><p>The attacker can decrypt every ticket they recorded, recover the PSKs, and decrypt any recorded early data, and can mint tickets. Early data has no forward secrecy against this.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-breaks">→ related card</a></div></div>
+<div class="qgroup">Connection</div>
+<div class="q" data-i="15"><div class="qq">16. How do HTTP idempotency and the 425 status relate?</div><div class="qa"><div><p>The origin uses <code>Early-Data: 1</code> to know the request arrived early; for non-idempotent ones it answers 425, which tells the client to retry after the handshake (not as early data).</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-wild">→ related card</a></div></div>
+<div class="q" data-i="16"><div class="qq">17. How is QUIC 0-RTT different from TLS-over-TCP 0-RTT?</div><div class="qa"><div><p>It is the same TLS mechanism carried in QUIC packets; QUIC omits <code>EndOfEarlyData</code>, rejection shows up as an EncryptedExtensions without <code>early_data</code>, and RFC 9001 §9.2 says the replay protections are mandatory but imperfect.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-wild">→ related card</a></div></div>
+<div class="q" data-i="17"><div class="qq">18. How does an application-level idempotency key relate to 0-RTT replay defenses?</div><div class="qa"><div><p>Both turn “run twice” into “run once”, but the key does it at the layer that knows what the operation means, so it works for retries, replays and every transport.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-knobs">→ related card</a></div></div>
+<div class="qgroup">Open</div>
+<div class="q" data-i="18"><div class="qq">19. Should CDNs enable 0-RTT by default?</div><div class="qa"><div><p>Contested: the win is real for reads, the risk is concentrated in origins that never learn the request was early. No consensus from what I could verify.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+<div class="q" data-i="19"><div class="qq">20. How would you measure how many deployments share replay state?</div><div class="qa"><div><p>Nobody I found has published such a measurement. You would need active probing: replay one captured flight to many addresses of the same service and count how many accept it.</p></div></div><div class="qrow"><button class="qbtn qshow" type="button" aria-expanded="false">Show answer</button><button class="qbtn y" type="button" aria-pressed="false">✓ Knew it</button><button class="qbtn n" type="button" aria-pressed="false">✗ Didn't</button><a class="sec mini" href="#c-open">→ related card</a></div></div>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<div class="group rv">Further</div>
+<article class="card rv" id="c-next" data-id="next">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><line x1="30" y1="50" x2="70" y2="50" class="s-line" stroke-width="2" /><line x1="70" y1="50" x2="108" y2="22" class="s-line" stroke-width="1.5" /><rect x="108" y="12" width="40" height="20" rx="3" class="f-panel s-acc" stroke-width="1.5"/><line x1="70" y1="50" x2="108" y2="50" class="s-line" stroke-width="1.5" /><rect x="108" y="40" width="40" height="20" rx="3" class="f-panel s-acc" stroke-width="1.5"/><line x1="70" y1="50" x2="108" y2="78" class="s-line" stroke-width="1.5" /><rect x="108" y="68" width="40" height="20" rx="3" class="f-panel s-acc" stroke-width="1.5"/><rect x="8" y="38" width="24" height="24" rx="4" class="f-acc" /></svg></div>
+<div class="card-body"><div class="kicker">§15 · Go deeper next</div><h2>Three topics that build on this</h2>
+<div class="brief"><p>Ticket-key rotation and forward secrecy, QUIC connection setup, and idempotency keys in API design.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-next">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-next"><div class="deep-inner"><div class="deep-content">
+<ol>
+<li><b>Ticket-key (STEK) rotation and the forward secrecy of resumption</b>: how long recorded sessions stay decryptable.</li>
+<li><b>QUIC connection setup</b>: address validation, amplification limits and how 0-RTT fits (RFC 9000/9001).</li>
+<li><b>Idempotency keys in API design</b>: making “run twice” safe at the application layer.</li>
+</ol>
+
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+<article class="card rv" id="c-sources" data-id="sources">
+<div class="card-head"><div class="card-vis" aria-hidden="true"><svg viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="14" width="70" height="62" rx="3" class="f-panel s-line" stroke-width="1.5"/><rect x="32" y="22" width="70" height="62" rx="3" class="f-panel s-line" stroke-width="1.5"/><rect x="44" y="30" width="70" height="62" rx="3" class="f-panel s-line" stroke-width="1.5"/><rect x="40" y="32" width="40" height="4" rx="1" class="f-line" /><rect x="40" y="42" width="40" height="4" rx="1" class="f-line" /><rect x="40" y="52" width="40" height="4" rx="1" class="f-line" /></svg></div>
+<div class="card-body"><div class="kicker">Sources</div><h2>Standards, papers, docs, and leads I could not open</h2>
+<div class="brief"><p>RFC 8446, 8470 and 9001; the replay and verification papers; nginx and Go docs; two practitioner posts; and a short list of unverified leads.</p></div>
+<div class="card-actions"><button class="deeper" type="button" aria-expanded="false" aria-controls="d-sources">Go deeper <span class="chev">▸</span> <small>1 min</small></button>
+<label class="got"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Got it</span></label></div></div></div>
+<div class="deep" id="d-sources"><div class="deep-inner"><div class="deep-content">
+<h3>Standards</h3>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446, TLS 1.3</a> (§2.3, §4.2.10, §4.2.11, §4.6.1, §7.1, §8, App. E.5)</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8470" target="_blank" rel="noopener">RFC 8470, Using Early Data in HTTP</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9001#section-9.2" target="_blank" rel="noopener">RFC 9001 §9.2, Using TLS to secure QUIC: replay attacks</a></li>
+</ul>
+<h3>Papers</h3>
+<ul>
+<li><a href="https://eprint.iacr.org/2017/082" target="_blank" rel="noopener">Fischlin &amp; Günther, Replay Attacks on Zero Round-Trip Time, EuroS&amp;P 2017</a></li>
+<li><a href="https://eprint.iacr.org/2015/914" target="_blank" rel="noopener">Dowling, Fischlin, Günther, Stebila, TLS 1.3 handshake analysis, CCS 2015</a></li>
+<li><a href="https://eprint.iacr.org/2015/978.pdf" target="_blank" rel="noopener">Krawczyk &amp; Wee, OPTLS</a></li>
+<li><a href="https://eprint.iacr.org/2019/228" target="_blank" rel="noopener">Aviram, Gellert, Jager, Session Resumption Protocols and Efficient Forward Security for TLS 1.3 0-RTT</a></li>
+<li><a href="https://people.cispa.io/cas.cremers/downloads/papers/CHSV2016-TLS13.pdf" target="_blank" rel="noopener">Cremers et al., Automated Analysis of TLS 1.3, S&amp;P 2016</a></li>
+<li><a href="https://bblanche.gitlabpages.inria.fr/publications/BhargavanBlanchetKobeissiSP2017.pdf" target="_blank" rel="noopener">Bhargavan, Blanchet, Kobeissi, Verified Models for TLS 1.3, S&amp;P 2017</a></li>
+<li><a href="https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2026.1848687/full" target="_blank" rel="noopener">Abdul &amp; Kondapalli, HQRT, Frontiers in Computer Science 2026</a></li>
+</ul>
+<h3>Code, docs, articles</h3>
+<ul>
+<li><a href="https://nginx.org/en/docs/http/ngx_http_ssl_module.html" target="_blank" rel="noopener">nginx ngx_http_ssl_module (ssl_early_data, $ssl_early_data)</a></li>
+<li><a href="https://pkg.go.dev/crypto/tls" target="_blank" rel="noopener">Go crypto/tls Config</a></li>
+<li><a href="https://blog.trailofbits.com/2019/03/25/what-application-developers-need-to-know-about-tls-early-data-0rtt/" target="_blank" rel="noopener">Trail of Bits, What application developers need to know about TLS early data</a></li>
+<li><a href="https://timtaubert.de/blog/2017/02/the-future-of-session-resumption" target="_blank" rel="noopener">Tim Taubert, The future of session resumption</a></li>
+<li><a href="https://blog.cloudflare.com/introducing-0-rtt/" target="_blank" rel="noopener">Cloudflare, Introducing Zero Round Trip Time Resumption (0-RTT)</a> (not read in full)</li>
+<li><a href="https://developers.cloudflare.com/speed/optimization/protocol/0-rtt-connection-resumption/" target="_blank" rel="noopener">Cloudflare docs, 0-RTT connection resumption</a> (summary only)</li>
+</ul>
+<h3>Leads I could not open (not relied on)</h3>
+<ul>
+<li>ScienceDirect “TLS Guard” article (pii S1319157823003518), IEEE document 10278190, <code>draft-ietf-tls-rfc8446bis</code> revision status.</li>
+</ul>
+<h3 id="figure-credits">Figure credits</h3><p class="mini">Reproduced figures are used under their open licenses, with changes limited to what is noted; original diagrams are redrawn, not copied.</p><ol class="credits"><li><a href="#fig-flow">Figure 1</a>: original diagram, adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §2.3 (Fig. 4)</a>, Fig. 4.</li><li><a href="#fig-keys">Figure 2</a>: original diagram, adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §7.1</a>, §7.1.</li><li><a href="#fig-age">Figure 4</a>: original diagram, adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §8.3</a>, §8.3.</li><li><a href="#fig-cluster">Figure 5</a>: original diagram, adapted from <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446 §8, §8.2</a>, §8.</li></ol>
+</div><div class="deep-foot"><button class="collapse" type="button">Collapse ▴</button></div></div></div>
+</article>
+</main>
+
+<script type="application/json" id="rh-data">{"slug": "2026-10-17-tls13-0rtt-replay", "cards": ["plain", "ctx", "world", "onel", "problem", "model", "mech", "math", "why", "knobs", "breaks", "wild", "frontier", "open", "lineage", "hands", "quiz", "next", "sources"], "questions": 20}</script>
+<script>
+/* rabbithole dive template runtime — cards, progress, quiz, motion. Shared by every dive page. */
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return [].slice.call((el || document).querySelectorAll(s)); };
+
+  // ---- storage (never required: page works without it) ----
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  // ---- theme ----
+  var theme = load('rh:theme', null);
+  if (theme) root.setAttribute('data-theme', theme);
+  var tb = $('#theme');
+  if (tb) tb.onclick = function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    theme = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', theme); save('rh:theme', theme);
+  };
+
+  // ---- copy buttons ----
+  $$('pre').forEach(function (p) {
+    var c = p.querySelector('code'); if (!c) return;
+    var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.onclick = function () {
+      (navigator.clipboard ? navigator.clipboard.writeText(c.innerText) : Promise.reject())
+        .then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select + copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1400);
+    };
+    p.appendChild(b);
+  });
+
+  // ---- SVG stroke draw-in: normalise path length ----
+  $$('.draw').forEach(function (e) { e.setAttribute('pathLength', '1'); });
+
+  // ---- hero layers: stagger intro, parallax ----
+  var layers = $$('.hero-art .layer');
+  layers.forEach(function (g, i) { g.style.setProperty('--i', i); });
+  var bar = $('.topbar');
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      if (bar) bar.classList.toggle('scrolled', y > 40);
+      // parallax measured from the hero's own position (a cold open may sit above it)
+      var art = layers.length && layers[0].closest('.hero-art');
+      var rel = art ? Math.min(700, Math.max(0, -art.getBoundingClientRect().top)) : 0;
+      if (!reduce) layers.forEach(function (g) {
+        g.style.translate = '0 ' + (rel * (+g.getAttribute('data-depth') || 0)).toFixed(1) + 'px';
+      });
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  var heroArt = $('.hero-art');
+  if (heroArt) requestAnimationFrame(function () { requestAnimationFrame(function () { heroArt.classList.add('in-view'); }); });
+
+  // ---- ASCII hero: scramble then resolve ----
+  var ascii = $('.hero-art .ascii-hero');
+  if (ascii && !reduce) {
+    var target = ascii.textContent, glyphs = '01#*+=-:.<>/\\|[]{}', t0 = performance.now();
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / 1400), out = '';
+      for (var i = 0; i < target.length; i++) {
+        var ch = target[i];
+        out += (ch === '\n' || ch === ' ' || Math.random() < k * 1.15) ? ch : glyphs[(Math.random() * glyphs.length) | 0];
+      }
+      ascii.textContent = out;
+      if (k < 1) requestAnimationFrame(frame); else ascii.textContent = target;
+    })(t0);
+  }
+
+  // ---- stat count-up ----
+  function countUp(el) {
+    var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(el.textContent.trim());
+    if (!m || reduce) return;
+    if (el.dataset.counted) return; el.dataset.counted = 1;
+    var final = el.textContent, end = parseFloat(m[1]), dec = (m[1].split('.')[1] || '').length, rest = m[2], t0 = performance.now();
+    (function f() {
+      var k = Math.min(1, Math.max(0, (performance.now() - t0) / 900)), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = k < 1 ? (end * e).toFixed(dec) + rest : final;
+      if (k < 1) requestAnimationFrame(f);
+    })();
+    setTimeout(function () { el.textContent = final; }, 1200); // rAF can stall in background tabs
+  }
+
+  // ---- reveal on scroll ----
+  var cardsSeen = {};
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        var t = e.target;
+        if (t.classList.contains('card')) t.classList.toggle('in-view', e.isIntersecting);
+        if (!e.isIntersecting) return;
+        if (t.classList.contains('rv') && !t.classList.contains('in')) {
+          t.classList.add('in');
+          if (t.classList.contains('stat')) countUp($('.v', t));
+        }
+        if (t.matches && t.matches('svg') ) t.classList.add('in-view');
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    $$('.rv, .card, .deep-content svg, .card-vis svg').forEach(function (e) { io.observe(e); });
+  } else {
+    $$('.rv').forEach(function (e) { e.classList.add('in'); });
+    $$('.card, svg').forEach(function (e) { e.classList.add('in-view'); });
+  }
+
+  // ---- figure lightbox ----
+  var figs = $$('.fig-zoom');
+  if (figs.length) {
+    var lb = document.createElement('div'); lb.className = 'lightbox'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true');
+    lb.innerHTML = '<button type="button">Close ✕</button><img alt=""><p></p>';
+    document.body.appendChild(lb);
+    var lastFocus = null;
+    var close = function () { lb.classList.remove('on'); if (lastFocus) lastFocus.focus(); };
+    figs.forEach(function (b) {
+      b.onclick = function () {
+        var img = $('img', b), cap = b.parentNode.querySelector('figcaption');
+        $('img', lb).src = img.src; $('img', lb).alt = img.alt; $('p', lb).innerHTML = cap ? cap.innerHTML : '';
+        lastFocus = b; lb.classList.add('on'); $('button', lb).focus();
+      };
+    });
+    lb.onclick = function (e) { if (e.target === lb || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') close(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lb.classList.contains('on')) close(); });
+  }
+
+  // ---- cold open: lines arrive one at a time ----
+  $$('.cold-inner > *').filter(function (e) { return !/^(STYLE|SCRIPT)$/.test(e.tagName); }).forEach(function (e, i) { e.style.setProperty('--i', i); });
+
+  // ---- scrolly: the sticky figure shows the state of the step being read ----
+  $$('.scrolly').forEach(function (sc) {
+    var steps = $$('.step', sc), fig = $('.scrolly-fig', sc), cur = -1;
+    var els = $$('[data-in],[data-out],[data-hl]', fig).map(function (e) {
+      var hl = (e.getAttribute('data-hl') || '').split(/[\s,]+/).filter(Boolean).map(Number);
+      return { e: e, a: +e.getAttribute('data-in') || 0, b: +e.getAttribute('data-out') || Infinity, hl: hl };
+    });
+    steps.forEach(function (st, i) { if (!$('.n', st)) { var n = document.createElement('span'); n.className = 'n'; n.textContent = (i + 1) + ' / ' + steps.length; st.insertBefore(n, st.firstChild); } });
+    function show(k) {
+      if (k === cur) return; cur = k; var s = k + 1;
+      fig.setAttribute('data-step', s);
+      steps.forEach(function (st, i) { st.classList.toggle('on', i === k); });
+      els.forEach(function (o) {
+        o.e.classList.toggle('sv-off', !(s >= o.a && s < o.b));
+        o.e.classList.toggle('sv-hl', o.hl.indexOf(s) >= 0);
+      });
+    }
+    function pick() {
+      var line = innerHeight * (innerWidth <= 760 ? 0.72 : 0.55), k = 0;
+      steps.forEach(function (st, i) { if (st.getBoundingClientRect().top < line) k = i; });
+      show(k);
+    }
+    var t = false;
+    window.addEventListener('scroll', function () { if (t) return; t = true; requestAnimationFrame(function () { t = false; pick(); }); }, { passive: true });
+    window.addEventListener('resize', pick);
+    show(0);
+  });
+
+  // ---- page data + progress ----
+  var dataEl = $('#rh-data'); if (!dataEl) return;
+  var D = JSON.parse(dataEl.textContent);
+  var KEY = 'rh:p:' + D.slug;
+  var P = load(KEY, {}); P.got = P.got || {}; P.q = P.q || {}; P.g = P.g || {}; P.seen = P.seen || Date.now();
+  var cards = $$('article.card');
+  var qs = $$('.q[data-i]');
+  var guesses = $$('.guess[data-g]');
+
+  function status(gotN, yesN) {
+    var nc = cards.length, nq = qs.length;
+    if (gotN === nc && (nq === 0 || yesN / nq >= 0.8)) return 'understood';
+    if (gotN >= Math.ceil(nc / 2)) return 'skimmed';
+    return 'started';
+  }
+  function refresh() {
+    var gotN = cards.filter(function (c) { return P.got[c.dataset.id]; }).length;
+    var yesN = qs.filter(function (q) { return P.q[q.dataset.i] === 'y'; }).length;
+    var ansN = qs.filter(function (q) { return P.q[q.dataset.i]; }).length;
+    var pct = Math.round(100 * (gotN + yesN) / Math.max(1, cards.length + qs.length));
+    var st = status(gotN, yesN);
+    P.pct = pct; P.status = st; save(KEY, P);
+    var fg = $('.ring .r-fg'); if (fg) fg.style.strokeDashoffset = (1 - pct / 100).toFixed(3);
+    var rp = $('#ring-pct'); if (rp) rp.textContent = pct + '%';
+    $$('[data-status]').forEach(function (b) { b.dataset.s = st; b.textContent = st[0].toUpperCase() + st.slice(1); });
+    var sc = $('#quiz-score'); if (sc) sc.textContent = ansN ? (yesN + ' / ' + qs.length + ' known') : qs.length + ' questions';
+    $$('.dots a').forEach(function (a) { a.classList.toggle('got', !!P.got[a.dataset.id]); });
+    var gids = guesses.map(function (g) { return g.dataset.g; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var gDone = gids.filter(function (g) { return P.g[g] && !P.g[g].skip; }), gOk = gDone.filter(function (g) { return P.g[g].ok; });
+    $$('.g-score').forEach(function (e) { e.hidden = !gDone.length; e.textContent = '· guesses: ' + gOk.length + ' / ' + gDone.length + ' right'; });
+  }
+
+  // ---- guess first: commit, then reveal ----
+  function fmt(v, u) { return (Math.round(v * 100) / 100) + u; }
+  guesses.forEach(function (g) {
+    var id = g.dataset.g, kind = g.dataset.kind, card = g.closest('article.card'), verdict = $('.g-verdict', g);
+    function finish(rec, animate) {
+      g.classList.add('done');
+      if (card) card.classList.remove('gated');
+      if (kind === 'choice') {
+        var ans = +g.dataset.ans;
+        $$('.g-opt', g).forEach(function (b) {
+          b.disabled = true; var k = +b.dataset.k;
+          if (k === ans) b.classList.add('right'); else if (k === rec.v) b.classList.add('pick');
+        });
+        verdict.textContent = rec.skip ? 'Answer:' : rec.ok ? 'Right.' : 'Not quite.';
+      } else {
+        var lo = +g.dataset.lo, hi = +g.dataset.hi, mn = +g.dataset.min, mx = +g.dataset.max, u = g.dataset.unit || '';
+        var pos = function (v) { return (100 * (v - mn) / (mx - mn)).toFixed(2) + '%'; };
+        var band = $('.g-band', g); band.style.left = pos(lo); band.style.width = 'calc(' + pos(hi) + ' - ' + pos(lo) + ')';
+        var you = $('.g-you', g);
+        if (rec.skip) { you.style.display = 'none'; verdict.textContent = 'Answer: ' + (lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u)) + '.'; }
+        else {
+          you.style.left = pos(rec.v);
+          var off = rec.v < lo ? lo - rec.v : rec.v > hi ? rec.v - hi : 0;
+          var truth = lo === hi ? fmt(lo, u) : fmt(lo, u) + '–' + fmt(hi, u);
+          verdict.textContent = 'You said ' + fmt(rec.v, u) + '. Real: ' + truth + '. ' +
+            (off === 0 ? 'Spot on.' : rec.ok ? 'Close.' : 'Off by ' + fmt(off, u) + (rec.v > hi ? ', too high.' : ', too low.'));
+          $('output', g).textContent = fmt(rec.v, u);
+        }
+      }
+      verdict.className = 'g-verdict' + (rec.skip ? '' : rec.ok ? ' ok' : ' no');
+      if (animate) document.dispatchEvent(new CustomEvent('rh:guess', { detail: { id: id, ok: rec.ok } }));
+    }
+    function commit(rec) { if (P.g[id]) return; P.g[id] = rec; finish(rec, true); refresh(); }
+    if (kind === 'choice') {
+      $$('.g-opt', g).forEach(function (b) { b.onclick = function () { var v = +b.dataset.k; commit({ v: v, ok: v === +g.dataset.ans }); }; });
+    } else {
+      var inp = $('input', g), out = $('output', g), u = g.dataset.unit || '';
+      inp.oninput = function () { out.textContent = fmt(+inp.value, u); };
+      $('.g-lock', g).onclick = function () {
+        var v = +inp.value, lo = +g.dataset.lo, hi = +g.dataset.hi, tol = +g.dataset.tol;
+        commit({ v: v, ok: v >= lo - tol && v <= hi + tol });
+      };
+    }
+    if (card) { var sk = $('.g-skip', card); if (sk) sk.onclick = function () { commit({ skip: 1, ok: false }); }; }
+    if (P.g[id]) finish(P.g[id], false); else if (card) card.classList.add('gated');
+  });
+
+  // ---- cards: expand / collapse / got-it ----
+  function setOpen(card, open, scroll) {
+    card.classList.toggle('open', open);
+    clearTimeout(card._st); card.classList.remove('settled');
+    if (open) card._st = setTimeout(function () { card.classList.add('settled'); }, 500);
+    var btn = $('.deeper', card), deep = $('.deep', card);
+    btn.setAttribute('aria-expanded', open);
+    if (open) deep.removeAttribute('inert'); else deep.setAttribute('inert', '');
+    if (!open && scroll) {
+      var top = card.getBoundingClientRect().top;
+      if (top < 0) card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  cards.forEach(function (card) {
+    var id = card.dataset.id;
+    $('.deeper', card).onclick = function () { setOpen(card, !card.classList.contains('open'), true); };
+    var col = $('.collapse', card); if (col) col.onclick = function () { setOpen(card, false, true); };
+    var cb = $('.got input', card);
+    cb.checked = !!P.got[id];
+    cb.onchange = function () { if (cb.checked) P.got[id] = 1; else delete P.got[id]; refresh(); };
+    setOpen(card, card.hasAttribute('data-open'), false);
+  });
+
+  // expand-all ("deep mode")
+  var ea = $('#expand-all');
+  if (ea) {
+    var setAll = function (on) {
+      ea.setAttribute('aria-pressed', on); $('.lbl', ea).textContent = on ? 'Collapse all' : 'Expand all';
+      cards.forEach(function (c) { setOpen(c, on, false); }); save('rh:deep', on);
+    };
+    ea.onclick = function () { setAll(ea.getAttribute('aria-pressed') !== 'true'); };
+    if (load('rh:deep', false)) setAll(true);
+  }
+
+  // deep links: #c-<id> or #<anchor inside a card> opens it
+  function openFromHash() {
+    var h = decodeURIComponent(location.hash.slice(1)); if (!h) return;
+    var el = document.getElementById(h); if (!el) return;
+    var card = el.closest('article.card');
+    if (card && !card.classList.contains('open')) { setOpen(card, true, false); setTimeout(function () { el.scrollIntoView(); }, 480); }
+  }
+  window.addEventListener('hashchange', openFromHash); openFromHash();
+
+  // ---- quiz ----
+  qs.forEach(function (q) {
+    var i = q.dataset.i;
+    var show = $('.qshow', q), y = $('.qbtn.y', q), n = $('.qbtn.n', q);
+    function paint() {
+      var r = P.q[i] || '';
+      q.dataset.r = r; y.setAttribute('aria-pressed', r === 'y'); n.setAttribute('aria-pressed', r === 'n');
+    }
+    show.onclick = function () { var s = q.classList.toggle('show'); show.textContent = s ? 'Hide answer' : 'Show answer'; show.setAttribute('aria-expanded', s); };
+    y.onclick = function () { P.q[i] = P.q[i] === 'y' ? '' : 'y'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    n.onclick = function () { P.q[i] = P.q[i] === 'n' ? '' : 'n'; if (!P.q[i]) delete P.q[i]; paint(); refresh(); };
+    paint();
+  });
+  var ra = $('#reveal-all');
+  if (ra) ra.onclick = function () {
+    var on = ra.getAttribute('aria-pressed') !== 'true'; ra.setAttribute('aria-pressed', on);
+    ra.textContent = on ? 'Hide all answers' : 'Reveal all answers';
+    qs.forEach(function (q) { q.classList.toggle('show', on); var s = $('.qshow', q); s.textContent = on ? 'Hide answer' : 'Show answer'; });
+  };
+  var rs = $('#quiz-reset');
+  if (rs) rs.onclick = function () { P.q = {}; qs.forEach(function (q) { q.dataset.r = ''; $$('.qbtn', q).forEach(function (b) { b.setAttribute('aria-pressed', false); }); }); refresh(); };
+
+  // ---- side dots: current card ----
+  var dots = $$('.dots a');
+  if (dots.length && 'IntersectionObserver' in window) {
+    var map = {}; dots.forEach(function (a) { map[a.dataset.id] = a; });
+    var dio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        dots.forEach(function (a) { a.classList.remove('on'); });
+        var a = map[e.target.dataset.id]; if (a) a.classList.add('on');
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    cards.forEach(function (c) { dio.observe(c); });
+  }
+
+  refresh();
+})();
+
+</script>
+</body>
+</html>

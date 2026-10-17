@@ -1,0 +1,21 @@
+<p><code>sim.py</code> (in this folder, standard library only) models one captured 0-RTT flight replayed against a cluster, with the ticket-age arithmetic from §6 and different replay-cache layouts.</p>
+<pre><code>python3 sim.py            # 8 servers, ±10 s window, 50 replay attempts
+python3 sim.py 16 5 200   # servers, window seconds, attempts</code></pre>
+<pre><code>8 servers, window +/-10s, 50 replay attempts, replay arrives 1 s after the original
+
+no replay protection at all                    runs of one request: 51
+freshness window only                          runs of one request: 51
+freshness + one cache per server               runs of one request: 8
+freshness + one shared cache                   runs of one request: 1
+freshness + cache, replay after window closes  runs of one request: 1</code></pre>
+<ul>
+<li>Freshness alone does nothing against a prompt replay: 51 runs.</li>
+<li>Per-server caches cap it at the number of servers: 8. Your fleet size is your replay count.</li>
+<li>A shared cache gives 1, and a late replay (after the window) is refused by the age check without touching the cache.</li>
+</ul>
+<h3>On the wire (optional)</h3>
+<p>Against a server you control with <code>ssl_early_data on</code>, OpenSSL’s client can send early data. The flags below exist in OpenSSL 3.6 (<code>s_client -help</code>), but I did not run this against a live server here:</p>
+<pre><code>openssl s_client -connect host:443 -tls1_3 -sess_out sess.pem &lt; /dev/null
+printf 'GET / HTTP/1.1\r\nHost: host\r\nConnection: close\r\n\r\n' &gt; req.txt
+openssl s_client -connect host:443 -tls1_3 -sess_in sess.pem -early_data req.txt</code></pre>
+<p>Watch for <code>Early data was accepted</code> or <code>rejected</code>. Run the second command twice quickly and see whether the server’s replay protection refuses the repeat.</p>

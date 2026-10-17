@@ -1,0 +1,10 @@
+<p><b>The core insight:</b> the attacker can’t read, change or forge early data; they can only <i>duplicate</i> it. The binder authenticates the ClientHello, and the early key is derived from the ClientHello’s hash, so any edit changes the key and breaks decryption. So all of the security of 0-RTT reduces to one question: <b>is this request safe to run twice?</b> That is a question the application can answer and TLS cannot.</p>
+<p><b>Ablation: remove each piece.</b></p>
+<ul>
+<li><b>No replay cache:</b> every copy of the flight passes until the ticket expires (up to 7 days) or, if freshness is on, until the window closes. Freshness alone only <i>limits when</i> a replay can happen; it does not limit <i>how many</i> times.</li>
+<li><b>No freshness check:</b> the cache must remember every ClientHello forever. Memory is unbounded; the check is what turns “remember everything” into “remember the last 20 s”.</li>
+<li><b>No age obfuscation:</b> the age field becomes a stable identifier, letting a passive observer link connections that reuse a ticket.</li>
+<li><b>No binder:</b> an attacker could splice a captured ticket into a different ClientHello of their choosing.</li>
+<li><b>No “reject” option:</b> every server with imperfect state would have to take the replay risk or break the client; the escape hatch is what makes deployment survivable.</li>
+<li><b>No application rule (“only send replay-safe data”):</b> everything above still leaves up to N runs per flight. RFC 8446 §8 puts it bluntly: clients “MUST only send early data which they deem safe to be replayed.”</li>
+</ul>

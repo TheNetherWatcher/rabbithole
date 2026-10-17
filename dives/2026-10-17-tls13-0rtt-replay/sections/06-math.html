@@ -1,0 +1,41 @@
+<h3>Hiding and checking the ticket age</h3>
+<p>The server picks a random 32-bit <i>a<sub>add</sub></i> (<code>ticket_age_add</code>) for every ticket. The client measures how long it has held the ticket, <i>a</i> milliseconds, and sends</p>
+<div class="eq">o = (a + a<sub>add</sub>) mod 2<sup>32</sup> &nbsp;&nbsp;&nbsp; server: a′ = (o − a<sub>add</sub>) mod 2<sup>32</sup>
+<small>→ in plain terms: the client adds a secret random offset to its ticket age so a passive observer cannot match two connections by their ages; only the server, who chose the offset, can undo it.</small></div>
+<p>Worked example: <i>a<sub>add</sub></i> = 0x9f3a1c52 = 2 671 385 682, age one hour = 3 600 000 ms, so <i>o</i> = 2 674 985 682 = 0x9f710ad2. The server recovers <i>a′</i> = 3 600 000.</p>
+<p>The server stored (or sealed into the ticket) its creation time <i>T<sub>c</sub></i> and an RTT estimate, then predicts when the ClientHello <i>should</i> arrive:</p>
+<div class="eq">E = T<sub>c</sub> + R̂ + a′ &nbsp;&nbsp;&nbsp; accept 0-RTT iff |E − t<sub>now</sub>| ≤ W
+<small>→ in plain terms: “the client says the ticket is an hour old; I issued it an hour ago, plus one network trip; so this flight should land about now. If it lands far from now, it is old or replayed.” W is about ten seconds for Internet clients (RFC 8446 §8.3).</small></div>
+<figure data-fig="age"></figure>
+<p><b>Why the form?</b> A check on wall-clock time alone would require clients and servers to agree on clocks; using the <i>client’s own elapsed time</i> against the <i>server’s own issue time</i> needs only that clock <i>rates</i> match closely, which they do.</p>
+<h3>How big is the replay cache?</h3>
+<p>The freshness window means an entry only has to live as long as a replay could still pass the age check, about 2W with a symmetric window.</p>
+<div class="eq">M = λ · 2W · b
+<small>→ in plain terms: memory = accepted early-data handshakes per second × how long you must remember each × bytes per entry.</small></div>
+<p>At λ = 10 000 accepts/s, W = 10 s, b = 32 bytes (a SHA-256 of the binder): M = 10 000 × 20 × 32 B = <b>6.4 MB</b>. Real hash tables add overhead, but this is nowhere near a scaling problem. The hard part is <i>coordination</i>, not RAM.</p>
+<h3>A Bloom filter instead of a table</h3>
+<p>A probabilistic set is allowed if a false positive means “reject 0-RTT”, because the cost of a false positive is only the lost round trip. For n = 200 000 entries (the case above) and false-positive rate p:</p>
+<div class="eq">m = −n ln p / (ln 2)<sup>2</sup> &nbsp;&nbsp;&nbsp; k = (m/n) ln 2
+<small>→ in plain terms: bits needed grow with the log of how rarely you tolerate wrongly refusing a legitimate client.</small></div>
+<p>p = 10<sup>−3</sup> gives m ≈ 2.88 Mbit ≈ <b>360 KB</b> and k ≈ 10 hash functions. The asymmetry is the point: a Bloom filter has no false negatives, so it never lets a replay through; its error is the safe error.</p>
+<h3>How many times can one flight run?</h3>
+<div class="eq">replays ≤ N<sub>instances</sub> &nbsp;&nbsp;(each keeps its own cache) &nbsp;&nbsp;&nbsp; replays = 1 &nbsp;&nbsp;(one authority per ticket)
+<small>→ in plain terms: RFC 8446 §8 says the MUST-level guarantee is “at most once per server instance”, which “limits the number of replays to the number of server instances”.</small></div>
+<div class="widget" role="group" aria-label="Replay cache calculator">
+<div class="ctl"><label>Accepts per second λ <b id="mz-l-v">10000</b> <input type="range" id="mz-l" min="100" max="200000" step="100" value="10000"></label></div>
+<div class="ctl"><label>Window W (± seconds) <b id="mz-w-v">10</b> <input type="range" id="mz-w" min="1" max="60" step="1" value="10"></label></div>
+<div class="ctl"><label>Server instances N <b id="mz-n-v">8</b> <input type="range" id="mz-n" min="1" max="64" step="1" value="8"></label></div>
+<p id="mz-out" class="mini" aria-live="polite"></p>
+</div>
+<script>
+(function(){
+  var l=document.getElementById('mz-l'),w=document.getElementById('mz-w'),n=document.getElementById('mz-n');
+  function f(){
+    var L=+l.value,W=+w.value,N=+n.value,mem=L*2*W*32;
+    document.getElementById('mz-l-v').textContent=L;document.getElementById('mz-w-v').textContent=W;document.getElementById('mz-n-v').textContent=N;
+    var mb=mem/1e6,bf=(L*2*W)*6.9078/0.480453/8/1e3;
+    document.getElementById('mz-out').innerHTML='Replay table: <b>'+mb.toFixed(1)+' MB</b> (32 B/entry) &middot; Bloom at p = 10<sup>-3</sup>: <b>'+bf.toFixed(0)+' KB</b> &middot; One captured flight can run up to <b>'+N+'</b> times with a per-server cache, <b>1</b> with a single owner per ticket.';
+  }
+  [l,w,n].forEach(function(e){e.addEventListener('input',f)});f();
+})();
+</script>

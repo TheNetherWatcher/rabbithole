@@ -1,0 +1,64 @@
+<style>
+#zr-info{min-height:7.2em}
+#zr-wire{font:12px/1.55 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0 0;white-space:pre-wrap;overflow-x:auto;color:var(--ink)}
+#zr-wire b{color:var(--accent)}
+#zr-wire i{color:var(--bad);font-style:normal}
+#zr-wire u{color:var(--ok);text-decoration:none}
+</style>
+<p>One returning client, one request. The numbers are made up but follow the RFC’s fields and arithmetic.</p>
+<div class="widget" role="group" aria-label="0-RTT handshake step-through">
+<div class="stepbar">
+  <button class="btn" id="zr-prev" aria-label="Previous step">← Back</button>
+  <button class="btn" id="zr-next" aria-label="Next step">Next →</button>
+  <span class="mini" id="zr-n" aria-live="polite"></span>
+  <div class="info" id="zr-info" aria-live="polite"></div>
+</div>
+<pre id="zr-wire" aria-live="polite"></pre>
+</div>
+<h3>Where the early key comes from</h3>
+<figure data-fig="keys"></figure>
+<p>Everything on the left is known to both sides from the previous connection. Nothing the server sends today appears in the derivation. That is exactly why the data can be sent early, and exactly why it can be replayed.</p>
+<h3>What the server does with the flight</h3>
+<figure data-fig="accept"></figure>
+<p>RFC 8446 §4.2.10 gives the server three ways to answer an <code>early_data</code> extension: ignore it and finish a normal 1-RTT handshake (skipping the early records by trial decryption, up to <code>max_early_data_size</code>), send a HelloRetryRequest, or accept by returning <code>early_data</code> in EncryptedExtensions. It cannot accept “some” of the records. Early data is also not allowed after a HelloRetryRequest.</p>
+<h3>The replay</h3>
+<p>An attacker who copies the first flight gets a second run of steps 5–6 on whatever server receives it. Only the replay cache in step 5 can tell the copy apart from the original: the ticket, binder, key and age all still look valid.</p>
+<script>
+(function(){
+  var steps=[
+    {t:'Visit 1 ends: the ticket',
+     i:'<b>Visit 1.</b> After a full handshake the server sends a <code>NewSessionTicket</code>. The client derives the PSK from the connection’s resumption secret and the ticket nonce. The ticket itself is an opaque blob the server can decrypt later with its ticket-encryption key (STEK).',
+     w:'NewSessionTicket {\n  <b>ticket_lifetime</b>  = 172800        (2 days; RFC caps this at 7 days)\n  <b>ticket_age_add</b>   = 0x9f3a1c52     (random, fresh per ticket)\n  ticket_nonce      = 00\n  ticket            = &lt;opaque, sealed under the STEK&gt;\n  extensions: early_data { <b>max_early_data_size</b> = 16384 }\n}\nclient: PSK = HKDF-Expand-Label(resumption_master_secret, "resumption", ticket_nonce, 32)'},
+    {t:'Visit 2: the ClientHello',
+     i:'<b>One hour later</b> the client builds its ClientHello. It adds an empty <code>early_data</code> extension and a <code>pre_shared_key</code> extension (which must be last). The ticket age is hidden by adding <code>ticket_age_add</code> mod 2<sup>32</sup>, and a <b>binder</b> (an HMAC over the ClientHello) proves the client holds the PSK.',
+     w:'ClientHello {\n  extensions: <b>early_data</b>, psk_key_exchange_modes(psk_dhe_ke), key_share(x25519), ...\n  <b>pre_shared_key</b> {\n    identity              = &lt;the ticket&gt;\n    obfuscated_ticket_age = (3 600 000 ms + 0x9f3a1c52) mod 2^32 = 0x9f710ad2\n    binder                = HMAC(binder_key, Hash(ClientHello up to binders))\n  }\n}'},
+    {t:'Deriving the early key',
+     i:'Before any server message arrives, the client derives the early key. It needs only the PSK and the ClientHello it just built. No server randomness is in there.',
+     w:'Early Secret                 = HKDF-Extract(salt = 0, IKM = PSK)\nclient_early_traffic_secret  = Derive-Secret(Early Secret, "c e traffic", <b>ClientHello</b>)\nkey, iv                      = HKDF-Expand-Label(secret, "key" / "iv", "", ...)'},
+    {t:'Request in the same flight',
+     i:'Right after the ClientHello the client sends its request as ordinary application-data records, sealed under that key. Only application-data bytes count against <code>max_early_data_size</code>.',
+     w:'flight 1  =  ClientHello\n            + [CCS (middlebox compat)]\n            + AppData{ "GET /cart HTTP/1.1\\r\\nHost: shop.example\\r\\n..." }  <b>(0-RTT key)</b>'},
+    {t:'Server decides',
+     i:'The server decrypts the ticket, recovers the PSK, checks the binder, then runs the anti-replay checks. <b>Age:</b> subtract <code>ticket_age_add</code> to get 3 600 000 ms and compare the implied arrival time with its clock. <b>Replay cache:</b> has this binder (or Random) been seen? It also needs the version, cipher suite and ALPN to match the ticket.',
+     w:'client_age        = (0x9f710ad2 - 0x9f3a1c52) mod 2^32 = 3 600 000 ms\nexpected_arrival  = adjusted_creation_time + client_age\n  <u>|expected_arrival - now| &lt; ~10 s ?</u>   <u>binder not in replay cache ?</u>   <u>same cipher / ALPN ?</u>'},
+    {t:'Accept or reject',
+     i:'<b>Accept:</b> EncryptedExtensions carries <code>early_data</code>; the server decrypts and processes the GET at once, and sends its normal handshake. <b>Reject:</b> no <code>early_data</code> in EncryptedExtensions; the server skips the early records and finishes a normal 1-RTT handshake. The client sees the refusal and <b>resends</b> the request on the finished connection.',
+     w:'accept:  EncryptedExtensions { <u>early_data</u> } ... 200 OK for GET /cart\nreject:  EncryptedExtensions { }                 ...  (early records discarded)\n         client: "early data rejected" -> resend GET /cart after Finished'},
+    {t:'Ending the early phase',
+     i:'If early data was accepted, the client sends <code>EndOfEarlyData</code> over TLS/TCP (QUIC omits it) and then its Finished. From here on everything uses fresh, forward-secret keys. Only the early part was exposed to replay.',
+     w:'client -> server:  <b>EndOfEarlyData</b> (under early key), Finished (handshake key)\nfrom now on: application keys derived from the full transcript + fresh (EC)DHE'},
+    {t:'The attacker’s copy',
+     i:'An attacker who recorded flight 1 resends it, to this server or to another one. <b>Without a replay cache</b> every check passes and the GET runs again. <b>With a cache</b> the binder is a duplicate: the server rejects 0-RTT but may still finish the handshake (RFC 8446 §8.2 says stores with false positives must reject, never abort). <b>On a different server</b> with its own empty cache the copy is accepted once more.',
+     w:'attacker: replay flight 1 bytes (ticket, binder, early records unchanged)\n  server A (cache has binder):  <i>reject 0-RTT</i>\n  server B (own cache, empty):  <u>accept 0-RTT</u>  -> request runs again\n  <i>cluster-wide: at most once per server instance (RFC 8446 §8)</i>'}
+  ];
+  var cur=0;
+  function draw(){var s=steps[cur];
+    document.getElementById('zr-info').innerHTML=s.i;
+    document.getElementById('zr-wire').innerHTML=s.w;
+    document.getElementById('zr-n').textContent='STEP '+(cur+1)+' / '+steps.length;
+    document.getElementById('zr-prev').disabled=cur===0;document.getElementById('zr-next').disabled=cur===steps.length-1;}
+  document.getElementById('zr-prev').onclick=function(){if(cur>0){cur--;draw()}};
+  document.getElementById('zr-next').onclick=function(){if(cur<steps.length-1){cur++;draw()}};
+  draw();
+})();
+</script>

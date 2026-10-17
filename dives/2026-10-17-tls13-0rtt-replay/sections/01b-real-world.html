@@ -1,0 +1,28 @@
+<h3>What it is</h3>
+<p><b>TLS 1.3 early data</b> (“0-RTT”) lets a client that already holds a resumption ticket send application data in its <i>first flight</i>, glued to the ClientHello. The data is encrypted under a key derived from the ticket’s PSK, so the server can decrypt and act on it before the handshake finishes.</p>
+<h3>Why it exists</h3>
+<p>A TLS 1.3 handshake costs one round trip before the first request can leave. On a 100 ms mobile path that is 100 ms on every cold connection, and for QUIC it is half of the total time to first response (2 RTT → 1 RTT). Operators who serve static pages and APIs from CDNs wanted that back. The cost is a security property: <a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">RFC 8446</a> §2.3 says “there are no guarantees of non-replay between connections” for early data.</p>
+<h3>Where it’s used</h3>
+<ul>
+<li><b>nginx</b> (1.15.3+, OpenSSL 1.1.1+ or BoringSSL): <code>ssl_early_data</code>, off by default; <code>$ssl_early_data</code> is <code>"1"</code> while the request is still in early data.</li>
+<li><b>OpenSSL / BoringSSL</b>: the server-side hooks (<code>SSL_read_early_data</code>, <code>SSL_write_early_data</code>) and the library’s own anti-replay option. nginx notes the OpenSSL anti-replay is <i>disabled</i> by default because it breaks resumption.</li>
+<li><b>QUIC / HTTP/3</b>: <a href="https://www.rfc-editor.org/rfc/rfc9001#section-9.2" target="_blank" rel="noopener">RFC 9001 §9.2</a> says endpoints “MUST implement and use the replay protections described in [TLS13], however it is recognized that these protections are imperfect.”</li>
+<li><b>CDNs</b>: Cloudflare offers 0-RTT as a zone setting and tells origins about early-data requests with an <code>Early-Data: 1</code> header (per its docs as summarized in search results, not read in full; Trail of Bits’ 2019 post describes the same idea).</li>
+<li><b>Go’s standard <code>crypto/tls</code></b> has no early-data switch for TLS over TCP (I read the <code>Config</code> struct on pkg.go.dev); Go’s early data lives on the QUIC side.</li>
+<li><b>HTTP layer</b>: <a href="https://www.rfc-editor.org/rfc/rfc8470" target="_blank" rel="noopener">RFC 8470</a> defines the <code>Early-Data: 1</code> request header and the <code>425 Too Early</code> status.</li>
+</ul>
+<h3>How it’s used</h3>
+<p>Switch it on at the TLS terminator, then make the app aware of it:</p>
+<pre><code># nginx
+ssl_early_data on;
+proxy_set_header Early-Data $ssl_early_data;     # origin sees "1" for early-data requests
+# optional, off by default because it breaks resumption on OpenSSL:
+# ssl_conf_command Options AntiReplay;</code></pre>
+<p>The origin then applies RFC 8470: if <code>Early-Data: 1</code> is present and the request is not safe to run twice, answer <code>425 Too Early</code>. A client that gets 425 MUST retry, and the retry MUST NOT be sent as early data.</p>
+<h3>When to use it, when not to</h3>
+<div class="two">
+<div class="use"><b>Use when</b> the early requests are reads (<code>GET</code>/<code>HEAD</code>/<code>OPTIONS</code> with no side effects), the latency win matters (mobile, intercontinental, first-paint), and you know where replay state lives.</div>
+<div class="skip"><b>Skip when</b> requests change state (payments, orders, votes, counters), a GET has side effects, or you front a fleet that does not share replay state and cannot be sure the origin checks the header.</div>
+</div>
+<h3>Who should care</h3>
+<p><b>Infra and CDN engineers</b> who flip the switch; <b>backend developers</b> whose endpoints suddenly receive replayed requests; <b>security reviewers</b> who must treat early data as replayable and not forward secret; <b>client authors</b> who decide what may go in early data and must handle rejection.</p>

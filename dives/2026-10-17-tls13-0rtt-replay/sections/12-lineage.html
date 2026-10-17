@@ -1,0 +1,9 @@
+<ol>
+<li><b>TLS 1.2 session tickets</b> (RFC 5077, 2008): stateless resumption, but the first request still waits a round trip.</li>
+<li><b>Google QUIC</b> (designed ~2013): sent a request in the first packet by caching server config; replay was an accepted trade-off.</li>
+<li><b>OPTLS</b> (Krawczyk &amp; Wee, 2015, <a href="https://eprint.iacr.org/2015/978.pdf" target="_blank" rel="noopener">ePrint 2015/978</a>): the design background for 0-RTT with forward-secrecy goals in TLS 1.3.</li>
+<li><b>TLS 1.3 drafts 2015–2017</b>: a (EC)DHE-based 0-RTT mode and a PSK-based 0-RTT mode were analysed (Fischlin &amp; Günther, 2017, draft-12 and draft-14). The final standard keeps only PSK-based 0-RTT.</li>
+<li><b>RFC 8446</b> (2018): early_data, the three anti-replay mechanisms in §8, the “clients MUST only send replay-safe early data” rule.</li>
+<li><b>RFC 8470</b> (2018): <code>Early-Data</code> header and <code>425 Too Early</code>. <b>RFC 9001</b> (2021): QUIC inherits it.</li>
+<li><b>2019 → 2026</b>: forward-secure 0-RTT constructions, then post-quantum resumption.</li>
+</ol>

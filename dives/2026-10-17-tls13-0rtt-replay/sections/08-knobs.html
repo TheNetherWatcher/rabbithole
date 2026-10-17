@@ -1,0 +1,16 @@
+<table><thead><tr><th>Knob</th><th>Tighter</th><th>Looser</th></tr></thead><tbody>
+<tr><td>Ticket lifetime (≤ 7 days, RFC)</td><td>Short: smaller replay and theft horizon</td><td>Long: more resumptions succeed; with no cache, a longer replay horizon</td></tr>
+<tr><td><code>max_early_data_size</code></td><td>Small: less to replay, less to buffer</td><td>Large: bigger requests fit, bigger blast radius per replay</td></tr>
+<tr><td>Acceptance window W (~10 s)</td><td>Small: smaller cache, more legit clients rejected (jitter, retransmits)</td><td>Large: bigger cache, wider replay window</td></tr>
+<tr><td>Replay store</td><td>Single-use ticket DB (strict, stateful) · one owner zone per ticket (strong)</td><td>Per-zone caches (once per zone) · per-node (once per node) · none</td></tr>
+<tr><td>Which requests may be early</td><td><code>GET</code>/<code>HEAD</code>/<code>OPTIONS</code> only; <code>Early-Data</code> header; 425 for the rest</td><td>Anything (the client alone decides)</td></tr>
+<tr><td>Ticket-key (STEK) rotation</td><td>Frequent: limits who can decrypt recorded early data later</td><td>Rare: weaker secrecy of recorded early data</td></tr>
+</tbody></table>
+<h3>Alternatives</h3>
+<ul>
+<li><b>Don’t use 0-RTT.</b> TLS 1.3 resumption is already 1-RTT, so the usual alternative costs one extra round trip.</li>
+<li><b>TCP Fast Open</b> also carries data before the handshake completes, so applications there face an analogous duplicate-delivery caveat (not researched in depth here).</li>
+<li><b>QUIC 0-RTT</b> is this mechanism, with the same trade-offs and the same RFC 8446 defenses (RFC 9001 §9.2).</li>
+<li><b>Application-level idempotency keys</b> (a unique ID per operation that the server dedupes) remove the problem at the layer that can actually solve it, whatever the transport does.</li>
+</ul>
+<p><b>Why 0-RTT won where it won:</b> reads from a CDN edge are idempotent and plentiful, and latency to first byte is what users feel. For payments, nobody trades a round trip for a double charge.</p>

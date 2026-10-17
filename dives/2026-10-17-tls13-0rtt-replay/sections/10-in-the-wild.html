@@ -1,0 +1,9 @@
+<ul>
+<li><b>nginx</b>: <code>ssl_early_data</code> is off by default (since 1.15.3). <code>$ssl_early_data</code> is <code>"1"</code> during early data and empty after the handshake. The docs add that OpenSSL’s built-in anti-replay is off by default because it breaks resumption; opt in with <code>ssl_conf_command Options AntiReplay;</code>. An open bug report (nginx issue #1536) says a server-level <code>on</code> can be ignored when the http block disables it; I did not confirm whether the fix (PR #1557) has merged.</li>
+<li><b>HTTP semantics</b>: RFC 8470 says a server that cannot safely process a request MUST answer <code>425</code>; intermediaries MUST set <code>Early-Data: 1</code> when forwarding an early-data request; clients MUST retry on 425 and retries MUST NOT be early data; 425 is not cacheable by default.</li>
+<li><b>QUIC</b>: RFC 9001 §9.2 requires the RFC 8446 replay protections and notes they are imperfect; accepting 0-RTT “incurs a higher cost”; rejection is an <code>EncryptedExtensions</code> without <code>early_data</code>.</li>
+<li><b>Cloudflare</b> (second-hand, see §1b): early-data limited to safe methods by its docs, an <code>Early-Data</code>-style signal to the origin, and a unique-value header so origins can dedupe non-idempotent endpoints against shared state, per Trail of Bits.</li>
+<li><b>Go</b>: the stdlib TCP stack has no early-data toggle; the QUIC side has its own session-ticket early-data option (name per a search snippet, unverified).</li>
+<li><b>Multi-server reality</b>: an upgrade of the terminating software can silently turn the feature on; operators rarely know whether replay state is shared across their fleet.</li>
+</ul>
+<p><b>Deviation from the textbook:</b> the RFC’s ideal is “accept at most once”. Real deployments commonly accept “at most once per node or zone” and push the rest to the app via headers and 425.</p>

@@ -1,0 +1,437 @@
+{
+ "meta": {
+  "title": "TLS 1.3 0-RTT early data: replay windows, ticket age, and idempotency",
+  "short": "TLS 1.3 0-RTT replay",
+  "subject": "Computer science",
+  "domain": "Networking/protocols",
+  "topic": "TLS 1.3 0-RTT early data: PSK resumption, anti-replay windows, why idempotency is the app’s problem",
+  "depth": "hard",
+  "date": "2026-10-17"
+ },
+ "hero": "img/hero.svg",
+ "cold_open": "sections/cold-open.html",
+ "story": {
+  "file": "sections/story.html",
+  "kicker": "The whole idea in 9 scrolls",
+  "title": "How a returning phone saves a round trip, and why a stranger can make it run twice"
+ },
+ "tldr": "A TLS 1.3 client holding a resumption ticket can send its request in the <b>first flight</b>, encrypted with a key made from the ticket alone. That saves <b>one round trip</b>, but no fresh server randomness is involved, so a network attacker can <b>replay</b> it. Servers fight back with a <b>replay cache</b> and a <b>~10 s freshness window</b>, yet a cluster only gets “at most once per server”.",
+ "why": "<b>Why it matters:</b> 0-RTT is a real latency win for reads and a real double-charge risk for writes, and the line between them is drawn by your application, not by TLS.",
+ "stats": [
+  {
+   "v": "1 RTT",
+   "l": "saved on the first request"
+  },
+  {
+   "v": "~10 s",
+   "l": "freshness window for Internet clients"
+  },
+  {
+   "v": "7 days",
+   "l": "maximum ticket lifetime"
+  },
+  {
+   "v": "N",
+   "l": "max replays with one cache per server"
+  },
+  {
+   "v": "6.4 MB",
+   "l": "replay cache at 10k accepts/s, ±10 s"
+  }
+ ],
+ "cards": [
+  {
+   "id": "plain",
+   "kicker": "In everyday words",
+   "title": "A returning customer can order before saying hello, and anyone can copy the order",
+   "visual": "img/plain.svg",
+   "brief": "<p>A members’ card lets you hand over your order the moment you reach the counter. 0-RTT does that for a returning phone. The catch is a photocopier: the sealed order can be duplicated, and the shop notices only if it keeps a log.</p>",
+   "file": "sections/00-plain.html",
+   "group": "Plain English",
+   "tone": "plain"
+  },
+  {
+   "id": "ctx",
+   "kicker": "§1 · Bare-minimum context",
+   "title": "Six ideas to bring along",
+   "visual": "img/ctx.svg",
+   "brief": "<p>RTT, the TLS 1.3 handshake, PSK resumption tickets, AEAD records, idempotency, and the fact that QUIC reuses all of it.</p>",
+   "file": "sections/01-context.html",
+   "group": "Context"
+  },
+  {
+   "id": "world",
+   "kicker": "§1b · Real-world context",
+   "title": "nginx, QUIC and CDNs ship it, mostly for safe reads",
+   "visual": "img/world.svg",
+   "brief": "<p>Early data lets a client with a ticket put its request in the first flight. nginx ships it <b>off by default</b>; QUIC requires replay protection that RFC 9001 calls “imperfect”; origins get an <code>Early-Data: 1</code> header and can answer <b>425</b>.</p>",
+   "file": "sections/01b-real-world.html"
+  },
+  {
+   "id": "onel",
+   "kicker": "§2 · The one-liner",
+   "title": "“Saves a round trip” hides five costs",
+   "visual": "img/onel.svg",
+   "brief": "<p>It saves <b>exactly one</b> round trip, the data is <b>replayable</b>, it is <b>not forward secret</b>, the server may silently <b>refuse</b>, and the defenses need <b>state</b> that fleets rarely share.</p>",
+   "file": "sections/02-one-liner.html",
+   "group": "Technical deep dive"
+  },
+  {
+   "id": "problem",
+   "kicker": "§3 · The problem",
+   "title": "Sending data before the handshake ends needs a key both sides already hold",
+   "visual": "img/problem.svg",
+   "brief": "<p>A resumed TLS 1.3 handshake still makes the request wait a round trip. To send earlier, the client must encrypt under something the server already knows: the ticket’s PSK. That is where replayability and the missing forward secrecy come from. <span class=\"mini\">Figure inside.</span></p>",
+   "file": "sections/03-problem.html",
+   "guess": "rtt"
+  },
+  {
+   "id": "model",
+   "kicker": "§4 · Mental model",
+   "title": "A stamped card plus a sealed slip: copyable, not forgeable",
+   "visual": "img/model.svg",
+   "brief": "<p>The card proves “been here before”; the slip is sealed with a code from the card. Onlookers can’t read or alter it, only duplicate it. Unlike a real card, a ticket is only “spent” if the shop <i>records</i> it.</p>",
+   "file": "sections/04-mental-model.html"
+  },
+  {
+   "id": "mech",
+   "kicker": "§5 · The mechanism, traced",
+   "title": "Ticket in, early key out, then accept or refuse",
+   "visual": "img/mech.svg",
+   "brief": "<p>The client derives an early key from the PSK and its own ClientHello, sends <code>GET /cart</code> in the first flight, and the server runs four checks: ticket, binder, age, replay cache. <span class=\"mini\">Step-through and two diagrams inside.</span></p>",
+   "file": "sections/05-mechanism.html",
+   "guess": "reject"
+  },
+  {
+   "id": "math",
+   "kicker": "§6 · The math",
+   "title": "A ±10 s window turns “remember everything” into megabytes",
+   "visual": "img/math.svg",
+   "brief": "<p>The ticket age is hidden as <i>(age + ticket_age_add) mod 2³²</i> and checked against the clock. That bounds the replay cache to <b>λ · 2W · b</b> bytes, a few megabytes. A Bloom filter fits in ~360 KB. <span class=\"mini\">Calculator inside.</span></p>",
+   "file": "sections/06-math.html",
+   "guess": "cache"
+  },
+  {
+   "id": "why",
+   "kicker": "§7 · Why it works",
+   "title": "The attacker can only duplicate, never read or change",
+   "visual": "img/why.svg",
+   "brief": "<p>The binder and the ClientHello-bound key stop tampering, so the whole risk reduces to “is this request safe to run twice?”. Freshness limits <i>when</i> a replay can land; the cache limits <i>how often</i>; only the app can make “twice” harmless.</p>",
+   "file": "sections/07-why-it-works.html"
+  },
+  {
+   "id": "knobs",
+   "kicker": "§8 · Knobs and alternatives",
+   "title": "Window, lifetime and replay store: each trades memory for replay risk",
+   "visual": "img/knobs.svg",
+   "brief": "<p>Ticket lifetime (≤ 7 days), <code>max_early_data_size</code>, window W, where replay state lives, and which methods may be early. The real alternative is not using it: resumption is already 1-RTT.</p>",
+   "file": "sections/08-knobs.html"
+  },
+  {
+   "id": "breaks",
+   "kicker": "§9 · Where it breaks",
+   "title": "Replays, retries and forward secrecy are three different failures",
+   "visual": "img/breaks.svg",
+   "brief": "<p>State-changing requests replayed, “GETs” that aren’t safe, client retries TLS can’t see, a cluster whose replay state isn’t shared, and early data that dies with the ticket key. <span class=\"mini\">Diagram inside.</span></p>",
+   "file": "sections/09-where-it-breaks.html",
+   "guess": "nodes"
+  },
+  {
+   "id": "wild",
+   "kicker": "§10 · In the wild",
+   "title": "nginx off by default, QUIC requires it, Go’s TCP stack skips it",
+   "visual": "img/wild.svg",
+   "brief": "<p><code>ssl_early_data</code> and <code>$ssl_early_data</code> in nginx; OpenSSL’s own anti-replay is off because it breaks resumption; RFC 8470 defines the header and the <b>425</b> status. Real fleets often get “at most once per node”, not once.</p>",
+   "file": "sections/10-in-the-wild.html"
+  },
+  {
+   "id": "frontier",
+   "kicker": "§11 · Frontier",
+   "title": "Replay handling is settled; post-quantum tickets are the live edge",
+   "visual": "img/frontier.svg",
+   "brief": "<p>One verified 2026 paper (hybrid X25519 + ML-KEM resumption), plus 2016–2019 formal analyses and forward-secure constructions. Leads on multi-server replay state were unreadable, so they are listed, not relied on.</p>",
+   "file": "sections/11-frontier.html",
+   "group": "Research edge"
+  },
+  {
+   "id": "open",
+   "kicker": "§11b · Open problems",
+   "title": "Who tells the application the request is early?",
+   "visual": "img/open.svg",
+   "brief": "<p>The <code>Early-Data</code> signal is advisory, shared replay state costs latency, forward-secure 0-RTT is not mainstream, and nobody has measured how many fleets share any state at all.</p>",
+   "file": "sections/11b-open-problems.html"
+  },
+  {
+   "id": "lineage",
+   "kicker": "§12 · Lineage",
+   "title": "From TLS 1.2 tickets and Google QUIC to RFC 8446’s one surviving 0-RTT mode",
+   "visual": "img/lineage.svg",
+   "brief": "<p>RFC 5077 tickets → QUIC’s first-packet requests → OPTLS → TLS 1.3 drafts (two 0-RTT modes) → RFC 8446 (PSK only) → RFC 8470 and RFC 9001 → post-quantum resumption.</p>",
+   "file": "sections/12-lineage.html"
+  },
+  {
+   "id": "hands",
+   "kicker": "§13 · Hands-on",
+   "title": "Count how many times one captured flight can run",
+   "visual": "img/hands.svg",
+   "brief": "<p>A standard-library simulation of the ticket-age check and three replay-cache layouts: no cache (51 runs), one cache per server (8), one shared cache (1). Optional OpenSSL commands included.</p>",
+   "file": "sections/13-hands-on.html",
+   "group": "Practice & self-test"
+  },
+  {
+   "id": "quiz",
+   "kicker": "§14 · Question ladder",
+   "title": "Test yourself",
+   "visual": "img/quiz.svg",
+   "brief": "<p>20 questions across mechanism, why, counterfactual, adversarial, connection and open. Tick each one you could answer.</p>",
+   "builtin": "quiz"
+  },
+  {
+   "id": "next",
+   "kicker": "§15 · Go deeper next",
+   "title": "Three topics that build on this",
+   "visual": "img/next.svg",
+   "brief": "<p>Ticket-key rotation and forward secrecy, QUIC connection setup, and idempotency keys in API design.</p>",
+   "file": "sections/15-go-deeper.html",
+   "group": "Further"
+  },
+  {
+   "id": "sources",
+   "kicker": "Sources",
+   "title": "Standards, papers, docs, and leads I could not open",
+   "visual": "img/sources.svg",
+   "brief": "<p>RFC 8446, 8470 and 9001; the replay and verification papers; nginx and Go docs; two practitioner posts; and a short list of unverified leads.</p>",
+   "file": "sections/99-sources.html",
+   "credits": true
+  }
+ ],
+ "guesses": {
+  "cold": {
+   "q": "An attacker copies one encrypted 0-RTT request and sends it again. With no extra defense, how many times can the server run it?",
+   "options": [
+    "Once, TLS spots the copy",
+    "Twice at most",
+    "As many times as they send it",
+    "Never: copies fail to decrypt"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>As many as they send.</b> RFC 8446 §2.3: “There are no guarantees of non-replay between connections.” The copy decrypts fine because its key needs nothing from the server. Replay caches, a freshness window and app-level care cut it down.</p>"
+  },
+  "rtt": {
+   "q": "A phone is 100 ms from the server and connects over TCP. A resumed TLS 1.3 request takes 300 ms to get its first response. How many ms does 0-RTT shave off?",
+   "min": 0,
+   "max": 300,
+   "step": 10,
+   "unit": " ms",
+   "answer": 100,
+   "start": 150,
+   "tol": 20,
+   "reveal": "<p><b>100 ms: one round trip.</b> A resumed TLS 1.3 handshake is already 1-RTT, so 0-RTT removes that one (300 → 200 ms). The TCP handshake is a separate round trip. Over QUIC it halves the wait (200 → 100 ms).</p>"
+  },
+  "reject": {
+   "q": "The server decides to reject early data (say the ticket age looks wrong). What happens to the request the client already sent?",
+   "options": [
+    "The connection fails",
+    "The server runs it anyway",
+    "It is discarded and the client resends it after the handshake",
+    "The server queues it and runs it later"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>Discarded, then resent.</b> RFC 8446 §4.2.10: the server skips the early records (trial-decrypting with the handshake key, up to <code>max_early_data_size</code>) and finishes a normal 1-RTT handshake. The client sees no <code>early_data</code> in EncryptedExtensions and resends.</p>"
+  },
+  "cache": {
+   "q": "A server accepts 10,000 early-data handshakes per second and must remember each one for 20 s, at 32 bytes each. How big is the replay cache?",
+   "min": 0,
+   "max": 50,
+   "step": 0.5,
+   "unit": " MB",
+   "answer": [
+    5,
+    8
+   ],
+   "start": 25,
+   "tol": 3,
+   "reveal": "<p><b>6.4 MB</b> (10,000 × 20 × 32 B). The freshness window is what keeps it this small; without it the cache would grow forever. The hard part of anti-replay is coordinating it across servers, not storing it.</p>"
+  },
+  "nodes": {
+   "q": "8 servers each keep their own replay cache and share ticket keys. An attacker replays one captured flight at every server. At most how many times can it run?",
+   "options": [
+    "1",
+    "2",
+    "8",
+    "Unlimited"
+   ],
+   "answer": 2,
+   "reveal": "<p><b>8.</b> RFC 8446 §8: the guarantee is “at most once per server instance”, which “limits the number of replays to the number of server instances”. One shared cache, or one owner zone per ticket, gets it to 1.</p>"
+  }
+ },
+ "questions": [
+  {
+   "type": "Mechanism",
+   "q": "What exactly does the server compute from <code>obfuscated_ticket_age</code>, and what does it compare the result with?",
+   "a": "It subtracts its stored <code>ticket_age_add</code> mod 2³² to get the client’s view of the ticket age, adds that to the ticket’s creation time (plus an RTT estimate) to predict when the ClientHello should arrive, and compares that with its own clock. Outside about ±10 s it rejects 0-RTT.",
+   "sec": "math"
+  },
+  {
+   "type": "Mechanism",
+   "q": "Which two inputs does <code>client_early_traffic_secret</code> depend on?",
+   "a": "The PSK (through the Early Secret) and the ClientHello transcript hash: <code>Derive-Secret(Early Secret, \"c e traffic\", ClientHello)</code>. No server input, which is why the data can be sent before the server speaks.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "The server rejects early data. What does it do with the records already on the wire?",
+   "a": "It skips them: it tries to deprotect incoming records with the handshake key, discards the ones that fail (up to <code>max_early_data_size</code>), and treats the first one that succeeds as the client’s second flight. With a HelloRetryRequest it skips all application_data records instead.",
+   "sec": "mech"
+  },
+  {
+   "type": "Mechanism",
+   "q": "What does the PSK binder cover, and why must <code>pre_shared_key</code> be the last extension?",
+   "a": "The binder is an HMAC over the ClientHello up to (not including) the binders, keyed by the PSK. The extension must be last so everything that precedes it is covered by the binder computation.",
+   "sec": "mech"
+  },
+  {
+   "type": "Why",
+   "q": "Why add <code>ticket_age_add</code> to the age?",
+   "a": "Without it the age is a stable number an observer could use to link connections that reuse a ticket. The random per-ticket offset hides it from everyone except the server that chose it.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why must a Bloom-filter replay store reject 0-RTT on a hit instead of aborting?",
+   "a": "A false positive would otherwise kill a legitimate connection. Rejecting only costs the client the round trip, and a Bloom filter has no false negatives, so it never lets a replay through.",
+   "sec": "math"
+  },
+  {
+   "type": "Why",
+   "q": "Why can’t TLS prevent the client-retry class of attack?",
+   "a": "The server sees two separate, legitimately encrypted requests from a client that thinks the first one failed. Nothing at the TLS layer links them, so the application must dedupe.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Why",
+   "q": "Why is early data not forward secret when 1-RTT data is?",
+   "a": "1-RTT keys mix in a fresh ephemeral (EC)DHE secret that is deleted afterwards. Early keys come only from the PSK, so whoever later obtains the ticket-encryption key or PSK can decrypt recorded early data.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "Keep the ClientHello cache but remove the freshness check. What breaks?",
+   "a": "The cache must now remember every ClientHello forever, because any old flight could be replayed. Freshness is what lets entries expire after ~2W.",
+   "sec": "why"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "If the server mixed fresh randomness into the early key, what would it cost?",
+   "a": "The client would have to wait for the server’s share, which is exactly the round trip 0-RTT saves, and the first-flight data could no longer be encrypted.",
+   "sec": "problem"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if all 8 nodes shared ticket keys but nobody shared caches, versus sharding tickets by hash to one owner node?",
+   "a": "Shared keys alone let every node decrypt the ticket, so each accepts once: up to 8 runs. Routing each ticket to one owner that alone accepts 0-RTT, and rejecting elsewhere, gives 1.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Counterfactual",
+   "q": "What if ticket lifetime were 30 seconds?",
+   "a": "The replay horizon and theft horizon shrink dramatically, but few clients would hold a valid ticket when they return, so most resumptions (and so most 0-RTT) would disappear.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Adversarial",
+   "q": "You sit on the café wifi. How do you make the app charge twice, and what stops you?",
+   "a": "Record the first flight of a <code>POST /pay</code> sent as early data and resend it. A replay cache catches repeats on that server, but the real stops are: the client must not send non-idempotent requests early, and the server must answer 425 for early-data requests it can’t safely repeat.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "You delay a flight by 8 s instead of copying it. Why does the freshness check let it through, and is it harmful?",
+   "a": "The age check passes inside ±10 s. It is not a duplicate, so the cache won’t flag it; it is a delay attack on a request that is still valid. Whether that matters depends on the request’s time sensitivity.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Adversarial",
+   "q": "How does stealing the ticket-encryption key (STEK) change the threat?",
+   "a": "The attacker can decrypt every ticket they recorded, recover the PSKs, and decrypt any recorded early data, and can mint tickets. Early data has no forward secrecy against this.",
+   "sec": "breaks"
+  },
+  {
+   "type": "Connection",
+   "q": "How do HTTP idempotency and the 425 status relate?",
+   "a": "The origin uses <code>Early-Data: 1</code> to know the request arrived early; for non-idempotent ones it answers 425, which tells the client to retry after the handshake (not as early data).",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How is QUIC 0-RTT different from TLS-over-TCP 0-RTT?",
+   "a": "It is the same TLS mechanism carried in QUIC packets; QUIC omits <code>EndOfEarlyData</code>, rejection shows up as an EncryptedExtensions without <code>early_data</code>, and RFC 9001 §9.2 says the replay protections are mandatory but imperfect.",
+   "sec": "wild"
+  },
+  {
+   "type": "Connection",
+   "q": "How does an application-level idempotency key relate to 0-RTT replay defenses?",
+   "a": "Both turn “run twice” into “run once”, but the key does it at the layer that knows what the operation means, so it works for retries, replays and every transport.",
+   "sec": "knobs"
+  },
+  {
+   "type": "Open",
+   "q": "Should CDNs enable 0-RTT by default?",
+   "a": "Contested: the win is real for reads, the risk is concentrated in origins that never learn the request was early. No consensus from what I could verify.",
+   "sec": "open"
+  },
+  {
+   "type": "Open",
+   "q": "How would you measure how many deployments share replay state?",
+   "a": "Nobody I found has published such a measurement. You would need active probing: replay one captured flight to many addresses of the same service and count how many accept it.",
+   "sec": "open"
+  }
+ ],
+ "figures": {
+  "flow": {
+   "original": true,
+   "file": "img/fig/own-flow-compare.svg",
+   "caption": "Message ladders for a full handshake, a 1-RTT resumption and a 0-RTT resumption: only the last lets the request leave in the first flight.",
+   "source": {
+    "cite": "RFC 8446 §2.3 (Fig. 4)",
+    "url": "https://www.rfc-editor.org/rfc/rfc8446",
+    "figure": "Fig. 4"
+   }
+  },
+  "keys": {
+   "original": true,
+   "file": "img/fig/own-early-keys.svg",
+   "caption": "How the early traffic secret is derived: from the resumption secret through the PSK and Early Secret, with no server input.",
+   "source": {
+    "cite": "RFC 8446 §7.1",
+    "url": "https://www.rfc-editor.org/rfc/rfc8446",
+    "figure": "§7.1"
+   }
+  },
+  "accept": {
+   "original": true,
+   "file": "img/fig/own-accept-flow.svg",
+   "caption": "The server’s four checks before it accepts early data; any “no” falls back to a normal handshake."
+  },
+  "age": {
+   "original": true,
+   "file": "img/fig/own-age-window.svg",
+   "caption": "The ticket-age check: the server predicts when the ClientHello should arrive and accepts only a flight that lands near that time.",
+   "source": {
+    "cite": "RFC 8446 §8.3",
+    "url": "https://www.rfc-editor.org/rfc/rfc8446",
+    "figure": "§8.3"
+   }
+  },
+  "cluster": {
+   "original": true,
+   "file": "img/fig/own-cluster-replay.svg",
+   "caption": "The same captured flight replayed at three cluster designs: runs once per node, once per zone, or once overall.",
+   "source": {
+    "cite": "RFC 8446 §8, §8.2",
+    "url": "https://www.rfc-editor.org/rfc/rfc8446",
+    "figure": "§8"
+   }
+  }
+ }
+}

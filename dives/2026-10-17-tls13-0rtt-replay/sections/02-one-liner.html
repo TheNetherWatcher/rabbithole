@@ -1,0 +1,8 @@
+<blockquote>“0-RTT lets a returning client send its request in the first packet, so you save a round trip.”</blockquote>
+<ol>
+<li><b>It saves exactly one round trip, not “zero”.</b> A TLS 1.3 resumption is already 1-RTT; 0-RTT removes that one. Over TCP the TCP handshake is a separate round trip.</li>
+<li><b>The data is replayable.</b> No fresh server randomness goes into its key, so a network attacker can resend the flight and every check passes.</li>
+<li><b>It is not forward secret.</b> The early key comes from the PSK alone; whoever later gets the ticket-encryption key can decrypt recorded early data.</li>
+<li><b>The server may refuse, silently.</b> It can skip the early data and complete a normal handshake. The client must be ready to resend.</li>
+<li><b>Defenses need state, and fleets rarely share it.</b> The RFC’s minimum is “at most once per server instance”, which is not the same as once.</li>
+</ol>
